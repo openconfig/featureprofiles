@@ -57,7 +57,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 	configqos := gnmi.OC().Qos()
 	gnmi.Replace(t, dut, configqos.Config(), qos)
-	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
+	configGotqos := gnmi.Get(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -85,7 +85,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 	}
 	ConfigSced := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Replace(t, dut, ConfigSced.Config(), schedulerpol)
-	ConfigGotSched := gnmi.GetConfig(t, dut, ConfigSced.Config())
+	ConfigGotSched := gnmi.Get(t, dut, ConfigSced.Config())
 	if diff := cmp.Diff(*ConfigGotSched, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -103,7 +103,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		queueout.SetName(priorque)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Config(), schedinterface)
-	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
+	ConfigGetIntf := gnmi.Get(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
 	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -127,7 +127,7 @@ func TestQmRedPrSetReplaceQueue(t *testing.T) {
 		wredqueumreduni.SetDrop(false)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
-		// configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		// configGotQM := gnmi.Get(t, dut, configqm.Config())
 		// if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 		// 	t.Errorf("Config Schedule fail: \n%v", diff)
 		// }
@@ -187,14 +187,14 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
 	t.Logf("/")
-	gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
 	for i, queue := range queues {
@@ -221,7 +221,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -246,7 +246,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		weight += 10
 		//configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		// gnmi.Replace(t, dut, configInputwrr.Config(), inputwrr)
-		// configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		// configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 		// 	t.Errorf("Config Input fail: \n%v", diff)
 		// }
@@ -255,7 +255,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	//confignonprior.Replace(t, schedulenonprior)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -276,7 +276,7 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 	//gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Config(), schedinterface)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
-	ConfigGetIntf := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
+	ConfigGetIntf := gnmi.Get(t, dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Config())
 	if diff := cmp.Diff(*ConfigGetIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -319,7 +319,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -350,7 +350,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -373,7 +373,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -381,7 +381,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
 	gnmi.Replace(t, dut, confignonprior.Config(), schedulerpol)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -401,7 +401,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	}
 	ConfigOutput := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
 	gnmi.Replace(t, dut, ConfigOutput.Config(), schedinterfaceout)
-	ConfigOutputGot := gnmi.GetConfig(t, dut, ConfigOutput.Config())
+	ConfigOutputGot := gnmi.Get(t, dut, ConfigOutput.Config())
 	if diff := cmp.Diff(*ConfigOutputGot, *schedinterfaceout); diff != "" {
 		t.Errorf("Config Input fail: \n%v", diff)
 	}
@@ -429,7 +429,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), redqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -443,7 +443,7 @@ func TestQmRedWrrSetReplaceOuput(t *testing.T) {
 	}
 	ConfigOut := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
 	gnmi.Replace(t, dut, ConfigOut.Config(), schedinterfaceoutrep)
-	ConfigGotOut := gnmi.GetConfig(t, dut, ConfigOut.Config())
+	ConfigGotOut := gnmi.Get(t, dut, ConfigOut.Config())
 	if diff := cmp.Diff(*ConfigGotOut, *schedinterfaceoutrep); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -486,7 +486,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
 		gnmi.Replace(t, dut, configqm.Config(), wredqueumreduni)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -517,7 +517,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -540,7 +540,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		weight += 10
 		// configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		// gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		// configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		// configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 		// 	t.Errorf("Config Input fail: \n%v", diff)
 		// }
@@ -549,7 +549,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	//confignonprior.Update(t, schedulenonprior)
 	gnmi.Replace(t, dut, confignonprior.Config(), schedulenonprior)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -575,7 +575,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 
-		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
+		ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -605,7 +605,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
 		gnmi.Replace(t, dut, configqm.Config(), redqueumreduni)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -626,7 +626,7 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterfacerep.InterfaceId)
 		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterfacerep)
 
-		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
+		ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterfacerep); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -713,7 +713,7 @@ func TestQmRedWrrSetUpdateQos(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -753,7 +753,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
 		gnmi.Update(t, dut, configqm.Config(), wredqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -783,7 +783,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Update(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -809,7 +809,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	gnmi.Update(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -830,7 +830,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 	gnmi.Update(t, dut, ConfigIntf.Config(), schedinterface)
 
-	ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
+	ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.Config())
 	if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -839,7 +839,7 @@ func TestQmRedWrrSetUpdateOutput(t *testing.T) {
 	queueoutupd.QueueManagementProfile = ygot.String(wredprofilelist[6])
 	UpdateConfig := gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
 	gnmi.Update(t, dut, UpdateConfig.Config(), queueoutupd)
-	ConfigGetUpdateQueue := gnmi.GetConfig(t, dut, UpdateConfig.Config())
+	ConfigGetUpdateQueue := gnmi.Get(t, dut, UpdateConfig.Config())
 
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -930,14 +930,14 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	//dut.Config().Qos().Interface("Bundle-Ether121").Replace(t, schedinterface)
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 
 	gnmi.Delete(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Queue("tc7").QueueManagementProfile().Config())
-	// ConfigGetOutput := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
+	// ConfigGetOutput := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().Config())
 	// if diff := cmp.Diff(*ConfigGetOutput, *schedinterfaceout); diff == "" {
 	// 	t.Errorf("Delete failed: \n%v", diff)
 	// }
@@ -947,7 +947,7 @@ func TestQmRedWrrSetDeleteQueue(t *testing.T) {
 	queueoutupd.QueueManagementProfile = ygot.String(wredprofilelist[6])
 	UpdateConfig := gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(updatequeue)
 	gnmi.Update(t, dut, UpdateConfig.Config(), queueoutupd)
-	ConfigGetUpdateQueue := gnmi.GetConfig(t, dut, UpdateConfig.Config())
+	ConfigGetUpdateQueue := gnmi.Get(t, dut, UpdateConfig.Config())
 
 	if diff := cmp.Diff(*ConfigGetUpdateQueue, *queueoutupd); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1034,7 +1034,7 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1049,7 +1049,7 @@ func TestQmRedWrrSetUpdateWredProfile(t *testing.T) {
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(10)
 	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
 	gnmi.Update(t, dut, configUpdate.Config(), wredqueum5)
-	ConfigAfterUpdate := gnmi.GetConfig(t, dut, configUpdate.Config())
+	ConfigAfterUpdate := gnmi.Get(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*ConfigAfterUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Update failed: \n%v", diff)
 	}
@@ -1137,7 +1137,7 @@ func TestQmRedWrrSetUpdateWrr(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1245,7 +1245,7 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	ConfigPolicyIntf := gnmi.OC().Qos().Interface("Bundle-Ether121").Output()
 	t.Run("Delete the wredprofile attached to interface", func(t *testing.T) {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.GetConfig(t, dut, ConfigPolicyIntf.Config()) //catch the error  as it is expected and absorb the panic.
+			gnmi.Get(t, dut, ConfigPolicyIntf.Config()) //catch the error  as it is expected and absorb the panic.
 		}); errMsg != nil {
 			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 		} else {
@@ -1256,7 +1256,7 @@ func TestQmRedDelSchedIntf(t *testing.T) {
 	// //Add back the configs
 	ConfigOutput := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output()
 	gnmi.Update(t, dut, ConfigOutput.Config(), schedinterfaceout)
-	ConfigOutputGet := gnmi.GetConfig(t, dut, ConfigOutput.Config())
+	ConfigOutputGet := gnmi.Get(t, dut, ConfigOutput.Config())
 	if diff := cmp.Diff(*ConfigOutputGet, *schedinterfaceout); diff != "" {
 		t.Errorf("Config delete output fail: \n%v", diff)
 	}
@@ -1459,7 +1459,7 @@ func TestRepWredAttchdIntf(t *testing.T) {
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(17)
 	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
 	gnmi.Replace(t, dut, configUpdate.Config(), wredqueum5)
-	ConfigGotUpdate := gnmi.GetConfig(t, dut, configUpdate.Config())
+	ConfigGotUpdate := gnmi.Get(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*ConfigGotUpdate, *wredqueum5); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1548,7 +1548,7 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
 
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1559,7 +1559,7 @@ func TestRepSchedQueueAttchdIntf(t *testing.T) {
 	updtwrr.Weight = ygot.Uint64(15)
 	ConfigUpdWrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*updtwrr.Id)
 	gnmi.Replace(t, dut, ConfigUpdWrr.Config(), updtwrr)
-	ConfigGetwrr := gnmi.GetConfig(t, dut, ConfigUpdWrr.Config())
+	ConfigGetwrr := gnmi.Get(t, dut, ConfigUpdWrr.Config())
 	if diff := cmp.Diff(*ConfigGetwrr, *updtwrr); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1646,7 +1646,7 @@ func TestDelSchedQueueAttchdIntf(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1748,7 +1748,7 @@ func TestRepSchedSeqAttchdIntf(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1867,7 +1867,7 @@ func TestDelSchedSeqAttchdIntf(t *testing.T) {
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Replace(t, dut, ConfigIntf.Config(), schedinterface)
 
-		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
+		ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -1966,7 +1966,7 @@ func TestDelSchedPolAttchdIntf(t *testing.T) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -2088,7 +2088,7 @@ func TestRepSchedPolAttchdIntf(t *testing.T) {
 	// repscheinterfaceschedpol.Name = ygot.String("eg_policy1112")
 	ConfigReplSchedInt := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId).Output().SchedulerPolicy().Name()
 	gnmi.Replace(t, dut, ConfigReplSchedInt.Config(), "eg_policy1112")
-	ConfigGotQosPol := gnmi.GetConfig(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1112").Config())
+	ConfigGotQosPol := gnmi.Get(t, dut, gnmi.OC().Qos().SchedulerPolicy("eg_policy1112").Config())
 
 	if diff := cmp.Diff(*ConfigGotQosPol, *repschedulerpol); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)

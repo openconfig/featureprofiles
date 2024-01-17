@@ -296,7 +296,6 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 // ateDstNetCIDR, then returns the atePorts as well as the number of
 // packets received (inPkts) and sent (outPkts) across the atePorts.
 func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
-
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -311,12 +310,12 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
 		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
 		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
@@ -435,10 +434,10 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func generateRandomIpList(cidr string, count uint32) []string {
-	netsCh, _ := netutil.CIDRs(cidr, count)
+func generateRandomIPList(t testing.TB, cidr string, count int) []string {
+	t.Helper()
 	gotNets := make([]string, 0)
-	for net := range netsCh {
+	for net := range netutil.GenCIDRs(t, cidr, count) {
 		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
 	}
 

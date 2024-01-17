@@ -39,7 +39,7 @@ func TestSetDscpAtContainer(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermActionsRemark)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermActionsRemark); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp: %v", diff)
 				}
@@ -82,7 +82,7 @@ func TestSetDscpAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != *baseConfigClassifierTerm.Actions.Remark.SetDscp {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp: got %v, want %v", configGot, input)
 				}
@@ -130,7 +130,7 @@ func TestSetMplsTcAtContainer(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTermActionsRemark)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermActionsRemark); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc: %v", diff)
 				}
@@ -172,7 +172,7 @@ func TestSetMplsTcAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc: got %v, want %v", configGot, input)
 				}

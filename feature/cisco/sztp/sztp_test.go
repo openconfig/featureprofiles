@@ -100,8 +100,8 @@ func TestPWLess(t *testing.T) {
 		t.Error(err)
 	}
 	cli_handle := dut.RawAPIs().CLI(t)
-	resp, err := cli_handle.SendCommand(context.Background(), "crypto key import authentication rsa harddisk:/id_rsa.bin")
-	t.Logf(resp)
+	resp, err := cli_handle.RunCommand(context.Background(), "crypto key import authentication rsa harddisk:/id_rsa.bin")
+	t.Logf(resp.Output())
 	if err != nil {
 		t.Error(err)
 	}
@@ -176,28 +176,28 @@ func TestDiskEn(t *testing.T) {
 		t.Fatal("--ssh_ip flag must be set.")
 	}
 	cli_handle := dut.RawAPIs().CLI(t)
-	resp, err := cli_handle.SendCommand(context.Background(), "show disk-encryption status")
+	resp, err := cli_handle.RunCommand(context.Background(), "show disk-encryption status")
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(resp)
-	if strings.Contains(resp, "Not Encrypted") {
-		resp, err = cli_handle.SendCommand(context.Background(), "disk-encryption activate")
+	if strings.Contains(resp.Output(), "Not Encrypted") {
+		resp, err = cli_handle.RunCommand(context.Background(), "disk-encryption activate")
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf(resp)
+		t.Logf(resp.Output())
 		t.Log("Waiting for the box to reload")
 		time.Sleep(8 * time.Minute)
 		t.Log("Executing disk-encryption after reload")
 		dut1 := ondatra.DUT(t, "dut")
 		cli_handle1 := dut1.RawAPIs().CLI(t)
-		resp, err = cli_handle1.SendCommand(context.Background(), "show disk-encryption status")
+		resp, err = cli_handle1.RunCommand(context.Background(), "show disk-encryption status")
 		if err != nil {
 			t.Error(err)
 		}
 		t.Log(resp)
-		if strings.Contains(resp, "Not Encrypted") {
+		if strings.Contains(resp.Output(), "Not Encrypted") {
 			t.Error("Disk encryption failed")
 		}
 
@@ -218,8 +218,8 @@ func TestTLS(t *testing.T) {
 	}
 	//t.Log("configuring grpc tls to generate the certificates/key")
 	cli_handle := dut.RawAPIs().CLI(t)
-	rmGrpc, errRmGrpc := cli_handle.SendCommand(context.Background(), "run rm -rf /misc/config/grpc/")
-	t.Logf(rmGrpc)
+	rmGrpc, errRmGrpc := cli_handle.RunCommand(context.Background(), "run rm -rf /misc/config/grpc/")
+	t.Logf(rmGrpc.Output())
 	if errRmGrpc != nil {
 		t.Error(errRmGrpc)
 	}
@@ -366,7 +366,7 @@ func TestBootz(t *testing.T) {
 
 	t.Run("ZTP initiate dhcp4 management noprompt without disk-encryption", func(t *testing.T) {
 		t.Log("Deactivate Encryption\n")
-		encrypt, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "disk-encryption deactivate location all")
+		encrypt, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "disk-encryption deactivate location all")
 		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
 		time.Sleep(3 * time.Minute)
 		if err != nil {
@@ -375,7 +375,7 @@ func TestBootz(t *testing.T) {
 		}
 		t.Logf("Device encryption deactivate: %v", encrypt)
 		deviceBootStatus(t, dut)
-		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show disk-encryption status")
+		encrypt, err = dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show disk-encryption status")
 		if err != nil {
 			t.Fatalf("Failed to send command %v on the router, Error : %v ", "show disk-encryption status", err)
 
@@ -393,7 +393,7 @@ func TestBootz(t *testing.T) {
 	})
 	t.Run("ZTP initiate dhcp4 management noprompt with disk-encryption", func(t *testing.T) {
 		t.Log("Activate Encryption\n")
-		encrypt, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), "disk-encryption activate location all")
+		encrypt, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "disk-encryption activate location all")
 		t.Logf("Sleep for 5 mins after disk-encryption activate")
 		time.Sleep(5 * time.Minute)
 		if err != nil {
@@ -402,7 +402,7 @@ func TestBootz(t *testing.T) {
 		}
 		t.Logf("Device encryption activate: %v", encrypt)
 		deviceBootStatus(t, dut)
-		encrypt, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), "show disk-encryption status")
+		encrypt, err = dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show disk-encryption status")
 		if err != nil {
 			t.Fatalf("Failed to send command %v on the router, Error : %v ", "show disk-encryption status", err)
 
