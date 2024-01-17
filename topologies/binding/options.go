@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// IANA assigns 9339 for gNxI, 9559 for P4RT and 9340 for gRIBI.  
+// IANA assigns 9339 for gNxI, 9559 for P4RT and 9340 for gRIBI.
 var (
 	gnmiPort    = flag.Int("gnmi_port", 9339, "default gNMI port")
 	gnoiPort    = flag.Int("gnoi_port", 9339, "default gNOI port")
