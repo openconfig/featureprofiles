@@ -281,7 +281,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
-	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -312,7 +312,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
 	gnmi.Replace(t, d, dni.Config(), ni)
-	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+	fptest.LogQuery(t, "NI", dni.Config(), gnmi.Get(t, d, dni.Config()))
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
@@ -352,8 +352,12 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)

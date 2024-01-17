@@ -57,7 +57,7 @@ func TestDscp(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Dscp != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp: got %v, want %v", configGot, input)
 					}
@@ -107,7 +107,7 @@ func TestProtocol(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.Protocol != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol: got %v, want %v", configGot, input)
 					}
@@ -157,7 +157,7 @@ func TestSourceAddress(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SourceAddress != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address: got %v, want %v", configGot, input)
 					}
@@ -210,7 +210,7 @@ func TestDscpSet(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					for i, cg := range configGot.DscpSet {
 						if cg != input[i] {
 							t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/dscp-set: got %v, want %v", cg, input[i])
@@ -264,7 +264,7 @@ func TestDestinationAddress(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.DestinationAddress != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address: got %v, want %v", configGot, input)
 					}
@@ -314,7 +314,7 @@ func TestHopLimit(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.HopLimit != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/hop-limit: got %v, want %v", configGot, input)
 					}

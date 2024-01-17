@@ -1,0 +1,266 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This 2 DUT testbed provides 11 links between DUT1-DUT2, and 4 links between the DUTs & ATE.
+
+duts {
+  id: "dut1"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  ports {
+    id: "port1"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port9"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port10"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port11"
+    speed: S_400GB  
+  }  
+  ports {
+    id: "dut1_ate_port1"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut1_ate_port2"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut1_ate_port3"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut1_ate_port4"
+    speed: S_10GB  
+  }  
+}
+
+duts {
+  id: "dut2"
+  vendor: CISCO
+  hardware_model: "CISCO-8201"
+  ports {
+    id: "port1"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port2"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port5"
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port7"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_100GB  
+  }
+    ports {
+    id: "port9"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port10"
+    speed: S_100GB  
+  }
+  ports {
+    id: "port11"
+    speed: S_400GB  
+  }    
+  ports {
+    id: "dut2_ate_port1"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port2"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port3"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port4"
+    speed: S_10GB  
+  }      
+}
+ates {
+  id: "ate"
+  ports {
+    id: "dut1_ate_port1"
+    speed: S_10GB   
+  }
+  ports {
+    id: "dut1_ate_port2"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut1_ate_port3"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut1_ate_port4"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port1"
+    speed: S_10GB   
+  }
+  ports {
+    id: "dut2_ate_port2"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port3"
+    speed: S_10GB  
+  }
+  ports {
+    id: "dut2_ate_port4"
+    speed: S_10GB  
+  }
+}
+
+links {
+  a: "dut1:port1"
+  b: "dut2:port1"
+}
+
+links {
+  a: "dut1:port2"
+  b: "dut2:port2"
+}
+
+links {
+  a: "dut1:port3"
+  b: "dut2:port3"
+}
+
+links {
+  a: "dut1:port4"
+  b: "dut2:port4"
+}
+
+links {
+  a: "dut1:port5"
+  b: "dut2:port5"
+}
+
+links {
+  a: "dut1:port6"
+  b: "dut2:port6"
+}
+
+links {
+  a: "dut1:port7"
+  b: "dut2:port7"
+}
+
+links {
+  a: "dut1:port8"
+  b: "dut2:port8"
+}
+
+links {
+  a: "dut1:port9"
+  b: "dut2:port9"
+}
+
+links {
+  a: "dut1:port10"
+  b: "dut2:port10"
+}
+
+links {
+  a: "dut1:port11"
+  b: "dut2:port11"
+}
+
+links {
+  a: "dut1:dut1_ate_port1"
+  b: "ate:dut1_ate_port1"
+}
+
+links {
+  a: "dut1:dut1_ate_port2"
+  b: "ate:dut1_ate_port2"
+}
+
+links {
+  a: "dut1:dut1_ate_port3"
+  b: "ate:dut1_ate_port3"
+}
+
+links {
+  a: "dut1:dut1_ate_port4"
+  b: "ate:dut1_ate_port4"
+}
+
+links {
+  a: "dut2:dut2_ate_port1"
+  b: "ate:dut2_ate_port1"
+}
+
+links {
+  a: "dut2:dut2_ate_port2"
+  b: "ate:dut2_ate_port2"
+}
+
+links {
+  a: "dut2:dut2_ate_port3"
+  b: "ate:dut2_ate_port3"
+}
+
+links {
+  a: "dut2:dut2_ate_port4"
+  b: "ate:dut2_ate_port4"
+}

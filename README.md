@@ -50,7 +50,7 @@ kne create topologies/kne/arista/ceos/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/system/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
 ```
 
 3. Cleanup:
@@ -171,7 +171,7 @@ kne create topologies/kne/nokia/srlinux/topology.textproto
 2. Run a sample test:
 
 ```
-go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/NokiaSrl1!
+go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/admin
 ```
 
 3. Cleanup:

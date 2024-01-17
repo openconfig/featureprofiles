@@ -155,6 +155,18 @@ testbeds:
       controller_port: 40058
       gnmi_port: 50058
 
+  2DUT-TB2:
+    hw: 2DUT-TB2
+    owner: arvbaska
+    testbed: topologies/cisco/hw/2DUT-TB2/testbed
+    binding: topologies/cisco/hw/2DUT-TB2/binding
+    baseconf: 
+      dut1: topologies/cisco/hw/2DUT-TB2/DUT1_8808_FOX2506P5XE_baseconfig.proto
+      dut2: topologies/cisco/hw/2DUT-TB2/DUT2_8201_FLM27400BFZ_baseconfig.proto  
+    otg:
+      host: kne2-lnx
+      controller_port: 40052
+      gnmi_port: 50052
 #SIM
   8201-1DUT-1ATE:
     sim: true
