@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 //  0) Check the number of route processor.
 //     - Skip the test if the number of route processor is < 2.
 //  1) Issue gnoi SwitchControlProcessor request to the chassis with dual supervisor.
-//      - Set the path to to be standby RE/SUP name.
+//      - "Set" the path to to be standby RE/SUP name.
 //  2) Validate the SwitchControlProcessorResponse has the new active supervisor as
 //     the one specified in the request.
 //  3) Validate the standby RE/SUP becomes the active after switchover
