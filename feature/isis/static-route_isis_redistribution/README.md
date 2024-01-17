@@ -84,7 +84,7 @@
     *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
 *   Verify disable metric propogation is set to ```true```
     *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with default metric of ```0``` and not ```104```
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with default metric either having no value or is ```0``` but not ```104```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
 
@@ -122,7 +122,7 @@
     *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
 *   Verify disable metric propogation is set to ```true```
     *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with default metric of ```0``` and not ```106```
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with default metric either having no value or is ```0``` but not ```106```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric
 
