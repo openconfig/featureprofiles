@@ -258,7 +258,7 @@ func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac
 	//port1
 	iDutDev := top.Devices().Add().SetName(name)
 	iDutEth := iDutDev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
-	iDutEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port.ID())
+	iDutEth.Connection().SetPortName(port.ID())
 	iDutIpv6 := iDutEth.Ipv6Addresses().Add().SetName(name + ".IPv6")
 	iDutIpv6.SetAddress(ipv6Address).SetGateway(ipv6Gateway).SetPrefix(uint32(ipv6Mask))
 }
@@ -273,7 +273,7 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Flow settings.
 	flow1ipv6.Size().SetFixed(512)
 	flow1ipv6.Rate().SetPps(trafficRatePps)
-	flow1ipv6.Duration().SetChoice("continuous")
+	flow1ipv6.Duration().Continuous()
 	// Ethernet header
 	f1e2 := flow1ipv6.Packet().Add().Ethernet()
 	f1e2.Src().SetValue(peer.MAC)
@@ -281,7 +281,7 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// IPv6 header
 	f1v6 := flow1ipv6.Packet().Add().Ipv6()
 	// V6 NextHeader
-	f1v6.NextHeader().SetChoice("value").SetValue(6)
+	f1v6.NextHeader().SetValue(6)
 	// V6 source
 	f1v6.Src().Increment().SetStart(peer.IPv6).SetCount(200)
 	// V6 destination
