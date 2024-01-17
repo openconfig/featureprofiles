@@ -217,7 +217,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
 		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
-		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
+		eth.Connection().SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
@@ -312,23 +312,23 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	if *randomSrcIP {
 		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
+		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
 		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
+		ipv4.Dst().Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
 		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
 	} else {
-		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
 		tcp.DstPort().SetValues(generateRandomPortList(65534))
 	} else {
-		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
 	}
 
 	flow.Size().SetFixed(200)

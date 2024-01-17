@@ -270,7 +270,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(p0.ID())
 	srcDev := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p0.ID())
+	srcEth.Connection().SetPortName(p0.ID())
 	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
@@ -278,7 +278,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
+		agg.Protocol().Static().SetLagId(uint32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -288,7 +288,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
 	} else {
-		agg.Protocol().SetChoice("lacp")
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
@@ -319,7 +318,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 

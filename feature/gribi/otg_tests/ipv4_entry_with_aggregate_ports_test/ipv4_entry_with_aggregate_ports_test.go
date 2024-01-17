@@ -317,7 +317,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, agg
 	top.Ports().Add().SetName(p1.ID())
 	srcDev := top.Devices().Add().SetName(atePort1.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
+	srcEth.Connection().SetPortName(p1.ID())
 	srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 	ateAggPorts := []*ondatra.Port{
@@ -334,7 +334,7 @@ func configureATEBundle(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 	t.Helper()
 	agg := top.Lags().Add().SetName(lagName)
 	lagID, _ := strconv.Atoi(aggID)
-	agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagID))
+	agg.Protocol().Static().SetLagId(uint32(lagID))
 	for i, p := range aggPorts {
 		port := top.Ports().Add().SetName(p.ID())
 		newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -346,7 +346,7 @@ func configureATEBundle(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 
 	dstDev := top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(lagName + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(lagName + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 }
 

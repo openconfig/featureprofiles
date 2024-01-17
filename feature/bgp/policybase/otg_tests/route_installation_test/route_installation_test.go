@@ -426,7 +426,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
+	srcEth.Connection().SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
@@ -434,7 +434,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
+	dstEth.Connection().SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
 	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
@@ -477,7 +477,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -490,7 +490,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Duration().SetChoice("continuous")
+	flowipv6.Duration().Continuous()
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(srcEth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()

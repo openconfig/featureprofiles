@@ -391,27 +391,26 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 		mplsFlow := g.otgConfig.Flows().Add().SetName(flowName)
 		mplsFlow.Metrics().SetEnable(true)
 		mplsFlow.TxRx().Port().SetTxName(ATESrc.Name).SetRxName(ATEDst.Name)
-
-		mplsFlow.Rate().SetChoice("pps").SetPps(1)
+		mplsFlow.Rate().SetPps(1)
 
 		// Set up ethernet layer.
 		eth := mplsFlow.Packet().Add().Ethernet()
-		eth.Src().SetChoice("value").SetValue(ATESrc.MAC)
-		eth.Dst().SetChoice("value").SetValue(dstMAC)
+		eth.Src().SetValue(ATESrc.MAC)
+		eth.Dst().SetValue(dstMAC)
 
 		// Set up MPLS layer with destination label 100.
 		mpls := mplsFlow.Packet().Add().Mpls()
-		mpls.Label().SetChoice("value").SetValue(staticMPLSToATE)
-		mpls.BottomOfStack().SetChoice("value").SetValue(0)
+		mpls.Label().SetValue(staticMPLSToATE)
+		mpls.BottomOfStack().SetValue(0)
 
 		mplsInner := mplsFlow.Packet().Add().Mpls()
-		mplsInner.Label().SetChoice("value").SetValue(innerLabel)
-		mplsInner.BottomOfStack().SetChoice("value").SetValue(1)
+		mplsInner.Label().SetValue(innerLabel)
+		mplsInner.BottomOfStack().SetValue(1)
 
 		ip4 := mplsFlow.Packet().Add().Ipv4()
-		ip4.Src().SetChoice("value").SetValue("198.18.1.1")
-		ip4.Dst().SetChoice("value").SetValue("198.18.2.1")
-		ip4.Version().SetChoice("value").SetValue(4)
+		ip4.Src().SetValue("198.18.1.1")
+		ip4.Dst().SetValue("198.18.2.1")
+		ip4.Version().SetValue(4)
 
 		ate.OTG().PushConfig(t, g.otgConfig)
 	default:

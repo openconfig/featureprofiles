@@ -343,7 +343,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
+		agg.Protocol().Static().SetLagId(uint32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -353,7 +353,6 @@ func (tc *testArgs) configureATE(t *testing.T) {
 			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
 	} else {
-		agg.Protocol().SetChoice("lacp")
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
