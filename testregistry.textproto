@@ -345,6 +345,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.12"
+  description: "Static route to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
