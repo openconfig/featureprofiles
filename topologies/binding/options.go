@@ -23,13 +23,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a
-// port assignment for gRIBI, so using Arista's default which is 6040.
+// IANA assigns 9339 for gNxI, 9559 for P4RT and 9340 for gRIBI.
 var (
 	gnmiPort    = flag.Int("gnmi_port", 9339, "default gNMI port")
 	gnoiPort    = flag.Int("gnoi_port", 9339, "default gNOI port")
 	gnsiPort    = flag.Int("gnsi_port", 9339, "default gNSI port")
-	gribiPort   = flag.Int("gribi_port", 6040, "default gRIBI port")
+	gribiPort   = flag.Int("gribi_port", 9340, "default gRIBI port")
 	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
 	ateGNMIPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
 	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE OTG port")
