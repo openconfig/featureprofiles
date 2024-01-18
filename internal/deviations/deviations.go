@@ -735,3 +735,8 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
+
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
