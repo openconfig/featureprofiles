@@ -56,7 +56,7 @@ func TestReplay(t *testing.T) {
 	}
 
 	t.Logf("Creating gRPC clients to dut")
-	clients := &replayer.Clients{
+	clients := &replayer.Config{
 		GNMI:  dut.RawAPIs().GNMI(t),
 		GRIBI: dut.RawAPIs().GRIBI(t),
 	}
