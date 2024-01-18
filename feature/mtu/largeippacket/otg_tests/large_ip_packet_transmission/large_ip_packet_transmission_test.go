@@ -538,7 +538,7 @@ func configureATEBundle(
 		SetName(fmt.Sprintf("%s.Eth", ateLag.Name)).
 		SetMac(ateLag.MAC).
 		SetMtu(mtu)
-	aggEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	aggEth.Connection().SetLagName(agg.Name())
 
 	aggEth.Ipv4Addresses().Add().SetName(fmt.Sprintf("%s.IPv4", ateLag.Name)).
 		SetAddress(ateLag.IPv4).
