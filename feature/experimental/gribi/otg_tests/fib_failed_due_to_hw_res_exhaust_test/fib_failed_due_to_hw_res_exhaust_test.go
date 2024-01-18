@@ -67,6 +67,7 @@ const (
 
 var (
 	vendorSpecRoutecount = map[ondatra.Vendor]uint32{
+		ondatra.ARISTA:  2500000,
 		ondatra.JUNIPER: 2500000,
 		ondatra.NOKIA:   1600000,
 	}
@@ -113,12 +114,12 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	g := bgp.GetOrCreateGlobal()
 	g.As = ygot.Uint32(dutAS)
 	g.RouterId = ygot.String(dutPort1.IPv4)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pg := bgp.GetOrCreatePeerGroup("BGP-PEER-GROUP-V6")
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String("BGP-PEER-GROUP-V6")
+	pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
@@ -138,8 +139,6 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	bgpNbr.PeerGroup = ygot.String("BGP-PEER-GROUP-V6")
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
-	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	af4.Enabled = ygot.Bool(false)
 	return niProto
 }
 
@@ -151,7 +150,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.Devi
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
@@ -159,14 +158,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.Devi
 
 	iDut2Dev := config.Devices().Add().SetName(atePort2.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
+	iDut2Eth.Connection().SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
 	iDut2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
@@ -217,7 +215,26 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := configureBGP(dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+		if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+			switch dut.Vendor() {
+			case ondatra.ARISTA:
+				cli := dut.RawAPIs().CLI(t)
+				_, err := cli.RunCommand(context.Background(), `
+				configure
+					router bgp 64500
+						neighbor BGP-PEER-GROUP-V6 maximum-routes 0
+						exit
+					exit
+				exit
+				`)
+				if err != nil {
+					t.Fatal(err)
+				}
+			default:
+				t.Fatal("Unsupported vendor")
+			}
+		}
 	})
 
 	ate := ondatra.ATE(t, "ate")
@@ -287,7 +304,7 @@ func sendTraffic(t *testing.T, args *testArgs) {
 		SetRxNames([]string{atePort2.Name + ".IPv4"})
 	flow1ipv4.Size().SetFixed(512)
 	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().SetChoice("continuous")
+	flow1ipv4.Duration().Continuous()
 	e1 := flow1ipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	v4 := flow1ipv4.Packet().Add().Ipv4()
@@ -301,7 +318,7 @@ func sendTraffic(t *testing.T, args *testArgs) {
 		SetRxNames([]string{atePort2.Name + ".IPv4"})
 	flow2ipv4.Size().SetFixed(512)
 	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().SetChoice("continuous")
+	flow2ipv4.Duration().Continuous()
 	e2 := flow2ipv4.Packet().Add().Ethernet()
 	e2.Src().SetValue(atePort1.MAC)
 	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
@@ -412,6 +429,7 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 		SetAddress(advertisedRoutesv6).
 		SetPrefix(advertisedRoutesv6MaskLen).
 		SetCount(vendorSpecRoutecount[args.dut.Vendor()]).SetStep(2)
+	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
 
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
@@ -478,15 +496,16 @@ routeAddLoop:
 		if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 			t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 		}
-
-		for _, v := range args.client.Results(t) {
+		res := args.client.Results(t)
+		for _, v := range res[len(res)-6:] {
 			if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
 				t.Logf("FIB FAILED received %v", v.Details)
 				fibFailedDstRoute = dstIPList[j]
 				break routeAddLoop
 			}
 		}
-		j = j + 1
+		t.Logf("Programmed entries %s --> %s", dstIPList[j]+"/32", vipList[j]+"/32")
+		j++
 		// We are filling FIB with BGP routes. After FIB is full, trying to program
 		// routes through gRIBI client. Since FIB is already full , we should get
 		// FIB FAILED while programming gRIBI routes. Here we are trying to program

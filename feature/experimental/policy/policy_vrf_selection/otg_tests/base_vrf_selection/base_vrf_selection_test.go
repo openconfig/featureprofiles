@@ -263,10 +263,14 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Delete(t, dut, pfpath.Config())
 
-	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(matchType)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -275,7 +279,7 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	}
 
 	// Configure default NI and forwarding policy.
-	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
+	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
 
 	// Restart Protocols after policy change
@@ -302,7 +306,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	topo.Ports().Add().SetName(p1.ID())
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	ethSrc := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth")
-	ethSrc.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
+	ethSrc.Connection().SetPortName(p1.ID())
 	ethSrc.SetMac(ateSrc.MAC)
 	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
@@ -311,7 +315,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	ethDst := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth")
 
-	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDst.Connection().SetPortName(p2.ID())
 	ethDst.SetMac(ateDst.MAC)
 	ethDst.Vlans().Add().SetName(dstDev.Name() + "-VLAN").SetId(uint32(vlan10))
 	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
@@ -320,7 +324,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	dstDev2 := topo.Devices().Add().SetName(ateDst2.Name)
 	ethDst2 := dstDev2.Ethernets().Add().SetName(ateDst2.Name + ".Eth")
 
-	ethDst2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDst2.Connection().SetPortName(p2.ID())
 	ethDst2.SetMac(ateDst2.MAC)
 	ethDst2.Vlans().Add().SetName(dstDev2.Name() + "-VLAN").SetId(uint32(vlan20))
 	ethDst2.Ipv4Addresses().Add().SetName(dstDev2.Name() + ".IPv4").SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
@@ -346,7 +350,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue("2001:DB8:2::")
 	nativeIPv6.Size().SetFixed(512)
-	nativeIPv6.Rate().SetChoice("percentage").SetPercentage(5)
+	nativeIPv6.Rate().SetPercentage(5)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
@@ -372,7 +376,7 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 		flow.Packet().Add().Ipv6()
 	}
 	flow.Size().SetFixed(512)
-	flow.Rate().SetChoice("percentage").SetPercentage(5)
+	flow.Rate().SetPercentage(5)
 	return flow
 }
 
