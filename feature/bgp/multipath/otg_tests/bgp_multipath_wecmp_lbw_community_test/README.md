@@ -1,4 +1,4 @@
-# RT-1.52: BGP multipath ECMP support with Link Bandwidth Community
+# RT-1.52: BGP multipath UCMP support with Link Bandwidth Community
 
 ## Summary
 
