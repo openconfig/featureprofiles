@@ -2,7 +2,7 @@
 
 ## Summary
 
-Validate BGP in multipath ECMP support with link bandwidth community
+Validate BGP in multipath UCMP support with link bandwidth community
 
 ## Testbed type
 
