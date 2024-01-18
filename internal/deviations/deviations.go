@@ -735,3 +735,9 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
+
+// TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
+// Default value is false.
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
