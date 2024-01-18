@@ -39,7 +39,7 @@ pipeline {
                 sh 'go install honnef.co/go/tools/cmd/staticcheck@latest'
                 script {
                     def ret = sh(
-                        script: 'go list ./... | grep -F -v -e /python -e /fluent | xargs ${GOPATH}/bin/staticcheck', 
+                        script: '${GOPATH}/bin/staticcheck ./...', 
                         returnStdout: true
                     ).trim()
                     if (ret) {
