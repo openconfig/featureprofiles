@@ -34,6 +34,7 @@ var (
 	backupNHGRequiresVrfWithDecap            = flag.Bool("deviation_backup_nhg_requires_vrf_with_decap", false, "Set to true for devices that require IPOverIP Decapsulation for Backup NHG without interfaces.")
 	atePortLinkStateOperationsUnsupported    = flag.Bool("deviation_ate_port_link_state_operations_unsupported", false, "Set to true for ATEs that do not support setting link state on their own ports.")
 	ateIPv6FlowLabelUnsupported              = flag.Bool("deviation_ate_ipv6_flow_label_unsupported", false, "Set to true for ATEs that do not support IPv6 flow labels")
+	breakoutSchemaValueFlag                  = flag.Int64("deviation_breakout_schema_value", 0, "Set to 0 for older schema value and 1 for newer breakout schema value")
 )
 
 func isFlagSet(name string) bool {
@@ -123,4 +124,10 @@ func ATEIPv6FlowLabelUnsupported(ate *ondatra.ATEDevice) bool {
 		return *ateIPv6FlowLabelUnsupported
 	}
 	return lookupATEDeviations(ate).GetAteIpv6FlowLabelUnsupported()
+}
+
+// will return the value that the flag is being set to. As older images will require 0 for breakout
+// schema and newer images will use 1 for the breakout config
+func BreakOutSchemaValueFlag(dut *ondatra.DUTDevice) int32 {
+	return int32(*breakoutSchemaValueFlag)
 }
