@@ -392,6 +392,7 @@ message Metadata {
     // Devices which needs to enable leaf specific flag
     // Juniper: b/319202763
     bool enable_flowctrl_flag = 137;
+    int32 breakout_schema_value = 138;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
