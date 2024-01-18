@@ -5,10 +5,6 @@ pipeline {
         go 'go1.21.3'
     }
     
-    environment {
-        GIT_LFS_SKIP_SMUDGE = 1
-    }
-
     stages {
         stage('Vet') {
             steps {
