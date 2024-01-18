@@ -5,6 +5,10 @@ pipeline {
         go 'go1.21.3'
     }
     
+    environment {
+        CGO_ENABLED = 1
+    }
+
     stages {
         stage('Vet') {
             steps {
