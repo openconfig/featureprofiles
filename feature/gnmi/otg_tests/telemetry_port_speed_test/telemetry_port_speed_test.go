@@ -348,14 +348,9 @@ func TestGNMIPortDown(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
-	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Enabled().Config(), false)
-		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction := gosnappi.NewControlState()
+	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+	ate.OTG().SetControlState(t, portStateAction)
 
 	dutPortStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State())
 
@@ -363,14 +358,9 @@ func TestGNMIPortDown(t *testing.T) {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", dutPortStatus, want)
 	}
 
-	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Enabled().Config(), false)
-		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-		ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction = gosnappi.NewControlState()
+	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+	ate.OTG().SetControlState(t, portStateAction)
 
 }
 
