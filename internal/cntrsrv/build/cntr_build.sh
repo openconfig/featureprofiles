@@ -17,7 +17,16 @@
 # exit when a command fails
 set -e
 
-CGO_ENABLED=0 go build ..
+case $1 in
+  "static")
+      echo "Building static binary"
+      CGO_ENABLED=0 go build ...
+      ;;
+  *)
+      echo "Building dynamic binary"
+      go build -ldflags '-s -w -I /lib64/ld-linux-x86-64.so.2 -extldflags=-Wl,--dynamic-linker,/lib64/ld-linux-x86-64.so.2,--strip-all'  ...
+      ;;
+esac
 
 docker build -t cntr:latest -f Dockerfile.cntr .
 
