@@ -17,11 +17,13 @@ package ppc_test
 import (
 	"context"
 	"fmt"
-	"log"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ygnmi/schemaless"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
@@ -288,52 +290,68 @@ func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
-			// tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
-			// fmt.Println(tgn_data)
+			tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
 			npu := a.interfaceToNPU(t, tt.dstPorts)
-
-			client := a.dut.RawAPIs().GNMI(t)
-			for _, sub := range subscriptions {
-				request := create_gnmi_request(t, tt.name, npu, sub.sub_type)
-
-				// Create a gNMI Subscribe client stream
-				stream, err := client.Subscribe(context.Background())
-				if err != nil {
-					log.Fatalf("Subscribe failed: %v", err)
-				}
-
-				// Send the SubscribeRequest
-				if err := stream.Send(request); err != nil {
-					log.Fatalf("Failed to send SubscribeRequest: %v", err)
-				}
-
-				// Receive updates from the server
-				for {
-					response, err := stream.Recv()
-					if err != nil {
-						log.Fatalf("Failed to receive response: %v", err)
+			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, tt.name)
+			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
+			_, notOk := gnmi.WatchAll(t,
+				a.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
+				query,
+				10*time.Second,
+				// Stop the gnmi.Watch() if value is invalid.
+				func(val *ygnmi.Value[uint64]) bool {
+					id, present := val.Val()
+					element := val.Path.Elem
+					if getPathFromElements(element) == path {
+						fmt.Println(id, tgn_data)
+						return present
 					}
-					fmt.Printf("Received gNMI Update: %v\n", response)
-				}
+					return !present
+				}).Await(t)
+			if notOk {
+				t.Log("PASS")
+			} else {
+				t.Errorf("Failed to collect data for path %s", path)
 			}
-			// query, _ := schemaless.NewWildcard[uint64](fmt.Sprintf("/components/component[name=%s]/integrated-circuit/%s", npu, tt.name), "openconfig")
-
-			// ygnmi_client, _ := ygnmi.NewClient(a.dut.RawAPIs().GNMI(t), ygnmi.WithTarget(a.dut.ID()))
-
-			// ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(1*time.Minute))
-			// watcher := ygnmi.WatchAll(ctx, ygnmi_client, query, func(v *ygnmi.Value[uint64]) error {
-			// 	if v.IsPresent() {
-			// 		return nil
-			// 	}
-			// 	vl, _ := v.Val()
-			// 	if vl == tgn_data {
-			// 		return nil
-			// 	}
-			// 	return ygnmi.Continue
-			// })
-			// watcher.Await()
 		})
 	}
+}
+
+func getPathFromElements(input []*gpb.PathElem) string {
+	var result []string
+	for _, elem := range input {
+		// If there are key-value pairs, add them to the keyPart
+		if elem.Key != nil {
+			for key, value := range elem.Key {
+				result = append(result, elem.Name+fmt.Sprintf("[%s=%s]", key, value))
+			}
+		} else {
+			result = append(result, elem.Name)
+		}
+	}
+	return "/" + strings.Join(result, "/")
+
+	// var pathElements []string
+	// for _, element := range input {
+	// 	// Extract the "name" field value
+	// 	if strings.Contains(element, "name:") {
+	// 		parts := strings.Split(element, ":")
+	// 		name := strings.Trim(parts[1], "\"")
+	// 		pathElements = append(pathElements, name)
+	// 	}
+	// 	// Extract the "key" field value
+	// 	if strings.Contains(element, "key:") {
+	// 		parts := strings.Split(element, ":")
+	// 		key := strings.Split(strings.Trim(parts[2], "value"), "\"")[1]
+	// 		value := strings.Split(strings.Split(strings.Trim(parts[3], "value"), "}")[0], "\"")[1]
+	// 		pathElements[len(pathElements)-1] += "[" + key + "=" + value + "]"
+	// 	}
+	// }
+	// return "/" + strings.Join(pathElements, "/")
+}
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
 }
 
 // func (a *testArgs) testOC_PPC_queuing_subsystem(t *testing.T) {
