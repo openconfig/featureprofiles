@@ -236,9 +236,13 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
-			channels := gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
-			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
+			channels := gnmi.OC().Component(transceiverName).Transceiver().ChannelAny()
+			// inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
+			// outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
+
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), channels.InputPower().Instant().State(), time.Second*30).Await(t)
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), channels.OutputPower().Instant().State(), time.Second*30).Await(t)
+
 			for _, inputPower := range inputPowers {
 				inPower, ok := inputPower.Val()
 				if !ok {
