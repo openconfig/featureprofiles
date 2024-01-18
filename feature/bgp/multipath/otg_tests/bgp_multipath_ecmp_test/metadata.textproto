@@ -1,0 +1,38 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "41faf6fd-dcc6-4ebf-8ace-b71fa22d8bf7"
+plan_id: "RT-1.51"
+description: "BGP multipath ECMP"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+  }
+}
+
