@@ -84,7 +84,6 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	flow.TxRx().Device().
 		SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4"}).
 		SetRxNames(rxNames)
-	flow.Duration().SetChoice(gosnappi.FlowDurationChoice.FIXED_PACKETS)
 	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)

@@ -217,7 +217,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		top.Ports().Add().SetName(ap.Name)
 		i1 := top.Devices().Add().SetName(ap.Name)
 		eth1 := i1.Ethernets().Add().SetName(ap.Name + ".Eth").SetMac(ap.MAC)
-		eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+		eth1.Connection().SetPortName(i1.Name())
 		eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").
 			SetAddress(ap.IPv4).SetGateway(dp.IPv4).
 			SetPrefix(uint32(ap.IPv4Len))

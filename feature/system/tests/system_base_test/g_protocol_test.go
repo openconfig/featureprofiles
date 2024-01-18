@@ -38,7 +38,7 @@ func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, want
 		// Renaming service name due to gnoi and gnsi always residing on same port as gnmi.
 		svc = introspect.GNMI
 	}
-	dialer := introspect.DUTDialer(t, dut, introspect.GNMI)
+	dialer := introspect.DUTDialer(t, dut, svc)
 	if dialer.DevicePort != int(wantPort) {
 		t.Fatalf("DUT is not listening on correct port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
 	}
