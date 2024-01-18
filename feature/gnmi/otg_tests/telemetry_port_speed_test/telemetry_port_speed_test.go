@@ -268,8 +268,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName("lag")
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
-		for i, p := range tc.atePorts[0:] {
+		agg.Protocol().Static().SetLagId(uint32(lagId))
+		for i, p := range tc.atePorts {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateIPs.MAC, i+1)
 			if err != nil {
@@ -278,9 +278,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
 	} else {
-		agg.Protocol().SetChoice("lacp")
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateIPs.MAC)
-		for i, p := range tc.atePorts[0:] {
+		for i, p := range tc.atePorts {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateIPs.MAC, i+1)
 			if err != nil {
@@ -321,9 +320,13 @@ func (tc *testCase) configureATE(t *testing.T) {
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 	dutPort := tc.dut.Port(t, "port1")
 	want := int(dutPort.Speed()) * numPort * 1000
-	val, _ := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
-	if got, _ := val.Val(); int(got) != want {
-		t.Errorf("Get(DUT port status): got %v, want %v", got, want)
+	val, status := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool { return val.IsPresent() }).Await(t)
+	if status {
+		if got, _ := val.Val(); int(got) != want {
+			t.Errorf("Get(DUT port status): got %v, want %v", got, want)
+		}
+	} else {
+		t.Errorf("Timeout waiting for the Lagspeed value")
 	}
 }
 
