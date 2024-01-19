@@ -51,11 +51,14 @@ Validate hierarchical resolution using egress interface and MAC:
     198.51.100.1/32) and ensure that ATE port-2 receives packet with
     `00:1A:11:00:00:01` as the destination MAC address.
 
-[TODO]: Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
+3.  Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
 
 *   Add an empty decap VRF, `DECAP_TE_VRF`.
 *   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C` and `ENCAP_TE_VRF_D`.
 *   Replace the existing VRF selection policy with `vrf_selection_policy_w` as in <https://github.com/openconfig/featureprofiles/pull/2217>
+*   Change the traffic source IP to ipv4_outer_src_111
+*   Set the packet DSCP to dscp_encap_a_1.
+*   Change VRF-1 name to "TE_VRF_111" while programming gribi route 198.51.100.1/32.
 
 ## Config Parameter coverage
 
