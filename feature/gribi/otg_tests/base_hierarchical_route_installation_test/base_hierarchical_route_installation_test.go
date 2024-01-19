@@ -726,8 +726,8 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 			fn:   testRecursiveIPv4EntrywithMACNexthop,
 		},
 		{
-			name: "testRecursiveIPv4EntrywithIPNexthop",
-			desc: "Program IPV4 entry recursively to IP next-hop and verify with Telemetry and Traffic.",
+			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
+			desc: "Program IPV4 entry with VRF Selection Policy W and verify with Telemetry and Traffic.",
 			fn:   testRecursiveIPv4EntrywithVrfPolW,
 		},
 	}
