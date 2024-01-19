@@ -137,11 +137,11 @@ func TestCollectDebugFiles(t *testing.T) {
 		for _, cmd := range commands {
 			fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
 			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := cli.SendCommand(ctx, cmd); err == nil {
+				if result, err := cli.RunCommand(ctx, cmd); err == nil {
 					fmt.Printf("result [%s] from cmd [%s]", result, cmd)
 					if cmd == "run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;" {
 						log.Info(result)
-						core = result
+						core = result.Output()
 					}
 				} else {
 					t.Logf("> %s", cmd)
@@ -321,9 +321,9 @@ func (ti *Targets) SetCoreFile(t *testing.T) {
 		ctx := context.Background()
 		cli := GetOndatraCLI(t, dutID)
 		testt.CaptureFatal(t, func(t testing.TB) {
-			if result, err := cli.SendCommand(ctx, cmd); err == nil {
+			if result, err := cli.RunCommand(ctx, cmd); err == nil {
 				t.Logf("> %s", cmd)
-				t.Log(result)
+				t.Log(result.Output())
 			} else {
 				t.Logf("> %s", cmd)
 				t.Log(err.Error())
