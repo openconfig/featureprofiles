@@ -18,11 +18,14 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
 	opb "github.com/openconfig/ondatra/proto"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -217,4 +220,39 @@ func TestReservation_Error(t *testing.T) {
 			t.Errorf("Want error not found: %s", want)
 		}
 	}
+}
+
+func TestDialOTGTimeout(t *testing.T) {
+	const timeoutSecs = 42
+	a := &staticATE{
+		AbstractATE: &binding.AbstractATE{Dims: &binding.Dims{Name: "my_ate"}},
+		r:           resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Otg: &bindpb.Options{
+			Timeout: timeoutSecs,
+		}},
+	}
+	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
+		return nil, nil
+	}
+	gosnappiNewAPIFn = func() gosnappi.GosnappiApi {
+		return &captureAPI{GosnappiApi: gosnappi.NewApi()}
+	}
+	api, err := a.DialOTG(context.Background())
+	if err != nil {
+		t.Errorf("DialOTG() got error %v", err)
+	}
+	gotTransport := api.(*captureAPI).gotTransport
+	if gotTimeout, wantTimeout := gotTransport.RequestTimeout(), timeoutSecs*time.Second; gotTimeout != wantTimeout {
+		t.Errorf("DialOTG() got timeout %v, want %v", gotTimeout, wantTimeout)
+	}
+}
+
+type captureAPI struct {
+	gosnappi.GosnappiApi
+	gotTransport gosnappi.GrpcTransport
+}
+
+func (a *captureAPI) NewGrpcTransport() gosnappi.GrpcTransport {
+	a.gotTransport = a.GosnappiApi.NewGrpcTransport()
+	return a.gotTransport
 }

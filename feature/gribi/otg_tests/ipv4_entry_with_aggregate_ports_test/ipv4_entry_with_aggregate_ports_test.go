@@ -1,3 +1,17 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ipv4_entry_with_aggregate_ports_test
 
 import (
@@ -194,23 +208,27 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 func configureGRIBIPrefixes(t *testing.T, dut *ondatra.DUTDevice, aggID string) {
 	t.Helper()
 
-	// Static route to nh1IPAddr which is the ATE Lag port.
-	s := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(nh1IpAddr + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			"0": {
-				Index: ygot.String("0"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(aggID),
+	e1 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithIndex(nh1ID).WithInterfaceRef(aggID).WithMacAddress(staticDstMAC)
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		// Static route to nh1IPAddr which is the ATE Lag port.
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(nh1IpAddr + "/32"),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				"0": {
+					Index: ygot.String("0"),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(aggID),
+					},
 				},
 			},
-		},
+		}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Replace(t, dut, sp.Static(nh1IpAddr+"/32").Config(), s)
+		e1 = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(nh1ID).WithInterfaceRef(aggID).WithIPAddress(nh1IpAddr).WithMacAddress(staticDstMAC)
 	}
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Replace(t, dut, sp.Static(nh1IpAddr+"/32").Config(), s)
 
-	e1 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		WithIndex(nh1ID).WithInterfaceRef(aggID).WithIPAddress(nh1IpAddr).WithMacAddress(staticDstMAC)
 	e2 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(nhgID).AddNextHop(nh1ID, 1)
 	e3 := fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -299,7 +317,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, agg
 	top.Ports().Add().SetName(p1.ID())
 	srcDev := top.Devices().Add().SetName(atePort1.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
+	srcEth.Connection().SetPortName(p1.ID())
 	srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 	ateAggPorts := []*ondatra.Port{
@@ -316,7 +334,7 @@ func configureATEBundle(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 	t.Helper()
 	agg := top.Lags().Add().SetName(lagName)
 	lagID, _ := strconv.Atoi(aggID)
-	agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagID))
+	agg.Protocol().Static().SetLagId(uint32(lagID))
 	for i, p := range aggPorts {
 		port := top.Ports().Add().SetName(p.ID())
 		newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -328,7 +346,7 @@ func configureATEBundle(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Confi
 
 	dstDev := top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(lagName + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(lagName + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 }
 

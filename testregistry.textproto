@@ -260,6 +260,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.26"
+  description: "Basic static route support test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/static_route_support/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
@@ -276,6 +282,12 @@ test: {
   description: "BGP Prefix Limit"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test/README.md"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.51"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
   exec: " "
 }
 test: {
@@ -333,6 +345,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.12"
+  description: "Static route to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
@@ -342,6 +360,12 @@ test: {
   id: "RT-3.2"
   description: "Policy based VRF selection with multiple protocol and DSCP values"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-4.10"
+  description: "AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
@@ -393,7 +417,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.6"
+  id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
@@ -407,7 +431,7 @@ test: {
 test: {
   id: "RT-5.8"
   description: "IPv6 link local"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
   exec: " "
 }
 test: {
@@ -655,7 +679,7 @@ test: {
 }
 test: {
   id: "TR-6.2"
-  description: "system logging console vty file"
+  description: "Local logging destinations"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/console_vty_file/tests/README.md"
   exec: " "
 }
