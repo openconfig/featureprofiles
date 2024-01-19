@@ -428,16 +428,20 @@ func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
 			}
-			if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-				t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
+				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+					t.Errorf("PrefixLimitExceeded v4 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+				}
 			}
 		} else if *neighbor.NeighborAddress == ateDst.IPv6 {
 			maxPrefix, limitExceeded := getPrefixLimitv6(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
 			}
-			if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
-				t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
+				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
+					t.Errorf("PrefixLimitExceeded v6 mismatch: got %t, want %t", limitExceeded, !wantEstablished)
+				}
 			}
 		}
 	})
