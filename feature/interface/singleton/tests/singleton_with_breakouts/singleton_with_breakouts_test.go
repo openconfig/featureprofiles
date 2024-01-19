@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnps "github.com/openconfig/gnoi/system"
@@ -38,8 +39,7 @@ func TestMain(m *testing.M) {
 }
 
 // Method to run baseLine test
-func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
-	portsConfigured := make(map[string]bool)
+func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool, rebootCheck bool) {
 	if !rebootCheck {
 		configureDUT(t, dut, portsConfigured)
 	}
@@ -50,7 +50,7 @@ func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
 	topo := gnmi.OC()
 	for _, port := range dut.Ports() {
-		portsConfigured[port.Name()] = true
+		portsConfigured[port.Name()] = false
 		i := configureInterfaceDUT(t, dut, port)
 		gnmi.Replace(t, dut, topo.Interface(port.Name()).Config(), i)
 		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
@@ -97,13 +97,12 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, i := range interfaces {
 		interfaceName := i.GetName()
-		if i.HardwarePort == nil || i.Name == nil {
+		if i.HardwarePort == nil {
 			continue
 		}
 		hardwarePort := i.GetHardwarePort()
 		var compName string
 		var compNameFetchError *string
-
 		compNameQuery := gnmi.OC().Component(hardwarePort).Name().State()
 		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
 			compName = gnmi.Get(t, dut, compNameQuery)
@@ -111,17 +110,24 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 		_, isConfiguredInterface := portsConfigured[interfaceName]
 
 		if compNameFetchError != nil && isConfiguredInterface {
-			t.Fatalf("HardwarePort = %v of interface = %v is populated with a reference to componentName", hardwarePort, interfaceName)
+			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for the interface  %v", compNameFetchError, hardwarePort, interfaceName)
 		} else if isConfiguredInterface {
-			t.Logf(" HardwarePort = %v of interface = %v is populated with a reference to componentName %v", hardwarePort, interfaceName, compName)
+			portsConfigured[interfaceName] = true
+			t.Logf(" HardwarePort = %v of interface = %v is populated with a reference to component name %v", hardwarePort, interfaceName, compName)
 		}
-
+	}
+	//Checking if all the configured interfaces have been checked for componentName reference
+	for interfaceName, referenceChecked := range portsConfigured {
+		if referenceChecked == false {
+			t.Fatalf("Interface %v not found in the fetched Interface list", interfaceName)
+		}
+		portsConfigured[interfaceName] = false
 	}
 }
 
 // Method to reboot the DUT
 func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+
 	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to connect to gnoi server, err: %v", err)
@@ -130,6 +136,15 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,
 	}
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	preCompMatrix := []string{}
+	for _, preComp := range preRebootCompDebug {
+		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+		}
+	}
+
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 	var currentTime string
@@ -164,19 +179,28 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	startComp := time.Now()
-	t.Logf("Wait for all the components on DUT to come up")
-
 	for {
 		postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+		postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+		postCompMatrix := []string{}
+		for _, postComp := range postRebootCompDebug {
+			if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+				postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+			}
+		}
 
 		if len(preRebootCompStatus) == len(postRebootCompStatus) {
 			t.Logf("All components on the DUT are in responsive state")
+			time.Sleep(10 * time.Second)
 			break
 		}
 
 		if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
 			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-			t.Fatalf("All the components are not in responsive state post reboot")
+			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+				t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
+			}
+			t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -184,13 +208,14 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func TestSingletonWithBreakouts(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	portsConfigured := make(map[string]bool)
 	t.Run("RT-8.1 - Baseline test", func(tb *testing.T) {
-		baseLineTest(tb, dut, false)
+		baseLineTest(tb, dut, portsConfigured, false)
 	})
 
 	t.Run("RT-8.2 - Reboot test", func(tb *testing.T) {
 		rebootDUT(t, dut)
-		baseLineTest(tb, dut, true)
+		baseLineTest(tb, dut, portsConfigured, true)
 	})
 
 }
