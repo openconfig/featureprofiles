@@ -46,6 +46,12 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
+var (
+	// To be stubbed out by unit tests.
+	grpcDialContextFn = grpc.DialContext
+	gosnappiNewAPIFn  = gosnappi.NewApi
+)
+
 // staticBind implements the binding.Binding interface by creating a
 // static reservation from a binding configuration file and the
 // testbed topology.
@@ -135,7 +141,7 @@ func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known DUT service %v", svc)
 	}
-	bopts := d.r.dutGRPC(d.dev, params)
+	bopts := d.r.grpc(d.dev, params)
 	return makeDialer(d.Name(), params, bopts)
 }
 
@@ -232,7 +238,7 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
-	bopts := a.r.ateGRPC(a.dev, params)
+	bopts := a.r.grpc(a.dev, params)
 	return makeDialer(a.Name(), params, bopts)
 }
 
@@ -253,9 +259,9 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 		return nil, err
 	}
 
-	api := gosnappi.NewApi()
+	api := gosnappiNewAPIFn()
 	transport := api.NewGrpcTransport().SetClientConnection(conn)
-	if timeout := a.r.dutGRPC(a.dev, ateSvcParams[introspect.OTG]).Timeout; timeout != 0 {
+	if timeout := a.r.grpc(a.dev, ateSvcParams[introspect.OTG]).Timeout; timeout != 0 {
 		transport.SetRequestTimeout(time.Duration(timeout) * time.Second)
 	}
 	return api, nil
@@ -571,7 +577,7 @@ func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introsp
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpc.DialContext(ctx, bopts.Target, opts...)
+			return grpcDialContextFn(ctx, bopts.Target, opts...)
 		},
 		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
 		DialOpts:   opts,
