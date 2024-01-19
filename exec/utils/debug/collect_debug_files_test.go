@@ -5,7 +5,6 @@ package debug
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -128,20 +127,19 @@ func TestCollectDebugFiles(t *testing.T) {
 			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
 		}
 	}
-	core := ""
+	//core := ""
 	for dutID, targetInfo := range targets.targetInfo {
 
 		ctx := context.Background()
 		cli := GetOndatraCLI(t, dutID)
 
 		for _, cmd := range commands {
-			fmt.Println(fmt.Sprintf("Running current command: [%s]", cmd))
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := cli.RunCommand(ctx, cmd); err == nil {
 					fmt.Printf("result [%s] from cmd [%s]", result, cmd)
 					if cmd == "run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;" {
 						log.Info(result)
-						core = result.Output()
+						//core = result.Output()
 					}
 				} else {
 					t.Logf("> %s", cmd)
@@ -153,7 +151,7 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
-	copyCoreFiles(t, core)
+	//copyCoreFiles(t, core)
 }
 
 // copyDebugFiles copies files from the runs to an specified directory with a filename
@@ -190,32 +188,32 @@ func copyDebugFiles(t *testing.T, d targetInfo, filename string) {
 // copyCoreFiles copies core files if found from the runs to an specified directory with a filename corefiles.json
 //
 // filename - self-explanatory
-func copyCoreFiles(t *testing.T, corefiles string) {
-	t.Helper()
+// func copyCoreFiles(t *testing.T, corefiles string) {
+// 	t.Helper()
 
-	if len(corefiles) == 0 {
-		log.Info("no corefiles were found")
-		return
-	}
-	// creates /corefiles
-	dutOutDir := filepath.Join(outDir, "corefiles")
-	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
-		t.Errorf("Error creating output directory: %v", err)
-		return
-	}
-	files := &CoreFiles{
-		coreFiles: []string{corefiles},
-	}
-	jsonCore, err := json.Marshal(files)
-	if err != nil {
-		log.Error(fmt.Sprintf("Error marshalling core files slice, [%v]", err))
-	}
-	err = os.WriteFile("core.json", jsonCore, 0644)
-	if err != nil {
-		log.Error(fmt.Sprintf("Error writing to core json file [%v]", err))
-	}
+// 	if len(corefiles) == 0 {
+// 		log.Info("no corefiles were found")
+// 		return
+// 	}
+// 	// creates /corefiles
+// 	dutOutDir := filepath.Join(outDir, "corefiles")
+// 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
+// 		t.Errorf("Error creating output directory: %v", err)
+// 		return
+// 	}
+// 	files := &CoreFiles{
+// 		coreFiles: []string{corefiles},
+// 	}
+// 	jsonCore, err := json.Marshal(files)
+// 	if err != nil {
+// 		log.Error(fmt.Sprintf("Error marshalling core files slice, [%v]", err))
+// 	}
+// 	err = os.WriteFile("core.json", jsonCore, 0644)
+// 	if err != nil {
+// 		log.Error(fmt.Sprintf("Error writing to core json file [%v]", err))
+// 	}
 
-}
+// }
 
 // getSSHInfo adds dut ssh info to a slice targetInfo[dut.Id]
 //
