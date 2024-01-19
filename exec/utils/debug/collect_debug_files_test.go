@@ -51,7 +51,7 @@ type Targets struct {
 }
 
 type CoreFiles struct {
-	coreFiles []string `json:"core_files`
+	coreFiles []string
 }
 
 var (
