@@ -736,7 +736,18 @@ func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
 
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
+
 // Devices does not support bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
+

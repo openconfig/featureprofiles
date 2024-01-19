@@ -392,9 +392,15 @@ message Metadata {
     // Devices which needs to enable leaf specific flag
     // Juniper: b/319202763
     bool enable_flowctrl_flag = 137;
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974 
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
     // Devices does not support bgp max multipaths
     // Juniper: b/319301559
-    bool bgp_max_multipath_paths_unsupported = 138;
+    bool bgp_max_multipath_paths_unsupported = 140;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
