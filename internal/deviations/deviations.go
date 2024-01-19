@@ -731,6 +731,16 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
 
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
@@ -764,4 +774,9 @@ func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 // SkipBreakout returns true if breakout via gNMI needs to be skipped.
 func SkipBreakout(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBreakout()
+}
+
+// SkipMainInterfaceDotZero returns true if check for the interface (HunderedGigE0/0/0/1.0) needs to be skipped.
+func SkipMainInterfaceDotZero(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipMainInterfaceDotZero()
 }

@@ -39,9 +39,11 @@ const (
 
 var (
 	staticRoute = &cfgplugins.StaticRouteCfg{
-		NIName:  "DEFAULT",
-		Prefix:  "192.0.2.128/30",
-		Nexthop: "192.0.2.6",
+		NetworkInstance: "DEFAULT",
+		Prefix:          "192.0.2.128/30",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString("192.0.2.6"),
+		},
 	}
 	dutSrc = &attrs.Attributes{
 		Desc:    "DUT to ATE source",

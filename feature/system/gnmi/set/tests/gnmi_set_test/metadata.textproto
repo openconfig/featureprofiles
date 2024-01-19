@@ -18,6 +18,7 @@ platform_exceptions: {
     add_missing_base_config_via_cli: true
     skip_macaddress_check: true
     skip_breakout: true
+    skip_main_interface_dot_zero: true
   }
 }
 platform_exceptions: {

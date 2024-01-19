@@ -187,14 +187,6 @@ func TestDeleteInterface(t *testing.T) {
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
 
-		for _, iname := range scope.interfaces {
-			iface := config.GetInterface(iname)
-			if iface == nil {
-				config.Interface = nil
-
-			}
-		}
-
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterDelete", func(t *testing.T) {
@@ -366,8 +358,8 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		ni := config.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 
-		id1 := attachInterface(ni, p1.Name(), 0)
-		id2 := attachInterface(ni, p2.Name(), 0)
+		id1 := attachInterface(dut, ni, p1.Name(), 0)
+		id2 := attachInterface(dut, ni, p2.Name(), 0)
 
 		op.push(t, dut, config, scope)
 
@@ -431,15 +423,15 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 			// add interface to firstVRF
 			if deviations.ReorderCallsForVendorCompatibilty(dut) {
-				id1 = attachInterface(ni, p1.Name(), 0)
-				id2 = attachInterface(ni, p2.Name(), 0)
+				id1 = attachInterface(dut, ni, p1.Name(), 0)
+				id2 = attachInterface(dut, ni, p2.Name(), 0)
 			}
 		}
 
 		if !deviations.ReorderCallsForVendorCompatibilty(dut) {
 			firstni := config.GetOrCreateNetworkInstance(firstVRF)
-			id1 = attachInterface(firstni, p1.Name(), 0)
-			id2 = attachInterface(firstni, p2.Name(), 0)
+			id1 = attachInterface(dut, firstni, p1.Name(), 0)
+			id2 = attachInterface(dut, firstni, p2.Name(), 0)
 		}
 
 		config.DeleteNetworkInstance(secondVRF)
@@ -490,13 +482,13 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 		secondni := config.GetOrCreateNetworkInstance(secondVRF)
 		secondni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		if deviations.ReorderCallsForVendorCompatibilty(dut) {
-			id1 = attachInterface(secondni, p1.Name(), 0)
-			id2 = attachInterface(secondni, p2.Name(), 0)
+			id1 = attachInterface(dut, secondni, p1.Name(), 0)
+			id2 = attachInterface(dut, secondni, p2.Name(), 0)
 			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
 			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 		} else {
-			attachInterface(secondni, p1.Name(), 0)
-			attachInterface(secondni, p2.Name(), 0)
+			attachInterface(dut, secondni, p1.Name(), 0)
+			attachInterface(dut, secondni, p2.Name(), 0)
 		}
 		op.push(t, dut, config, scope)
 
@@ -564,8 +556,8 @@ func TestStaticProtocol(t *testing.T) {
 		otherni := config.GetOrCreateNetworkInstance(otherVRF)
 		otherni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 
-		id1 := attachInterface(otherni, p1.Name(), 0)
-		id2 := attachInterface(otherni, p2.Name(), 0)
+		id1 := attachInterface(dut, otherni, p1.Name(), 0)
+		id2 := attachInterface(dut, otherni, p2.Name(), 0)
 
 		protocol := otherni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, staticName)
 
@@ -785,12 +777,14 @@ func verifyInterface(t testing.TB, dev gnmi.DeviceOrOpts, name string, a *attrs.
 }
 
 // attachInterface attaches an interface name and subinterface sub to a network instance.
-func attachInterface(ni *oc.NetworkInstance, name string, sub int) string {
+func attachInterface(dut *ondatra.DUTDevice, ni *oc.NetworkInstance, name string, sub int) string {
 	id := name // Possibly vendor specific?  May have to use sub.
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
-	niface.Subinterface = ygot.Uint32(uint32(sub))
-	id = fmt.Sprintf("%s.%d", id, sub)
+	if !deviations.SkipMainInterfaceDotZero(dut) {
+		niface.Subinterface = ygot.Uint32(uint32(sub))
+		id = fmt.Sprintf("%s.%d", id, sub)
+	}
 	return id
 }
 
