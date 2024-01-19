@@ -49,9 +49,9 @@ type Targets struct {
 	targetInfo map[string]targetInfo
 }
 
-type CoreFiles struct {
-	coreFiles []string
-}
+// type CoreFiles struct {
+// 	coreFiles []string
+// }
 
 var (
 	showTechSupport = []string{
