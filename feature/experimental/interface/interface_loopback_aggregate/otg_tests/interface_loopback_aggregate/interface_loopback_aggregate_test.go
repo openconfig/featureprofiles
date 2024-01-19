@@ -119,7 +119,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	port1 := config.Ports().Add().SetName("port1")
 	iDut1Dev := config.Devices().Add().SetName(atePort1Attr.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)

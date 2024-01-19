@@ -294,7 +294,7 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 	// configure port 1 - src
 	i1 := cfg.Devices().Add().SetName(atePort1.Name)
 	i1Eth := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	i1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.Name())
+	i1Eth.Connection().SetPortName(p1.Name())
 	i1IPv4 := i1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	i1IPv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(plen4)
 	i1IPv6 := i1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
@@ -302,12 +302,12 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 
 	// configure lag2 - dst
 	lag2 := cfg.Lags().Add().SetName("lag2")
-	lag2.Protocol().SetChoice("static").Static().SetLagId(2)
+	lag2.Protocol().Static().SetLagId(2)
 	lag2.Ports().Add().SetPortName(p2.Name()).Ethernet().SetMac(lag2MAC).SetName("LAGRx-2")
 
 	lag2Dev := cfg.Devices().Add().SetName(lag2.Name() + ".Dev")
 	lag2Eth := lag2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	lag2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag2.Name())
+	lag2Eth.Connection().SetLagName(lag2.Name())
 	lag2IPv4 := lag2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
 	lag2IPv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(plen4)
 	lag2IPv6 := lag2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
@@ -315,12 +315,12 @@ func configureATE(t *testing.T, ate *otg.OTG) gosnappi.Config {
 
 	// configure lag3 - dst
 	lag3 := cfg.Lags().Add().SetName("lag3")
-	lag3.Protocol().SetChoice("static").Static().SetLagId(3)
+	lag3.Protocol().Static().SetLagId(3)
 	lag3.Ports().Add().SetPortName(p3.Name()).Ethernet().SetMac(lag3MAC).SetName("LAGRx-3")
 
 	lag3Dev := cfg.Devices().Add().SetName(lag3.Name() + ".Dev")
 	lag3Eth := lag3Dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
-	lag3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetLagName(lag3.Name())
+	lag3Eth.Connection().SetLagName(lag3.Name())
 	lag3IPv4 := lag3Eth.Ipv4Addresses().Add().SetName(atePort3.Name + ".IPv4")
 	lag3IPv4.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(plen4)
 	lag3IPv6 := lag3Eth.Ipv6Addresses().Add().SetName(atePort3.Name + ".IPv6")
@@ -397,7 +397,7 @@ func createFlow(t *testing.T, ateTopo gosnappi.Config, name string, dstPorts ...
 	ip.Dst().Increment().SetStart(v4IP).SetCount(50)
 
 	tcp := flow.Packet().Add().Tcp()
-	tcp.DstPort().SetChoice("increment").Increment().SetStart(12345).SetCount(200)
+	tcp.DstPort().Increment().SetStart(12345).SetCount(200)
 	return flow
 }
 
