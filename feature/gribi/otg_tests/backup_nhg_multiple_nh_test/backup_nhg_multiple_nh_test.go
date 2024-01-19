@@ -392,7 +392,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	e1.Src().SetValue(atePort1.MAC)
 	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
 	flow.Rate().SetPps(fps)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(dutPort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
