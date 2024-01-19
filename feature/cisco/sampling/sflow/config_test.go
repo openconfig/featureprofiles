@@ -2,9 +2,10 @@ package sampling_test
 
 import (
 	"fmt"
-	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 	"testing"
 	"time"
+
+	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
 
 	"github.com/openconfig/featureprofiles/feature/cisco/sampling/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
@@ -21,7 +22,7 @@ func TestEnabledAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	dc := gnmi.OC().Sampling().Sflow()
-	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
 	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
 	if json != "" {
 		t.Logf("Default config values for this path: %v", json)
@@ -43,7 +44,7 @@ func TestEnabledAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Enabled != input {
 						t.Errorf("Config /sampling/sflow/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -60,7 +61,7 @@ func TestEnabledAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Enabled != *defaultConfigGot.Enabled {
 						t.Errorf("Delete for container /sampling/sflow/config failed")
 						t.Logf("Enabled leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.Enabled, *defaultConfigGot.Enabled)
@@ -75,7 +76,7 @@ func TestEnabledAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	dc := gnmi.OC().Sampling().Sflow()
-	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
 	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
 	if json != "" {
 		t.Logf("Default config values for this path: %v", json)
@@ -95,7 +96,7 @@ func TestEnabledAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -117,7 +118,7 @@ func TestSampleSizeAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	dc := gnmi.OC().Sampling().Sflow()
-	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
 	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
 	if json != "" {
 		t.Logf("Default config values for this path: %v", json)
@@ -139,7 +140,7 @@ func TestSampleSizeAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SampleSize != input {
 						t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want %v", configGot, input)
 					}
@@ -156,7 +157,7 @@ func TestSampleSizeAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SampleSize != *defaultConfigGot.SampleSize {
 						t.Errorf("Delete for container /sampling/sflow/config failed")
 						t.Logf("sample-size leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.SampleSize, *defaultConfigGot.SampleSize)
@@ -171,7 +172,7 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	dc := gnmi.OC().Sampling().Sflow()
-	defaultConfigGot := gnmi.GetConfig(t, dut, dc.Config())
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
 	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
 	if json != "" {
 		t.Logf("Default config values for this path: %v", json)
@@ -191,7 +192,7 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want %v", configGot, input)
 					}
@@ -208,7 +209,7 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 			t.Run("Delete leaf", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					// Compare the retrieved configuration with the default sample size
 					if configGot != *defaultConfigGot.SampleSize {
 						t.Errorf("Delete for path /sampling/sflow/config failed")
@@ -238,7 +239,7 @@ func TestAgentIdIpv4(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/agent-id-ipv4: got %v, want %v", configGot, input)
 					}
@@ -284,7 +285,7 @@ func TestAgentIdIpv6(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/agent-id-ipv6: got %v, want %v", configGot, input)
 					}
@@ -332,7 +333,7 @@ func TestDscp(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/dscp : got %v, want %v", configGot, input)
 					}
@@ -379,7 +380,7 @@ func TestPollingInterval(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/polling-interval : got %v, want %v", configGot, input)
 					}
@@ -426,7 +427,7 @@ func TestIngressSamplingRate(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/ingress-sampling-rate : got %v, want %v", configGot, input)
 					}

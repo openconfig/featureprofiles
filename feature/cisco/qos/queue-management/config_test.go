@@ -53,7 +53,7 @@ func TestQmWredQosSet(t *testing.T) {
 
 		configqos := gnmi.OC().Qos()
 		gnmi.Update(t, dut, configqos.Config(), qos)
-		configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
+		configGotqos := gnmi.Get(t, dut, configqos.Config())
 		if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -90,7 +90,7 @@ func TestQmRedQosSet(t *testing.T) {
 	}
 	configqos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, configqos.Config(), qos)
-	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
+	configGotqos := gnmi.Get(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -113,7 +113,7 @@ func TestQueueManagementQosReplace(t *testing.T) {
 		wredqueumredunir.MaxDropProbabilityPercent = ygot.Uint8(10)
 		configqosreplace := gnmi.OC().Qos()
 		gnmi.Replace(t, dut, configqosreplace.Config(), qosr)
-		configGotqos := gnmi.GetConfig(t, dut, configqosreplace.Config())
+		configGotqos := gnmi.Get(t, dut, configqosreplace.Config())
 		if diff := cmp.Diff(*configGotqos, *qosr); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -153,14 +153,14 @@ func TestQMQmwredSet(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), wredqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 
 	}
 	configqos := gnmi.OC().Qos()
-	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
+	configGotqos := gnmi.Get(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -174,7 +174,7 @@ func TestQMQmwredSet(t *testing.T) {
 	wredqueumreduni5.MaxDropProbabilityPercent = ygot.Uint8(10)
 	configUpdate := gnmi.OC().Qos().QueueManagementProfile(*wredqueum5.Name)
 	gnmi.Update(t, dut, configUpdate.Config(), wredqueum5)
-	configGot := gnmi.GetConfig(t, dut, configUpdate.Config())
+	configGot := gnmi.Get(t, dut, configUpdate.Config())
 	if diff := cmp.Diff(*configGot, *wredqueum5); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
@@ -209,13 +209,13 @@ func TestQMQmredSet(t *testing.T) {
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name)
 		gnmi.Replace(t, dut, configqm.Config(), redqueum)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	}
 	configqos := gnmi.OC().Qos()
-	configGotqos := gnmi.GetConfig(t, dut, configqos.Config())
+	configGotqos := gnmi.Get(t, dut, configqos.Config())
 	if diff := cmp.Diff(*configGotqos, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -226,14 +226,14 @@ func TestQMQmredSet(t *testing.T) {
 	redqueumreduni1.MaxThreshold = ygot.Uint64(130000)
 	configred := gnmi.OC().Qos().QueueManagementProfile(*redqueum1.Name)
 	gnmi.Update(t, dut, configred.Config(), redqueum1)
-	configGot := gnmi.GetConfig(t, dut, configred.Config())
+	configGot := gnmi.Get(t, dut, configred.Config())
 	if diff := cmp.Diff(*configGot, *redqueum1); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
 	redqueumreduni1.EnableEcn = ygot.Bool(true)
 	configredecn := gnmi.OC().Qos().QueueManagementProfile(*redqueum1.Name)
 	gnmi.Update(t, dut, configredecn.Config(), redqueum1)
-	configGotEcn := gnmi.GetConfig(t, dut, configredecn.Config())
+	configGotEcn := gnmi.Get(t, dut, configredecn.Config())
 	if diff := cmp.Diff(*configGotEcn, *redqueum1); diff != "" {
 		t.Errorf("Config Schedule update failed: \n%v", diff)
 	}
@@ -278,7 +278,7 @@ func TestQMWredSetReplace(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
 		gnmi.Replace(t, dut, configqm.Config(), wredqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -319,7 +319,7 @@ func TestQMWredUniReplace(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
 		gnmi.Replace(t, dut, configqm.Config(), wredqueumreduni)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -360,7 +360,7 @@ func TestQMWredSetUpdate(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred()
 		gnmi.Update(t, dut, configqm.Config(), wredqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -400,7 +400,7 @@ func TestQMWredUniUpdate(t *testing.T) {
 		wredqueumreduni.MaxDropProbabilityPercent = ygot.Uint8(dropprobablity[i])
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*wredqueum.Name).Wred().Uniform()
 		gnmi.Update(t, dut, configqm.Config(), wredqueumreduni)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *wredqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -437,7 +437,7 @@ func TestQMRedReplace(t *testing.T) {
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
 		gnmi.Replace(t, dut, configqm.Config(), redqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -472,7 +472,7 @@ func TestQMRedSetUpdate(t *testing.T) {
 		redqueumreduni.EnableEcn = ygot.Bool(true)
 		configqm := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red()
 		gnmi.Update(t, dut, configqm.Config(), redqueumred)
-		configGotQM := gnmi.GetConfig(t, dut, configqm.Config())
+		configGotQM := gnmi.Get(t, dut, configqm.Config())
 		if diff := cmp.Diff(*configGotQM, *redqueumred); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
@@ -501,7 +501,7 @@ func TestQmUpdateEcn(t *testing.T) {
 	gnmi.Update(t, dut, config2.Config(), redqueumreduni)
 	configsetwredecn := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Wred().Uniform().EnableEcn()
 	gnmi.Update(t, dut, configsetwredecn.Config(), true)
-	ConfigGetEcn := gnmi.GetConfig(t, dut, gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Config())
+	ConfigGetEcn := gnmi.Get(t, dut, gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Config())
 	if diff := cmp.Diff(*ConfigGetEcn, *redqueumred); diff == "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -547,14 +547,14 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 		gnmi.Update(t, dut, config3.Config(), redqueum1)
 	})
 	t.Run("Step 2 , Get one of queue-management-container before delete", func(t *testing.T) {
-		configGot1 := gnmi.GetConfig(t, dut, config1.Config())
+		configGot1 := gnmi.Get(t, dut, config1.Config())
 		if diff := cmp.Diff(*configGot1, *redqueum); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
 	})
 	t.Run("Step 3 , Delete one of queue-management-container and verify with Get", func(t *testing.T) {
 		gnmi.Delete(t, dut, config1.Config())
-		ConfigGotqos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotqos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 
 		if diff := cmp.Diff(*ConfigGotqos, *qos); diff == "" {
 			t.Errorf("Failed to Delete %v", *redqueum.Name)
@@ -563,11 +563,11 @@ func TestQueueManagementDeleteAdd(t *testing.T) {
 	t.Run("Step 4 , add back qm profile back and verify with Get", func(t *testing.T) {
 		configuni := gnmi.OC().Qos().QueueManagementProfile(*redqueum.Name).Red().Uniform()
 		gnmi.Update(t, dut, configuni.Config(), redqueumreduni)
-		configGotUni := gnmi.GetConfig(t, dut, configuni.Config())
+		configGotUni := gnmi.Get(t, dut, configuni.Config())
 		if diff := cmp.Diff(*configGotUni, *redqueumreduni); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}
-		ConfigGotqos := gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+		ConfigGotqos := gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 		if diff := cmp.Diff(*ConfigGotqos, *qos); diff != "" {
 			t.Errorf("Qm profile %v not  added back", *redqueum.Name)
 		}

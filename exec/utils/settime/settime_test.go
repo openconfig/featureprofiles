@@ -34,9 +34,9 @@ func TestSetTime(t *testing.T) {
 	cmd := fmt.Sprintf("clock set %s", tn.Format("15:04:05 Jan 02 2006"))
 	t.Logf("Sending command %s", cmd)
 
-	if resp, err := sshClient.SendCommand(context.Background(), cmd); err != nil {
+	if resp, err := sshClient.RunCommand(context.Background(), cmd); err != nil {
 		t.Logf("Error executing command: %v", err)
 	} else {
-		t.Log(resp)
+		t.Log(resp.Output())
 	}
 }

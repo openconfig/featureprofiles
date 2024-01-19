@@ -1153,7 +1153,7 @@ func TestForwardViableSDN(t *testing.T) {
 	t.Run(fmt.Sprintf("Get on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember).ForwardingViable()
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.GetConfig(t, dut, configContainer.Config())
+		forwardUnviable := gnmi.Get(t, dut, configContainer.Config())
 		if forwardUnviable != *ygot.Bool(false) {
 			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
 		}
@@ -1179,7 +1179,7 @@ func TestForwardViableSDN(t *testing.T) {
 	t.Run(fmt.Sprintf("Get on /interface[%v]/", bundleMember), func(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember)
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.GetConfig(t, dut, configContainer.Config())
+		forwardUnviable := gnmi.Get(t, dut, configContainer.Config())
 		if *forwardUnviable.ForwardingViable != false {
 			t.Errorf("Update for forward-unviable failed got %t , want false", *forwardUnviable.ForwardingViable)
 		}

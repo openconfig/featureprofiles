@@ -32,7 +32,7 @@ func TestIdAtLeaf(t *testing.T) {
 		state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Id()
 
 		t.Run("Get container", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.Get(t, dut, config.Config())
 			if configGot != *baseConfigClassifierTerm.Id {
 				t.Errorf("Config /qos/classifiers/classifier/terms/term/config/id: want %s got %s", *baseConfigClassifierTerm.Id, configGot)
 			}
@@ -73,7 +73,7 @@ func TestTerm(t *testing.T) {
 				// config.Replace(t, baseConfigTerm)
 			})
 			t.Run(fmt.Sprintf("Get class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigTerm); diff != "" {
 					t.Errorf("Config class-map fail: \n%v", diff)
 				}
@@ -90,7 +90,7 @@ func TestTerm(t *testing.T) {
 				// config.Replace(t, baseConfigTerm)
 			})
 			t.Run(fmt.Sprintf("Get class-map %s", *baseConfigTerm.Id), func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigTerm); diff != "" {
 					t.Errorf("Config class-map fail: \n%v", diff)
 				}
@@ -118,7 +118,7 @@ func TestDeleteAllClassMaps(t *testing.T) {
 		for termId := range baseConfigClassifier.Term {
 			config := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Term(termId)
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
+				gnmi.Get(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
 			}); errMsg != nil {
 				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 			} else {
@@ -147,7 +147,7 @@ func TestSetDscp(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTerm)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp fail:\n%v", diff)
 				}
@@ -182,7 +182,7 @@ func TestSetMplsTc(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigClassifierTerm)
 			})
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTerm); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc fail:\n%v", diff)
 				}

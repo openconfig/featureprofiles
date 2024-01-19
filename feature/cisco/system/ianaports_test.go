@@ -105,7 +105,7 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 
 	})
 
@@ -219,7 +219,7 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
@@ -241,6 +241,6 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 	})
 }

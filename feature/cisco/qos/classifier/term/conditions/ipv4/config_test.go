@@ -55,7 +55,7 @@ func TestDscpAtContainer(t *testing.T) {
 			//         SourceAddress:      nil,
 			//   }
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv4); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: %v", diff)
 				}
@@ -108,7 +108,7 @@ func TestDscpAtLeaf(t *testing.T) {
 			// dut.Config().Qos().Classifier(*baseConfigClassifier.Name).Term(*baseConfigClassifierTerm.Id).Conditions().Ipv4().DscpSet() returns a list
 			t.Run("Get leaf", func(t *testing.T) {
 				t.Skip()
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp: got %v, want %v", configGot, input)
 				}
@@ -174,7 +174,7 @@ func TestDscpSetAtContainer(t *testing.T) {
 			//         SourceAddress: nil,
 			//   }
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsIpv4); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set: %v", diff)
 				}
@@ -225,7 +225,7 @@ func TestDscpSetAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				for i, cg := range configGot {
 					if cg != input[i] {
 						t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set: got %v, want %v", cg, input[i])
