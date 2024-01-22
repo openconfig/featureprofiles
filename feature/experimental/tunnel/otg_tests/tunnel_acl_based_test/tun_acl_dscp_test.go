@@ -159,7 +159,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	iFace := d1.GetOrCreateAcl().GetOrCreateInterface(ifName)
 	aclConf := configACLInterface(t, iFace, ifName)
 	gnmi.Replace(t, dut, aclConf.Config(), iFace)
-	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.GetConfig(t, dut, aclConf.Config()))
+	fptest.LogQuery(t, "ACL config:\n", aclConf.Config(), gnmi.Get(t, dut, aclConf.Config()))
 }
 
 // configACLInterface configures the ACL attachment on interface
@@ -195,20 +195,19 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 
 // configureOTG configures the traffic interfaces
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
 	srcPort := topo.Ports().Add().SetName("port1")
 	srcDev := topo.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
+	srcEth.Connection().SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	t.Logf("Configuring OTG port2")
 	dstPort := topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
+	dstEth.Connection().SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
 	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	topo.Captures().Add().SetName("grecapture").SetPortNames([]string{dstPort.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
@@ -220,7 +219,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		SetRxNames([]string{dstIpv4.Name()})
 	flowipv4.Size().SetFixed(FrameSize)
 	flowipv4.Rate().SetPps(pps)
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -228,12 +227,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	v4.Dst().SetValue(dstIpv4.Address())
 	v4.Priority().Dscp().Phb().SetValue(uint32(dscp))
 	t.Logf("Pushing config to ATE and starting protocols...")
-	otg.PushConfig(t, topo)
+	ate.OTG().PushConfig(t, topo)
 	t.Logf("starting protocols...")
-	otg.StartProtocols(t)
+	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")
-	t.Log(topo.Msg().GetCaptures())
+	pb, _ := topo.Marshal().ToProto()
+	t.Log(pb.GetCaptures())
 	return topo
 }
 

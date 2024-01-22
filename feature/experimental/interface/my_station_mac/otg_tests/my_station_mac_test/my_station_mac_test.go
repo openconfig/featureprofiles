@@ -135,7 +135,7 @@ func configureDUT(t *testing.T) {
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -159,7 +159,7 @@ func testTraffic(
 	flow.Metrics().SetEnable(true)
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	eth.Dst().SetChoice("value").SetValue(myStationMAC)
+	eth.Dst().SetValue(myStationMAC)
 	if ipType == "IPv4" {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)

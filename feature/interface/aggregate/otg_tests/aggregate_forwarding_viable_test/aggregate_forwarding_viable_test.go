@@ -279,7 +279,9 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	}
 	lacpPath := d.Lacp().Interface(tc.aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	if tc.lagType == lagTypeLACP {
+		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
+	}
 
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg, &dutDst)
@@ -341,7 +343,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
 		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().SetChoice("static").Static().SetLagId(uint32(lagId))
+		agg.Protocol().Static().SetLagId(uint32(lagId))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -351,7 +353,6 @@ func (tc *testArgs) configureATE(t *testing.T) {
 			agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(newMac).SetName("LAGRx-" + strconv.Itoa(i))
 		}
 	} else {
-		agg.Protocol().SetChoice("lacp")
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(ateDst.MAC)
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
@@ -380,7 +381,7 @@ func (tc *testArgs) configureATE(t *testing.T) {
 		autoNegotiate.SetRsFec(false)
 	}
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
 	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
@@ -511,10 +512,24 @@ func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interfac
 func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable bool) {
 	var want []float64
 	lp := newLinkPairs(tc.dut, tc.ate)
+	pName := tc.dutPorts[1].Name()
+
 	// Update the interface config of one port in port-channel when the forwarding flag is set as false.
 	if !forwardingViable {
 		t.Log("First port does not forward traffic because it is marked as not viable.")
-		gnmi.Update(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[1].Name()).ForwardingViable().Config(), forwardingViable)
+		gnmi.Update(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), forwardingViable)
+	}
+
+	v := gnmi.Lookup(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().State())
+	got, present := v.Val()
+	t.Logf("First port %s forwarding-viable: got %v, present %v, want %v", pName, got, present, forwardingViable)
+	switch {
+	case present && got != forwardingViable:
+		t.Errorf("First port %s forwarding-viable: got %t, want %t", pName, got, forwardingViable)
+	case !present && !deviations.MissingValueForDefaults(tc.dut):
+		t.Errorf("First port %s forwarding-viable value not found", pName)
+	case !present && deviations.MissingValueForDefaults(tc.dut) && !forwardingViable:
+		t.Errorf("First port %s forwarding-viable defaults true not equal to %t", pName, forwardingViable)
 	}
 
 	i1 := ateSrc.Name
@@ -587,20 +602,20 @@ func TestAggregateForwardingViable(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	aggID := netutil.NextAggregateInterface(t, dut)
 
-	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeLACP, lagTypeSTATIC}
+	lagTypes := []oc.E_IfAggregate_AggregationType{lagTypeSTATIC, lagTypeLACP}
 	for _, lagType := range lagTypes {
 		args := &testArgs{
 			dut:      dut,
 			ate:      ate,
-			top:      ate.OTG().NewConfig(t),
+			top:      gosnappi.NewConfig(),
 			lagType:  lagType,
 			dutPorts: sortPorts(dut.Ports()),
 			atePorts: sortPorts(ate.Ports()),
 			aggID:    aggID,
 		}
 		t.Run(fmt.Sprintf("LagType=%s", lagType), func(t *testing.T) {
-			args.configureDUT(t)
 			args.configureATE(t)
+			args.configureDUT(t)
 			args.verifyDUT(t)
 
 			for _, forwardingViable := range []bool{true, false} {
