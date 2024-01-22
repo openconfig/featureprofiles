@@ -232,7 +232,8 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
 	//	otgutils.WaitForARP(t, otg, topo, "IPv4")
-	t.Log(topo.Msg().GetCaptures())
+	pb, _ := topo.Marshal().ToProto()
+	t.Log(pb.GetCaptures())
 	return topo
 }
 
