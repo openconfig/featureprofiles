@@ -2,5 +2,6 @@
 package hwgcebind
 
 import (
+	// Register xDS resolver required for c2p directpath.
 	_ "google.golang.org/grpc/xds/googledirectpath"
 )
