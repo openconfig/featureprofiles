@@ -16,16 +16,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-)
-
-const (
-	RP           = "0/RP0/CPU0"
-	linecardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
-)
-
-var (
-	observer = fptest.NewObserver("Platform").AddCsvRecorder("ocreport").
-		AddCsvRecorder("Platform")
+	"github.com/openconfig/testt"
 )
 
 var componentNameList []string
@@ -44,6 +35,17 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 	// Verify that the configured breakout speed is as expected.
 	if breakoutSpeedGot != breakoutSpeedWant {
 		t.Errorf("Breakout speed configured: got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
+	}
+}
+
+func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string, schemaValue uint8) {
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(schemaValue).Index().Config()) //catch the error  as it is expected and absorb the panic.
+	}); errMsg != nil {
+		t.Log("Expected failure as this verifies the breakout config is removed")
+	} else {
+		t.Errorf("This get on empty config should have failed : %s", *errMsg)
 	}
 }
 
@@ -158,6 +160,7 @@ func ConvertIntfToCompName(interfaceName string, linecardLocation string) string
 	}
 
 	portNumber := matches[5]
+	//     0/0/CPU0-QSFP_DD Optics Port 30
 	return fmt.Sprintf("%s-QSFP_DD Optics Port %s", linecardLocation, portNumber)
 }
 
@@ -194,5 +197,3 @@ func getOriginalPortName(dut *ondatra.DUTDevice, t *testing.T, speed oc.E_IfEthe
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
-
