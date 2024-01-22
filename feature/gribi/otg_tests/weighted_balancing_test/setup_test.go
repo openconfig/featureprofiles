@@ -335,7 +335,7 @@ func createTraffic (t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 }
 
 
-func startTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
+func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
 		time.Sleep(*trafficPause)
@@ -371,7 +371,7 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) 
 // packets received (inPkts) and sent (outPkts) across the atePorts.
 func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	createTraffic(t, ate, config)
-	return startTraffic(t, ate, config)
+	return runTraffic(t, ate, config)
 }
 
 // normalize normalizes the input values so that the output values sum

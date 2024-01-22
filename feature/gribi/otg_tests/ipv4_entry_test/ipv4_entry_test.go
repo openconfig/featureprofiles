@@ -505,7 +505,6 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
 	}
-	otg := ate.OTG()
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
@@ -514,16 +513,17 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
-	otg.PushConfig(t, ateTop)
-	otg.StartProtocols(t)
 	return name
 }
 
 func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string)  (newGood, newBad []string) {
         var newGoodFlows, newBadFlows []string
 	allFlows := append(good, bad...)
-	ateTop := ate.OTG().FetchConfig(t)
+	otg := ate.OTG()
+	ateTop := otg.FetchConfig(t)
         if len(good) == 0 && len(bad) == 0 {
+		otg.PushConfig(t, ateTop)
+		otg.StartProtocols(t)
                 return newGoodFlows, newBadFlows 
         }
         ateTop.Flows().Clear().Items()
@@ -555,6 +555,8 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 
                 }
         }
+	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
 	return newGoodFlows, newBadFlows
 }
 
