@@ -2,8 +2,11 @@ package basetest
 
 import (
 	"fmt"
+	"net"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 
@@ -15,13 +18,13 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+
 	"github.com/openconfig/ygot/ygot"
 
 	"context"
 )
 
 var (
-	// breakoutSchemaValueFlag = flag.Int64("deviation_breakout_schema_value", 0, "Set to 0 for older schema value and 1 for newer breakout schema value")
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "203.0.113.1",
@@ -58,36 +61,80 @@ var (
 )
 
 // configureOTG configures port1 and port2 on the ATE.
-func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureOTG(t *testing.T,
+	ate *ondatra.ATEDevice,
+	breakoutspeed *oc.E_IfEthernet_ETHERNET_SPEED,
+	ateIpv4Subnets []string,
+	Dutipv4Subnets []string,
+	numbreakouts int) gosnappi.Config {
+
 	top := gosnappi.NewConfig()
+	ports := ate.Ports()
 
-	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
-	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
-	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
-		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(uint32(atePort1.IPv4Len))
+	// order the ports from 1 to 8
+	sort.Slice(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
 
-	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
-	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
-	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
-		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(uint32(atePort2.IPv4Len))
+	// based on setup 100G breakout is on ports 1 to 4 and 10G is ports 5 to 8
+	if *breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB {
+		t.Logf("speed is %v", *breakoutspeed)
+	} else if *breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
+		t.Logf("speed is needed to start port assignment on port5 as that is "+
+			"where 10G ports are in setup %v", *breakoutspeed)
+		ports = ports[4:]
+	}
 
+	for i, port := range ports {
+
+		// remove the subnet mask from the ipv4 address
+		ip, _, err := net.ParseCIDR(ateIpv4Subnets[i])
+		ateIpAddress := ip.String()
+
+		if err != nil {
+			t.Fatalf("Invalid IP address: %v", err)
+		}
+
+		gwIp, _, err := net.ParseCIDR(Dutipv4Subnets[i])
+		dutIpAddress := gwIp.String()
+
+		if err != nil {
+			t.Fatalf("Invalid IP address: %v", err)
+		}
+		t.Logf("Port Name: %s\n", port.Name())
+		t.Logf("Port ID: %s\n", port.ID())
+
+		t.Logf("ATE IPv4 Add is : %v and port is %v", ateIpAddress, port.ID())
+		t.Logf("ATE IPV4 GW IS DUT IP OF : %v and port is %v", dutIpAddress, port.ID())
+
+		top.Ports().Add().SetName(ate.Port(t, port.ID()).ID())
+		i1 := top.Devices().Add().SetName(ate.Port(t, port.ID()).ID())
+		macAddress := fmt.Sprintf("02:00:01:0%v:01:01", i+1)
+		eth1 := i1.Ethernets().Add().SetName(port.ID() + ".Eth").SetMac(macAddress)
+		eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+		eth1.Ipv4Addresses().Add().SetName(port.ID() + ateIpAddress).
+			SetAddress(ateIpAddress).SetGateway(dutIpAddress).
+			SetPrefix(uint32(atePort1.IPv4Len))
+		// exit loop when we reached the number of breakout ports
+		if i == numbreakouts-1 {
+			break
+		}
+	}
+	// Show the OTG Config
+	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30)
 	ate.OTG().StartProtocols(t)
 
 	return top
 }
 
 func TestPlatformBreakoutConfig(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
+	var Dutipv4Subnets []string
+	var Ateipv4Subnets []string
 
-
+	// Flag is used for older schema of 0 was original flag value
 	var schemaValue uint8
 	if uint8(deviations.BreakOutSchemaValueFlag(dut)) == 1 {
 		schemaValue = uint8(1)
@@ -117,6 +164,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		},
 	}
 	gnoiClient := dut.RawAPIs().GNOI(t)
+
 	ate := ondatra.ATE(t, "ate")
 	for _, tc := range cases {
 
@@ -164,16 +212,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/group[%v]/config: %v*%v", componentName, schemaValue, tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 				t.Logf("The component name inside test: %v", componentName)
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
-				defer observer.RecordYgot(t, "REPLACE", path)
+				// defer observer.RecordYgot(t, "REPLACE", path)
 				gnmi.Replace(t, dut, path.Config(), configContainer)
 
 			})
-			// Configure the OTG
-			configureOTG(t, ate)
 
 			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]", componentName, schemaValue), func(t *testing.T) {
 				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
+				// defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				groupDetails := gnmi.Get(t, dut, state.Config())
 				index := *groupDetails.Index
 				numBreakouts := *groupDetails.NumBreakouts
@@ -190,11 +236,12 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				t.Logf("The dutIntfIp that will be set on the router is %s", dutIntfIp)
-
 				sortBreakoutPorts(breakOutPorts)
 				t.Log(breakOutPorts)
-				Dutipv4Subnets, err := IncrementIPNetwork(dutIntfIp, tc.numbreakouts, true, 1)
+
+				Dutipv4Subnets, err = IncrementIPNetwork(dutIntfIp, tc.numbreakouts, true, 1)
+				Ateipv4Subnets, err = IncrementIPNetwork(ateIntfIp, tc.numbreakouts, true, 2)
+
 				if err != nil {
 					t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
 				}
@@ -218,50 +265,73 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					a.PrefixLength = ygot.Uint8(dutPort1.IPv4Len)
 
 					dc := gnmi.OC()
-					gnmi.Replace(t, dut, dc.Interface(portName).Config(), i)
+					gnmi.Update(t, dut, dc.Interface(portName).Config(), i)
 
 				}
 			})
 
 			t.Run(fmt.Sprintf("Ping ATE from DUT via Breakout Interface %v %v", tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
-				pingRequest := &spb.PingRequest{
-					Destination: ateIntfIp,
-					L3Protocol:  tpb.L3Protocol_IPV4,
-				}
 
-				t.Logf("Starting Ping to Destination %v and Source of %v", ateIntfIp, dutIntfIp)
+				// configureOTG(t, ate, Ateipv4Subnets, Dutipv4Subnets, int(tc.breakoutspeed), int(*ygot.Uint8(uint8(tc.breakoutspeed))))
+				t.Log("Configuring the ATE")
+				configureOTG(t, ate, &tc.breakoutspeed, Ateipv4Subnets, Dutipv4Subnets, int(tc.numbreakouts))
 
-				pingClient, err := gnoiClient.System().Ping(context.Background(), pingRequest)
-				t.Log(pingClient)
-				if err != nil {
-					t.Fatalf("Failed to query gnoi endpoint: %v", err)
-				}
+				for i, dutAddrs := range Dutipv4Subnets {
+					t.Log(i)
+					ip, _, err := net.ParseCIDR(dutAddrs)
+					dutAddrs := ip.String() // This is the IP address without the CIDR mask.
 
-				responses, err := fetchResponses(pingClient)
-				if err != nil {
-					t.Fatalf("Failed to handle gnoi ping client stream: %v", err)
-				}
-				t.Logf("Got ping responses: Items: %v\n, Content: %v\n\n", len(responses), responses)
-				if len(responses) == 0 {
-					t.Errorf("Number of responses to %v: got 0, want > 0", pingRequest.Destination)
-				}
+					if err != nil {
+						t.Fatalf("Invalid IP address: %v", err)
+					}
 
-				if responses[3].Source != ateIntfIp {
-					t.Errorf("Did not get A ping responses from ATE source Interface %s", responses[3].Source)
-				} else {
-					t.Logf("Got a successful reply from ATE Source Interface: %s", responses[3].Source)
+					pingRequest := &spb.PingRequest{
+						Destination: dutAddrs,
+						L3Protocol:  tpb.L3Protocol_IPV4,
+					}
+
+					t.Logf("Starting Ping to Destination %v", dutAddrs)
+
+					pingClient, err := gnoiClient.System().Ping(context.Background(), pingRequest)
+
+					t.Log(pingClient.RecvMsg("any"))
+					if err != nil {
+						t.Fatalf("Failed to query gnoi endpoint: %v", err)
+					}
+
+					responses, err := fetchResponses(pingClient)
+					if err != nil {
+						t.Fatalf("Failed to handle gnoi ping client stream: %v", err)
+					}
+					t.Logf("Got ping responses: Items: %v\n, Content: %v\n\n", len(responses), responses)
+					if len(responses) == 0 {
+						t.Errorf("Number of responses to %v: got 0, want > 0", pingRequest.Destination)
+					}
+
+					if responses[3].Source != dutAddrs {
+						t.Errorf("Did not get A ping responses from ATE source Interface %s", responses[3].Source)
+					} else {
+						t.Logf("Got a successful reply from ATE Source Interface: %s", responses[3].Source)
+					}
+
 				}
 
 			})
 
 			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/ %v*%v", componentName, tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "REPLACE", path)
 				gnmi.Replace(t, dut, path.Config(), portContainer)
+
+			})
+
+			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config", componentName), func(t *testing.T) {
+				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(schemaValue)
+				// defer observer.RecordYgot(t, "UPDATE", path)
+				gnmi.Delete(t, dut, path.Config())
+				verifyDelete(t, dut, componentName, schemaValue)
 			})
 
 		}
 	}
 
 }
-
