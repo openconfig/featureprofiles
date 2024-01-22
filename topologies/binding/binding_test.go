@@ -234,8 +234,8 @@ func TestDialOTGTimeout(t *testing.T) {
 	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, nil
 	}
-	gosnappiNewAPIFn = func() gosnappi.GosnappiApi {
-		return &captureAPI{GosnappiApi: gosnappi.NewApi()}
+	gosnappiNewAPIFn = func() gosnappi.Api {
+		return &captureAPI{Api: gosnappi.NewApi()}
 	}
 	api, err := a.DialOTG(context.Background())
 	if err != nil {
@@ -248,11 +248,11 @@ func TestDialOTGTimeout(t *testing.T) {
 }
 
 type captureAPI struct {
-	gosnappi.GosnappiApi
+	gosnappi.Api
 	gotTransport gosnappi.GrpcTransport
 }
 
 func (a *captureAPI) NewGrpcTransport() gosnappi.GrpcTransport {
-	a.gotTransport = a.GosnappiApi.NewGrpcTransport()
+	a.gotTransport = a.Api.NewGrpcTransport()
 	return a.gotTransport
 }
