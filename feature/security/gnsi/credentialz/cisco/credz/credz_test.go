@@ -177,7 +177,7 @@ func create_account_credentials(file_path string, account_name string) (credz.Ac
 		} else {
 			genereate_pvt_public_key_pairs(file_name, encryption, "")
 		}
-		publicKeyBytes, err := os.ReadFile(fmt.Sprintf("%s.pub", file_name))
+		publicKeyBytes, _ := os.ReadFile(fmt.Sprintf("%s.pub", file_name))
 		pub_key := strings.Split(string(publicKeyBytes), " ")[1]
 
 		keys_data := credz.AccountCredentials_AuthorizedKey{
@@ -251,7 +251,7 @@ func TestPubKeyAuthentication(t *testing.T) {
 	}
 	target := b.Duts[0].Ssh.Target
 	target_ip := strings.Split(target, ":")[0]
-	target_port, err := strconv.Atoi(strings.Split(target, ":")[1])
+	target_port, _ := strconv.Atoi(strings.Split(target, ":")[1])
 
 	var akreq credz.AuthorizedKeysRequest
 	dut := ondatra.DUT(t, "dut")
