@@ -35,7 +35,7 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	golang.org/x/crypto v0.18.0
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
 	golang.org/x/text v0.14.0
 	google.golang.org/api v0.153.0
 	google.golang.org/grpc v1.60.1
