@@ -561,13 +561,3 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 		}
 	}
 }
-
-// setDUTInterfaceState sets the admin state on the dut interface
-func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
-	dc := gnmi.OC()
-	i := &oc.Interface{}
-	i.Enabled = ygot.Bool(state)
-	i.Type = ethernetCsmacd
-	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
-}
