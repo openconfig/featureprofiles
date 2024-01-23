@@ -15,7 +15,6 @@
 package dscp_transparency_test
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -179,7 +177,7 @@ func configureDUTQoS(
 	// always fresh/new qos container
 	qosConfig := &oc.Qos{}
 
-	if dut.Vendor() == ondatra.NOKIA {
+	if deviations.QOSQueueRequiresID(dut) {
 		for i, queueName := range allQueueNames {
 			q1 := qosConfig.GetOrCreateQueue(string(queueName))
 			q1.Name = ygot.String(string(queueName))
@@ -364,37 +362,6 @@ func configureDUTQoS(
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qosConfig)
-
-	if deviations.EcnPreserveDSCP(dut) {
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "srl",
-			},
-			Update: []*gpb.Update{{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{
-							Name: "qos",
-						},
-						{
-							Name: "preserve-dscp",
-						},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: []byte(`"true"`),
-					},
-				},
-			}},
-		}
-
-		rawGNMIClient := dut.RawAPIs().GNMI(t)
-		_, err := rawGNMIClient.Set(context.Background(), gpbSetRequest)
-		if err != nil {
-			t.Fatalf("failed setting preserve dscp, error: %s", err)
-		}
-	}
 }
 
 func configureDUTPort(

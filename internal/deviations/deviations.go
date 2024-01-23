@@ -745,9 +745,3 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
-
-// EcnPreserveDSCP returns if device needs additional configuration to preserve dscp tags when
-// setting ecn congestion encountered bit.
-func EcnPreserveDSCP(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEcnPreserveDscp()
-}
