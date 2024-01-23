@@ -750,4 +750,3 @@ func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 func TunnelAclEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelAclEncapsulationConfigUnsupported()
 }
-
