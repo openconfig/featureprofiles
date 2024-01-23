@@ -48,6 +48,7 @@ const (
 	flowFrameSize           uint32 = 1_000
 	trafficRunDuration             = 1 * time.Minute
 	trafficStopWaitDuration        = 30 * time.Second
+	dutEgressPort                  = "port1"
 )
 
 var (
@@ -136,7 +137,7 @@ var (
 	testCases = []struct {
 		name           string
 		createFlowsF   func(otgConfig gosnappi.Config, protocol string, atePortSpeed int)
-		validateFlowsF func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, atePortSpeed int)
+		validateFlowsF func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, atePortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters)
 	}{
 		{
 			name:           "TestNoCongestion",
@@ -155,6 +156,12 @@ var (
 		},
 	}
 )
+
+type queueCounters struct {
+	droppedPackets  uint64
+	transmitPackets uint64
+	transmitOctets  uint64
+}
 
 func getZeroIshThresholds(dutPortSpeed int) (uint64, uint64) {
 	// max allowed "zero" counters -- as in things that are supposed to be zero per the test but
@@ -467,6 +474,56 @@ func createFlow(otgConfig gosnappi.Config, protocol string, targetTotalFlowRate 
 	return flow
 }
 
+func getQueueCounters(t *testing.T, dut *ondatra.DUTDevice) map[entname.QoSQueue]*queueCounters {
+	t.Helper()
+
+	ep := dut.Port(t, dutEgressPort)
+
+	qc := map[entname.QoSQueue]*queueCounters{}
+
+	for _, egressQueueName := range allQueueNames {
+		qc[egressQueueName] = &queueCounters{
+			droppedPackets:  gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).DroppedPkts().State()),
+			transmitPackets: gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).TransmitPkts().State()),
+			transmitOctets:  gnmi.Get(t, dut, gnmi.OC().Qos().Interface(ep.Name()).Output().Queue(string(egressQueueName)).TransmitOctets().State()),
+		}
+	}
+
+	return qc
+}
+
+func logAndGetResolvedQueueCounters(t *testing.T, egressQueueName entname.QoSQueue, egressQueueStartingCounters, egressQueueEndingCounters *queueCounters) (uint64, uint64, uint64) {
+	queueDroppedPackets := egressQueueEndingCounters.droppedPackets - egressQueueStartingCounters.droppedPackets
+	queueTransmitPackets := egressQueueEndingCounters.transmitPackets - egressQueueStartingCounters.transmitPackets
+	queueTransmitOctets := egressQueueEndingCounters.transmitOctets - egressQueueStartingCounters.transmitOctets
+
+	t.Logf(
+		"\nqueue %q pre-test telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
+		egressQueueName,
+		egressQueueStartingCounters.droppedPackets,
+		egressQueueStartingCounters.transmitPackets,
+		egressQueueStartingCounters.transmitOctets,
+	)
+
+	t.Logf(
+		"\nqueue %q post-test telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
+		egressQueueName,
+		egressQueueEndingCounters.droppedPackets,
+		egressQueueEndingCounters.transmitPackets,
+		egressQueueEndingCounters.transmitOctets,
+	)
+
+	t.Logf(
+		"\nqueue %q resolved telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
+		egressQueueName,
+		queueDroppedPackets,
+		queueTransmitPackets,
+		queueTransmitOctets,
+	)
+
+	return queueDroppedPackets, queueTransmitPackets, queueTransmitOctets
+}
+
 func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPortSpeed int) {
 	// target flow rate is 60% of the ate port speed spread across 64 flows (do this in kbps so we
 	// still work w/ round numbers on 1g interfaces)
@@ -492,31 +549,31 @@ func testNoCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dut
 	}
 }
 
-func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int) {
-	dutEgressPort := dut.Port(t, "port1")
-
+func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
 
-	for _, egressQueueName := range allQueueNames {
-		queueDroppedPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).DroppedPkts().State())
-		queueTransmitPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitPkts().State())
-		queueTransmitOctets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitOctets().State())
+	endingCounters := getQueueCounters(t, dut)
 
-		t.Logf(
-			"queue %q telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
-			egressQueueName, queueDroppedPackets, queueTransmitPackets, queueTransmitOctets,
+	for egressQueueName, egressQueueEndingCounters := range endingCounters {
+		egressQueueStartingCounters := startingCounters[egressQueueName]
+
+		queueDroppedPackets, queueTransmitPackets, queueTransmitOctets := logAndGetResolvedQueueCounters(
+			t,
+			egressQueueName,
+			egressQueueStartingCounters,
+			egressQueueEndingCounters,
 		)
 
 		if queueDroppedPackets > maxAllowedZeroPackets {
-			t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", string(egressQueueName), queueDroppedPackets)
+			t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
 		}
 
 		if queueTransmitPackets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", string(egressQueueName))
+			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 		}
 
 		if queueTransmitOctets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", string(egressQueueName))
+			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 		}
 	}
 
@@ -588,40 +645,40 @@ func testCongestionCreateFlows(otgConfig gosnappi.Config, protocol string, dutPo
 	}
 }
 
-func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int) {
-	dutEgressPort := dut.Port(t, "port1")
-
+func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, _ := getZeroIshThresholds(dutPortSpeed)
 
-	for _, egressQueueName := range allQueueNames {
-		queueDroppedPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).DroppedPkts().State())
-		queueTransmitPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitPkts().State())
-		queueTransmitOctets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitOctets().State())
+	endingCounters := getQueueCounters(t, dut)
 
-		t.Logf(
-			"queue %q telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
-			egressQueueName, queueDroppedPackets, queueTransmitPackets, queueTransmitOctets,
+	for egressQueueName, egressQueueEndingCounters := range endingCounters {
+		egressQueueStartingCounters := startingCounters[egressQueueName]
+
+		queueDroppedPackets, queueTransmitPackets, queueTransmitOctets := logAndGetResolvedQueueCounters(
+			t,
+			egressQueueName,
+			egressQueueStartingCounters,
+			egressQueueEndingCounters,
 		)
 
 		if queueTransmitPackets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", string(egressQueueName))
+			t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 		}
 
 		if queueTransmitOctets == 0 {
-			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", string(egressQueueName))
+			t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 		}
 
 		if egressQueueName == entname.QoSNC1 {
 			// nc1 should have no drops
 			if queueDroppedPackets > maxAllowedZeroPackets {
-				t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", string(egressQueueName), queueDroppedPackets)
+				t.Fatalf("queue %s indicates %d dropped packets but should show zero or near-zero", egressQueueName, queueDroppedPackets)
 			}
 		} else {
 			// any other queue should have at least some drops
 			if queueDroppedPackets == 0 {
 				t.Fatalf(
 					"queue %s indicates %d dropped packets but should show some non-zero value as there is congestion in this case",
-					string(egressQueueName), queueDroppedPackets)
+					egressQueueName, queueDroppedPackets)
 			}
 		}
 	}
@@ -730,40 +787,40 @@ func testNC1CongestionCreateFlows(otgConfig gosnappi.Config, protocol string, du
 	}
 }
 
-func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int) {
-	dutEgressPort := dut.Port(t, "port1")
-
+func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortSpeed int, startingCounters map[entname.QoSQueue]*queueCounters) {
 	maxAllowedZeroPackets, maxAllowedZeroOctets := getZeroIshThresholds(dutPortSpeed)
 
-	for _, egressQueueName := range allQueueNames {
-		queueDroppedPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).DroppedPkts().State())
-		queueTransmitPackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitPkts().State())
-		queueTransmitOctets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dutEgressPort.Name()).Output().Queue(string(egressQueueName)).TransmitOctets().State())
+	endingCounters := getQueueCounters(t, dut)
 
-		t.Logf(
-			"queue %q telemetry data:\n\tdropped %d packets\n\ttransmit %d packets\n\ttransmit %d octets\n",
-			egressQueueName, queueDroppedPackets, queueTransmitPackets, queueTransmitOctets,
+	for egressQueueName, egressQueueEndingCounters := range endingCounters {
+		egressQueueStartingCounters := startingCounters[egressQueueName]
+
+		queueDroppedPackets, queueTransmitPackets, queueTransmitOctets := logAndGetResolvedQueueCounters(
+			t,
+			egressQueueName,
+			egressQueueStartingCounters,
+			egressQueueEndingCounters,
 		)
 
 		if egressQueueName == entname.QoSNC1 {
 			if queueTransmitPackets == 0 {
-				t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", string(egressQueueName))
+				t.Fatalf("queue %s indicates 0 transmit packets but should be non-zero", egressQueueName)
 			}
 
 			if queueTransmitOctets == 0 {
-				t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", string(egressQueueName))
+				t.Fatalf("queue %s indicates 0 transmit octets but should be non-zero", egressQueueName)
 			}
 
 			if queueDroppedPackets == 0 {
-				t.Fatalf("queue %s indicates %d dropped packets but should show non-zero", string(egressQueueName), queueDroppedPackets)
+				t.Fatalf("queue %s indicates %d dropped packets but should show non-zero", egressQueueName, queueDroppedPackets)
 			}
 		} else {
 			if queueTransmitPackets > maxAllowedZeroPackets {
-				t.Fatalf("queue %s indicates non zero transmit packets but should be zero or near zero", string(egressQueueName))
+				t.Fatalf("queue %s indicates non zero transmit packets but should be zero or near zero", egressQueueName)
 			}
 
 			if queueTransmitOctets > maxAllowedZeroOctets {
-				t.Fatalf("queue %s indicates non zero transmit octets but should be zero or near zero", string(egressQueueName))
+				t.Fatalf("queue %s indicates non zero transmit octets but should be zero or near zero", egressQueueName)
 			}
 		}
 	}
@@ -832,6 +889,8 @@ func TestDSCPTransparency(t *testing.T) {
 	for _, testCase := range testCases {
 		for _, flowProto := range []string{ipv4, ipv6} {
 			t.Run(fmt.Sprintf("%s-%s", testCase.name, flowProto), func(t *testing.T) {
+				startingCounters := getQueueCounters(t, dut)
+
 				otgConfig.Flows().Clear()
 
 				testCase.createFlowsF(otgConfig, flowProto, int(dutPortSpeed))
@@ -847,7 +906,7 @@ func TestDSCPTransparency(t *testing.T) {
 				otg.StopTraffic(t)
 				time.Sleep(trafficStopWaitDuration)
 
-				testCase.validateFlowsF(t, dut, ate, int(dutPortSpeed))
+				testCase.validateFlowsF(t, dut, ate, int(dutPortSpeed), startingCounters)
 			})
 		}
 	}
