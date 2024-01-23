@@ -427,6 +427,9 @@ func (args *testArgs) setDUTInterfaceWithState(t testing.TB, p *ondatra.Port, st
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ip string) {
 	d := gnmi.OC()
 	s := &oc.Root{}
+	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), &oc.NetworkInstance{
+		Name: ygot.String("DEFAULT"),
+	})
 	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	ipv4Nh := static.GetOrCreateStatic(innerDstIP1 + "/" + mask).GetOrCreateNextHop("0")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(ip)
