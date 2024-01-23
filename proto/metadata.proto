@@ -392,12 +392,18 @@ message Metadata {
     // Devices which needs to enable leaf specific flag
     // Juniper: b/319202763
     bool enable_flowctrl_flag = 137;
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974 
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
     // Devices which does not support copying TTL.
     // Juniper: b/307258544
-    bool ttl_copy_unsupported = 138;
+    bool ttl_copy_unsupported = 140;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
-    bool gribi_decap_mixed_plen_unsupported = 139;
+    bool gribi_decap_mixed_plen_unsupported = 141;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
