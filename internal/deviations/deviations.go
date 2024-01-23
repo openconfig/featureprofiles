@@ -726,9 +726,27 @@ func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
 }
 
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}
+
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
 
 // TunnelAclEncapsulationConfigUnsupported returns true for devices that do not support TunnelAclEncapsulationConfig
 func TunnelAclEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelAclEncapsulationConfigUnsupported()
 }
-

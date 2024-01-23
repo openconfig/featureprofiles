@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 //
 // The testbed consists of:
 //
+//
 //	ate:port1 -> dut:port1 and
 //	dut:port2 -> ate:port2
 //  Ports2,3 and 4 are used as LAG interface.
@@ -71,7 +72,7 @@ func TestMain(m *testing.M) {
 //	  Dut Interfaces are configured as mentioned below:
 //	  dut:port1 -> 192.0.2.1, 2001:db8::1
 //	  dut:LAG iterface -> 192.0.2.5, 2001:db8::5
-//	  Verification of Gre protocol value in the packet capture.
+//	  Verification of GRE protocol value in the packet capture.
 
 const (
 	ipv4PrefixLen    = 30
@@ -217,8 +218,6 @@ func validatePackets(t *testing.T, filename string) {
 		fmt.Println("cntNillIpLayer:", resetcounter)
 		if resetcounter == 0 {
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			fmt.Printf("IpLayer is : %d ", ipPacket)
-			//	ipPacket, _ := ipLayer.(*layers.IPv4)
 			if ipPacket.Protocol != GreProtocol {
 				cntNonGrePackets++
 			}
@@ -792,6 +791,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 			t.Logf(" Push CLI config of:\n%s", tc.dut.Vendor())
 		default:
 			t.Errorf("Invalid Filter configuration")
+			t.Errorf("Vendor %s specific acl based tunnel configuration is not defined", tc.dut.Vendor())
 		}
 	}
 	gpbSetRequest := buildCliConfigRequest(v4Config)
