@@ -143,9 +143,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-	loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-	gnmi.Replace(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
+	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
+	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
+	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
+		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
+		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
+	} else {
+		v4, ok := ipv4Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv4 = v4.GetIp()
+		}
+		v6, ok := ipv6Addrs[0].Val()
+		if ok {
+			dutlo0Attrs.IPv6 = v6.GetIp()
+		}
+		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
+		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+	}
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -271,7 +287,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	// Port1 Configuration.
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
@@ -280,7 +296,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	// Port2 Configuration.
 	iDut2Dev := config.Devices().Add().SetName(atePort2.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
+	iDut2Eth.Connection().SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
 	iDut2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")

@@ -361,7 +361,6 @@ func TestBurstyTraffic(t *testing.T) {
 
 				flow.Size().SetFixed(uint32(data.frameSize))
 				flow.Rate().SetPercentage(float32(data.trafficRate))
-				flow.Duration().SetChoice("burst")
 				flow.Duration().Burst().SetPackets(uint32(data.burstPackets)).SetGap(uint32(data.burstMinGap))
 				flow.Duration().Burst().InterBurstGap().SetBytes(float64(data.burstGap))
 
