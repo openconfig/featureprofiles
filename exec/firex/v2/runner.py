@@ -931,7 +931,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-testbed {reserved_testbed["testbed_file"]} ' \
                 f'-binding {tmp_binding_file} ' \
                 f'-outDir {test_log_directory_path}/debug_files ' \
-                f'-timestamp {str(timestamp)}' \
+                f'-timestamp {str(timestamp)} ' \
                 f'-core false ' \
                 f'-v 5'
 
