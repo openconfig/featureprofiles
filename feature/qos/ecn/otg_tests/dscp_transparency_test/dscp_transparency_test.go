@@ -17,6 +17,11 @@ package dscp_transparency_test
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -29,10 +34,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) {
