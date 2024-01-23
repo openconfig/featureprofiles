@@ -203,28 +203,27 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	}
 
 	for _, dut := range b.Duts {
-		var sshUser, sshPass, sshIP, sshPort string
-		var sshTarget []string
-		if dut.Ssh != nil {
-			sshUser = dut.Ssh.Username
-			sshPass = dut.Ssh.Password
-
-			if dut.Ssh.Target != "" {
-				sshTarget = strings.Split(dut.Ssh.Target, ":")
-				sshIP = sshTarget[0]
-				sshPort = "22"
-				if len(sshTarget) > 1 {
-					sshPort = sshTarget[1]
-				}
-			}
-		} else if dut.Options != nil {
+		sshUser := dut.Ssh.Username
+		if sshUser == "" {
 			sshUser = dut.Options.Username
-			sshPass = dut.Options.Password
-		} else if b.Options != nil {
+		}
+		if sshUser == "" {
 			sshUser = b.Options.Username
+		}
+
+		sshPass := dut.Ssh.Password
+		if sshPass == "" {
+			sshPass = dut.Options.Password
+		}
+		if sshPass == "" {
 			sshPass = b.Options.Password
-		} else {
-			return fmt.Errorf("Could not find correct dut username or password")
+		}
+
+		sshTarget := strings.Split(dut.Ssh.Target, ":")
+		sshIP := sshTarget[0]
+		sshPort := "22"
+		if len(sshTarget) > 1 {
+			sshPort = sshTarget[1]
 		}
 
 		if dut.Id != "" && sshIP != "" && sshPort != "" && sshUser != "" && sshPass != "" {
