@@ -960,8 +960,8 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
 def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
     try:
         logger.print(f'xunit_results_filepath: {xunit_results_filepath}')
+        logger.print(f'test_log_directory_path: {test_log_directory_path}')
         arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        logger.print(f'Array from {test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
         r = re.compile(r'core\b',re.IGNORECASE)
         corefileslist = list(filter(lambda x: r.search(str(x)),arr))
         logger.print(f'Array of core files if any {corefileslist}')

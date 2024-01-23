@@ -185,6 +185,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	var bindingFile string
 
 	if bf == nil {
+		t.Logf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
 		return fmt.Errorf(fmt.Sprintf("binding file not set correctly : [%s]", bf.Value.String()))
 	}
 
@@ -192,6 +193,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
+		t.Logf(fmt.Sprintf("Error reading binding file: [%v]", err))
 		return fmt.Errorf(fmt.Sprintf("Error reading binding file: [%v]", err))
 	}
 
@@ -236,15 +238,15 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 		} else {
 			switch {
 			case dut.Id == "":
-				return fmt.Errorf("dut.Id is empty")
+				return fmt.Errorf("dut.Id is empty for dut: [%v]", dut)
 			case sshIP == "":
-				return fmt.Errorf("sshIP is empty")
+				return fmt.Errorf("sshIP is empty for dut: [%v]", dut)
 			case sshPort == "":
-				return fmt.Errorf("sshPort is empty")
+				return fmt.Errorf("sshPort is empty for dut: [%v]", dut)
 			case sshUser == "":
-				return fmt.Errorf("sshUser is empty")
+				return fmt.Errorf("sshUser is empty for dut: [%v]", dut)
 			case sshPass == "":
-				return fmt.Errorf("sshPass is empty")
+				return fmt.Errorf("sshPass is empty for dut: [%v]", dut)
 
 			}
 		}
