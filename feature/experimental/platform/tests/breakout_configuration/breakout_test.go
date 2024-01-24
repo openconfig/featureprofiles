@@ -268,13 +268,13 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					gnmi.Update(t, dut, dc.Interface(portName).Config(), i)
 
 				}
+
+				t.Log("Configuring the ATE")
+				configureOTG(t, ate, &tc.breakoutspeed, Ateipv4Subnets, Dutipv4Subnets, int(tc.numbreakouts))
+
 			})
 
 			t.Run(fmt.Sprintf("Ping ATE from DUT via Breakout Interface %v %v", tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
-
-				// configureOTG(t, ate, Ateipv4Subnets, Dutipv4Subnets, int(tc.breakoutspeed), int(*ygot.Uint8(uint8(tc.breakoutspeed))))
-				t.Log("Configuring the ATE")
-				configureOTG(t, ate, &tc.breakoutspeed, Ateipv4Subnets, Dutipv4Subnets, int(tc.numbreakouts))
 
 				for i, dutAddrs := range Dutipv4Subnets {
 					t.Log(i)
