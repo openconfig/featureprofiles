@@ -292,8 +292,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-
-func createTraffic (t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -333,7 +332,6 @@ func createTraffic (t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
-
 
 func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	if *trafficPause != 0 {

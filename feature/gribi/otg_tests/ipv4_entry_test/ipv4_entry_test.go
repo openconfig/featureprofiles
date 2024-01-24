@@ -344,7 +344,7 @@ func TestIPv4Entry(t *testing.T) {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
 
 			for _, tc := range cases {
-                                newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+				newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				t.Run(tc.desc, func(t *testing.T) {
 					if tc.gribiMACOverrideWithStaticARPStaticRoute {
 						staticARPWithMagicUniversalIP(t, dut)
@@ -516,45 +516,45 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	return name
 }
 
-func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string)  (newGood, newBad []string) {
-        var newGoodFlows, newBadFlows []string
+func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) (newGood, newBad []string) {
+	var newGoodFlows, newBadFlows []string
 	allFlows := append(good, bad...)
 	otg := ate.OTG()
 	ateTop := otg.FetchConfig(t)
-        if len(good) == 0 && len(bad) == 0 {
+	if len(good) == 0 && len(bad) == 0 {
 		otg.PushConfig(t, ateTop)
 		otg.StartProtocols(t)
-                return newGoodFlows, newBadFlows 
-        }
-        ateTop.Flows().Clear().Items()
-        for _, flow := range allFlows {
-                if flow == "port2Flow" {
-                        if elementInSlice(flow, good) {
-                                newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
-                        }
-                        if elementInSlice(flow, bad) {
-                                newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
-                        }
-                }
-                if flow == "port3Flow" {
-                        if elementInSlice(flow, good) {
-                                newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
-                        }
-                        if elementInSlice(flow, bad) {
-                                newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
-                        }
+		return newGoodFlows, newBadFlows
+	}
+	ateTop.Flows().Clear().Items()
+	for _, flow := range allFlows {
+		if flow == "port2Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port2", ate, ateTop, &atePort2))
+			}
+		}
+		if flow == "port3Flow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "Port1_to_Port3", ate, ateTop, &atePort3))
+			}
 
-                }
-                if flow == "ecmpFlow" {
-                        if elementInSlice(flow, good) {
-                                newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
-                        }
-                        if elementInSlice(flow, bad) {
-                                newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
-                        }
+		}
+		if flow == "ecmpFlow" {
+			if elementInSlice(flow, good) {
+				newGoodFlows = append(newGoodFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
+			if elementInSlice(flow, bad) {
+				newBadFlows = append(newBadFlows, createFlow(t, "ecmpFlow", ate, ateTop, &atePort2, &atePort3))
+			}
 
-                }
-        }
+		}
+	}
 	otg.PushConfig(t, ateTop)
 	otg.StartProtocols(t)
 	return newGoodFlows, newBadFlows
