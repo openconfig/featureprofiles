@@ -250,7 +250,7 @@ func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.GosnappiApi, error) {
+func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.Api, error) {
 	if a.dev.Otg == nil {
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
