@@ -147,7 +147,7 @@ var (
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
-		IPv6:    "2001:db8::192:0:2:5",
+		IPv6:    "2001:db8::192:2:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -155,14 +155,14 @@ var (
 		Name:    "atePort2",
 		IPv4:    "192.0.2.6",
 		MAC:     "02:00:02:01:01:01",
-		IPv6:    "2001:db8::192:0:2:6",
+		IPv6:    "2001:db8::192:2:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
 		IPv4:    "192.0.2.9",
-		IPv6:    "2001:db8::192:0:2:9",
+		IPv6:    "2001:db8::192:3:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -170,14 +170,14 @@ var (
 		Name:    "atePort3",
 		IPv4:    "192.0.2.10",
 		MAC:     "02:00:03:01:01:01",
-		IPv6:    "2001:db8::192:0:2:10",
+		IPv6:    "2001:db8::192:3:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
 		IPv4:    "192.0.2.13",
-		IPv6:    "2001:db8::192:0:2:13",
+		IPv6:    "2001:db8::192:4:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -185,14 +185,14 @@ var (
 		Name:    "atePort4",
 		IPv4:    "192.0.2.14",
 		MAC:     "02:00:04:01:01:01",
-		IPv6:    "2001:db8::192:0:2:14",
+		IPv6:    "2001:db8::192:4:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort5 = attrs.Attributes{
 		Desc:    "dutPort5",
 		IPv4:    "192.0.2.17",
-		IPv6:    "2001:db8::192:0:2:17",
+		IPv6:    "2001:db8::192:5:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -200,14 +200,14 @@ var (
 		Name:    "atePort5",
 		IPv4:    "192.0.2.18",
 		MAC:     "02:00:05:01:01:01",
-		IPv6:    "2001:db8::192:0:2:18",
+		IPv6:    "2001:db8::192:5:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort6 = attrs.Attributes{
 		Desc:    "dutPort6",
 		IPv4:    "192.0.2.21",
-		IPv6:    "2001:db8::192:0:2:21",
+		IPv6:    "2001:db8::192:6:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -215,14 +215,14 @@ var (
 		Name:    "atePort6",
 		IPv4:    "192.0.2.22",
 		MAC:     "02:00:06:01:01:01",
-		IPv6:    "2001:db8::192:0:2:22",
+		IPv6:    "2001:db8::192:6:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort7 = attrs.Attributes{
 		Desc:    "dutPort7",
 		IPv4:    "192.0.2.25",
-		IPv6:    "2001:db8::192:0:2:25",
+		IPv6:    "2001:db8::192:7:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -230,14 +230,14 @@ var (
 		Name:    "atePort7",
 		IPv4:    "192.0.2.26",
 		MAC:     "02:00:07:01:01:01",
-		IPv6:    "2001:db8::192:0:2:26",
+		IPv6:    "2001:db8::192:7:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
 		IPv4:    "192.0.2.29",
-		IPv6:    "2001:db8::192:0:2:29",
+		IPv6:    "2001:db8::192:8:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
@@ -245,7 +245,7 @@ var (
 		Name:    "atePort8",
 		IPv4:    "192.0.2.30",
 		MAC:     "02:00:08:01:01:01",
-		IPv6:    "2001:db8::192:0:2:30",
+		IPv6:    "2001:db8::192:8:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
