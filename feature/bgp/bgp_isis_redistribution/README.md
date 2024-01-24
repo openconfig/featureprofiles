@@ -237,7 +237,7 @@
 ### RT-1.28.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### Matching IPv6 BGP prefixes in a prefix-set should be redistributed to IS-IS
 ---
-##### Replace the previously configured prefix and mask in prefix-set configured in RT-1.28.1
+##### Replace the previously configured prefix and mask in prefix-set configured in RT-1.28.5
 *   For prefix-set ```prefix-set-v6``` replace the ip-prefix to ```2024:db8:128:128::/64``` and masklength is set to ```exact```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
@@ -274,7 +274,7 @@
 ### RT-1.28.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv6: Matching BGP community in a community-set should be redistributed to IS-IS
 ---
-##### Replace the previously configured community member value in RT-1.28.3
+##### Replace the previously configured community member value in RT-1.28.7
 *   For community set ```community-set-v6``` replece the community member value to ```64512:100```
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Verification
