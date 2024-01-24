@@ -1054,6 +1054,8 @@ def ReleaseIxiaPorts(self, ws, binding_file):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, reserved_testbed):
+    # TODO: delete this line
+    logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
