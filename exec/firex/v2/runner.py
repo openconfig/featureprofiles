@@ -1059,7 +1059,8 @@ def BringupIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    # TODO: change back tp otg
+    remote_exec(cmd, hostname=reserved_testbed['ate']['host'], shell=True)
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
@@ -1067,7 +1068,8 @@ def TeardownIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    # TODO: change back tp otg
+    remote_exec(cmd, hostname=reserved_testbed['ate']['host'], shell=True)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))
