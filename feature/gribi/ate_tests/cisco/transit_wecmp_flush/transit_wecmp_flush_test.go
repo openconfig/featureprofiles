@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 type testArgs struct {
@@ -1508,6 +1509,13 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
+	gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{
+		Name: ygot.String("DEFAULT"),
+	})
+	gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Name:       ygot.String("B4"),
+	})
 	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
 	gnmi.Update(t, args.dut, config.Config(), true)
 	defer gnmi.Delete(t, args.dut, config.Config())
@@ -1687,6 +1695,13 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	//apply egress acl on all interfaces of interest
 	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
 	for _, interfaceName := range interfaceNames {
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).Config(), &oc.Acl_Interface{
+			Id: ygot.String(interfaceName),
+		})
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_EgressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
 	}
 
