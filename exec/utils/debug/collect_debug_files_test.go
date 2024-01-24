@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/golang/glog"
-
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
@@ -123,15 +121,14 @@ func TestCollectDebugFiles(t *testing.T) {
 	for dutID, targetInfo := range targets.targetInfo {
 
 		ctx := context.Background()
-		cli := GetOndatraCLI(t, dutID)
+		dut := ondatra.DUT(t, dutID)
+		sshClient := dut.RawAPIs().CLI(t)
 
 		for _, cmd := range commands {
 			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := cli.RunCommand(ctx, cmd); err == nil {
-					fmt.Printf("result [%s] from cmd [%s]", result, cmd)
-					if cmd == "run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;" {
-						log.Info(result)
-					}
+				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+					t.Logf("> %s", cmd)
+					t.Log(result.Output())
 				} else {
 					t.Logf("> %s", cmd)
 					t.Log(err.Error())
