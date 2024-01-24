@@ -358,7 +358,7 @@ func configureDUTQoS(
 		queue := output.GetOrCreateQueue(string(queueName))
 		queue.SetQueueManagementProfile("queueManagementProfile")
 
-		if dut.Vendor() == ondatra.NOKIA {
+		if deviations.QOSBufferAllocationConfigRequired(dut) {
 			bufferAllocationProfile := qosConfig.GetOrCreateBufferAllocationProfile("bufferAllocationProfile")
 
 			bufferAllocationQueue := bufferAllocationProfile.GetOrCreateQueue(string(queueName))
