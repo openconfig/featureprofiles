@@ -591,9 +591,9 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         logger.info(f"suite: {suite}")
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}")
+            logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}, collect_debug_files [{collect_debug_files}], suite.attrib['failures'] = [{suite.attrib['failures']}]")
             if collect_debug_files and suite.attrib['failures'] != '0':
-                # runCoreFileCheck(ws,internal_fp_repo_dir,reserved_testbed,test_log_directory_path,start_timestamp)
+                logger.info(f"there were no failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
                 res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
@@ -605,6 +605,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
                 ))
                 logger.info(res)
             else:
+                logger.info(f"there were failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
                 res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
