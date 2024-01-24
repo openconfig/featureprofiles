@@ -783,7 +783,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	configureNetworkInstance(t)
 	gnmiClient := tc.dut.RawAPIs().GNMI(t)
 	var v4Config, v6Config string
-	if deviations.TunnelAclEncapsulationConfigUnsupported(tc.dut) {
+	if deviations.TunnelACLEncapsulationConfigUnsupported(tc.dut) {
 		switch tc.dut.Vendor() {
 		case ondatra.JUNIPER:
 			v4Config = juniperEncapCLI("inet", aclIpv4Name, encapSrcMatch, encapDstMatch, countIpv4, tunnelActionIpv4, tunnelEndpoint, "ipv4", greSrcAddr, greDstAddr)

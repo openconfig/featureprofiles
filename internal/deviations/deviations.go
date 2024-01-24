@@ -746,7 +746,7 @@ func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
 
-// TunnelAclEncapsulationConfigUnsupported returns true for devices that do not support TunnelAclEncapsulationConfig
-func TunnelAclEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
+// TunnelACLEncapsulationConfigUnsupported returns true for devices that do not support TunnelAclEncapsulationConfig
+func TunnelACLEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTunnelAclEncapsulationConfigUnsupported()
 }

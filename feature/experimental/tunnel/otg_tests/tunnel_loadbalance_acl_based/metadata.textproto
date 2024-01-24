@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "77b0430c-de77-41c6-85c1-b75f67d4d76c"
+uuid:  "10a3162a-f8b7-4f14-a0cf-c69d1e2e3e66"
 plan_id:  "TUN-1.1"
 description:  "Filter based IPv4 GRE encapsulation"
 testbed:  TESTBED_DUT_ATE_4LINKS
