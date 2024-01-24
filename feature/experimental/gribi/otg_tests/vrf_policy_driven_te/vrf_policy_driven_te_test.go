@@ -1832,8 +1832,8 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 			0.0468, // 4.68 Port2
 			0.1406, // 14.06 Port3
 			0.5625, // 56.25 Port4
-			0.25,   // 25 Port5
-			0,      // 0 Port6
+			0,      // 0 Port5
+			0.25,   // 25 Port6
 			0,      // 0 Port7
 			0,      // 0 Port8
 		}
