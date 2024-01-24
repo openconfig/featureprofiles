@@ -292,10 +292,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// generateTraffic generates traffic from ateSrcNetCIDR to
-// ateDstNetCIDR, then returns the atePorts as well as the number of
-// packets received (inPkts) and sent (outPkts) across the atePorts.
-func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
+func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -334,7 +331,9 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
+}
 
+func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
 		time.Sleep(*trafficPause)
@@ -362,8 +361,15 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 			}
 		}
 	}
-
 	return atePorts, inPkts, outPkts
+}
+
+// generateTraffic generates traffic from ateSrcNetCIDR to
+// ateDstNetCIDR, then returns the atePorts as well as the number of
+// packets received (inPkts) and sent (outPkts) across the atePorts.
+func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
+	createTraffic(t, ate, config)
+	return runTraffic(t, ate, config)
 }
 
 // normalize normalizes the input values so that the output values sum
