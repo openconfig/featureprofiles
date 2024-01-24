@@ -1,7 +1,5 @@
 # OC-26.1: Network Time Protocol (NTP)
 
-Test Change
-
 ## Summary
 
 Ensure DUT can be configured as a Network Time Protocol (NTP) client.
