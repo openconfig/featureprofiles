@@ -666,14 +666,19 @@ type Metadata_Deviations struct {
 	// Juniper : b/317181227
 	PrefixLimitExceededTelemetryUnsupported bool `protobuf:"varint,139,opt,name=prefix_limit_exceeded_telemetry_unsupported,json=prefixLimitExceededTelemetryUnsupported,proto3" json:"prefix_limit_exceeded_telemetry_unsupported,omitempty"`
 	// Skip gNMI container OP tc.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 	SkipContainerOp bool `protobuf:"varint,140,opt,name=skip_container_op,json=skipContainerOp,proto3" json:"skip_container_op,omitempty"`
 	// Reorder calls for vendor compatibility.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 	ReorderCallsForVendorCompatibilty bool `protobuf:"varint,141,opt,name=reorder_calls_for_vendor_compatibilty,json=reorderCallsForVendorCompatibilty,proto3" json:"reorder_calls_for_vendor_compatibilty,omitempty"`
 	// Add missing base config using cli.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 	AddMissingBaseConfigViaCli bool `protobuf:"varint,142,opt,name=add_missing_base_config_via_cli,json=addMissingBaseConfigViaCli,proto3" json:"add_missing_base_config_via_cli,omitempty"`
 	// skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 	SkipMacaddressCheck bool `protobuf:"varint,143,opt,name=skip_macaddress_check,json=skipMacaddressCheck,proto3" json:"skip_macaddress_check,omitempty"`
 	// skip main interface dot zero naming call, example: HunderedGigE0/0/0/1.0
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 	SkipMainInterfaceDotZero bool `protobuf:"varint,144,opt,name=skip_main_interface_dot_zero,json=skipMainInterfaceDotZero,proto3" json:"skip_main_interface_dot_zero,omitempty"`
 }
 

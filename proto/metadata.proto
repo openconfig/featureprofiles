@@ -399,14 +399,19 @@ message Metadata {
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
     // Skip gNMI container OP tc.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool skip_container_op = 140;
     // Reorder calls for vendor compatibility.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool reorder_calls_for_vendor_compatibilty = 141;
     // Add missing base config using cli.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool add_missing_base_config_via_cli = 142;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool skip_macaddress_check = 143;
     // skip main interface dot zero naming call, example: HunderedGigE0/0/0/1.0
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool skip_main_interface_dot_zero = 144;
 
     // Reserved field numbers and identifiers.
