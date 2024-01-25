@@ -248,13 +248,20 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	pfRAction.NetworkInstance = ygot.String(niDefault)
 
 	p1 := dut.Port(t, "port1")
-	intf := niP.GetOrCreateInterface(p1.Name())
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	intf := niP.GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
+
 	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
 }
 
