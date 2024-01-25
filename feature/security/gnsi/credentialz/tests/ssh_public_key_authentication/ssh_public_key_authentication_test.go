@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -23,14 +24,30 @@ import (
 const (
 	username                    = "testuser"
 	password                    = "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj"
-	userPrivateKeyFilename      = "id_ed25519"
-	userPublicKeyFilename       = "id_ed25519.pub"
+	userPrivateKeyFilename      = "user"
+	userPublicKeyFilename       = "user.pub"
 	authorizedKeysListVersion   = "v1.0"
 	authorizedKeysListCreatedOn = 1705962293
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func prepareUserKey(t *testing.T, dir string) {
+	caCmd := exec.Command(
+		"ssh-keygen",
+		"-t", "ed25519",
+		"-f", userPrivateKeyFilename,
+		"-C", "featureprofile@openconfig",
+		"-q", "-N", "", // quiet, empty passphrase
+	)
+	caCmd.Dir = dir
+
+	err := caCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating ca key pair, error: %s", err)
+	}
 }
 
 func sendCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *credentialz.RotateAccountCredentialsRequest) {
@@ -146,8 +163,8 @@ func setupUser(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-func sshWithKey(t *testing.T, addr string) error {
-	privateKeyContents, err := os.ReadFile(userPrivateKeyFilename)
+func sshWithKey(t *testing.T, addr, dir string) error {
+	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userPrivateKeyFilename))
 	if err != nil {
 		t.Fatalf("failed reading private key contents, error: %s", err)
 	}
@@ -172,15 +189,15 @@ func sshWithKey(t *testing.T, addr string) error {
 	return err
 }
 
-func assertSSHAuthFails(t *testing.T, _ *ondatra.DUTDevice, addr string) {
-	err := sshWithKey(t, addr)
+func assertSSHAuthFails(t *testing.T, _ *ondatra.DUTDevice, addr, dir string) {
+	err := sshWithKey(t, addr, dir)
 	if err == nil {
 		t.Fatalf("dialing ssh succeeded, but we expected to fail")
 	}
 }
 
-func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr string) {
-	publicKeyContents, err := os.ReadFile(userPublicKeyFilename)
+func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) {
+	publicKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userPublicKeyFilename))
 	if err != nil {
 		t.Fatalf("failed reading private key contents, error: %s", err)
 	}
@@ -214,7 +231,7 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr string) {
 		startingAcceptCounter, startingLastAcceptTime = getAcceptTelemetry(t, dut)
 	}
 
-	err = sshWithKey(t, addr)
+	err = sshWithKey(t, addr, dir)
 	if err != nil {
 		t.Fatalf("dialing ssh failed, but we expected to succeed")
 	}
@@ -285,13 +302,27 @@ func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	dir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatalf("creating temp dir, err: %s", err)
+	}
+
+	defer func(dir string) {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			t.Logf("error removing temp directory, error: %s", err)
+		}
+	}(dir)
+
+	prepareUserKey(t, dir)
+
 	addr := getDutAddr(t, dut)
 
 	setupUser(t, dut)
 
 	testCases := []struct {
 		name  string
-		testF func(t *testing.T, dut *ondatra.DUTDevice, addr string)
+		testF func(t *testing.T, dut *ondatra.DUTDevice, addr, dir string)
 	}{
 		{
 			name:  "auth should fail ssh public key not authorized for user",
@@ -325,7 +356,7 @@ func TestCredentialz(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.testF(t, dut, addr)
+			tt.testF(t, dut, addr, dir)
 		})
 	}
 }

@@ -8,10 +8,6 @@ the DUT properly allows or disallows authentication based on the configured sett
 
 ## Procedure
 
-* Prior to writing test the following steps were takin to create a user key pair.
-    * `cd` to this test package
-    * `ssh-keygen -t ed25519 -f id_ed25519 -C featureprofile@openconfig`
-
 * Set DUT TrustedUserCAKeys using gnsi.Credentialz to the previously created CA
 * Set a username of `testuser` with a password of `i$V5^6IhD*tZ#eg1G@v3xdVZrQwj` using gnsi.Credentialz
 * Perform the following tests and assert the expected result:
