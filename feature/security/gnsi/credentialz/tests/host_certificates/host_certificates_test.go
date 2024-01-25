@@ -17,13 +17,14 @@ package host_certificates
 import (
 	"context"
 	"fmt"
-	"github.com/openconfig/ondatra/gnmi"
 	"net"
 	"os"
 	"os/exec"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/openconfig/ondatra/gnmi"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gnsi/credentialz"
