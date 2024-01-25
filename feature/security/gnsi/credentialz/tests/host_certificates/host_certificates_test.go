@@ -45,6 +45,36 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func prepareCaAndHostKeys(t *testing.T, dir string) {
+	caCmd := exec.Command(
+		"ssh-keygen",
+		"-t", "ed25519",
+		"-f", "dut",
+		"-C", "dut",
+		"-q", "-N", "", // quiet, empty passphrase
+	)
+	caCmd.Dir = dir
+
+	err := caCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating ca key pair, error: %s", err)
+	}
+
+	dutCmd := exec.Command(
+		"ssh-keygen",
+		"-t", "ed25519",
+		"-f", "ca",
+		"-C", "ca",
+		"-q", "-N", "",
+	)
+	dutCmd.Dir = dir
+
+	err = dutCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating dut key pair, error: %s", err)
+	}
+}
+
 func rotateHostParameters(
 	t *testing.T,
 	dut *ondatra.DUTDevice,
@@ -87,10 +117,10 @@ func rotateHostParameters(
 	}
 }
 
-func prepareDUTKeys(t *testing.T, dut *ondatra.DUTDevice) {
-	dutPrivateKeyContents, err := os.ReadFile("dut")
+func prepareDUTKeys(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+	dutPrivateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/dut", dir))
 	if err != nil {
-		t.Fatalf("failed reading host signed certificate, error: %s", err)
+		t.Fatalf("failed reading host private key, error: %s", err)
 	}
 
 	rotateHostParameters(
@@ -122,13 +152,6 @@ func fetchDUTPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 }
 
 func signPublicKeyWithCAKey(t *testing.T, dir string) {
-	// ensure file is 0600 so keygen doesnt barf, git only cares about +x bit so just enforcing
-	// this lazily here
-	err := os.Chmod("ca", 0o600)
-	if err != nil {
-		t.Fatalf("failed ensuring ca file permissions, error: %s", err)
-	}
-
 	cmd := exec.Command(
 		"ssh-keygen",
 		"-s", "ca", // sign using this ca key
@@ -136,10 +159,11 @@ func signPublicKeyWithCAKey(t *testing.T, dir string) {
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
 		"-V", "+52w", // validity
-		fmt.Sprintf("%s/%s", dir, dutPublicKeyFilename),
+		dutPublicKeyFilename,
 	)
+	cmd.Dir = dir
 
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		t.Fatalf("failed signing dut public key with ca, error: %s", err)
 	}
@@ -246,9 +270,6 @@ func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	prepareDUTKeys(t, dut)
-	addr := getDutAddr(t, dut)
-
 	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("creating temp dir, err: %s", err)
@@ -260,6 +281,11 @@ func TestCredentialz(t *testing.T) {
 			t.Logf("error removing temp directory, error: %s", err)
 		}
 	}(dir)
+
+	prepareCaAndHostKeys(t, dir)
+
+	prepareDUTKeys(t, dut, dir)
+	addr := getDutAddr(t, dut)
 
 	keyBytes := fetchDUTPublicKey(t, dut)
 
