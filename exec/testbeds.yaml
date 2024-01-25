@@ -234,5 +234,5 @@ testbeds:
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
     otg:
       host: kne2-lnx
-      controller_port: 40061
-      gnmi_port: 50061
+      controller_port: 40051
+      gnmi_port: 50051
