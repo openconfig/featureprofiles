@@ -135,6 +135,9 @@ func TestGetSet(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), &oc.NetworkInstance{
+		Name: ygot.String("DEFAULT"),
+	})
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -230,7 +233,7 @@ func TestReuseIP(t *testing.T) {
 	forEachPushOp(t, dut, func(t *testing.T, op pushOp, config *oc.Root) {
 		t.Log("Initialize")
 
-		if deviations.DontSetEthernetFromState(dut) {
+		if deviations.SkipMacaddressCheck(dut) {
 			*setEthernetFromState = false
 		}
 
@@ -936,7 +939,7 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			// configured, so use its current state for the config, but prune non-config leaves.
 			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
 			e := intf.GetEthernet()
-			if !deviations.SkipBreakout(ondatra.DUT(t, "dut")) {
+			if len(intf.GetHardwarePort()) != 0 {
 				breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
 				e := intf.GetEthernet()
 				// Set port speed to unknown for non breakout interfaces
@@ -948,9 +951,11 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
 			}
-			if (iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0") && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
+			// need to set mac address for mgmt interface to nil
+			if intf.GetName() == "MgmtEth0/RP0/CPU0/0" || intf.GetName() == "MgmtEth0/RP1/CPU0/0" && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				e.MacAddress = nil
 			}
+			// need to set mac address for bundle interface to nil
 			if iface.Ethernet.AggregateId != nil && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				iface.Ethernet.MacAddress = nil
 				continue
@@ -1062,6 +1067,9 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
 			supContainerConfig := addMissingConfigForContainerReplace(t, dev)
 			for port, data := range supContainerConfig {
+				gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(port).Config(), &oc.Component{
+					Name: ygot.String(port),
+				})
 				bmode := &oc.Component_Port_BreakoutMode{}
 				gp := bmode.GetOrCreateGroup(0)
 				gp.BreakoutSpeed = data.breakoutSpeed

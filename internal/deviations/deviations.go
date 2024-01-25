@@ -746,16 +746,6 @@ func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
 }
 
-// DontSetEthernetFromState returns true if ethernet value doesn't need to be set.
-func DontSetEthernetFromState(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDontSetEthernetFromState()
-}
-
-// SetSubinterfaceNil returns true if subinterface is set to nil.
-func SetSubinterfaceNil(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetSubinterfaceNil()
-}
-
 // ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
 func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
@@ -769,11 +759,6 @@ func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
 // SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
 func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
-}
-
-// SkipBreakout returns true if breakout via gNMI needs to be skipped.
-func SkipBreakout(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBreakout()
 }
 
 // SkipMainInterfaceDotZero returns true if check for the interface (HunderedGigE0/0/0/1.0) needs to be skipped.
