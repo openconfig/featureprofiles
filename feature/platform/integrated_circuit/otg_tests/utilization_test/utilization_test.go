@@ -22,6 +22,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -314,6 +315,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.Devi
 	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
 	time.Sleep(30 * time.Second)
+
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 
 	return iDut1Bgp6Peer, iDut1Ipv6, config
 }
