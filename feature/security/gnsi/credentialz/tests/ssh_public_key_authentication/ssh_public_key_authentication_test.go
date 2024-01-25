@@ -208,31 +208,36 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr string) {
 
 	sendCredentialsRequest(t, dut, request)
 
-	startingAcceptCounter, startingLastAcceptTime := getAcceptTelemetry(t, dut)
+	var startingAcceptCounter, startingLastAcceptTime uint64
+
+	if !deviations.SshServerCountersUnsupported(dut) {
+		startingAcceptCounter, startingLastAcceptTime = getAcceptTelemetry(t, dut)
+	}
 
 	err = sshWithKey(t, addr)
 	if err != nil {
 		t.Fatalf("dialing ssh failed, but we expected to succeed")
 	}
 
-	endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
+	if !deviations.SshServerCountersUnsupported(dut) {
+		endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
 
-	if startingAcceptCounter-endingAcceptCounter < 1 {
-		t.Log("would check accept counter incremented after successful auth")
-	}
+		if startingAcceptCounter-endingAcceptCounter < 1 {
+			t.Fatal("ssh server accept counter did not increment after successful login")
+		}
 
-	if startingLastAcceptTime == endingLastAcceptTime {
-		t.Log("would compare last accept times to make sure timestamp has been updated after successful auth")
+		if startingLastAcceptTime == endingLastAcceptTime {
+			t.Fatal("ssh server accept last timestamp did not update after successful login")
+		}
 	}
 
 	assertTelemetry(t, dut)
 }
 
 func getAcceptTelemetry(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
-	t.Log("skipping checking ssh server telemetry until ondatra is unpinned from old gnsi commit and we have model regenerated")
+	sshCounters := gnmi.Get(t, dut, gnmi.OC().System().SshServer().Counters().State())
 
-	// would return accept counter and last accept timestamp
-	return 0, 0
+	return sshCounters.GetAccessAccepts(), sshCounters.GetLastAccessAccept()
 }
 
 func assertTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
