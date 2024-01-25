@@ -88,9 +88,6 @@ const (
 	ipv4OuterDst333         = "192.58.200.7"
 	ipv4OuterSrc222         = "198.51.100.222"
 	ipv4OuterSrc333         = "198.100.200.123"
-	gribiIPv4entry1         = "192.51.100.1/24"
-	gribiIPv4entry2         = "192.55.200.3/32"
-	gribiIPv4entry3         = "192.51.129.0/22"
 	prot4                   = 4
 	prot41                  = 41
 	vrfPolW                 = "vrf_selection_policy_w"
