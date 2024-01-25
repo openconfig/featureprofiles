@@ -11,5 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     set_native_user: true
+    ssh_server_counters_unsupported: true
   }
 }

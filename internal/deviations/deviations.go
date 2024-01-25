@@ -786,3 +786,8 @@ func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
 func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
 }
+
+// SshServerCountersUnsupported is to skip checking ssh server counters.
+func SshServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
