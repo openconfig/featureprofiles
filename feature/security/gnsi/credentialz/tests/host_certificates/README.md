@@ -8,13 +8,8 @@ this certificate during SSH authentication.
 
 ## Procedure
 
-* Prior to writing test the following steps were taken to create a host key (if needed) and a CA
-  key pair, this key pair will then be signed using the DUTs public key during the test execution.
-    * `cd` to this test package
-    * `ssh-keygen -t ed25519 -f dut -C dut`
-    * `ssh-keygen -t ed25519 -f ca -C ca`
 * Fetch the DUT's public key using gnsi.Credentialz
-  * If DUT doesnt have one, set the private key using gnsi.Credentialz to the key in the test dir.
+  * If DUT doesnt have one, generate and set the private key using gnsi.Credentialz.
 * Sign the DUT's public key with the ca key to create a host certificate.
 * Add the newly created certificate to the DUT using gnsi.Credentialz
 * Perform the following tests and assert the expected result:
