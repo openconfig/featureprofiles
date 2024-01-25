@@ -1571,8 +1571,9 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 // Test-3, Mixed Prefix Decap gRIBI Entries.
 func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
-	var testPref1 string = "192.51.129.0/22"
-	var testPref2 string = "192.55.200.3/32"
+	var testPref1 string = "192.51.100.1/24"
+	var testPref2 string = "192.51.128.0/22"
+	var testPref3 string = "192.55.200.3/32"
 
 	var traffiDstIP1 string = "192.51.100.64"
 	var traffiDstIP2 string = "192.55.200.3"
@@ -1587,7 +1588,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	configGribiBaselineAFT(ctx, t, dut, args)
 
 	t.Run("Program gRIBi route", func(t *testing.T) {
-		configureGribiMixedPrefEntries(ctx, t, dut, args, []string{testPref1, testPref2})
+		configureGribiMixedPrefEntries(ctx, t, dut, args, []string{testPref1, testPref2, testPref3})
 	})
 	// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 	// v4 header stripped and are forwarded according to the route in the DEFAULT
