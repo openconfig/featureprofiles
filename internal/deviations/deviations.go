@@ -741,6 +741,11 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
 }
 
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
