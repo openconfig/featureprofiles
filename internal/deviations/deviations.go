@@ -742,26 +742,31 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipContainerOp()
 }
 
 // ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
 }
 
 // AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
 }
 
 // SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
 }
 
 // SkipMainInterfaceDotZero returns true if check for the interface (HunderedGigE0/0/0/1.0) needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipMainInterfaceDotZero(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMainInterfaceDotZero()
 }
