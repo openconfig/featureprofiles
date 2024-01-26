@@ -1,0 +1,41 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "31ab1acc-3a50-4ce6-be63-d9e56ddc5813"
+plan_id: "RT-1.1"
+description: "Base BGP Session Parameters"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    connect_retry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    connect_retry: true
+    omit_l2_mtu: true
+    network_instance_table_deletion_required: true
+    bgp_md5_requires_reset: true
+    missing_value_for_defaults: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
