@@ -477,7 +477,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -493,7 +493,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False):
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
