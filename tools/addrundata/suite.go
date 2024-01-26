@@ -221,7 +221,7 @@ func (ts testsuite) checkATEOTG() (ok bool) {
 func (ts testsuite) checkNoTags() bool {
 	ok := true
 	for testdir, tc := range ts {
-		hasTag := len(tc.markdown.GetTags()) > 0
+		hasTag := len(tc.existing.GetTags()) > 0
 		if !hasTag {
 			errorf("At-least One Tag required: %s", testdir)
 			ok = false
