@@ -13,3 +13,4 @@ platform_exceptions:  {
     cli_takes_precedence_over_oc:  true
   }
 }
+tags:  TAGS_TRANSIT

@@ -31,3 +31,4 @@ platform_exceptions:  {
     interface_enabled:  true
   }
 }
+tags:  TAGS_TRANSIT

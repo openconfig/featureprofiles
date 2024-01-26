@@ -30,3 +30,4 @@ platform_exceptions:  {
     transceiver_thresholds_unsupported:  true
   }
 }
+tags:  TAGS_TRANSIT
