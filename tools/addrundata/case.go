@@ -126,6 +126,7 @@ func (tc *testcase) fix() error {
 			tc.fixed.Uuid = u.String()
 			return nil
 		}
+		tc.fixed.Tags = []mpb.Metadata_Tags{mpb.Metadata_TAGS_UNSPECIFIED}
 	}
 
 	// The most common, default testbed is a DUT and ATE with 2 links between them.
