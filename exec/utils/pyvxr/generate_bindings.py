@@ -20,13 +20,13 @@ class Device():
         return self.username
     
     def add_data_port(self, name):
-        self.data_ports[name] = f'port{str(len(self.data_ports) + 1)}'
+        self.data_ports[name] = 'port' + str(len(self.data_ports) + 1)
 
     def get_data_port_abstract_name(self, p):
         return self.data_ports[p]
     
     def get_port_redir(self, p):
-        return self.ports_map[self.id][f'xr_redir{str(p)}']
+        return self.ports_map[self.id]['xr_redir' + str(p)]
 
     def get_host_agent(self):
         return self.ports_map[self.id]['HostAgent']
@@ -79,9 +79,9 @@ class DUT(Device):
                     self.grpc_port = int(p.group(0))
              
     def _get_certificates(self, certs_dir):
-        self.cert_file = os.path.join(certs_dir, self.get_id(), f'{self.get_user()}.cert.pem')
-        self.key_file = os.path.join(certs_dir, self.get_id(), f'{self.get_user()}.key.pem')
-        self.trust_bundle_file = os.path.join(certs_dir, self.get_id(), f'ca.cert.pem')
+        self.cert_file = os.path.join(certs_dir, self.get_id(), self.get_user() + '.cert.pem')
+        self.key_file = os.path.join(certs_dir, self.get_id(), self.get_user() + '.key.pem')
+        self.trust_bundle_file = os.path.join(certs_dir, self.get_id(), 'ca.cert.pem')
 
     def get_model(self):
         if platform == 'spitdire_d':
@@ -108,7 +108,7 @@ class DUT(Device):
                 'mutual_tls': self.mtls,           
             },
             'ssh': {
-                'target': f'{self.get_host_agent()}:{self.get_port_redir(22)}',
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(22)),
             }
         })
         
@@ -121,7 +121,7 @@ class DUT(Device):
 
         for s in ['gnmi', 'gnoi', 'gribi', 'gnsi', 'p4rt']:
             e[s] = {
-                'target': f'{self.get_host_agent()}:{self.get_port_redir(self.grpc_port)}'
+                 'target': self.get_host_agent() + ':' + str(self.get_port_redir(self.grpc_port)),
             }
         return e
 
@@ -134,17 +134,17 @@ class IxiaWeb(ATE):
         super().__init__(id, ports_map)
 
     def get_port_redir(self, p):
-        return self.ports_map[f'{self.id}_gui'][f'redir{str(p)}']
+        return self.ports_map[self.id + '_gui']['redir' + str(p)]
 
     def get_host_agent(self):
-        return self.ports_map[f'{self.id}_gui']['HostAgent']
+        return self.ports_map[self.id + '_gui']['HostAgent']
     
     def to_binding_entry(self):
         e = super().to_binding_entry()
         e.update({
             'name': '20.0.0.2',
             'ixnetwork': {
-                'target': f'{self.get_host_agent()}:{self.get_port_redir(443)}',
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(443)),
                 'username': self.username,
                 'password': self.password,
                 'skip_verify': True
@@ -165,12 +165,12 @@ class IxiaOTG(ATE):
                 'password': self.password,
             },
             'gnmi': {
-                'target': f'{self.get_host_agent()}:{self.get_port_redir(31003)}',
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(31003)),
                 'skip_verify': True,
                 'timeout': 60
             },
             'otg': {
-                'target': f'{self.get_host_agent()}:{self.get_port_redir(31002)}',
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(31002)),
                 'insecure': True,
                 'timeout': 100
             }
@@ -196,10 +196,8 @@ class Connection():
     
     def to_testbed_entry(self):
         return {
-            'a': f'{self.a.get_device().get_id()}:'
-                f'{self.a.get_device().get_data_port_abstract_name(self.a.get_port())}',
-            'b': f'{self.b.get_device().get_id()}:'
-                f'{self.b.get_device().get_data_port_abstract_name(self.b.get_port())}',
+            'a': self.a.get_device().get_id() + ':' + self.a.get_device().get_data_port_abstract_name(self.a.get_port()),
+            'b': self.b.get_device().get_id() + ':' + self.b.get_device().get_data_port_abstract_name(self.b.get_port())
         }
 
 class ProtoPrinter():
@@ -218,16 +216,16 @@ class ProtoPrinter():
         return ' ' * self._ind
     
     def _to_proto_val(self, v):
-        if isinstance(v, str): return f'"{v}"'
+        if isinstance(v, str): return '"' + v + '"'
         if isinstance(v, bool): return str(v).lower()
-        if isinstance(v, Enum): return f'{v.name}'
+        if isinstance(v, Enum): return v.name
         return v
 
     def _to_dict_entry(self, k, v):
         self._indent()
         vproto = self._to_proto_generic(k, v).split('\n')
         vproto = [self._insert_indent() + l + '\n' for l in vproto]
-        return f'{k}: {{\n{"".join(vproto)}{self._deindent()}\n}}\n'
+        return k + ': ' + '{\n' + "".join(vproto) + self._deindent() + '\n}\n'
             
     def _to_proto_list(self, k, l):
         s = ""
@@ -244,11 +242,11 @@ class ProtoPrinter():
         s = ""
         for k, v in d.items():
             if isinstance(v, list):
-                s += f'{self._to_proto_generic(k, v)}'
+                s += self._to_proto_generic(k, v)
             elif isinstance(v, dict):
                 s += self._to_dict_entry(k, v)
             else:
-                s += f'{k}: {self._to_proto_generic(k, v)}\n'
+                s += k + ':' + self._to_proto_generic(k, v) + '\n'
         return s.strip()
     
 def parse_connection_end(devices, c):
