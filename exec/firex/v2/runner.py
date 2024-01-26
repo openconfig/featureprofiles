@@ -948,12 +948,17 @@ def InstallGoDelve(self, ws, repo):
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
-    try:
-        logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
-        )
-    except:
-        logger.warning(f'Failed to release ixia ports. Ignoring...')
+    with tempfile.NamedTemporaryFile() as f:
+        #FIXME: remove once release script is updated to new binding proto
+        tmp_binding_file = f.name
+        shutil.copyfile(binding_file, tmp_binding_file)
+        check_output(f"sed -i 's|mutual_tls|#mutual_tls|g' {tmp_binding_file}")
+        try:
+            logger.print(
+                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+            )
+        except:
+            logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
