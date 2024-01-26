@@ -37,3 +37,5 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE

@@ -38,3 +38,4 @@ platform_exceptions: {
     explicit_port_speed: true
   }
 }
+tags: TAGS_TRANSIT
