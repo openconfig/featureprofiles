@@ -752,7 +752,7 @@ func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // GribiDecapMixedPlenUnsupported returns true if devices does not support
-// mixed prefix length in gribi.
+// programming with mixed prefix length.
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
 }

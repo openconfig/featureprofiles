@@ -108,6 +108,7 @@ const (
 	ipv6InnerDstNoEncap     = "2001:db8::138:0:11:12"
 	ipv4InnerDst2           = "138.0.11.15"
 	ipv6InnerDst2           = "2001:db8::138:0:11:15"
+	defaultRoute            = "0.0.0.0/0"
 	wantLoss                = true
 	routeDelete             = true
 	correspondingTTL        = 64
@@ -349,7 +350,12 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	pfRAction.NetworkInstance = ygot.String(niDefault)
 
 	p1 := dut.Port(t, "port1")
-	intf := niP.GetOrCreateInterface(p1.Name())
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	intf := niP.GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -452,7 +458,11 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	p1 := dut.Port(t, "port1")
-	intf := niP.GetOrCreateInterface(p1.Name())
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+	intf := niP.GetOrCreateInterface(interfaceID)
 	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolC)
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -698,41 +708,41 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	// Programming AFT entries for prefixes in DEFAULT VRF
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(10).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
+			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
+			WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(2).AddNextHop(10, 1).AddNextHop(11, 3),
+			WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(2),
+			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(100).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()),
+			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(3).AddNextHop(100, 2),
+			WithID(12).AddNextHop(13, 2),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(3),
+			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()),
+			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(8).AddNextHop(12, 1),
+			WithID(13).AddNextHop(14, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(8),
+			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()),
+			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(5).AddNextHop(13, 1),
+			WithID(14).AddNextHop(15, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(5),
+			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()),
+			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(10).AddNextHop(14, 1),
+			WithID(15).AddNextHop(16, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(gribiIPv4EntryDefVRF5+"/"+maskLen32).WithNextHopGroup(10),
+			WithPrefix(gribiIPv4EntryDefVRF5+"/"+maskLen32).WithNextHopGroup(15),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -750,21 +760,47 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
+	// Programming AFT entries for backup NHG
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222, gribiIPv4EntryVRF2221).
+			WithNextHopNetworkInstance(niTeVrf222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1000).AddNextHop(1000, 1),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).
+			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1001).AddNextHop(1001, 1),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1002).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222, gribiIPv4EntryVRF2222).
+			WithNextHopNetworkInstance(niTeVrf222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1002).AddNextHop(1002, 1),
+	)
+	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
 	// Programming AFT entries for prefixes in TE_VRF_222
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF3),
+			WithIndex(3).WithIPAddress(gribiIPv4EntryDefVRF3),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(7).AddNextHop(4, 1),
+			WithID(2).AddNextHop(3, 1).WithBackupNHG(1001),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
-			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(7),
+			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(5).WithIPAddress(gribiIPv4EntryDefVRF5),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(9).AddNextHop(5, 2),
+			WithID(4).AddNextHop(5, 1).WithBackupNHG(1001),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
-			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(9),
+			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -782,26 +818,6 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
-	// Programming AFT entries for backup NHG
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-			WithIPinIP(ipv4OuterSrc222, gribiIPv4EntryVRF2221).
-			WithNextHopNetworkInstance(niTeVrf222),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(18).AddNextHop(1000, 1),
-
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-			WithIPinIP(ipv4OuterSrc222, gribiIPv4EntryVRF2222).
-			WithNextHopNetworkInstance(niTeVrf222),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(19).AddNextHop(1001, 1),
-	)
-	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
-		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
-	}
-
 	// Programming AFT entries for prefixes in TE_VRF_111
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -809,16 +825,16 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(18),
+			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(1000),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(3).WithIPAddress(gribiIPv4EntryDefVRF4),
+			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(4).AddNextHop(3, 2).WithBackupNHG(19),
+			WithID(3).AddNextHop(4, 1).WithBackupNHG(1002),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(4),
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -839,19 +855,29 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	// Programming AFT entries for prefixes in ENCAP_TE_VRF_A
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).
+			WithIndex(200).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(200).AddNextHop(200, 1),
+	)
+	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(101).WithEncapsulateHeader(fluent.IPinIP).
 			WithIPinIP(ipv4OuterSrc111, gribiIPv4EntryVRF1111).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(202).WithEncapsulateHeader(fluent.IPinIP).
+			WithIndex(102).WithEncapsulateHeader(fluent.IPinIP).
 			WithIPinIP(ipv4OuterSrc111, gribiIPv4EntryVRF1112).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(11).AddNextHop(201, 1).AddNextHop(202, 3).WithBackupNHG(18),
+			WithID(102).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(200),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(11),
+			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(102),
 		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix(gribiIPv6EntryEncapVRF+"/"+maskLen126).WithNextHopGroup(11),
+			WithPrefix(gribiIPv6EntryEncapVRF+"/"+maskLen126).WithNextHopGroup(102),
 	)
 
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -901,7 +927,6 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
-
 }
 
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs, prefWithMask string) {
@@ -912,13 +937,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	// into the DECAP_TE_VRF.
 
 	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(50).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(50).AddNextHop(50, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-			WithPrefix(prefWithMask).WithNextHopGroup(50),
+			WithPrefix(prefWithMask).WithNextHopGroup(1001),
 	)
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -932,16 +952,6 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
 
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithNextHopOperation(50).WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithNextHopGroupOperation(50).WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
 	chk.HasResult(t, args.client.Results(t),
 		fluent.OperationResult().WithIPv4Operation(prefWithMask).WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
@@ -957,18 +967,10 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs, prefList []string) {
 	t.Helper()
 
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(52).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(52).AddNextHop(52, 1),
-	)
-
 	for _, pref := range prefList {
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-				WithPrefix(pref).WithNextHopGroup(52),
+				WithPrefix(pref).WithNextHopGroup(1001),
 		)
 	}
 
@@ -980,20 +982,10 @@ func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *onda
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(53),
 	)
+
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
-
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithNextHopOperation(52).WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithNextHopGroupOperation(53).WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
 
 	for _, pref := range prefList {
 		chk.HasResult(t, args.client.Results(t),
@@ -1002,6 +994,7 @@ func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *onda
 			chk.IgnoreOperationID(),
 		)
 	}
+
 	chk.HasResult(t, args.client.Results(t),
 		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
@@ -1408,14 +1401,14 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, out
 	}
 } */
 
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
+func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix, nexthop, niName string) {
 	t.Helper()
-	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	ni := oc.NetworkInstance{Name: ygot.String(niName)}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(prefix)
 	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
 type flowArgs struct {
@@ -1568,7 +1561,7 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 // Test-3, Mixed Prefix Decap gRIBI Entries.
 func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
-	var testPref1 string = "192.51.100.1/24"
+	var testPref1 string = "192.51.100.0/24"
 	var testPref2 string = "192.51.128.0/22"
 	var testPref3 string = "192.55.200.3/32"
 
@@ -1887,7 +1880,7 @@ func TestGribiDecap(t *testing.T) {
 
 	negTestAddr := fmt.Sprintf("%s/%d", ipv4OuterDst333, uint32(32))
 	t.Run("Add static route for validating negative traffic test", func(t *testing.T) {
-		configStaticRoute(t, dut, negTestAddr, atePort8.IPv4)
+		configStaticRoute(t, dut, negTestAddr, atePort8.IPv4, niDefault)
 	})
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
@@ -1954,5 +1947,4 @@ func TestGribiDecap(t *testing.T) {
 	t.Run("Test-6: Decap then encap", func(t *testing.T) {
 		testTunnelTrafficDecapEncap(ctx, t, dut, args)
 	})
-
 }
