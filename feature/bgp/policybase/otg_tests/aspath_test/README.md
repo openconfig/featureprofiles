@@ -33,31 +33,25 @@ BGP policy configuration for AS Paths and Community Sets
       * Create an as-path-set/name "my_regex_aspath-2" as follows
         * matches as-path-set `my_regex_aspath-2` `{ as-path-set-member = ["(^100)(.*)+(300$)" ] }`
 
-    * Create policy-definition named 'match_aspaths' with the following statements
+    * Create /routing-policy/policy-definitions/policy-definition named 'match_aspaths' with the following statements
       * statement[name='accept_any_my_3_aspaths']/
         * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
         * actions/config/policy-result = ACCEPT_ROUTE
 
-    * Create policy-definition named 'match_all_aspaths' with the following statements
-      * statement[name='accept_all_my_3_aspaths']/
-        * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
-        * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
-        * actions/config/policy-result = ACCEPT_ROUTE
-
-    * Create policy-definition named 'match_not_my_3_aspaths' with the following statements
+    * Create /routing-policy/policy-definitions/policy-definition named 'match_not_my_3_aspaths' with the following statements
       * statement[name='accept_not_my_3_aspaths']/
         * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
         * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
         * actions/config/policy-result = ACCEPT_ROUTE
 
-    * Create policy-definition named 'match_my_regex_aspath-1' with the following statements
+    * Create /routing-policy/policy-definitions/policy-definition named 'match_my_regex_aspath-1' with the following statements
       * statement[name='accept_my_regex_aspath-1']/
         * conditions/bgp-conditions/match-community-set/config/community-set = 'my_regex_aspath-1'
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
         * actions/config/policy-result = ACCEPT_ROUTE
 
-    * Create policy-definition named 'match_my_regex_aspath-2' with the following statements
+    * Create /routing-policy/policy-definitions/policy-definition named 'match_my_regex_aspath-2' with the following statements
       * statement[name='accept_my_regex_aspath-2']/
         * conditions/bgp-conditions/match-community-set/config/community-set = 'my_regex_aspath-2'
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
@@ -72,14 +66,14 @@ BGP policy configuration for AS Paths and Community Sets
 
 ### Expected as-path matches
 
-| prefix-set   | any_my_3_aspaths | all_my_3_aspaths | not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
-| ------------ | ---------------- | ---------------- | -------------------- | --------------------- | --------------------- |
-| prefix-set-1 | accept           | accept           | reject               | accept                | accept                |
-| prefix-set-2 | accept           | reject           | reject               | accept                | accept                |
-| prefix-set-3 | reject           | reject           | accept               | reject                | reject                |
-| prefix-set-4 | reject           | reject           | accept               | reject                | reject                |
-| prefix-set-5 | accept           | accept           | reject               | accept                | reject                |
-| prefix-set-6 | accept           | reject           | reject               | accept                | reject                |
+| prefix-set   | any_my_3_aspaths |  not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
+| ------------ | ---------------- |  -------------------- | --------------------- | --------------------- |
+| prefix-set-1 | accept           |  reject               | accept                | accept                |
+| prefix-set-2 | accept           |  reject               | accept                | accept                |
+| prefix-set-3 | reject           |  accept               | reject                | reject                |
+| prefix-set-4 | reject           |  accept               | reject                | reject                |
+| prefix-set-5 | accept           |  reject               | accept                | reject                |
+| prefix-set-6 | accept           |  reject               | accept                | reject                |
 
 ## Config Parameter Coverage
 
