@@ -717,7 +717,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
     if reserved_testbed.get('sim', False):
-        sim_out_dir = os.path.join(testbed_logs_dir, 'testbed_logs', 'bringup_success')
+        sim_out_dir = os.path.join(testbed_logs_dir, 'bringup_success')
         pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
         check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
