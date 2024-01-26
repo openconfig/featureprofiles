@@ -227,7 +227,7 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) 
 
 	var startingAcceptCounter, startingLastAcceptTime uint64
 
-	if !deviations.SshServerCountersUnsupported(dut) {
+	if !deviations.SSHServerCountersUnsupported(dut) {
 		startingAcceptCounter, startingLastAcceptTime = getAcceptTelemetry(t, dut)
 	}
 
@@ -236,7 +236,7 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) 
 		t.Fatalf("dialing ssh failed, but we expected to succeed")
 	}
 
-	if !deviations.SshServerCountersUnsupported(dut) {
+	if !deviations.SSHServerCountersUnsupported(dut) {
 		endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
 
 		if startingAcceptCounter-endingAcceptCounter < 1 {
