@@ -216,16 +216,16 @@ class ProtoPrinter():
         return ' ' * self._ind
     
     def _to_proto_val(self, v):
-        if isinstance(v, str): return '"' + v + '"'
+        if isinstance(v, str): return '"' + str(v) + '"'
         if isinstance(v, bool): return str(v).lower()
         if isinstance(v, Enum): return v.name
-        return v
+        return str(v)
 
     def _to_dict_entry(self, k, v):
         self._indent()
         vproto = self._to_proto_generic(k, v).split('\n')
         vproto = [self._insert_indent() + l + '\n' for l in vproto]
-        return k + ': ' + '{\n' + "".join(vproto) + self._deindent() + '\n}\n'
+        return str(k) + ': ' + '{\n' + "".join(vproto) + self._deindent() + '\n}\n'
             
     def _to_proto_list(self, k, l):
         s = ""
@@ -246,7 +246,7 @@ class ProtoPrinter():
             elif isinstance(v, dict):
                 s += self._to_dict_entry(k, v)
             else:
-                s += k + ':' + self._to_proto_generic(k, v) + '\n'
+                s += str(k) + ':' + self._to_proto_generic(k, v) + '\n'
         return s.strip()
     
 def parse_connection_end(devices, c):
