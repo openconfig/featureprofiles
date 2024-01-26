@@ -13,3 +13,4 @@ platform_exceptions: {
     qos_queue_requires_id: true
   }
 }
+tags: TAGS_TRANSIT
