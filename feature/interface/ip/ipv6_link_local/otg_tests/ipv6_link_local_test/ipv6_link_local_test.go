@@ -20,6 +20,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -182,6 +183,10 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
 	dstIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 func configureOTGInterface(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
