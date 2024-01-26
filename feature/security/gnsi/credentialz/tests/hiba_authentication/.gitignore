@@ -1,0 +1,8 @@
+ca
+ca.pub
+hosts/dut
+hosts/dut.pub
+hosts/dut-cert.pub
+users/testuser
+users/testuser.pub
+users/testuser-cert.pub

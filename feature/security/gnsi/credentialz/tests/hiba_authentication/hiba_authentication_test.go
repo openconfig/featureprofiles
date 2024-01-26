@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -23,10 +24,10 @@ import (
 const (
 	username                 = "testuser"
 	password                 = "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj"
-	userPrivateKeyFilename   = "testuser"
-	userCertFilename         = "testuser-cert.pub"
-	dutPrivateKeyFilename    = "dut"
-	dutCertFilename          = "dut-cert.pub"
+	userPrivateKeyFilename   = "users/testuser"
+	userCertFilename         = "users/testuser-cert.pub"
+	dutPrivateKeyFilename    = "hosts/dut"
+	dutCertFilename          = "hosts/dut-cert.pub"
 	caPublicKeyFilename      = "ca.pub"
 	hostCertificateVersion   = "v1.0"
 	hostCertificateCreatedOn = 1705962293
@@ -183,13 +184,13 @@ func setupAuthorizedPrincipals(t *testing.T, dut *ondatra.DUTDevice) {
 	sendHostParametersRequest(t, dut, request)
 }
 
-func loadCertificate(t *testing.T, dut *ondatra.DUTDevice) {
-	certificateContents, err := os.ReadFile(dutCertFilename)
+func loadCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+	certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, dutCertFilename))
 	if err != nil {
 		t.Fatalf("failed reading host signed certificate, error: %s", err)
 	}
 
-	privateKeyContents, err := os.ReadFile(dutPrivateKeyFilename)
+	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, dutPrivateKeyFilename))
 	if err != nil {
 		t.Fatalf("failed reading host signed certificate, error: %s", err)
 	}
@@ -236,8 +237,8 @@ func loadCertificate(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice) {
-	keyContents, err := os.ReadFile(caPublicKeyFilename)
+func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+	keyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, caPublicKeyFilename))
 	if err != nil {
 		t.Fatalf("failed reading ca public key contents, error: %s", err)
 	}
@@ -281,20 +282,20 @@ func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
 	return dutSSHService.GetOutsideIp()
 }
 
-func sshWithKey(t *testing.T, addr string) error {
+func sshWithKey(t *testing.T, addr, dir string) error {
 	// ensure files are 0600 so ssh doesnt barf, git only cares about +x bit so just enforcing
 	// this lazily here
-	err := os.Chmod(userPrivateKeyFilename, 0o600)
+	err := os.Chmod(fmt.Sprintf("%s/%s", dir, userPrivateKeyFilename), 0o600)
 	if err != nil {
 		t.Fatalf("failed ensuring user private key file permissions, error: %s", err)
 	}
 
-	err = os.Chmod(userCertFilename, 0o600)
+	err = os.Chmod(fmt.Sprintf("%s/%s", dir, userCertFilename), 0o600)
 	if err != nil {
 		t.Fatalf("failed ensuring user cert file permissions, error: %s", err)
 	}
 
-	privateKeyContents, err := os.ReadFile(userPrivateKeyFilename)
+	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userPrivateKeyFilename))
 	if err != nil {
 		t.Fatalf("failed loading user private key, error: %s", err)
 	}
@@ -304,7 +305,7 @@ func sshWithKey(t *testing.T, addr string) error {
 		t.Fatalf("failed parsing user private key, error: %s", err)
 	}
 
-	certificateContents, err := os.ReadFile(userCertFilename)
+	certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userCertFilename))
 	if err != nil {
 		t.Fatalf("failed loading user certificate, error: %s", err)
 	}
@@ -334,19 +335,19 @@ func sshWithKey(t *testing.T, addr string) error {
 	return err
 }
 
-func assertSSHAuthFails(t *testing.T, dut *ondatra.DUTDevice, addr string) {
-	err := sshWithKey(t, addr)
+func assertSSHAuthFails(t *testing.T, _ *ondatra.DUTDevice, addr, dir string) {
+	err := sshWithKey(t, addr, dir)
 	if err == nil {
 		t.Fatal("dialing ssh succeeded, but we expected to fail")
 	}
 }
 
-func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr string) {
+func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) {
 	// set the hiba host cert and also private key so its the hiba one we setup before the test
-	loadCertificate(t, dut)
+	loadCertificate(t, dut, dir)
 
 	// set the trusted user ca
-	setupTrustedUserCA(t, dut)
+	setupTrustedUserCA(t, dut, dir)
 
 	// small sleep to let changes percolate
 	time.Sleep(15 * time.Second)
@@ -359,7 +360,7 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr string) {
 		startingAcceptCounter, startingLastAcceptTime = getAcceptTelemetry(t, dut)
 	}
 
-	err := sshWithKey(t, addr)
+	err := sshWithKey(t, addr, dir)
 	if err != nil {
 		t.Fatalf("dialing ssh failed, but we expected to succeed, errror: %s", err)
 	}
@@ -405,8 +406,192 @@ func assertTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func prepareHibaKeysCopy(t *testing.T, dir string) {
+	keyFiles := []string{
+		"ca",
+		caPublicKeyFilename,
+		dutPrivateKeyFilename,
+		"hosts/dut.pub",
+		dutCertFilename,
+		userPrivateKeyFilename,
+		"users/testuser.pub",
+		userCertFilename,
+	}
+
+	err := os.Mkdir(fmt.Sprintf("%s/hosts", dir), 0o700)
+	if err != nil {
+		t.Fatalf("failed ensuring hosts dir in temp dir, error: %s", err)
+	}
+
+	err = os.Mkdir(fmt.Sprintf("%s/users", dir), 0o700)
+	if err != nil {
+		t.Fatalf("failed ensuring users dir in temp dir, error: %s", err)
+	}
+
+	for _, keyFile := range keyFiles {
+		var input []byte
+
+		input, err = os.ReadFile(keyFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		err = os.WriteFile(fmt.Sprintf("%s/%s", dir, keyFile), input, 0o600)
+		if err != nil {
+			t.Fatalf("failed copying key file %s to temp test dir, error: %s", keyFile, err)
+		}
+	}
+}
+
+func prepareHibaKeysGen(t *testing.T, dir string) {
+	caCmd := exec.Command(
+		"hiba-ca.sh",
+		"-c",
+		"-d", dir, //output to the tempdir
+		"--",           // pass the rest to ssh-keygen
+		"-q", "-N", "", // quiet, empty passphrase
+
+	)
+	caCmd.Dir = dir
+
+	err := caCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating ca key pair, error: %s", err)
+	}
+
+	userKeyCmd := exec.Command(
+		"hiba-ca.sh",
+		"-c",
+		"-d", dir, //output to the tempdir
+		"-u", "-I", "testuser",
+		"--",           // pass the rest to ssh-keygen
+		"-q", "-N", "", // quiet, empty passphrase
+
+	)
+	userKeyCmd.Dir = dir
+
+	err = userKeyCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating user key pair, error: %s", err)
+	}
+
+	dutKeyCmd := exec.Command(
+		"hiba-ca.sh",
+		"-c",
+		"-d", dir, //output to the tempdir
+		"-h", "-I", "dut",
+		"--",           // pass the rest to ssh-keygen
+		"-q", "-N", "", // quiet, empty passphrase
+
+	)
+	dutKeyCmd.Dir = dir
+
+	err = dutKeyCmd.Run()
+	if err != nil {
+		t.Fatalf("failed generating dut key pair, error: %s", err)
+	}
+
+	prodIdentityCmd := exec.Command(
+		"hiba-gen",
+		"-i",
+		"-f", fmt.Sprintf("%s/policy/identities/prod", dir),
+		"domain", "example.com",
+	)
+	prodIdentityCmd.Dir = dir
+
+	err = prodIdentityCmd.Run()
+	if err != nil {
+		t.Fatalf("failed creating prod identity, error: %s", err)
+	}
+
+	shellGrantCmd := exec.Command(
+		"hiba-gen",
+		"-f", fmt.Sprintf("%s/policy/grants/shell", dir),
+		"domain", "example.com",
+	)
+	shellGrantCmd.Dir = dir
+
+	err = shellGrantCmd.Run()
+	if err != nil {
+		t.Fatalf("failed creating shell grant, error: %s", err)
+	}
+
+	grantShellToUserCmd := exec.Command(
+		"hiba-ca.sh",
+		"-d", dir, //output to the tempdir
+		"-p",
+		"-I", "testuser",
+		"-H", "shell",
+	)
+	grantShellToUserCmd.Dir = dir
+
+	err = grantShellToUserCmd.Run()
+	if err != nil {
+		t.Fatalf("failed granting shell grant to testuser, error: %s", err)
+	}
+
+	createHostCertCmd := exec.Command(
+		"hiba-ca.sh",
+		"-d", dir, //output to the tempdir
+		"-s",
+		"-h",
+		"-I", "dut",
+		"-H", "prod",
+		"-V", "+52w",
+	)
+	createHostCertCmd.Dir = dir
+
+	err = createHostCertCmd.Run()
+	if err != nil {
+		t.Fatalf("failed creating host certificate, error: %s", err)
+	}
+
+	createUserCertCmd := exec.Command(
+		"hiba-ca.sh",
+		"-d", dir, //output to the tempdir
+		"-s",
+		"-u",
+		"-I", "testuser",
+		"-H", "shell",
+	)
+	createUserCertCmd.Dir = dir
+
+	err = createUserCertCmd.Run()
+	if err != nil {
+		t.Fatalf("failed creating user certificate, error: %s", err)
+	}
+}
+
+func prepareHibaKeys(t *testing.T, dir string) {
+	hibaCa, _ := exec.LookPath("hiba-ca.sh")
+	hibaGen, _ := exec.LookPath("hiba-gen")
+
+	if hibaCa == "" || hibaGen == "" {
+		t.Log("hiba-ca and/or hiba-gen not found on path, will try to use certs in local test dir if present")
+
+		prepareHibaKeysCopy(t, dir)
+	} else {
+		prepareHibaKeysGen(t, dir)
+	}
+}
+
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatalf("creating temp dir, err: %s", err)
+	}
+
+	defer func(dir string) {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			t.Logf("error removing temp directory, error: %s", err)
+		}
+	}(dir)
+
+	prepareHibaKeys(t, dir)
 
 	addr := getDutAddr(t, dut)
 
@@ -419,7 +604,7 @@ func TestCredentialz(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		testF func(t *testing.T, dut *ondatra.DUTDevice, addr string)
+		testF func(t *testing.T, dut *ondatra.DUTDevice, addr, dir string)
 	}{
 		{
 			name:  "auth should fail hiba host certificate not present",
@@ -499,7 +684,7 @@ func TestCredentialz(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.testF(t, dut, addr)
+			tt.testF(t, dut, addr, dir)
 		})
 	}
 }
