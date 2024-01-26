@@ -952,7 +952,13 @@ def ReleaseIxiaPorts(self, ws, binding_file):
         #FIXME: remove once release script is updated to new binding proto
         tmp_binding_file = f.name
         shutil.copyfile(binding_file, tmp_binding_file)
-        check_output(f"sed -i 's|mutual_tls|#mutual_tls|g' {tmp_binding_file}")
+        cmd = "sed -i 's|mutual_tls|#mutual_tls|g;"
+        cmd += "s|trust_bundle_file|#trust_bundle_file|g;"
+        cmd += "s|cert_file|#cert_file|g;"
+        cmd += "s|key_file|#key_file|g' "
+        cmd += f"{tmp_binding_file}"
+        check_output(cmd)
+        
         try:
             logger.print(
                 check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
