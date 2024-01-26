@@ -23,17 +23,17 @@ BGP policy configuration for AS Paths and Community Sets
   * Generate traffic from ATE port-2 to all prefixes
   * Validate that traffic is received on ATE port-1 for all installed prefixes
 
-* RT-2.2.2 - Validate as-path-set
+* RT-2.2.2 - Configure as-path-sets
   * Configure DUT with the following routing policies
-    * Create policy-definition named 'any_my_3_aspaths' with the following options
-      * Create as-path-set named "my_3_aspaths" with members
+    * Create the following /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/
+      * Create as-path-set-name = "my_3_aspaths" with members
         * `{ as-path-set-member = [ "100", "200", "300" ] }`
-      * Create an as-path-set/name 'my_regex_aspath-1' with members
+      * Create an as-path-set-name 'my_regex_aspath-1' with members
         * `{ as-path-set-member = [ "^100", "20[0-9]", "200$" ] }`
-      * Create an as-path-set/name "my_regex_aspath-2" as follows
-        * matches as-path-set `my_regex_aspath-2` `{ as-path-set-member = ["(^100)(.*)+(300$)" ] }`
+      * Create an as-path-set-name "my_regex_aspath-2" as follows
+        * `{ as-path-set-member = [ "(^100)(.*)+(300$)" ] }`
 
-    * Create /routing-policy/policy-definitions/policy-definition named 'match_aspaths' with the following statements
+    * Create /routing-policy/policy-definitions/policy-definition named 'match_any_aspaths' with the following statements
       * statement[name='accept_any_my_3_aspaths']/
         * conditions/bgp-conditions/match-community-set/config/community-set = 'my_3_aspaths'
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
@@ -57,6 +57,7 @@ BGP policy configuration for AS Paths and Community Sets
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
         * actions/config/policy-result = ACCEPT_ROUTE
 
+* RT-2.2.7 - Replace /routing-policy DUT config 
   * For each DUT policy-definition
     * Replace the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the currently tested policy
       * Verify prefixes sent, received and installed are as expected
@@ -66,14 +67,14 @@ BGP policy configuration for AS Paths and Community Sets
 
 ### Expected as-path matches
 
-| prefix-set   | any_my_3_aspaths |  not_any_my_3_aspaths | any_my_regex_aspath-1 | any_my_regex_aspath-2 |
-| ------------ | ---------------- |  -------------------- | --------------------- | --------------------- |
-| prefix-set-1 | accept           |  reject               | accept                | accept                |
-| prefix-set-2 | accept           |  reject               | accept                | accept                |
-| prefix-set-3 | reject           |  accept               | reject                | reject                |
-| prefix-set-4 | reject           |  accept               | reject                | reject                |
-| prefix-set-5 | accept           |  reject               | accept                | reject                |
-| prefix-set-6 | accept           |  reject               | accept                | reject                |
+| prefix-set   | match_any_aspaths | match_not_my_3_aspaths | match_my_regex_aspath-1 | my_regex_aspath-2 |
+| ------------ | ----------------- | ---------------------- | ----------------------- | ----------------- |
+| prefix-set-1 | accept            | reject                 | accept                  | accept            |
+| prefix-set-2 | accept            | reject                 | accept                  | accept            |
+| prefix-set-3 | reject            | accept                 | reject                  | reject            |
+| prefix-set-4 | reject            | accept                 | reject                  | reject            |
+| prefix-set-5 | accept            | reject                 | accept                  | reject            |
+| prefix-set-6 | accept            | reject                 | accept                  | reject            |
 
 ## Config Parameter Coverage
 
