@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 )
 
 func errorf(format string, args ...any) {
@@ -221,8 +223,16 @@ func (ts testsuite) checkATEOTG() (ok bool) {
 func (ts testsuite) checkNoTags() bool {
 	ok := true
 	for testdir, tc := range ts {
-		hasTag := len(tc.existing.GetTags()) > 0
-		if !hasTag {
+		if tc.existing == nil {
+			return false
+		}
+		tags := []mpb.Metadata_Tags{}
+		for _, tag := range tc.existing.GetTags() {
+			if tag != mpb.Metadata_TAGS_UNSPECIFIED {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) == 0 {
 			errorf("At-least One Tag required: %s", testdir)
 			ok = false
 		}

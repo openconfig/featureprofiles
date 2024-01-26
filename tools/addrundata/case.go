@@ -120,13 +120,22 @@ func (tc *testcase) fix() error {
 	if tc.existing != nil {
 		tc.fixed.Testbed = tc.existing.Testbed
 		tc.fixed.PlatformExceptions = tc.existing.PlatformExceptions
+		tags := []mpb.Metadata_Tags{}
+		for _, tag := range tc.existing.Tags {
+			if tag != mpb.Metadata_TAGS_UNSPECIFIED {
+				tags = append(tags, tag)
+			}
+		}
+		if len(tags) == 0 {
+			tags = append(tags, mpb.Metadata_TAGS_TRANSIT)
+		}
+		tc.fixed.Tags = tags
 		u, err := uuid.Parse(tc.existing.Uuid)
 		if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
 			// Existing UUID is valid, but make sure it is normalized.
 			tc.fixed.Uuid = u.String()
 			return nil
 		}
-		tc.fixed.Tags = []mpb.Metadata_Tags{mpb.Metadata_TAGS_UNSPECIFIED}
 	}
 
 	// The most common, default testbed is a DUT and ATE with 2 links between them.
