@@ -477,7 +477,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -493,7 +493,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False):
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
@@ -717,11 +717,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
     if reserved_testbed.get('sim', False):
-        vxr_testbed = kwargs['testbed_path']
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
-            file=ondatra_binding_path)
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {vxr_testbed}', 
-            file=ondatra_testbed_path)
+        sim_out_dir = os.path.join(testbed_logs_dir, 'bringup_success')
+        pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
+        check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
         if not type(reserved_testbed['baseconf']) is dict:
@@ -945,17 +943,22 @@ def InstallGoDelve(self, ws, repo):
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
     )
-
+        
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
-    try:
-        logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
-        )
-    except:
-        logger.warning(f'Failed to release ixia ports. Ignoring...')
+    with tempfile.NamedTemporaryFile() as f:
+        #FIXME: remove once release script is updated to new binding proto
+        tmp_binding_file = f.name
+        shutil.copyfile(binding_file, tmp_binding_file)
+        check_output(f"sed -i 's|mutual_tls|#mutual_tls|g' {tmp_binding_file}")
+        try:
+            logger.print(
+                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+            )
+        except:
+            logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
