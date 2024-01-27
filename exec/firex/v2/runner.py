@@ -50,6 +50,7 @@ whitelist_arguments([
     'test_skip',
     'test_fail_skipped',
     'test_show_skipped',
+    'test_repo_url',
 ])
 
 def _get_go_root_path(ws=None):
@@ -408,14 +409,10 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
-    if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
-        return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 1
+    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '1'))
 
 def decommission_testbed_after_tests():
-    if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
-        return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '0') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -424,6 +421,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         reserved_testbed,
                         test_name,
                         test_path,
+                        test_repo_url=PUBLIC_FP_REPO_URL,
                         test_branch='main',
                         test_revision=None,
                         test_pr=None,
@@ -442,8 +440,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         **kwargs):
     
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
-
-    test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
         test_repo_url = internal_fp_repo_url
 
