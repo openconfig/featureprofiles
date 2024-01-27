@@ -1,4 +1,4 @@
-# TE-17.1 VRF selection policy driven TE
+# TE-17.1: VRF selection policy driven TE
 
 ## Summary
 
