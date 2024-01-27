@@ -1,4 +1,4 @@
-# TE-17.1: VRF selection policy driven TE
+# TE-17.1 VRF selection policy driven TE
 
 ## Summary
 
@@ -429,126 +429,116 @@ network-instances {
 
 *   Install the following gRIBI AFTs.
 
-    IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
-        {NH#101, DEFAULT VRF, weight:1},
-        {NH#102, DEFAULT VRF, weight:3},
-        backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
-    }
-    IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
-        {NH#101, DEFAULT VRF, weight:3},
-        {NH#102, DEFAULT VRF, weight:1},
-        backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
-    }
+```
+IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:1},
+  {NH#102, DEFAULT VRF, weight:3},
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
+}
+IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:3},
+  {NH#102, DEFAULT VRF, weight:1},
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
+}
+NH#101 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.1"
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
+}
+NH#102 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.10.113.2"
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
+}
 
-    NH#101 -> {
-        encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        ip_in_ip {
-            dst_ip: "203.0.113.1"
-            src_ip: "ipv4_outer_src_111"
-        }
-        network_instance: "TE_VRF_111"
-    }
+NHG#200 (Default VRF) {
+  {NH#200, DEFAULT VRF, weight:1}
+}
+NH#200 -> {
+    network_instance: "DEFAULT"
+}
 
-    NH#102 -> {
-        encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        ip_in_ip {
-            dst_ip: "203.10.113.2"
-            src_ip: "ipv4_outer_src_111"
-        }
-        network_instance: "TE_VRF_111"
-    }
+IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
+  {NH#1, DEFAULT VRF, weight:1,ip_address=192.0.2.101},
+  {NH#2, DEFAULT VRF, weight:3,ip_address=192.0.2.102},
+  backup_next_hop_group: 1000 // re-encap to 203.0.113.100
+}
+IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#11 (DEFAULT VRF) -> {
+  {NH#11, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
+  {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
+}
+IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
+  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
+}
 
-    NHG#200 (Default VRF) {
-        {NH#200, DEFAULT VRF, weight:1}
-        }
-        NH#200 -> {
-            network_instance: "DEFAULT"
-        }
-    }
+NHG#1000 (Default VRF) {
+  {NH#1000, DEFAULT VRF}
+}
+NH#1000 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.100"
+    src_ip: "ipv4_outer_src_222"
+  }
+  network_instance: "TE_VRF_222"
+}
 
-    IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
-        {NH#1, DEFAULT VRF, weight:1,ip_address=192.0.2.101},
-        {NH#2, DEFAULT VRF, weight:3,ip_address=192.0.2.102},
-        backup_next_hop_group: 1000 // re-encap to 203.0.113.100
-    }
+IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
+  {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
+  backup_next_hop_group: 1001 // decap to DEFAULT VRF
+}
+IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
+  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+}
+NHG#1001 (Default VRF) {
+  {NH#1001, DEFAULT VRF, weight:1}
+}
+NH#1001 -> {
+    decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+    network_instance: "DEFAULT"
+}
 
-    IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#11 (DEFAULT VRF) -> {
-        {NH#11, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
-        {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
-    }
-    IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
-        {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
-    }
+// 203.10.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
 
-    NHG#1000 (Default VRF) {
-        {NH#1000, DEFAULT VRF}
-    }
+IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
+  {NH#4, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
+  backup_next_hop_group: 1002 // re-encap to 203.10.113.101
+}
+IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#14 (DEFAULT VRF) -> {
+  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
+}
+NHG#1002 (DEFAULT VRF) {
+  {NH#1002, DEFAULT VRF}
+}
+NH#1002 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.101"
+    src_ip: "ipv4_outer_src_222"
+  }
+  network_instance: "TE_VRF_222"
+}
+IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
+  {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
+  backup_next_hop_group: 1001 // decap to DEFAULT VRF
+}
+IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
+  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
+}
 
-    NH#1000 -> {
-        decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        ip_in_ip {
-            dst_ip: "203.0.113.100"
-            src_ip: "ipv4_outer_src_222"
-        }
-        network_instance: "TE_VRF_222"
-    }
+```
 
-    IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
-        {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
-        backup_next_hop_group: 1001 // decap to DEFAULT VRF
-    }
+*   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
 
-    IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
-        {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
-    }
-
-    NHG#1001 (Default VRF) {
-        {NH#2001, DEFAULT VRF, weight:1}
-    }
-
-    NH#1001 -> {
-        decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        network_instance: "DEFAULT"
-    }
-
-    // 203.10.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
-
-    IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
-        {NH#4, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
-        backup_next_hop_group: 1002 // re-encap to 203.10.113.101
-    }
-
-    IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#14 (DEFAULT VRF) -> {
-        {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
-    }
-
-    NHG#1002 (DEFAULT VRF) {
-        {NH#1002, DEFAULT VRF}
-    }
-
-    NH#1002 -> {
-        decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
-        ip_in_ip {
-            dst_ip: "203.0.113.101"
-            src_ip: "ipv4_outer_src_222"
-        }
-        network_instance: "TE_VRF_222"
-    }
-
-    IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
-        {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
-        backup_next_hop_group: 1001 // decap to DEFAULT VRF
-    }
-    
-    IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
-        {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
-    }
-
-    *   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
-
-    *   Install a 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+*   Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
 ## Procedure
 
@@ -560,14 +550,14 @@ The DUT should be reset to the baseline after each of the following tests.
 
     ```
     IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
-       {NH#1001, DEFAULT VRF, weight:1}
+        {NH#1001, DEFAULT VRF, weight:1}
     }
     NH#1001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
-    Install an 0/0 default route in TE_VRF_111
-
+    Install 0/0 route in TE_VRF_111. 
+    
     ```
 
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
@@ -598,7 +588,7 @@ The DUT should be reset to the baseline after each of the following tests.
 
 6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are decapped and forwarded correctly.
 
-7.  Repeat the test with packets with a destination address that does not match the decap entry, and verify that such packets are not decapped.
+7.  Repeat the test with packets with a destination address 192.58.200.7 that does not match the decap entry, and verify that such packets are not decapped.
 
 #### Test-2, match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT
 
@@ -612,9 +602,7 @@ The DUT should be reset to the baseline after each of the following tests.
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
-    Install an 0/0 static route in TE_VRF_111
 
-    ```
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
@@ -650,7 +638,10 @@ Support for decap actions with mixed prefixes installed through gRIBI
 1.  Add the following gRIBI entries:
 
     ```
-    IPv4Entry {192.51.129.0/22 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
+        {NH#1001, DEFAULT VRF, weight:1}
+    }
+    IPv4Entry {192.51.128.0/22 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
         {NH#1001, DEFAULT VRF, weight:1}
     }
     IPv4Entry {192.55.200.3/32 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
@@ -661,9 +652,9 @@ Support for decap actions with mixed prefixes installed through gRIBI
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
-    Install an 0/0 static route in TE_VRF_111
+    Install 0/0 route in TE_VRF_111.
 
-    ```
+    ```    
 
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
@@ -697,7 +688,7 @@ Support for decap actions with mixed prefixes installed through gRIBI
 
 4.  Verify that the packets have their outer v4 header stripped, and are forwarded according to the route in the DEFAULT VRF that matches the inner IP address.
 
-5.  Repeat the test with packets with a destination address such as that does not match the decap route, and verify that such packets are not decapped.
+5.  Repeat the test with packets with a destination address 192.58.200.7 such as that does not match the decap route, and verify that such packets are not decapped.
 
 #### Test-4: Tunneled traffic with no decap
 
@@ -708,7 +699,7 @@ Ensures that tunneled traffic is correctly forwarded when there is no match in t
     *   The outer v4 header has the destination address 203.0.113.1.
     *   The outer v4 header has the source address ipv4_outer_src_111.
     *   The outer v4 header has DSCP value has `dscp_encap_no_match` and `dscp_encap_match`
-3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2, port-3 and port-4 per the hierarchical weight.
+3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
 4.  Send 4in4 (IP protocol 4) and 6in4 (IP protocol 41) packets to DUT port-2 where
     *   The outer v4 header has the destination address 203.0.113.100.
     *   The outer v4 header has the source address ipv4_outer_src_222.
@@ -737,21 +728,20 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
 
 #### Test-6, decap then encap
 
-    Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
+1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
     ```
-    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1 (DEFAULT VRF) -> {
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
         {NH#1001, DEFAULT VRF, weight:1}
     }
     NH#1001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
-    Install an 0/0 static route in TE_VRF_111
 
-1.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
+2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
-2.  Send the following packets to DUT port-1:
+3.  Send the following packets to DUT port-1:
 
     ```
     * inner_src: `ipv4_inner_src`
@@ -773,14 +763,14 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
     * proto: `41`
     ```
 
-3.  We should expect that all egress packets:
+4.  We should expect that all egress packets:
 
     *   are IPinIP encapped with outer source IP as `ipv4_outter_src_111` and dscp value `dscp_encap_a_1`.
     *   1/4 are with 203.0.113.1 as the outer header destination IP.
     *   3/4 are with 203.10.113.2 as the outer header destination IPs.
     *   egress on DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
 
-4.  Send the following packets to DUT port -1
+5.  Send the following packets to DUT port -1
 
     ```
     * inner_src: `ipv4_inner_src`
@@ -800,7 +790,7 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
     * proto: `41`
     ```
 
-5.  We should expect that all egress packets:
+6.  We should expect that all egress packets:
 
     *   are IPinIP encapped with outer source IP as `ipv4_outter_src_111` and dscp value `dscp_encap_b_1`.
     *   3/4 are with 203.0.113.1 as the outer header destination IP.
