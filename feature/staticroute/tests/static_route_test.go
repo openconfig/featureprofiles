@@ -191,11 +191,13 @@ func createTrafficFlows(t *testing.T,
 		if ipVersion == "IPv4" {
 			ip := flow.Packet().Add().Ipv4()
 			ip.Src().SetValue(srcIP)
-			ip.Dst().SetValue(dstIP)
+			// ip.Dst().SetValue(dstIP)
+			ip.Dst().Increment().SetStart(ipv4DstPfx).SetCount(200)
 		} else {
 			ip := flow.Packet().Add().Ipv6()
 			ip.Src().SetValue(srcIP)
-			ip.Dst().SetValue(dstIP)
+			// ip.Dst().SetValue(dstIP)
+			ip.Dst().Increment().SetStart(ipv6DstPfx).SetCount(200)
 		}
 
 		return flow
