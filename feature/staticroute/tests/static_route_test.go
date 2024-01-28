@@ -281,7 +281,10 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 
 	})
 
-	configureStaticRoute(t, dut)
+	t.Run(fmt.Sprintf("Configure Static Route"), func(t *testing.T) {
+		t.Log("Configure static route on DUT")
+		configureStaticRoute(t, dut)
+	})
 
 	t.Run(fmt.Sprintf("ConfigureOTG"), func(t *testing.T) {
 		t.Logf("Configure OTG")
