@@ -2,6 +2,7 @@ package certgen_test
 
 import (
 	"context"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"net"
@@ -23,6 +24,9 @@ import (
 const (
 	keysDestination = "/harddisk:/keys"
 	sshCmdTimeout   = 30 * time.Second
+
+	caKeyFileName  = "ca.key.pem"
+	caCertFileName = "ca.cert.pem"
 )
 
 var (
@@ -43,6 +47,18 @@ type targetInfo struct {
 	sshPass  string
 }
 
+func getCACertPath() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(cwd, "/featureprofiles/") {
+		rootSrc := strings.Split(cwd, "featureprofiles")[0]
+		return rootSrc + "featureprofiles/internal/cisco/security/cert/keys/CA/", nil
+	}
+	return "", fmt.Errorf("ca_cert_path need to be passed as arg")
+}
+
 func TestCertGen(t *testing.T) {
 	outDir := *outDirFlag
 	if outDir == "" {
@@ -55,20 +71,34 @@ func TestCertGen(t *testing.T) {
 			t.Fatalf("Error creating output directory: %v", err)
 		}
 
-		caCertFile, err := certUtil.GetCACertFile()
+		certTemp, err := certUtil.PopulateCertTemplate(d.gnmiUser, []string{d.gnmiUser}, []net.IP{}, d.gnmiUser, 100)
 		if err != nil {
-			t.Fatalf("Unable to get CA cert path: %v", err)
+			panic(fmt.Sprintf("Could not generate template: %v", err))
+		}
+		dir, err := getCACertPath()
+		if err != nil {
+			t.Fatalf(fmt.Sprintf("Could not find a path for ca key/cert: %v", err))
+		}
+		caKey, caCert, err := certUtil.LoadKeyPair(path.Join(dir, caKeyFileName), path.Join(dir, caCertFileName))
+		if err != nil {
+			panic(fmt.Sprintf("Could not load ca key/cert: %v", err))
+		}
+		tlsCert, err := certUtil.GenerateCert(certTemp, caCert, caKey, x509.RSA)
+		if err != nil {
+			panic(fmt.Sprintf("Could not generate ca cert/key: %v", err))
+		}
+		err = certUtil.SaveTLSCertInPems(tlsCert, path.Join(dutOutDir, "ems.key.pem"), path.Join(dutOutDir, "ems.cert.pem"), x509.RSA)
+		if err != nil {
+			panic(fmt.Sprintf("Could not save cleint cert/key in pem files: %v", err))
 		}
 
-		certUtil.GenCERT("ems", 500, []net.IP{net.ParseIP(d.gnmiIp)}, "", dutOutDir)
-		certUtil.GenCERT(d.gnmiUser, 100, []net.IP{}, d.gnmiUser, dutOutDir)
-		copyFile(t, caCertFile, path.Join(dutOutDir, "ca.cert"))
+		copyFile(t, path.Join(dir, caKeyFileName), path.Join(dutOutDir, caCertFileName))
 		transferKeys(t, &d, dutOutDir)
 
 		copyKeysCmds := []string{
 			"run cp " + path.Join(keysDestination, "ems.cert.pem") + " /misc/config/grpc/ems.pem",
 			"run cp " + path.Join(keysDestination, "ems.key.pem") + " /misc/config/grpc/ems.key",
-			"run cp " + path.Join(keysDestination, "ca.cert") + " /misc/config/grpc/ca.cert",
+			"run cp " + path.Join(keysDestination, caCertFileName) + " /misc/config/grpc/ca.cert",
 		}
 
 		dut := ondatra.DUT(t, d.dut)
@@ -115,7 +145,8 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	return sshClient.SendCommand(ctx, cmd)
+	res, err := sshClient.RunCommand(ctx, cmd)
+	return res.Output(), err
 }
 
 func parseBindingFile(t *testing.T) []targetInfo {
