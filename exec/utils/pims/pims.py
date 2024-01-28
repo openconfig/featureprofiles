@@ -8,11 +8,14 @@ from operator import itemgetter
 parser = argparse.ArgumentParser(description='Find latest pims image')
 parser.add_argument('--lineup', default='xr-dev', help="image lineup")
 parser.add_argument('--label', default='*NIGHTLY*', help="image label")
+parser.add_argument('--dev', dest='dev', action='store_true')
 args = parser.parse_args()
 
 lineup = args.lineup
 nightly_label = args.label
+use_dev_image = args.dev
 image_subpaths = ['8000/8000-x64.iso', 'img-8000/8000-x64.iso']
+dev_image_subpaths = ['8000/8000-dev-x64.iso', 'img-8000/8000-dev-x64.iso']
 
 candidates = []
 pims_output = check_output([
@@ -55,7 +58,9 @@ for c in candidates:
     for result in js:
         if result.get('Status') == 'Successful':
             image_dir = result.get('Image Location')
-            for subpath in image_subpaths:
+            subpaths = image_subpaths
+            if use_dev_image: subpaths = dev_image_subpaths
+            for subpath in subpaths:
                 location = os.path.join(image_dir, subpath)
                 if os.path.exists(location):
                     image_path = location

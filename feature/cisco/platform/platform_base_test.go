@@ -128,7 +128,7 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 }
 func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string) {
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.GetConfig(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
+		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
 	}); errMsg != nil {
 		t.Log("Expected failure ")
 	} else {

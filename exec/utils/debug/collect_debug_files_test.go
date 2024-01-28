@@ -100,9 +100,9 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		for _, cmd := range commands {
 			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := sshClient.SendCommand(ctx, cmd); err == nil {
+				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
 					t.Logf("> %s", cmd)
-					t.Log(result)
+					t.Log(result.Output())
 				} else {
 					t.Logf("> %s", cmd)
 					t.Log(err.Error())

@@ -140,7 +140,8 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	return sshClient.SendCommand(ctx, cmd)
+	out, err := sshClient.RunCommand(ctx, cmd)
+	return out.Output(), err
 }
 
 func parseBindingFile(t *testing.T) []targetInfo {

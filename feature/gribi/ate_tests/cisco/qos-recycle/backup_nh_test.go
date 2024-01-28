@@ -191,8 +191,8 @@ func testBackupToDecapQos(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//resp, err = CMDViaGNMI(context.Background(), "clear qos counters interface all")
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-	t.Logf(resp, err)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
 	time.Sleep(3 * time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlowsQos(), false, []string{"Bundle-Ether127"})
@@ -330,8 +330,8 @@ func testBackupSwitchFromDropToDecap(ctx context.Context, t *testing.T, args *te
 	args.client.ReplaceNHG(t, 101, 0, map[uint64]uint64{999: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	// validate traffic decap over backup path
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-	t.Logf(resp, err)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
 	time.Sleep(3 * time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlowsQos(), false, []string{"Bundle-Ether127"})
@@ -731,8 +731,8 @@ func testIPv4MultipleNHG(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.interfaceaction(t, "port2", true)
 	// validate traffic decap over backup path
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-	t.Logf(resp, err)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
 	time.Sleep(3 * time.Minute)
 	if *ciscoFlags.GRIBITrafficCheck {
 		args.validateTrafficFlows(t, args.allFlowsQos(), false, []string{"Bundle-Ether127"})
@@ -870,7 +870,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
 	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
+	configGotprior := gnmi.Get(t, dut, configprior.Config())
 	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -887,7 +887,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -895,7 +895,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -913,7 +913,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 
 		ConfigIntf := gnmi.OC().Qos().Interface(*schedinterface.InterfaceId)
 		gnmi.Update(t, dut, ConfigIntf.Config(), schedinterface)
-		ConfigGotIntf := gnmi.GetConfig(t, dut, ConfigIntf.Config())
+		ConfigGotIntf := gnmi.Get(t, dut, ConfigIntf.Config())
 		if diff := cmp.Diff(*ConfigGotIntf, *schedinterface); diff != "" {
 			t.Errorf("Config Schedule fail: \n%v", diff)
 		}

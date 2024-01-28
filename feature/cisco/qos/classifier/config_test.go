@@ -37,7 +37,7 @@ func TestNameAtContainer(t *testing.T) {
 			// dscp and dscp-set causing error
 			t.Run("Get container", func(t *testing.T) {
 				t.Skip()
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifier); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/config/name: %v", diff)
 				}
@@ -54,7 +54,7 @@ func TestNameAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					gnmi.GetConfig(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
+					gnmi.Get(t, dut, config.Config()) //catch the error  as it is expected and absorb the panic.
 				}); errMsg != nil {
 					t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 				} else {
@@ -78,7 +78,7 @@ func TestNameAtLeaf(t *testing.T) {
 		state := gnmi.OC().Qos().Classifier(*baseConfigClassifier.Name).Name()
 
 		t.Run("Get container", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.Get(t, dut, config.Config())
 			if configGot != *baseConfigClassifier.Name {
 				t.Errorf("Config /qos/classifiers/classifier/config/name: want %s got %s", *baseConfigClassifier.Name, configGot)
 			}
@@ -116,7 +116,7 @@ func TestTypeAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/config/type: got %v, want %v", configGot, input)
 				}

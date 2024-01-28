@@ -37,7 +37,7 @@ func TestEnabledAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Enabled != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -84,7 +84,7 @@ func TestEnabledAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -132,7 +132,7 @@ func TestNameAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Name != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/name: got %v, want %v", configGot, input)
 					}
@@ -173,7 +173,7 @@ func TestGlobalSampleSize(t *testing.T) {
 		})
 		if !setup.SkipGet() {
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config())
+				configGot := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().SampleSize().Config())
 				if configGot != 128 {
 					t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want 710", configGot)
 				}
@@ -212,7 +212,7 @@ func TestInterfaceIngressSamplingRate(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.IngressSamplingRate != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/config/ingress-sampling-rate : got %v, want %v", configGot, input)
 					}
@@ -261,7 +261,7 @@ func TestInterfaceEgressSamplingRate(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.EgressSamplingRate != input {
 						t.Errorf("Config /sampling/sflow/interfaces/interface/state/egress-sampling-rate : got %v, want %v", configGot, input)
 					}

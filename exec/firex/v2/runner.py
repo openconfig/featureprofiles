@@ -50,6 +50,7 @@ whitelist_arguments([
     'test_skip',
     'test_fail_skipped',
     'test_show_skipped',
+    'test_repo_url',
 ])
 
 def _get_go_root_path(ws=None):
@@ -384,14 +385,10 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
-    if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
-        return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 1
+    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '1'))
 
 def decommission_testbed_after_tests():
-    if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
-        return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '0') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -400,6 +397,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         reserved_testbed,
                         test_name,
                         test_path,
+                        test_repo_url=PUBLIC_FP_REPO_URL,
                         test_branch='main',
                         test_revision=None,
                         test_pr=None,
@@ -418,8 +416,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         **kwargs):
     
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
-
-    test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
         test_repo_url = internal_fp_repo_url
 
@@ -453,7 +449,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -469,7 +465,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False):
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
@@ -654,13 +650,13 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
             'insecure': True,
-            'timeout': 100
+            'timeout': 200
         }
 
         ate['gnmi'] = {
             'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
             'skip_verify': True,
-            'timeout': 30
+            'timeout': 60
         }
 
         if 'ixnetwork' in ate:
@@ -691,26 +687,24 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
-    
+            
     if reserved_testbed.get('sim', False):
-        vxr_testbed = kwargs['testbed_path']
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
-            file=ondatra_binding_path)
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {vxr_testbed}', 
-            file=ondatra_testbed_path)
+        sim_out_dir = os.path.join(testbed_logs_dir, 'bringup_success')
+        pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
+        check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
         if not type(reserved_testbed['baseconf']) is dict:
             reserved_testbed['baseconf'] = {
                 'dut': reserved_testbed['baseconf']
             }
-
+                
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
             extra_conf = []
-
+        
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
@@ -731,23 +725,30 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             _cli_to_gnmi_set_file(reserved_testbed['cli_conf'], ondatra_baseconf_path, extra_conf)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
-        ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
-        hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
-        hw_baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-        
+        hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
         key_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
         cert_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
 
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
-        shutil.copyfile(hw_baseconf_file_path, ondatra_baseconf_path)
+        
+        if type(reserved_testbed['baseconf']) is dict:
+            for dut, conf in reserved_testbed['baseconf'].items():
+                baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+                ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+                shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
+                check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+        else:
+            baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
+            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
+            shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)    
+            check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ondatra_binding_path}")
         check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ondatra_binding_path}")
@@ -998,17 +999,28 @@ def InstallGoDelve(self, ws, repo):
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
     )
-
+        
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
-    try:
-        logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
-        )
-    except:
-        logger.warning(f'Failed to release ixia ports. Ignoring...')
+    with tempfile.NamedTemporaryFile() as f:
+        #FIXME: remove once release script is updated to new binding proto
+        tmp_binding_file = f.name
+        shutil.copyfile(binding_file, tmp_binding_file)
+        cmd = "sed -i 's|mutual_tls|#mutual_tls|g;"
+        cmd += "s|trust_bundle_file|#trust_bundle_file|g;"
+        cmd += "s|cert_file|#cert_file|g;"
+        cmd += "s|key_file|#key_file|g' "
+        cmd += f"{tmp_binding_file}"
+        check_output(cmd)
+        
+        try:
+            logger.print(
+                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+            )
+        except:
+            logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
