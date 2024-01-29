@@ -35,4 +35,4 @@ platform_exceptions: {
     missing_value_for_defaults: true
   }
 }
-
+tags: TAGS_DATACENTER_EDGE
