@@ -266,6 +266,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.27"
+  description: "Static route to BGP redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static-route_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.28"
   description: "BGP to IS-IS redistribution"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_isis_redistribution/README.md"
