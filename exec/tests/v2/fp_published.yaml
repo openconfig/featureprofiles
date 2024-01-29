@@ -78,6 +78,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2590
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -138,6 +139,7 @@ tests:
       - wdolaast
     mustpass: true
     priority: 3
+    pr: 2548
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
@@ -326,6 +328,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
+    pr: 2551
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
@@ -592,6 +595,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 2550
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
     owners:
@@ -638,6 +642,7 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    pr: 2552
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests/authz
     args:
@@ -668,6 +673,7 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    pr: 2548
   - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
     path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
     owners:
