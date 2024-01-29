@@ -745,3 +745,8 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
+
+// TunnelACLEncapsulationConfigUnsupported returns true for devices that do not support TunnelAclEncapsulationConfig
+func TunnelACLEncapsulationConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelAclEncapsulationConfigUnsupported()
+}

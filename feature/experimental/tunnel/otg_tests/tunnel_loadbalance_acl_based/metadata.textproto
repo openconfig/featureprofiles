@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "10a3162a-f8b7-4f14-a0cf-c69d1e2e3e66"
+plan_id:  "TUN-1.1"
+description:  "Filter based IPv4 GRE encapsulation"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    tunnel_acl_encapsulation_config_unsupported:  true
+  }
+}

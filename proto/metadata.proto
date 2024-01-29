@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -398,6 +398,9 @@ message Metadata {
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Devices doesnt support acl tunnel encapsulation configuration.
+    // Juniper : b/318985874
+    bool tunnel_acl_encapsulation_config_unsupported = 140;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
