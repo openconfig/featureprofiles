@@ -745,3 +745,8 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}

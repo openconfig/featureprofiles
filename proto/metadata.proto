@@ -398,6 +398,8 @@ message Metadata {
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Device does not support ssh server counters.
+    bool ssh_server_counters_unsupported = 140;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
