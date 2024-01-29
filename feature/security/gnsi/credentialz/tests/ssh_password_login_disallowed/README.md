@@ -9,15 +9,6 @@ accounted for.
 
 ## Procedure
 
-* Prior to writing test the following steps were takin to create a CA key pair, a user key pair, 
-  and to create a signed public key for the user key from the CA. Note that the lifetime of the 
-  certificate was set to "forever" and there are no passphrases on the keys. The principal on 
-  the certificate has been set to `my_principal`.
-    * `cd` to this test package
-    * `ssh-keygen -t ed25519 -f ca -C ca`
-    * `ssh-keygen -t ed25519 -f id_ed25519 -C featureprofile@openconfig`
-    * `ssh-keygen -s ca -I testuser -n my_principal -V -1m:forever id_ed25519.pub`
-
 * Set DUT TrustedUserCAKeys using gnsi.Credentialz to the previously created CA
 * Set a username of `testuser` with a password of `i$V5^6IhD*tZ#eg1G@v3xdVZrQwj` using gnsi.Credentialz
 * Set DUT authentication types to permit only public key (PUBKEY) using gnsi.Credentialz
