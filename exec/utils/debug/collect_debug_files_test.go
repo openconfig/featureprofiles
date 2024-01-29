@@ -30,6 +30,7 @@ var (
 	coreFilesFlag = flag.Bool("core", false, "Check for core files that get generated")
 	outDir        string
 	timestamp     string
+	coreFlag      bool
 )
 
 type targetInfo struct {
@@ -99,6 +100,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		outDir = *outDirFlag
 		timestamp = *timestampFlag
 	}
+	coreFlag = *coreFilesFlag
 
 	// this generate dummy core files --- for testing use only
 	// targets.SetCoreFile(t)
@@ -108,8 +110,8 @@ func TestCollectDebugFiles(t *testing.T) {
 		"mkdir " + techDirectory,
 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
-	t.Logf("core file flag is set to [%v]", *coreFilesFlag)
-	if *coreFilesFlag == false {
+	t.Logf("core file flag is set to [%v]", coreFlag)
+	if coreFlag == false {
 		t.Log("Adding commands to be send to get logs")
 		for _, t := range showTechSupport {
 			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
