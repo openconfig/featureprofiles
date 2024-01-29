@@ -920,7 +920,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-binding {tmp_binding_file} ' \
                 f'-outDir {test_log_directory_path}/debug_files ' \
                 f'-timestamp {str(timestamp)} ' \
-                f'-core true ' \
+                f'-core=true ' \
                 f'-v 5'
     else:
         collect_debug_cmd = f'{GO_BIN} test -v ' \
@@ -931,7 +931,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
                 f'-binding {tmp_binding_file} ' \
                 f'-outDir {test_log_directory_path}/debug_files ' \
                 f'-timestamp {str(timestamp)} ' \
-                f'-core false ' \
+                f'-core=false ' \
                 f'-v 5'
 
     try:
