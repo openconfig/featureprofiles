@@ -108,7 +108,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		"mkdir " + techDirectory,
 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
-
+	t.Logf("core file flag is set to [%v]", *coreFilesFlag)
 	if *coreFilesFlag == false {
 		t.Log("Adding commands to be send to get logs")
 		for _, t := range showTechSupport {
