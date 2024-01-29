@@ -110,6 +110,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	if *coreFilesFlag == false {
+		t.Log("Adding commands to be send to get logs")
 		for _, t := range showTechSupport {
 			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
 		}
@@ -117,6 +118,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		for _, t := range pipedCmds {
 			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
 		}
+		t.Logf("All commands to be executed: [%v]", commands)
 	}
 	for dutID, targetInfo := range targets.targetInfo {
 
