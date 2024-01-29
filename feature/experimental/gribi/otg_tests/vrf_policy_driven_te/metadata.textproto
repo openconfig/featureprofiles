@@ -4,7 +4,7 @@
 uuid:  "944d8eb1-a5dd-46ea-b398-cadd9574d695"
 plan_id:  "TE-17.1"
 description:  "VRF selection policy driven TE"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions:  {
   platform:  {
     vendor:  CISCO
