@@ -303,6 +303,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.52"
+  description: "BGP multipath ECMP support with Link Bandwidth Community"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.7"
   description: "Local BGP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/tests/local_bgp_test/README.md"
