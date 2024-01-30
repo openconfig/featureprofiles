@@ -135,9 +135,6 @@ func TestGetSet(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), &oc.NetworkInstance{
-		Name: ygot.String("DEFAULT"),
-	})
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
