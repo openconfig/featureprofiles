@@ -391,7 +391,7 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Port().SetTxName(ATESrc.Name).SetRxName(ATEDst.Name)
 	flow.Rate().SetPps(1)
-	flow.Rate().SetChoice("pps").SetPps(1)
+	flow.Rate().SetPps(1)
 
 	switch g.mode {
 	case PushToMPLS:
@@ -410,19 +410,19 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 		mplsInner.BottomOfStack().SetValue(1)
 
 		ip4 := flow.Packet().Add().Ipv4()
-		ip4.Src().SetChoice("value").SetValue("198.18.1.1")
-		ip4.Dst().SetChoice("value").SetValue("198.18.2.1")
-		ip4.Version().SetChoice("value").SetValue(4)
+		ip4.Src().SetValue("198.18.1.1")
+		ip4.Dst().SetValue("198.18.2.1")
+		ip4.Version().SetValue(4)
 	case PushToIP:
 		// Set up ethernet layer.
 		eth := flow.Packet().Add().Ethernet()
-		eth.Src().SetChoice("value").SetValue(ATESrc.MAC)
-		eth.Dst().SetChoice("value").SetValue(dstMAC)
+		eth.Src().SetValue(ATESrc.MAC)
+		eth.Dst().SetValue(dstMAC)
 
 		ip4 := flow.Packet().Add().Ipv4()
-		ip4.Src().SetChoice("value").SetValue("198.18.2.0")
-		ip4.Dst().SetChoice("value").SetValue("198.18.1.1")
-		ip4.Version().SetChoice("value").SetValue(4)
+		ip4.Src().SetValue("198.18.2.0")
+		ip4.Dst().SetValue("198.18.1.1")
+		ip4.Version().SetValue(4)
 
 	default:
 		t.Fatalf("unspecified flow for test type %v", g.mode)
