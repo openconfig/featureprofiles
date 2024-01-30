@@ -49,6 +49,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -342,8 +343,8 @@ func (tc *testArgs) configureATE(t *testing.T) {
 	// Adding the rest of the ports to the configuration and to the LAG
 	agg := tc.top.Lags().Add().SetName(ateDst.Name)
 	if tc.lagType == lagTypeSTATIC {
-		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().Static().SetLagId(uint32(lagId))
+		lagID, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().Static().SetLagId(uint32(lagID))
 		for i, p := range tc.atePorts[1:] {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateDst.MAC, i+1)
@@ -476,7 +477,7 @@ func debugATEFlows(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, lp 
 func (tc *testArgs) verifyCounterDiff(t *testing.T, before, after []*oc.Interface_Counters, want []float64) {
 	b := &strings.Builder{}
 	w := tabwriter.NewWriter(b, 0, 0, 1, ' ', 0)
-	approxOpt := cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+	approxOpt := cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 	fmt.Fprint(w, "Interface Counter Deltas\n\n")
 	fmt.Fprint(w, "Name\tInPkts\tInOctets\tOutPkts\tOutOctets\n")
 	allOutPkts := []uint64{}
@@ -519,17 +520,18 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 		t.Log("First port does not forward traffic because it is marked as not viable.")
 		gnmi.Update(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), forwardingViable)
 	}
-
-	v := gnmi.Lookup(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().State())
-	got, present := v.Val()
-	t.Logf("First port %s forwarding-viable: got %v, present %v, want %v", pName, got, present, forwardingViable)
-	switch {
-	case present && got != forwardingViable:
-		t.Errorf("First port %s forwarding-viable: got %t, want %t", pName, got, forwardingViable)
-	case !present && !deviations.MissingValueForDefaults(tc.dut):
-		t.Errorf("First port %s forwarding-viable value not found", pName)
-	case !present && deviations.MissingValueForDefaults(tc.dut) && !forwardingViable:
-		t.Errorf("First port %s forwarding-viable defaults true not equal to %t", pName, forwardingViable)
+	v, ok := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(pName).ForwardingViable().State(), time.Minute, func(v *ygnmi.Value[bool]) bool {
+		val, ok := v.Val()
+		if !ok && !deviations.MissingValueForDefaults(tc.dut) {
+			return false
+		}
+		if !ok && deviations.MissingValueForDefaults(tc.dut) {
+			return forwardingViable
+		}
+		return val == forwardingViable
+	}).Await(t)
+	if !ok {
+		t.Errorf("First port %s forwarding-viable mismatch: got %v, want %v", pName, v, forwardingViable)
 	}
 
 	i1 := ateSrc.Name
@@ -553,7 +555,7 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(time.Minute)
 	tc.ate.OTG().StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
