@@ -6,7 +6,7 @@ Validate BGP in multipath scenario
 
 ## Testbed type
 
-[TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+[TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Procedure
 
@@ -18,7 +18,7 @@ Validate BGP in multipath scenario
     *   ATE port-1 and DUT port-1
     *   ATE port-2 and DUT port-2
     *   ATE port-3 and DUT port-3
-    *   ATE port-3 and DUT port-3
+    *   ATE port-4 and DUT port-4
 *   Enable an Accept-route all import-policy/export-policy for eBGP session
     under the neighbor AFI/SAFI
 *   Create an IPv4 internal target network attached to ATE port 2, 3 and 4
@@ -30,7 +30,7 @@ Validate BGP in multipath scenario
     *   Configure ATE devices(ports) on same AS
     *   Advertise equal cost paths from 3 interfaces of ATE of same AS
     *   Check entries in FIB for advertised prefix, it should only have 1 entry
-    *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
+        *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
     *   Initiate traffic from ATE port-1 to the DUT and destined to internal
         target network
     *   Check entire traffic should only be forwarded by one of DUT port2, port3
@@ -40,33 +40,33 @@ Validate BGP in multipath scenario
 
     *   Configure ATE devices(ports) on same AS
     *   Enable multipath and set maximum-paths limit to 2
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
     *   Advertise equal cost paths from 3 interfaces of ATE of same AS
     *   Check entries in FIB for advertised prefix, it should only have 2
         entries
-    *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
+        *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
     *   Initiate traffic from ATE port-1 to the DUT and destined to internal
         target network
-    *   Check entire traffic should only be forwarded by any two among DUT
+    *   Check entire traffic should only be equally forwarded by any two among DUT
         port2, port3 or port4
 
-*   RT-1.51.3: Verify use of allow-mulitple-as for ECMP routing across different
+*   RT-1.51.3: Verify use of allow-multiple-as for ECMP routing across different
     peer AS
 
     *   Configure ATE devices(ports) on different AS
     *   Enable multipath, set maximum-paths limit to 2 and enable allow multiple
         AS
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
     *   Advertise equal cost paths from 3 interfaces of ATE of different AS
     *   Check entries in FIB for advertised prefix, it should only have 2
         entries
-    *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
+        *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
     *   Initiate traffic from ATE port-1 to the DUT and destined to internal
         target network
-    *   Check entire traffic should only be forwarded by any two among DUT
+    *   Check entire traffic should only be equally forwarded by any two among DUT
         port2, port3 or port4
 
 ## Config Parameter Coverage
@@ -90,5 +90,5 @@ Validate BGP in multipath scenario
 
 ## Required DUT platform
 
-*   vRX - virtual router device
+*   FFF - Fixed Form Factor
 
