@@ -14,7 +14,6 @@ platform_exceptions: {
     hardware_model: "xrd"
   }
   deviations: {
-    isis_protocol_enabled_not_required: true
     missing_isis_interface_afi_safi_enable: true
   }
 }

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/otg_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -46,20 +46,38 @@ const (
 	bgpMED                 = 25
 )
 
+// setAllow is used to configure ALLOW routing policy on DUT.
+func setAllow(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
+
+	// Configure Allow Policy on DUT.
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 // setMED is used to configure routing policy to set BGP MED on DUT.
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 	// Configure SetMED on DUT.
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement3).GetOrCreateActions()
+	stmt, err := pdef5.AppendNewStatement(aclStatement3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions5 := stmt.GetOrCreateActions()
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
-
-	// Configure Allow policy
-	pd := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	st := pd.GetOrCreateStatement("id-1")
-	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions5.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED)
+	}
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -70,15 +88,16 @@ func setASPath(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	// Configure SetASPATH routing policy on DUT.
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef5 := rp.GetOrCreatePolicyDefinition(setASpathPrependPolicy)
-	actions5 := pdef5.GetOrCreateStatement(aclStatement2).GetOrCreateActions()
+	stmt, err := pdef5.AppendNewStatement(aclStatement2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions5 := stmt.GetOrCreateActions()
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	aspend := actions5.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspend.Asn = ygot.Uint32(setup.DUTAs)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 
-	// Configure Allow policy
-	pdef := rp.GetOrCreatePolicyDefinition(setALLOWPolicy)
-	pdef.GetOrCreateStatement("id-1").GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -224,20 +243,20 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 
 			// TODO: Below code will be uncommented once Retrieving MED is supported in OTG
 
-			// prefixPath := gnmi.OTG().BgpPeer(ap.ID() + ".BGP4.peer").UnicastIpv4PrefixAny()
+			prefixPath := gnmi.OTG().BgpPeer(ap.ID() + ".BGP4.peer").UnicastIpv4PrefixAny()
 
-			// gnmi.WatchAll(t, ate.OTG(), prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-			// 	_, present := v.Val()
-			// 	return present
-			// }).Await(t)
+			gnmi.WatchAll(t, ate.OTG(), prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+				_, present := v.Val()
+				return present
+			}).Await(t)
 
-			// _, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.Med().State(), 5*time.Minute, func(v *ygnmi.Value[otgtelemetry.E_UnicastIpv4Prefix_Origin]) bool {
-			// 	gotSetMED, present := v.Val()
-			// 	return present && cmp.Diff(wantSetMED, gotSetMED) == ""
-			// }).Await(t)
-			// if !ok {
-			// 	t.Errorf("obtained MED on ATE is not as expected")
-			// }
+			_, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.MultiExitDiscriminator().State(), 5*time.Minute, func(v *ygnmi.Value[uint32]) bool {
+				gotSetMED, present := v.Val()
+				return present && cmp.Diff(wantSetMED, gotSetMED) == ""
+			}).Await(t)
+			if !ok {
+				t.Errorf("obtained MED on ATE is not as expected")
+			}
 
 		}
 	})
@@ -254,8 +273,7 @@ func TestEstablish(t *testing.T) {
 	dutConfigPath := gnmi.OC()
 
 	t.Log("Configure Network Instance type to DEFAULT on DUT.")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Log("Build Benchmarking BGP and ISIS test configs.")
 	dutBenchmarkConfig := setup.BuildBenchmarkingConfig(t)
@@ -267,7 +285,7 @@ func TestEstablish(t *testing.T) {
 
 	t.Log("Configure ATE with Interfaces, BGP, ISIS configs.")
 	ate := ondatra.ATE(t, "ate")
-	setup.ConfigureATE(t, ate)
+	setup.ConfigureOTG(t, ate)
 
 	t.Log("Verify BGP Session state , should be in ESTABLISHED State.")
 	setup.VerifyBgpTelemetry(t, dut)
@@ -295,6 +313,9 @@ func TestBGPBenchmarking(t *testing.T) {
 		gnmi.Delete(t, dut, dutPolicyConfPath.ImportPolicy().Config())
 	}
 	gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
+
+	t.Logf("Configure Allow policy.")
+	setAllow(t, dut, d)
 
 	t.Logf("Configure MED routing policy.")
 	setMED(t, dut, d)

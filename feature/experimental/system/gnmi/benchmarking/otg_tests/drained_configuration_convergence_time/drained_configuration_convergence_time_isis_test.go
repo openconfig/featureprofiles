@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/otg_tests/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
