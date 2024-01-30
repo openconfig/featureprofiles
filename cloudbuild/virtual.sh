@@ -86,6 +86,7 @@ function metadata_kne_topology() {
   kne_topology_file["TESTBED_DUT_ATE_4LINKS"]="${topo_prefix}/dutate.textproto"
   kne_topology_file["TESTBED_DUT_ATE_9LINKS_LAG"]="${topo_prefix}/dutate_lag.textproto"
   kne_topology_file["TESTBED_DUT_DUT_ATE_2LINKS"]="${topo_prefix}/dutdutate.textproto"
+  kne_topology_file["TESTBED_DUT_ATE_8LINKS"]="${topo_prefix}/dutate.textproto"
   for p in "${!kne_topology_file[@]}"; do
     if grep -q "testbed.*${p}$" "${metadata_test_path}"/metadata.textproto; then
       echo "${kne_topology_file[${p}]}"
