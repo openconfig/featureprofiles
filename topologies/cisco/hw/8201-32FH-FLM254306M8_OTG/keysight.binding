@@ -43,7 +43,6 @@ duts {
   }
   ssh{
     target: "10.85.80.9:57779"
-    timeout: 50000
   }
   p4rt{
     target: "10.85.99.34:57800"
