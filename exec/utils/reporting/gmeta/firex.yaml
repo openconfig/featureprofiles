@@ -13,6 +13,7 @@ google_img_metadata:
       - google_img_metadata:
           test_name: google_img_metadata
           test_path: exec/utils/reporting/gmeta
+          test_args: -outFile='$(test_log_directory_path)/metadata.yaml'
           test_branch: master
           internal_test: true
           internal_fp_repo_branch: master
