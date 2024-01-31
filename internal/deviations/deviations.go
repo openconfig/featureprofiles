@@ -736,6 +736,16 @@ func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
 }
 
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
+
 // TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
 // Default value is false.
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {

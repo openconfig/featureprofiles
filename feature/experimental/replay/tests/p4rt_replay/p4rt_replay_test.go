@@ -55,9 +55,9 @@ func configureDeviceID(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func TestReplay(t *testing.T) {
-	const logFile = "grpclog.pb"
+	const logFile = "https://storage.googleapis.com/featureprofiles-binarylogs/p4rt_replay.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec := replayer.ParseFile(t, logFile)
+	rec := replayer.ParseURL(t, logFile)
 
 	dut := ondatra.DUT(t, "dut")
 	portMap := map[string]string{}
