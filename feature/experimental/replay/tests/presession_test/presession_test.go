@@ -29,9 +29,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestReplay(t *testing.T) {
-	const logFile = "grpclog.pb"
+	const logFile = "https://storage.googleapis.com/featureprofiles-binarylogs/presession_test.pb"
 	t.Logf("Parsing log file: %v", logFile)
-	rec := replayer.ParseFile(t, logFile)
+	rec := replayer.ParseURL(t, logFile)
 
 	dut := ondatra.DUT(t, "dut")
 	portMap := map[string]string{}
@@ -56,7 +56,7 @@ func TestReplay(t *testing.T) {
 	}
 
 	t.Logf("Creating gRPC clients to dut")
-	clients := &replayer.Clients{
+	clients := &replayer.Config{
 		GNMI:  dut.RawAPIs().GNMI(t),
 		GRIBI: dut.RawAPIs().GRIBI(t),
 	}

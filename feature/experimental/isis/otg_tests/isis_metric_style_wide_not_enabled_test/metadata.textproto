@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "d472b5af-70fa-4259-ae6d-29c921820419"
-plan_id:  "RT-2.8"
-description:  "IS-IS  metric style wide not enabled"
-testbed:  TESTBED_DUT_ATE_2LINKS
+uuid: "d472b5af-70fa-4259-ae6d-29c921820419"
+plan_id: "RT-2.8"
+description: "IS-IS  metric style wide not enabled"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
@@ -32,11 +32,11 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    isis_instance_enabled_required: true
     omit_l2_mtu: true
     missing_value_for_defaults: true
     interface_enabled: true
     default_network_instance: "default"
-    isis_instance_enabled_required: true
     isis_lsp_lifetime_interval_requires_lsp_refresh_interval: true
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
