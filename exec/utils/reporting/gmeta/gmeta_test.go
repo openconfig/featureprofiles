@@ -3,6 +3,7 @@ package gmeta_test
 import (
 	"flag"
 	"os"
+	"path"
 	"testing"
 	"text/template"
 
@@ -17,16 +18,22 @@ func TestMain(m *testing.M) {
 
 const (
 	yamlTemplate = `vendor: "CISCO" 
-target-type: "hardware"  
-platform-name: "8800" 
+target-type: "{{.TargetType}}"  
+platform-name: "{{.PlatformName}}" 
 architecture: "x86_64"
 firmware-version: "{{.SoftwareVersion}}"	
 `
 )
 
 var (
-	outFile = flag.String("outFile", "metadata.yaml", "Output file")
+	outDir = flag.String("outDir", "", "Output directory")
 )
+
+type templateData struct {
+	TargetType      string
+	PlatformName    string
+	SoftwareVersion string
+}
 
 func TestGenerateGoogleImageMetadata(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -43,17 +50,31 @@ func TestGenerateGoogleImageMetadata(t *testing.T) {
 		t.Fatalf("Error parsing template: %v", err)
 	}
 
-	outFile, err := os.Create(*outFile)
-	if err != nil {
-		t.Fatalf("Error creating output file: %v", err)
-	}
-	defer outFile.Close()
+	for _, td := range []templateData{
+		{
+			TargetType:      "hardware",
+			PlatformName:    "8800",
+			SoftwareVersion: version,
+		},
+		{
+			TargetType:      "software",
+			PlatformName:    "8000e",
+			SoftwareVersion: version,
+		},
+		{
+			TargetType:      "software",
+			PlatformName:    "XRD",
+			SoftwareVersion: version,
+		},
+	} {
+		outFile, err := os.Create(path.Join(*outDir, td.PlatformName+".yaml"))
+		if err != nil {
+			t.Fatalf("Error creating output file: %v", err)
+		}
+		defer outFile.Close()
 
-	if err := tmpl.Execute(outFile, struct {
-		SoftwareVersion string
-	}{
-		SoftwareVersion: version,
-	}); err != nil {
-		t.Fatalf("Error executing template: %v", err)
+		if err := tmpl.Execute(outFile, td); err != nil {
+			t.Fatalf("Error executing template: %v", err)
+		}
 	}
 }
