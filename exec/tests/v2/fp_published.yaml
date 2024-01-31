@@ -397,6 +397,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 46
+    pr: 2605
   - name: RT-1.1 (Base BGP Session Parameters)
     path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
     owners:
