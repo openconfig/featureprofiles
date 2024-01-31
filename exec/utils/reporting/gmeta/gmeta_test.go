@@ -1,6 +1,7 @@
 package gmeta_test
 
 import (
+	"flag"
 	"os"
 	"testing"
 	"text/template"
@@ -23,6 +24,10 @@ firmware-version: "{{.SoftwareVersion}}"
 `
 )
 
+var (
+	outFile = flag.String("outFile", "metadata.yaml", "Output file")
+)
+
 func TestGenerateGoogleImageMetadata(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -38,7 +43,7 @@ func TestGenerateGoogleImageMetadata(t *testing.T) {
 		t.Fatalf("Error parsing template: %v", err)
 	}
 
-	outFile, err := os.Create("metadata.yaml")
+	outFile, err := os.Create(*outFile)
 	if err != nil {
 		t.Fatalf("Error creating output file: %v", err)
 	}
