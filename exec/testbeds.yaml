@@ -169,6 +169,7 @@ testbeds:
       gnmi_port: 50052
 #SIM
   8201-1DUT:
+    sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT/basefp.conf
   8201-1DUT-1ATE:
