@@ -1,4 +1,5 @@
 package singleton_with_breakouts
+
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +15,6 @@ package singleton_with_breakouts
 // limitations under the License.
 import (
 	"context"
-	"strings"
-	"testing"
-	"time"
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -26,6 +24,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"strings"
+	"testing"
+	"time"
 )
 
 const (
