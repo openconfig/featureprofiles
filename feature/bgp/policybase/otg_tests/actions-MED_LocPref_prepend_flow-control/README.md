@@ -571,12 +571,12 @@
 *   /routing-policy/policy-definitions/policy-definition/config/name
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
+
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
+
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
