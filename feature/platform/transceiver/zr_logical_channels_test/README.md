@@ -10,7 +10,7 @@ terminal-device/logical-channels. The series of logical-channel utilizes the
 assignment/optical-channel leaf to create the relationship to
 OPTICAL_CHANNEL. For 400ZR 1x400GE mode this heirarchy looks like:
 400GE Eth. Logical Channel => 400G Coherent Logical Channel => OPTICAL_CHANNEL
-Purpose of this test is to verify the logical channel provisning and related
+Purpose of this test is to verify the logical channel provisioning and related
 telemetry.
 
 ## Procedure
@@ -46,9 +46,8 @@ telemetry.
         * /components/component/optical-channel/config/frequency
         * /components/component/optical-channel/config/target-output-power
 
-*   Each logical-channel created above must be assigned an integer value. These
-    interger values can be anything as long as these do not overlap between
-    configuration on two different ports.
+*   Each logical-channel created above must be assigned an integer value that
+    is unique across the system.
 
 *   For Ethernet Logical Channel verify the following parameters are streamed:
       * logical-channel-type: PROT_ETHERNET
@@ -62,7 +61,7 @@ telemetry.
       * logical-channel-type: PROT_OTN
       * admin-state: ENABLED
       * description: Coherent Logical Channel
-      * index: 40004(unique integer value)
+      * index: 40004 (unique integer value)
 
 ## Config Parameter coverage
 
