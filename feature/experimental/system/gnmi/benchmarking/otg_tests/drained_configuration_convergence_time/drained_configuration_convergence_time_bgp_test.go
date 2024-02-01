@@ -211,12 +211,6 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 // verifyBGPSetMED is to Validate MED attribute using bgp rib telemetry on ATE.
 func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 
-	// Build wantSetMED to compare the diff.
-	var wantSetMED []uint32
-	for i := 0; i < setup.RouteCount; i++ {
-		wantSetMED = append(wantSetMED, bgpMED)
-	}
-
 	// Start the timer.
 	start := time.Now()
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -241,21 +235,11 @@ func verifyBGPSetMED(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			// Validate if all prefixes are received by ATE.
 			isConverged(t, dut, ate, ap)
 
-			// TODO: Below code will be uncommented once Retrieving MED is supported in OTG
-
-			prefixPath := gnmi.OTG().BgpPeer(ap.ID() + ".BGP4.peer").UnicastIpv4PrefixAny()
-
-			gnmi.WatchAll(t, ate.OTG(), prefixPath.Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-				_, present := v.Val()
-				return present
-			}).Await(t)
-
-			_, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.MultiExitDiscriminator().State(), 5*time.Minute, func(v *ygnmi.Value[uint32]) bool {
-				gotSetMED, present := v.Val()
-				return present && cmp.Diff(wantSetMED, gotSetMED) == ""
-			}).Await(t)
-			if !ok {
-				t.Errorf("obtained MED on ATE is not as expected")
+			bgpPrefixes := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().BgpPeer(ap.ID()+".BGP4.peer").UnicastIpv4PrefixAny().State())
+			for _, prefix := range bgpPrefixes {
+				if prefix.GetMultiExitDiscriminator() != bgpMED {
+					t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), bgpMED, prefix.GetAddress())
+				}
 			}
 
 		}
