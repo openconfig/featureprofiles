@@ -769,9 +769,3 @@ func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
 func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
 }
-
-// SkipMainInterfaceDotZero returns true if check for the interface (HunderedGigE0/0/0/1.0) needs to be skipped.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-func SkipMainInterfaceDotZero(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipMainInterfaceDotZero()
-}

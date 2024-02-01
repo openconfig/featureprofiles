@@ -783,8 +783,8 @@ func attachInterface(dut *ondatra.DUTDevice, ni *oc.NetworkInstance, name string
 	id := name // Possibly vendor specific?  May have to use sub.
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
-	if !deviations.SkipMainInterfaceDotZero(dut) {
-		niface.Subinterface = ygot.Uint32(uint32(sub))
+	niface.Subinterface = ygot.Uint32(uint32(sub))
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		id = fmt.Sprintf("%s.%d", id, sub)
 	}
 	return id
