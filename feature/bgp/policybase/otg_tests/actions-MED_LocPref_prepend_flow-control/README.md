@@ -37,7 +37,7 @@
         * MED = 50
         * Local Preference = 50
 
-### RT-1.XX.1 []
+### RT-1.32.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP set MED
 ---
 ##### Configure a route-policy to set MED
@@ -77,7 +77,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 100
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 100
 
-### RT-1.XX.2 []
+### RT-1.32.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP set MED
 ---
 ##### Configure a route-policy to set MED
@@ -120,7 +120,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 100
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 100
 
-### RT-1.XX.3 []
+### RT-1.32.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP increase MED
 ---
 ##### Configure a route-policy to increase MED
@@ -163,7 +163,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-2 and it has MED == 150
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-2 and it has MED == 150
 
-### RT-1.XX.4 []
+### RT-1.32.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP increase MED
 ---
 ##### Configure a route-policy to increase MED
@@ -206,7 +206,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 150
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 150
 
-### RT-1.XX.5 []
+### RT-1.32.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP set Local Preference
 ---
 ##### Configure a route-policy to set Local Preference
@@ -250,7 +250,7 @@
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has LocPref == 100
 
 
-### RT-1.XX.6 []
+### RT-1.32.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP set Local Preference
 ---
 ##### Configure a route-policy to set Local Preference
@@ -293,7 +293,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has LocPref == 100
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has LocPref == 100
 
-### RT-1.XX.7 []
+### RT-1.32.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP prepend 10 x local ASN
 ---
 ##### Configure a route-policy to prepend 10
@@ -336,7 +336,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other equal to DUT's ASN.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other equal to DUT's ASN.
 
-### RT-1.XX.8 []
+### RT-1.32.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP prepend 10 x local ASN
 ---
 ##### Configure a route-policy to prepend 10
@@ -379,7 +379,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other equal to DUT's ASN.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other equal to DUT's ASN.
 
-### RT-1.XX.9 []
+### RT-1.32.9 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP prepend 10 x ASN
 ---
 ##### Configure a route-policy to prepend 10
@@ -423,7 +423,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 
-### RT-1.XX.10 []
+### RT-1.32.10 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP prepend 10 x ASN
 ---
 ##### Configure a route-policy to prepend 10
@@ -467,7 +467,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has 11 ASN on as-path. First equial to ATE port-2 ASN and other 10 equal to ```23456``` ASN.
 
-### RT-1.XX.11 []
+### RT-1.32.11 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 iBGP NEXT-STATEMENT
 ---
 ##### Configure a route-policy set MED, LocalPreferemce is separate statements
@@ -516,7 +516,7 @@
 *   Validate that the ATE receives the prefix ```ipv4-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 70 and Local Preference == 70.
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 70 and Local Preference == 70.
 
-### RT-1.XX.12 []
+### RT-1.32.12 [TODO: https://github.com/openconfig/featureprofiles/issues/2615]
 #### IPv4, IPv6 eBGP NEXT-STATEMENT
 ---
 ##### Configure a route-policy set MED, LocalPreferemce is separate statements
