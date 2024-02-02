@@ -189,6 +189,10 @@ func TestDeleteInterface(t *testing.T) {
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
 
+		if len(config.Interface) == 0 {
+			config.Interface = nil
+		}
+
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterDelete", func(t *testing.T) {
