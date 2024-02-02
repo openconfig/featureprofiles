@@ -278,7 +278,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.30"
+  id: "RT-1.32"
   description: "BGP policy actions - MED, LocPref, prepend, flow-control"
   readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
   exec: " "
