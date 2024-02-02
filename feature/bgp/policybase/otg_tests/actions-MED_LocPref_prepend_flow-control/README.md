@@ -48,7 +48,7 @@
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -88,7 +88,7 @@
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -123,7 +123,7 @@
 ### RT-1.XX.3 []
 #### IPv4, IPv6 iBGP increase MED
 ---
-##### Configure a route-policy to set MED
+##### Configure a route-policy to increase MED
 *   Configure an route-policy definition with the name ```med-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```med-policy``` configure a statement with the name ```match-statement-1```
@@ -131,7 +131,7 @@
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```+100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -166,7 +166,7 @@
 ### RT-1.XX.4 []
 #### IPv4, IPv6 eBGP increase MED
 ---
-##### Configure a route-policy to set MED
+##### Configure a route-policy to increase MED
 *   Configure an route-policy definition with the name ```med-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```med-policy``` configure a statement with the name ```match-statement-1```
@@ -174,7 +174,7 @@
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```+100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -207,9 +207,9 @@
 *   Validate that the ATE receives the prefix ```ipv6-network-2```  from DUT neighbor on ATE Port-1 and it has MED == 150
 
 ### RT-1.XX.5 []
-#### IPv4, IPv6 iBGP set LocalPreference
+#### IPv4, IPv6 iBGP set Local Preference
 ---
-##### Configure a route-policy to set MED
+##### Configure a route-policy to set Local Preference
 *   Configure an route-policy definition with the name ```lp-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```lp-policy``` configure a statement with the name ```match-statement-1```
@@ -217,7 +217,7 @@
 *   For routing-policy ```lp-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```lp-policy``` statement ```match-statement-1``` set Local Preference as ```100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -251,9 +251,9 @@
 
 
 ### RT-1.XX.6 []
-#### IPv4, IPv6 eBGP set LocalPreference
+#### IPv4, IPv6 eBGP set Local Preference
 ---
-##### Configure a route-policy to set MED
+##### Configure a route-policy to set Local Preference
 *   Configure an route-policy definition with the name ```lp-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```lp-policy``` configure a statement with the name ```match-statement-1```
@@ -261,7 +261,7 @@
 *   For routing-policy ```lp-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```lp-policy``` statement ```match-statement-1``` set Local Preference as ```100```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -304,7 +304,7 @@
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` prepend as-path with local ASN  ```10``` times
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repead-n
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -347,7 +347,7 @@
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` prepend as-path with local ASN  ```10``` times
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repead-n
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -390,8 +390,8 @@
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` prepend as-path with ```23456``` ASN  ```10``` times
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repead-n
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -434,8 +434,8 @@
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```prepend-policy``` statement ```match-statement-1``` prepend as-path with ```23456``` ASN  ```10``` times
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repead-n
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -470,7 +470,7 @@
 ### RT-1.XX.11 []
 #### IPv4, IPv6 iBGP NEXT-STATEMENT
 ---
-##### Configure a route-policy to prepend 10
+##### Configure a route-policy set MED, LocalPreferemce is separate statements
 *   Configure an route-policy definition with the name ```flow-control-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```flow-control-policy``` configure a statement with the name ```match-statement-1```
@@ -478,13 +478,13 @@
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set policy-result as ```NEXT-STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set MED to 70
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 *   For routing-policy ```flow-control-policy``` configure a statement with the name ```match-statement-2```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-2``` set policy-result as ```ACCEPT-ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-2``` set LocalPreference to 70
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-prefrence
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -519,7 +519,7 @@
 ### RT-1.XX.12 []
 #### IPv4, IPv6 eBGP NEXT-STATEMENT
 ---
-##### Configure a route-policy to prepend 10
+##### Configure a route-policy set MED, LocalPreferemce is separate statements
 *   Configure an route-policy definition with the name ```flow-control-policy```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```flow-control-policy``` configure a statement with the name ```match-statement-1```
@@ -527,13 +527,13 @@
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set policy-result as ```NEXT-STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set MED to 70
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 *   For routing-policy ```flow-control-policy``` configure a statement with the name ```match-statement-2```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-2``` set policy-result as ```ACCEPT-ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-2``` set LocalPreference to 70
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-prefrence
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -567,21 +567,19 @@
 
 ## Config parameter coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config
 *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-*   /routing-policy/policy-definitions/policy-definition/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
+*   /routing-policy/policy-definitions/policy-definition/config/name
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-prefrence
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-n
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 
 ## Telemetry parameter coverage
 
