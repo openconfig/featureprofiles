@@ -195,6 +195,10 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 			desc: "RT-1.26.6: IPv4 Static Route With IPv6 Next Hop",
 			fn:   td.testIPv4StaticRouteWithIPv6NextHop,
 		},
+		{
+			desc: "RT-1.26.7: Static Route With Drop Next Hop",
+			fn:   td.testStaticRouteWithDropNextHop,
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -246,7 +250,7 @@ func TestDisableRecursiveNextHopResolution(t *testing.T) {
 	if err := td.awaitISISAdjacency(t, dut.Port(t, "port2"), isisName); err != nil {
 		t.Fatal(err)
 	}
-	t.Run("RT-1.26.7: Disable Recursive Next Hop Resolution", func(t *testing.T) {
+	t.Run("RT-1.26.8: Disable Recursive Next Hop Resolution", func(t *testing.T) {
 		td.testRecursiveNextHopResolution(t)
 		td.testRecursiveNextHopResolutionDisabled(t)
 	})
@@ -260,8 +264,8 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
-		NextHops: map[string]string{
-			"0": td.advertisedIPv4.address,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(td.advertisedIPv4.address),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
@@ -273,8 +277,8 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]string{
-			"0": td.advertisedIPv6.address,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(td.advertisedIPv6.address),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
@@ -360,8 +364,6 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 }
 
 func (td *testData) testStaticRouteECMP(t *testing.T) {
-	// root := &oc.Root{}
-	// ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(td.dut))
 	b := &gnmi.SetBatch{}
 	// Configure IPv4 static routes:
 	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
@@ -373,9 +375,9 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv4,
-			"1": atePort2.IPv4,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
@@ -392,9 +394,9 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv6,
-			"1": atePort2.IPv6,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv6),
+			"1": oc.UnionString(atePort2.IPv6),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
@@ -621,9 +623,9 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	v4Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv4,
-			"1": atePort2.IPv4,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	sV4, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut)
@@ -635,9 +637,9 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	v6Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv6,
-			"1": atePort2.IPv6,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv6),
+			"1": oc.UnionString(atePort2.IPv6),
 		},
 	}
 	sV6, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut)
@@ -675,9 +677,9 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 	v6Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv4,
-			"1": atePort2.IPv4,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut); err != nil {
@@ -746,9 +748,9 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 	v4Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
-		NextHops: map[string]string{
-			"0": atePort1.IPv6,
-			"1": atePort2.IPv6,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv6),
+			"1": oc.UnionString(atePort2.IPv6),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut); err != nil {
@@ -804,6 +806,79 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 		}
 		if got, want := p2Counter*100/(p1Counter+p2Counter), uint64(50); got < want-ecmpTolerance || got > want+ecmpTolerance {
 			t.Errorf("ECMP IPv4 load balance error for port2, got: %v, want: %v", got, want)
+		}
+	})
+}
+
+func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
+
+	b := &gnmi.SetBatch{}
+	// Configure IPv4 static routes:
+	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
+	//       destination `ipv4-network 203.0.113.0/24` with the next hop set to DROP
+	//       local-defined next hop
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          td.staticIPv4.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+
+	// Configure IPv6 static routes:
+	//   *   Configure one IPv6 static route i.e. ipv6-route-a on the DUT for
+	//       destination `ipv6-network 2001:db8:128:128::/64` with the next hop set
+	//       to DROP local-defined next hop
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+		Prefix:          td.staticIPv6.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, td.dut)
+
+	t.Run("Telemetry", func(t *testing.T) {
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
+
+		// Validate the route is configured and reported correctly
+		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP; got != want {
+			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+		}
+		// Validate the route is configured and reported correctly
+		gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
+		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP; got != want {
+			t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+		}
+	})
+
+	t.Run("Traffic", func(t *testing.T) {
+		// Initiate traffic from ATE port-3 towards destination `ipv4-network
+		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
+		td.ate.OTG().StartTraffic(t)
+		time.Sleep(trafficDuration)
+		td.ate.OTG().StopTraffic(t)
+
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+
+		// Validate that traffic is dropped on DUT and not received on port-1 and
+		// port-2
+		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
+		if lossV4 != 100 {
+			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 100%%", lossV4)
+		}
+		if lossV6 != 100 {
+			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 100%%", lossV6)
 		}
 	})
 }
