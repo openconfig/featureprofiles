@@ -14,76 +14,70 @@ options {
 
 duts {
   id: "dut"
-  name: "DUT"  # Change this to the device hostname.
+  name: "dut-hostname"  # Change this to the device hostname.
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
-    insecure: false 
-    skip_verify: true
-    username: "cisco"
-    password: "cisco123"
+    insecure: true
   }
 
   # Options specific to gNMI.  Remove if not needed.
-  gnoi{
-    target: "172.26.228.130:63804"
-  }
   gnmi {
-    target: "172.26.228.130:63804"
+    target: "dut-proxy-hostname:6030"
   }
-  gribi{
-    target: "172.26.228.130:63804"
+
+  # Options specific to gNOI
+  gnoi {
+    max_recv_msg_size: 40000000
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "FourHundredGigE0/0/0/10"  # Change this to the actual port name.
+    name: "Ethernet1/1"  # Change this to the actual port name.
   }
   ports {
     id: "port2"
-    name: "FourHundredGigE0/0/0/11"  # Change this to the actual port name.
+    name: "Ethernet2/1"  # Change this to the actual port name.
   }
   ports {
     id: "port3"
-    name: "FourHundredGigE0/0/0/12"  # Change this to the actual port name.
+    name: "Ethernet3/1"  # Change this to the actual port name.
   }
   ports {
     id: "port4"
-    name: "FourHundredGigE0/0/0/13"  # Change this to the actual port name.
+    name: "Ethernet4/1"  # Change this to the actual port name.
   }
   ports {
     id: "port5"
-    name: "FourHundredGigE0/0/0/14"  # Change this to the actual port name.
+    name: "Ethernet5/1"  # Change this to the actual port name.
   }
   ports {
     id: "port6"
-    name: "FourHundredGigE0/0/0/15"  # Change this to the actual port name.
+    name: "Ethernet6/1"  # Change this to the actual port name.
   }
   ports {
     id: "port7"
-    name: "FourHundredGigE0/0/0/16"  # Change this to the actual port name.
+    name: "Ethernet7/1"  # Change this to the actual port name.
   }
   ports {
     id: "port8"
-    name: "FourHundredGigE0/0/0/17"  # Change this to the actual port name.
+    name: "Ethernet8/1"  # Change this to the actual port name.
   }
 }
 
 ates {
   id: "ate"
-  name: "20.0.0.2"  # Change this to the Ixia chassis name.
+  name: "ate-hostname"  # Change this to the Ixia chassis name.
 
   # Options specific to the IxNetwork API.  Remove if not needed.
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "172.26.228.130:12239"
+    target: "ixia-hostname"
     skip_verify: true
-    username: "admin"
-    password: "admin"
   }
 
   # Before this binding can be used with a topology, add ports mapping
