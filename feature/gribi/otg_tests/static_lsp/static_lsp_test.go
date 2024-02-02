@@ -26,9 +26,9 @@ import (
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-	mplsLabel1    = uint32(100001)
-	mplsLabel2    = uint32(100002)
-	mplsLabel3    = uint32(200001)
+	mplsLabel1    = 1000001
+	mplsLabel2    = 1000002
+	mplsLabel3    = 1000003
 
 	tolerance = 0.01 // 1% Traffic Tolerance
 )
@@ -165,7 +165,7 @@ func createTrafficFlow(t *testing.T,
 	t.Logf("DUT remote mac address is %s", dstMac)
 
 	// Create a traffic flow with MPLS
-	flowName := fmt.Sprintf("MPLS-%d-MPLS-%d", mplsLabel1, mplsLabel2)
+	flowName := fmt.Sprintf("MPLS-%d-MPLS-%d::", mplsLabel1, mplsLabel2)
 	mplsFlow := top.Flows().Add().SetName(flowName)
 	mplsFlow.TxRx().Port().
 		SetTxName(ate.Port(t, "port1").ID()).
@@ -174,7 +174,6 @@ func createTrafficFlow(t *testing.T,
 	mplsFlow.Metrics().SetEnable(true)
 	mplsFlow.Rate().SetPps(500)
 	mplsFlow.Size().SetFixed(512)
-	// mplsFlow.Duration().FixedPackets().SetPackets(100000)
 	mplsFlow.Duration().Continuous()
 
 	// Set up ethernet layer.
@@ -201,15 +200,16 @@ func createTrafficFlow(t *testing.T,
 
 }
 
-func ValidatePackets(t *testing.T, filename string, expextedLabel uint32) {
+func ValidatePackets(t *testing.T,
+	filename string,
+	expextedLabel uint32,
+	tolerancePercentage float64) {
+
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer handle.Close()
-
-	// Define tolerance
-	const tolerancePercentage = 1.0
 	var expectedMPLSPackets int
 	var unexpectedMPLSPackets int
 
@@ -317,7 +317,7 @@ func verifyTrafficStreams(t *testing.T,
 	t.Logf("Created temporary pcap file at: %s\n", f.Name())
 
 	f.Close()
-	ValidatePackets(t, f.Name(), mplsLabel2)
+	ValidatePackets(t, f.Name(), mplsLabel2, tolerance)
 
 }
 
