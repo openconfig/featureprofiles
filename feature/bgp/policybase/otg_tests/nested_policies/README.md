@@ -35,7 +35,7 @@
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 
-### RT-1.29.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
+### RT-1.30.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv4 BGP nested import policy test
 ---
 ##### Configure a route-policy to match the prefix
@@ -93,7 +93,7 @@
 *   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv4-network-1``` i.e. ```192.168.10.0/24```
     *   Validate that the traffic is received on ATE Port-1
 
-### RT-1.29.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
+### RT-1.30.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv4 BGP nested export policy test
 ---
 ##### Configure a route-policy to prepend AS-PATH
@@ -144,7 +144,7 @@
 *   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv4-network-2``` i.e. ```192.168.20.0/24```
     *   Validate that the traffic is received on ATE Port-2
 
-### RT-1.29.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
+### RT-1.30.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv6 BGP nested import policy test
 ---
 ##### Configure a route-policy to match the prefix
@@ -202,7 +202,7 @@
 *   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64```
     *   Validate that the traffic is received on ATE Port-1
 
-### RT-1.29.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
+### RT-1.30.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv6 BGP nested export policy test
 ---
 ##### Configure a route-policy to prepend AS-PATH
