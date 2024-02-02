@@ -21,13 +21,18 @@
 *   Create an IPv4 networks i.e. ```ipv4-network-2 = 192.168.20.0/24``` attached to ATE port-2
 *   Create an IPv6 networks i.e. ```ipv6-network-2 = 2024:db8:64:64::/64``` attached to ATE port-2
 *   Configure IPv4 and IPv6 eBGP between DUT Port-1 and ATE Port-1
+    *   Note: Chained policies will be applied to this eBGP session later in the test to validate the results
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
     *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:128:128::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-1
 *   Configure IPv4 and IPv6 eBGP between DUT Port-2 and ATE Port-2
+    *   Note: This eBGP session is only used to advertise prefixes to DUT and receive prefixes from DUT
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
     *   Advertise ```ipv4-network-2 = 192.168.20.0/24``` and ```ipv6-network-2 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-2
+    *   Set default import and export policy to ```ACCEPT_ROUTE``` for this eBGP session only
+        *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
+        *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 
 ### RT-1.29.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2594]
 #### IPv4 BGP chained import policy test
@@ -63,7 +68,7 @@
 *   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set local-preference to ```200```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 
-##### Configure chained bgp import policies for the DUT BGP neighbor on ATE Port-2
+##### Configure chained bgp import policies for the DUT BGP neighbor on ATE Port-1
 *   Set default import policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply both the policies as a chain/list ```[match-policy-v4, lp-policy-v4]```
@@ -74,10 +79,12 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 
 ##### Validate test results
-*   Validate that the DUT receives the prefix ``ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1
+*   Validate that the DUT receives the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   Validate that the prefix ``ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has local preference set to 200
+*   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has local preference set to 200
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+*   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv4-network-1``` i.e. ```192.168.10.0/24```
+    *   Validate that the traffic is received on ATE Port-1
 
 ### RT-1.29.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2594]
 #### IPv4 BGP chained export policy test
@@ -115,13 +122,14 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
 
 ##### Validate test results
-*   Validate that the ATE receives the prefix ``ipv4-network-2``` i.e. ```192.168.20.0/24``` from BGP neighbor on DUT Port-1
+*   Validate that the ATE receives the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` from BGP neighbor on DUT Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   Validate that the prefix ``ipv4-network-2``` i.e. ```192.168.20.0/24``` on ATE from BGP neighbor on DUT Port-1 has AS-PATH with the ASN of DUT occuring twice
+*   Validate that the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` on ATE from BGP neighbor on DUT Port-1 has AS-PATH with the ASN of DUT occuring twice
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
-*   Validate that the prefix ``ipv4-network-2``` i.e. ```192.168.20.0/24``` from BGP neighbor on DUT Port-1 has MED set to ```1000```
+*   Validate that the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` from BGP neighbor on DUT Port-1 has MED set to ```1000```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
+*   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv4-network-2``` i.e. ```192.168.20.0/24```
+    *   Validate that the traffic is received on ATE Port-2
 
 ### RT-1.29.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2594]
 #### IPv6 BGP chained import policy test
@@ -157,7 +165,7 @@
 *   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set local-preference to ```200```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 
-##### Configure chained bgp import policies for the DUT BGP neighbor on ATE Port-2
+##### Configure chained bgp import policies for the DUT BGP neighbor on ATE Port-1
 *   Set default import policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply both the policies as a chain/list ```[match-policy-v6, lp-policy-v6]```
@@ -168,10 +176,12 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 
 ##### Validate test results
-*   Validate that the DUT receives the prefix ``ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1
+*   Validate that the DUT receives the prefix ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   Validate that the prefix ``ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1 has local preference set to 200
+*   Validate that the prefix ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1 has local preference set to 200
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+*   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64```
+    *   Validate that the traffic is received on ATE Port-1
 
 ### RT-1.29.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2594]
 #### IPv6 BGP chained export policy test
@@ -209,13 +219,14 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
 
 ##### Validate test results
-*   Validate that the ATE receives the prefix ``ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` from BGP neighbor on DUT Port-1
+*   Validate that the ATE receives the prefix ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` from BGP neighbor on DUT Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   Validate that the prefix ``ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` on ATE from BGP neighbor on DUT Port-1 has AS-PATH with the ASN of DUT occuring twice
+*   Validate that the prefix ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` on ATE from BGP neighbor on DUT Port-1 has AS-PATH with the ASN of DUT occuring twice
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
-*   Validate that the prefix ``ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` from BGP neighbor on DUT Port-1 has MED set to ```1000```
+*   Validate that the prefix ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64``` from BGP neighbor on DUT Port-1 has MED set to ```1000```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
+*   Initiate traffic from ATE Port-1 towards the DUT destined to ```ipv6-network-1``` i.e. ```2024:db8:64:64::/64```
+    *   Validate that the traffic is received on ATE Port-2
 
 ## Config parameter coverage
 
@@ -252,4 +263,4 @@
 
 ## Required DUT platform
 
-* FFF
+* vRX
