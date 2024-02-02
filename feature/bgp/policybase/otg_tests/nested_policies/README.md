@@ -260,6 +260,7 @@
 *   /routing-policy/policy-definitions/policy-definition/config/name
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
 *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
 *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
@@ -273,6 +274,7 @@
 
 ## Telemetry parameter coverage
 
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
