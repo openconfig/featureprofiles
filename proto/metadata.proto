@@ -399,6 +399,12 @@ message Metadata {
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 140;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 141;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 142;   
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
