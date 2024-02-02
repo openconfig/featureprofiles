@@ -3,25 +3,22 @@ package basetest
 import (
 	"fmt"
 	"net"
+
+	"context"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-
 	"github.com/openconfig/ygot/ygot"
-
-	"context"
 )
 
 var (
@@ -143,9 +140,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	}
 	t.Log(schemaValue)
 
-	compPorts := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
-	compPortsList := components.FindComponentsByType(t, dut, compPorts)
-
 	cases := []struct {
 		numbreakouts  uint8
 		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
@@ -168,34 +162,28 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	for _, tc := range cases {
 
-		originalPortName := getOriginalPortName(dut, t, tc.breakoutspeed)
-
-		t.Logf("Configuring port %s with breakout of %d at speed %v", originalPortName.Name(), tc.numbreakouts, tc.breakoutspeed)
-
-		matchedPort, matchedSlot, err := findMatchedPortAndSlot(compPortsList, originalPortName.Name())
-		if err != nil {
-			t.Fatal(err)
+		var dutIntfIp string
+		var ateIntfIp string
+		var dutPortName string
+		if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
+			dutIntfIp = dutPort2.IPv4
+			ateIntfIp = atePort2.IPv4
+			dutPortName = dut.Port(t, "port2").Name()
+		} else if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB {
+			dutIntfIp = dutPort1.IPv4
+			ateIntfIp = atePort1.IPv4
+			dutPortName = dut.Port(t, "port1").Name()
 		}
-		t.Logf("Sort: %s, Matched Slot: %s", matchedPort, matchedSlot)
-		optic_name := ConvertIntfToCompName(originalPortName.Name(), matchedSlot)
-		t.Log(optic_name)
-		componentNameList = []string{optic_name}
-		t.Logf("Matched port:%s Matched Slot is %s", matchedPort, matchedSlot)
+
+		breakOutCompName := GetOpticCompName(t, dut, dutPortName)
+		t.Log(breakOutCompName)
+
+		componentNameList = []string{breakOutCompName}
 		for _, element := range componentNameList {
 			fmt.Print(element)
 		}
 		// loop the components
 		for _, componentName := range componentNameList {
-
-			var dutIntfIp string
-			var ateIntfIp string
-			if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
-				dutIntfIp = dutPort2.IPv4
-				ateIntfIp = atePort2.IPv4
-			} else if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB {
-				dutIntfIp = dutPort1.IPv4
-				ateIntfIp = atePort1.IPv4
-			}
 
 			t.Logf("Starting Test for %s %v", componentName, tc)
 			configContainer := &oc.Component_Port_BreakoutMode_Group{
@@ -230,7 +218,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v", tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 				t.Logf("Start DUT interface Config.")
 
-				breakOutPorts, err := findNewPortNames(dut, t, originalPortName.Name(), tc.numbreakouts)
+				breakOutPorts, err := findNewPortNames(dut, t, dutPortName, tc.numbreakouts)
 				t.Log(breakOutPorts)
 				if err != nil {
 					t.Fatal(err)
