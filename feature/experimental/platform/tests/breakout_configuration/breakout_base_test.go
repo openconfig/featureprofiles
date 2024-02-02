@@ -10,12 +10,15 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
+
+	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/ondatra/gnmi/oc"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -147,51 +150,33 @@ func sortBreakoutPorts(breakOutPorts []string) {
 	})
 }
 
-// ConvertIntfToCompName takes an interface name like "FourHundredGigE0/0/0/30"
-// and returns a string like "<LC Location>-QSFP_DD Optics Port 30".
-func ConvertIntfToCompName(interfaceName string, linecardLocation string) string {
-	// Define a regular expression to match the pattern of the interface name
-	re := regexp.MustCompile(`(\D+)(\d+)/(\d+)/(\d+)/(\d+)`)
-	matches := re.FindStringSubmatch(interfaceName)
+func GetOpticCompName(t *testing.T,
+	dut *ondatra.DUTDevice,
+	fullLocation string,
+) string {
 
-	// Ensure that the regex matches the string fully
-	if len(matches) < 6 {
-		return ""
-	}
+	var match string
+	for i, r := range fullLocation {
+		if unicode.IsDigit(r) {
+			n := fullLocation[i:]
+			opticalChannelComps := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL
+			opticalComps := components.FindComponentsByType(t, dut, opticalChannelComps)
 
-	portNumber := matches[5]
-	//     0/0/CPU0-QSFP_DD Optics Port 30
-	return fmt.Sprintf("%s-QSFP_DD Optics Port %s", linecardLocation, portNumber)
-}
+			t.Log(opticalComps)
+			for _, port := range opticalComps {
 
-func findMatchedPortAndSlot(compPortsList []string, originalPortName string) (matchedPort string, matchedSlot string, err error) {
-	// Compile the regular expression pattern
-	pattern := fmt.Sprintf(`(?i)(.*)-(%s)$`, regexp.QuoteMeta(originalPortName))
-	regex := regexp.MustCompile(pattern)
-
-	for _, port := range compPortsList {
-		// Checking if the string matches the regular expression
-		if regex.MatchString(port) {
-			// Extracting the matched part
-			match := regex.FindStringSubmatch(port)
-			if len(match) > 2 {
-				matchedSlot = match[1]
-				matchedPort = match[2]
-				return matchedPort, matchedSlot, nil
+				if strings.HasSuffix(port, n) {
+					match = port
+					t.Log(match)
+					opticsQueryReturn := gnmi.Get(t, dut, gnmi.OC().Component(match).Parent().State())
+					return opticsQueryReturn
+				}
 			}
 		}
 	}
-	return "", "", fmt.Errorf("no match found")
-}
 
-// getOriginalPortName depending on the breakout case it will set the port as port1 is used for 100G testing
-// and port2 is used fro 10G breakout testing
-func getOriginalPortName(dut *ondatra.DUTDevice, t *testing.T, speed oc.E_IfEthernet_ETHERNET_SPEED) *ondatra.Port {
-	if speed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
-		return dut.Port(t, "port2")
-	}
-	// Default to "port1" for other speeds
-	return dut.Port(t, "port1")
+	return ""
+
 }
 
 func TestMain(m *testing.M) {
