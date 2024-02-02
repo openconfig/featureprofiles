@@ -1,4 +1,4 @@
-# RT-1.XX: BGP policy actions - MED, LocPref, prepend, flow-control
+# RT-1.30: BGP policy actions - MED, LocPref, prepend, flow-control
 
 ## Summary
 
