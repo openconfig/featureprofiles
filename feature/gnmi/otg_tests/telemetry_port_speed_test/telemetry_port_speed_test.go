@@ -267,8 +267,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 	agg := tc.top.Lags().Add().SetName("lag")
 	if tc.lagType == lagTypeSTATIC {
-		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().Static().SetLagId(uint32(lagId))
+		lagID, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().Static().SetLagId(uint32(lagID))
 		for i, p := range tc.atePorts {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateIPs.MAC, i+1)
