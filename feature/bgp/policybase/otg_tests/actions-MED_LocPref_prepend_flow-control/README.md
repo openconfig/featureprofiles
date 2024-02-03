@@ -56,7 +56,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   Apply policy as import and export as a chain/list ```[med-policy]```
+*   Add `policy-definition["med-policy"]` to import-policy and export-policy leaf-lists.
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
 ##### Configure  default policies for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
@@ -69,7 +69,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   Verify that there is no policies applied to the DUT BGP neighbor on ATE Port-2 and default policies are set to ```ACCEPT_ROUTE```
+*   Verify that there are no policies applied to the DUT BGP neighbor on ATE Port-2 and default policies are set to ```ACCEPT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -595,8 +595,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ## Protocol/RPC Parameter Coverage
 
 * gNMI
-  * Get
-  * Set
+  * Subscribe (ONCE)
+  * Set (REPLACE)
 
 ## Required DUT platform
 
