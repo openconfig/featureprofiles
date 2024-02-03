@@ -18,6 +18,8 @@
 ### Applying configuration
 
 For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option.
+> WARNING: ensure that replacement do not remove pre-existing configuration objects necessary for DUT manage,ent access and base operation
+
 #### Initial Setup:
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
