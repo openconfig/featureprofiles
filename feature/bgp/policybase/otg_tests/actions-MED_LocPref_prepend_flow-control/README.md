@@ -35,7 +35,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Configure IPv4 and IPv6 eBGP between DUT Port-2 and ATE Port-2
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-    *   Advertise ```ipv4-network-2 = 192.168.20.0/24``` and ```ipv6-network-2 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-2 with:
+    *   Advertise ```ipv4-network-2 = 192.168.20.0/24``` and ```ipv6-network-2 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-2.  The ATE should advertise both prefixes with:
         * MED = 50
         * Local Preference = 50
 
