@@ -93,7 +93,7 @@
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   Apply policy as import and export as a chain/list ```[med-policy]```
+*   Add `policy-definition["med-policy"]` to import-policy and export-policy leaf-lists.
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
 ##### Configure  default policies and remove any import, export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-1
