@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -58,9 +59,12 @@ const (
 	ipv4FlowCount     = 65000
 	nhEntryIP1        = "192.0.2.111"
 	nhEntryIP2        = "192.0.2.222"
-	nonDefaultVRF     = "VRF-1"
+	nonDefaultVRF     = "TE_VRF_111"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
+	vrfPolW           = "vrf_selection_policy_w"
+	decapFlowSrc      = "198.51.100.111"
+	dscpEncapA1       = 10
 )
 
 var (
@@ -417,7 +421,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithSrcAddress(decapFlowSrc)
+	ipv4Header.WithDSCP(dscpEncapA1)
 	ipv4Header.WithDstAddress(ipv4FlowIP)
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
@@ -695,5 +700,39 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 
+	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
+		configureVrfSelectionPolicyW(t, dut)
+		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
+	})
+
+	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
+		configureVrfSelectionPolicyW(t, dut)
+		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
+	})
+
 	top.StopProtocols(t)
+}
+
+func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
+
+	p1 := dut.Port(t, "port1")
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
+	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
+
+	intf := niP.GetOrCreateInterface(interfaceID)
+	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
 }
