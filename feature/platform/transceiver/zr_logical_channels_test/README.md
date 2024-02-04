@@ -17,7 +17,7 @@ telemetry.
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
-*   To establish a point to point ZR link ensure the following:
+*   Establish a point to point ZR link between DUT port 1 and ATE port 1 and configure the following:
       * Provision the ZR modules using appropriate 
         terminal-device(logical-channels) and
         platforms-comonents(Optical-channel) configuration through the
