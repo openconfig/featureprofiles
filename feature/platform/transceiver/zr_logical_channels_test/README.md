@@ -13,29 +13,24 @@ OPTICAL_CHANNEL. For 400ZR 1x400GE mode this heirarchy looks like:
 Purpose of this test is to verify the logical channel provisioning and related
 telemetry.
 
+**Note**: Typical test setup is a DUT1 with 2 ports to 2 ATE ports or 2 ports
+to a second DUT2. For most tests this setup should be sufficient.     
+Ref: [Typical ATE<>DUT Test bed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
 ## Procedure
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
-    output power of one is the RX input power of the other module.
-*   Establish a point to point ZR link between DUT port 1 and ATE port 1 and configure the following:
-      * Provision the ZR modules using appropriate 
-        terminal-device(logical-channels) and
-        platforms-comonents(Optical-channel) configuration through the
-        following OC paths:
-        * /terminal-device/logical-channels/channel/config/admin-state
-        * /terminal-device/logical-channels/channel/config/description
-        * /terminal-device/logical-channels/channel/config/index
-        * /terminal-device/logical-channels/channel/config/logical-channel-type
-        * /terminal-device/logical-channels/channel/config/rate-class
-        * /terminal-device/logical-channels/channel/config/trib-protocol
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel
-        * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel
+    output power of one is the RX input power of the other module. The A and Z
+    ends of the link should be the same 400ZR PMD. Optics can be connected
+    through passive patch panels or an optical switch as needed, as long as the
+    overall link loss budget is kept under 2 - 3 dB. There is no requirement to
+    deploy a separate line system for the functional tests.
+*   Establish a point to point ZR link between DUT port 1 and ATE port 1. Both
+    A and Z ends of  the link should have same 400ZR PMD. Once estabished
+    configure the following entities:
 
-*   Also ensure optical channel related tunable parameters are set through the
+### TRANSCEIVER 11.1 - Test Optical Channel and Tunable Parameters
+*   Ensure optical channel related tunable parameters are set through the
     following OC paths such that
       * Both transceivers state is enabled
       * Both transceivers related optical channel tunable parameters are set
@@ -45,23 +40,62 @@ telemetry.
         * /components/component/transceiver/config/enabled
         * /components/component/optical-channel/config/frequency
         * /components/component/optical-channel/config/target-output-power
+        * /components/component/optical-channel/config/operational-mode
 
-*   Each logical-channel created above must be assigned an integer value that
+### TRANSCEIVER 11.2 - Test Ethernet Logical Channels 
+* Ensure terminal-devic ethernet-logical-channels  are set through the
+  following OC paths
+    * /terminal-device/logical-channels/channel/config/admin-state
+    * /terminal-device/logical-channels/channel/config/description
+    * /terminal-device/logical-channels/channel/config/index
+    * /terminal-device/logical-channels/channel/config/logical-channel-type
+    * /terminal-device/logical-channels/channel/config/rate-class
+    * /terminal-device/logical-channels/channel/config/trib-protocol
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel
+* Typical Settings for an Ethernet Logical Channel are shown below:
+    * logical-channel-type: PROT_ETHERNET
+    * trib-protocol: PROT_400GE
+    * rate-class: TRIB_RATE_400G
+    * admin-state: ENABLED
+    * description: ETH Logical Channel
+    * index: 40000 (unique integer value)
+*   Not that each logical-channel created above must be assigned an integer value that
     is unique across the system.
 
-*   For Ethernet Logical Channel verify the following parameters are streamed:
-      * logical-channel-type: PROT_ETHERNET
-      * trib-protocol: PROT_400GE
-      * rate-class: TRIB_RATE_400G
-      * admin-state: ENABLED
-      * description: ETH Logical Channel
-      * index: 40000 (unique integer value)
-
-*   For Coherent LogicalChannel verify the following parameters are streamed:
+### TRANSCEIVER 11.3 - Test Coherent Logical Channels 
+* Ensure terminal-device coherent-logical-channels are set through the
+  following OC paths
+    * /terminal-device/logical-channels/channel/config/admin-state
+    * /terminal-device/logical-channels/channel/config/description
+    * /terminal-device/logical-channels/channel/config/index
+    * /terminal-device/logical-channels/channel/config/logical-channel-type
+    * /terminal-device/logical-channels/channel/config/rate-class
+    * /terminal-device/logical-channels/channel/config/trib-protocol
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel
+    * /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel  
+*   Typical setting for a coherent logical channel are shown below:
       * logical-channel-type: PROT_OTN
       * admin-state: ENABLED
       * description: Coherent Logical Channel
       * index: 40004 (unique integer value)
+
+* With above optical and logical channels configured verify DUT is able to
+  stream corresponding telemetry leaves under these logical and optical
+  channels. List of such telemetry leaves covered under this test is documented
+  below under Telemetry Parameter coverage heading.
+
+**Note**: There are other telemetry and config leaves related to optical and
+          logical channelsthat are covered under separately published tests
+          under platforms/transceiver.
 
 ## Config Parameter coverage
 
