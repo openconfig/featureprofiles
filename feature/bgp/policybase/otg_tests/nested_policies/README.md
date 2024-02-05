@@ -13,6 +13,10 @@
 
 ## Procedure
 
+### Applying configuration
+
+For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option
+
 #### Initial Setup:
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
@@ -31,7 +35,7 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
     *   Advertise ```ipv4-network-2 = 192.168.20.0/24``` and ```ipv6-network-2 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-2
-    *   Set default import and export policy to ```ACCEPT_ROUTE``` for this eBGP session only
+    *   Set default import and export policy to ```NEXT_STATEMENT``` for this eBGP session only
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 
@@ -43,7 +47,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v4``` configure a statement with the name ```match-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -74,12 +78,14 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```lp-policy-v4``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
+*   Use gNMI `replace` to send the configuration to the DUT.
+*   Use gNMI `subscribe` with mode `once` to retrieve the configuration `state` from the DUT.
 *   Verify that the parent ```lp-policy-v4``` policy is successfully applied to the DUT BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 *   Verify that the parent ```lp-policy-v4``` policy has a child policy ```match-policy-v4``` attached
@@ -101,7 +107,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v4``` configure a statement with the name ```asp-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set AS-PATH prepend to the ASN of the DUT
@@ -123,12 +129,13 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```asp-policy-v4``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
+*   Use gNMI `subscribe` with mode `once` to retrieve the configuration `state` from the DUT.
 *   Verify that the parent ```asp-policy-v4``` policy is successfully applied to the DUT BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 *   Verify that the parent ```asp-policy-v4``` policy has a child policy ```med-policy-v4``` attached
@@ -152,7 +159,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v6``` configure a statement with the name ```match-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
@@ -183,12 +190,13 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```lp-policy-v6``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
+*   Use gNMI `subscribe` with mode `once` to retrieve the configuration `state` from the DUT.
 *   Verify that the parent ```lp-policy-v6``` policy is successfully applied to the DUT BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 *   Verify that the parent ```lp-policy-v6``` policy has a child policy ```match-policy-v6``` attached
@@ -210,7 +218,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v6``` configure a statement with the name ```asp-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set AS-PATH prepend to the ASN of the DUT
@@ -232,12 +240,13 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```asp-policy-v6``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
+*   Use gNMI `subscribe` with mode `once` to retrieve the configuration `state` from the DUT.
 *   Verify that the parent ```asp-policy-v6``` policy is successfully applied to the DUT BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 *   Verify that the parent ```asp-policy-v6``` policy has a child policy ```med-policy-v6``` attached
@@ -285,8 +294,8 @@
 ## Protocol/RPC Parameter Coverage
 
 * gNMI
-  * Get
-  * Set
+  * Subscribe (ONCE)
+  * Set (REPLACE)
 
 ## Required DUT platform
 
