@@ -71,7 +71,7 @@
 ##### Configure chained bgp import policies for the DUT BGP neighbor on ATE Port-1
 *   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   Apply both the policies as a chain/list ```[match-policy-v4, lp-policy-v4]```
+*   Add both policies in the specified order to the leaf-list `import-policy`:   ```[match-policy-v4, lp-policy-v4]```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
