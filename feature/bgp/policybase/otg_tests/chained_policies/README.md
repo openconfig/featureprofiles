@@ -264,7 +264,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 * gNMI
   * Subscribe (ONCE)
-  * Set
+  * Set (REPLACE)
 
 ## Required DUT platform
 
