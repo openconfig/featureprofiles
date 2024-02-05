@@ -263,7 +263,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ## Protocol/RPC Parameter Coverage
 
 * gNMI
-  * Get
+  * Subscribe (ONCE)
   * Set
 
 ## Required DUT platform
