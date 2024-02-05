@@ -215,7 +215,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ##### Configure chained bgp export policies for the DUT BGP neighbor on ATE Port-1
 *   Set default export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   Apply both the policies as a chain/list ```[asp-policy-v6, med-policy-v6]```
+
+*   Add both policies in order to the leaf-list `export-policy`:  ```[asp-policy-v6, med-policy-v6]```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
 
 ##### Verification
