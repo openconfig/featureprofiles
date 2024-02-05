@@ -183,9 +183,9 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
-	subInt := dstIntf.GetOrCreateSubinterface(0)
-	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
