@@ -13,7 +13,11 @@
 
 ## Procedure
 
-### Initial Setup:
+### Applying configuration
+
+For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option
+
+#### Initial Setup:
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
 *   Configure IPv4/IPv6 addresses on the ports
@@ -26,6 +30,8 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
     *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:128:128::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-1
+    *   Configure DUT to advertise standard communities to ATE 
+        *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type = ```STANDARD```
 *   Configure IPv4 and IPv6 eBGP between DUT Port-2 and ATE Port-2
     *   Note: This eBGP session is only used to advertise prefixes to DUT and receive prefixes from DUT
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
@@ -42,7 +48,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```invert-policy-v4``` configure a statement with the name ```invert-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```invert-policy-v4``` statement ```invert-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```invert-policy-v4``` statement ```invert-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -68,7 +74,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-import-policy-v4``` configure a statement with the name ```match-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -89,23 +95,28 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```lp-policy-v4``` configure a statement with the name ```lp-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set local-pref
 *   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set local-preference to ```200```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 
 
-##### 4th Route Policy: Configure a route-policy to set the bgp origin
-*   Configure an IPv4 route-policy definition with the name ```origin-policy-v4```
+##### 4th Route Policy: Configure a route-policy to set the bgp community
+*   Configure an IPv4 route-policy definition with the name ```community-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/config/name
-*   For routing-policy ```origin-policy-v4``` configure a statement with the name ```origin-statement-v4```
+*   For routing-policy ```community-policy-v4``` configure a statement with the name ```community-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```origin-policy-v4``` statement ```origin-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```community-policy-v4``` statement ```community-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set origin
-*   For routing-policy ```origin-policy-v4``` statement ```origin-statement-v4``` set origin to ```INCOMPLETE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Configure a community-set
+*   Configure a community set with name ```community-set-v4```
+    *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
+*   For community set ```community-set-v4``` configure a community member value to ```64512:100```
+    *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
+##### Attach the community-set to route-policy
+*   For routing-policy ```community-policy-v4``` statement ```community-statement-v4``` reference the community set ```community-set-v4```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
 
 
 ##### Configure policy nesting
@@ -113,12 +124,12 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 *   For routing-policy ```match-import-policy-v4``` and statement ```match-statement-v4``` call the policy ```lp-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
-*   For routing-policy ```lp-policy-v4``` and statement ```lp-statement-v4``` call the policy ```origin-policy-v4```
+*   For routing-policy ```lp-policy-v4``` and statement ```lp-statement-v4``` call the policy ```community-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```invert-policy-v4``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
@@ -131,7 +142,7 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
 *   Verify that the sub-parent ```match-import-policy-v4``` policy has a child policy ```lp-policy-v4``` attached
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
-*   Verify that the sub-parent ```lp-policy-v4``` policy has a child policy ```origin-policy-v4``` attached
+*   Verify that the sub-parent ```lp-policy-v4``` policy has a child policy ```community-policy-v4``` attached
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
 
 
@@ -140,8 +151,9 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has local preference of ```200```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-*   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has origin of  ```INCOMPLETE```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+*   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has community of  ```64512:100```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
 *   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv4-network-1``` i.e. ```192.168.10.0/24```
     *   Validate that the traffic is received on ATE Port-1
 
@@ -155,7 +167,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-export-policy-v4``` configure a statement with the name ```match-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-export-policy-v4``` statement ```match-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-export-policy-v4``` statement ```match-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -176,7 +188,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v4``` configure a statement with the name ```asp-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS by more than 10 times
 *   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set AS-PATH prepend to the ASN of the DUT
@@ -207,7 +219,7 @@
 
 
 ##### Configure the parent bgp export policy for the DUT BGP neighbor on ATE Port-1
-*   Set default export policy to ```REJECT_ROUTE```
+*   Set default export policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 *   Apply the parent policy ```invert-export-policy-v4``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
@@ -244,7 +256,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-import-policy-v6``` configure a statement with the name ```match-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
@@ -265,23 +277,27 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```lp-policy-v6``` configure a statement with the name ```lp-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set local-pref
 *   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set local-preference to ```200```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 
-
-##### 4th Route Policy: Configure a route-policy to set the bgp origin
-*   Configure an IPv6 route-policy definition with the name ```origin-policy-v6```
+##### 4th Route Policy: Configure a route-policy to set the bgp community
+*   Configure an IPv6 route-policy definition with the name ```community-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/config/name
-*   For routing-policy ```origin-policy-v6``` configure a statement with the name ```origin-statement-v6```
+*   For routing-policy ```community-policy-v6``` configure a statement with the name ```community-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```origin-policy-v6``` statement ```origin-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```community-policy-v6``` statement ```community-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set origin
-*   For routing-policy ```origin-policy-v6``` statement ```origin-statement-v6``` set origin to ```INCOMPLETE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-route-origin
+##### Configure a community-set
+*   Configure a community set with name ```community-set-v6```
+    *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
+*   For community set ```community-set-v6``` configure a community member value to ```64512:100```
+    *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
+##### Attach the community-set to route-policy
+*   For routing-policy ```community-policy-v6``` statement ```community-statement-v6``` reference the community set ```community-set-v6```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
 
 
 ##### Configure policy nesting
@@ -289,12 +305,12 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 *   For routing-policy ```match-import-policy-v6``` and statement ```match-statement-v6``` call the policy ```lp-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
-*   For routing-policy ```lp-policy-v6``` and statement ```lp-statement-v6``` call the policy ```origin-policy-v6```
+*   For routing-policy ```lp-policy-v6``` and statement ```lp-statement-v6``` call the policy ```community-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
-*   Set default import policy to ```REJECT_ROUTE```
+*   Set default import policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   Apply the parent policy ```invert-policy-v6``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
@@ -307,7 +323,7 @@
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
 *   Verify that the sub-parent ```match-import-policy-v6``` policy has a child policy ```lp-policy-v6``` attached
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
-*   Verify that the sub-parent ```lp-policy-v6``` policy has a child policy ```origin-policy-v6``` attached
+*   Verify that the sub-parent ```lp-policy-v6``` policy has a child policy ```community-policy-v6``` attached
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
 
 
@@ -316,8 +332,9 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
 *   Validate that the prefix ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1 has local preference of ```200```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-*   Validate that the prefix ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1 has origin of  ```INCOMPLETE```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/origin
+*   Validate that the prefix ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` from BGP neighbor on ATE Port-1 has community of  ```64512:100```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/community-index
 *   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64```
     *   Validate that the traffic is received on ATE Port-1
 
@@ -331,7 +348,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-export-policy-v6``` configure a statement with the name ```match-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-export-policy-v6``` statement ```match-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```match-export-policy-v6``` statement ```match-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
@@ -352,7 +369,7 @@
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v6``` configure a statement with the name ```asp-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS by more than 10 times
 *   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set AS-PATH prepend to the ASN of the DUT
@@ -383,7 +400,7 @@
 
 
 ##### Configure the parent bgp export policy for the DUT BGP neighbor on ATE Port-1
-*   Set default export policy to ```REJECT_ROUTE```
+*   Set default export policy to ```REJECT_ROUTE``` (Note: even though this is the OC default, the DUT should still accept this configuration)
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 *   Apply the parent policy ```invert-export-policy-v6``` to the BGP neighbor
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
@@ -428,6 +445,7 @@
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
+*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
@@ -442,6 +460,8 @@
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
 
 ## Protocol/RPC Parameter Coverage
 
