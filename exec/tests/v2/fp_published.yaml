@@ -146,6 +146,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    timeout: 7200
     pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
