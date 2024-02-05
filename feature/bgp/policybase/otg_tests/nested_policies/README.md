@@ -42,12 +42,23 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ### RT-1.30.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv4 BGP nested import policy test
 ---
+##### Configure a route-policy to set the local preference
+*   Configure an IPv4 route-policy definition with the name ```lp-policy-v4```
+    *   /routing-policy/policy-definitions/policy-definition/config/name
+*   For routing-policy ```lp-policy-v4``` configure a statement with the name ```lp-statement-v4```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set policy-result as ```NEXT_STATEMENT```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+##### Configure BGP actions to set local-pref
+*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set local-preference to ```200```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+
 ##### Configure a route-policy to match the prefix
 *   Configure an IPv4 route-policy definition with the name ```match-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v4``` configure a statement with the name ```match-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set policy-result as ```NEXT_STATEMENT```
+*   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -62,19 +73,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set prefix set to ```prefix-set-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
-##### Configure another route-policy to set the local preference
-*   Configure an IPv4 route-policy definition with the name ```lp-policy-v4```
-    *   /routing-policy/policy-definitions/policy-definition/config/name
-*   For routing-policy ```lp-policy-v4``` configure a statement with the name ```lp-statement-v4```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set local-pref
-*   For routing-policy ```lp-policy-v4``` statement ```lp-statement-v4``` set local-preference to ```200```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
-
 ##### Configure a nested policy 
-*   For routing-policy ```lp-policy-v4``` attach the policy ```match-policy-v4```
+*   For routing-policy ```lp-policy-v4``` call the policy ```match-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
@@ -154,12 +154,23 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ### RT-1.30.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2608]
 #### IPv6 BGP nested import policy test
 ---
+##### Configure a route-policy to set the local preference
+*   Configure an IPv6 route-policy definition with the name ```lp-policy-v6```
+    *   /routing-policy/policy-definitions/policy-definition/config/name
+*   For routing-policy ```lp-policy-v6``` configure a statement with the name ```lp-statement-v6```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set policy-result as ```NEXT_STATEMENT```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+##### Configure BGP actions to set local-pref
+*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set local-preference to ```200```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+
 ##### Configure a route-policy to match the prefix
 *   Configure an IPv6 route-policy definition with the name ```match-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v6``` configure a statement with the name ```match-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set policy-result as ```NEXT_STATEMENT```
+*   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
@@ -174,19 +185,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set prefix set to ```prefix-set-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
-##### Configure another route-policy to set the local preference
-*   Configure an IPv6 route-policy definition with the name ```lp-policy-v6```
-    *   /routing-policy/policy-definitions/policy-definition/config/name
-*   For routing-policy ```lp-policy-v6``` configure a statement with the name ```lp-statement-v6```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-##### Configure BGP actions to set local-pref
-*   For routing-policy ```lp-policy-v6``` statement ```lp-statement-v6``` set local-preference to ```200```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
-
 ##### Configure a nested policy 
-*   For routing-policy ```lp-policy-v6``` attach the policy ```match-policy-v6```
+*   For routing-policy ```lp-policy-v6``` call the policy ```match-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
@@ -236,7 +236,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 
 ##### Configure a nested policy 
-*   For routing-policy ```asp-policy-v6``` attach the policy ```med-policy-v6```
+*   For routing-policy ```asp-policy-v6``` call the policy ```med-policy-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
 
 ##### Configure the parent bgp import policy for the DUT BGP neighbor on ATE Port-1
