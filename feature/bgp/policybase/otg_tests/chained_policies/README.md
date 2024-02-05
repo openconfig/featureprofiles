@@ -75,7 +75,8 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 
 ##### Verification
-*   Verify that chained import policies are successfully applied to the DUT BGP neighbor on ATE Port-1
+*   Use gNMI `replace` to send the configuration to the DUT.
+*   Use gNMI `subscribe` with mode `once` to retrieve the configuration `state` from the DUT.  This is to confirm the chained import policies are successfully applied to the DUT BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
 
 ##### Validate test results
