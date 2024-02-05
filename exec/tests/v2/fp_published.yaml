@@ -140,6 +140,13 @@ tests:
     mustpass: true
     priority: 3
     pr: 2548
+  - name: TE-11.4 (Gribi Programming with reload)
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
+    pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
