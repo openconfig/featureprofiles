@@ -11,6 +11,9 @@
 *   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
 
 ## Procedure
+### Applying configuration
+
+For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch.  Then apply the configuration to the DUT in one gnmi.Set using the `replace` option.
 
 #### Initial Setup:
 
