@@ -217,7 +217,7 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		dev := config.Devices().Add().SetName(ateid)
 		macAddress, _ := incrementMAC(ateSrcPortMac, i)
 		eth := dev.Ethernets().Add().SetName(ateid + ".Eth").SetMac(macAddress)
-		eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
+		eth.Connection().SetPortName(ap.ID())
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
@@ -292,11 +292,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// generateTraffic generates traffic from ateSrcNetCIDR to
-// ateDstNetCIDR, then returns the atePorts as well as the number of
-// packets received (inPkts) and sent (outPkts) across the atePorts.
-func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
-
+func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
@@ -311,31 +307,33 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIpList(ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 	} else {
-		ipv4.Src().SetChoice("increment").Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
+		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIpList(ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 	} else {
-		ipv4.Dst().SetChoice("increment").Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
+		ipv4.Dst().Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
 		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
 	} else {
-		tcp.SrcPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
 		tcp.DstPort().SetValues(generateRandomPortList(65534))
 	} else {
-		tcp.DstPort().SetChoice("increment").Increment().SetStart(1).SetCount(65534)
+		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
 	}
 
 	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
+}
 
+func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
 	if *trafficPause != 0 {
 		t.Logf("Pausing before traffic at %v for %v", time.Now(), *trafficPause)
 		time.Sleep(*trafficPause)
@@ -363,8 +361,15 @@ func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Confi
 			}
 		}
 	}
-
 	return atePorts, inPkts, outPkts
+}
+
+// generateTraffic generates traffic from ateSrcNetCIDR to
+// ateDstNetCIDR, then returns the atePorts as well as the number of
+// packets received (inPkts) and sent (outPkts) across the atePorts.
+func generateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
+	createTraffic(t, ate, config)
+	return runTraffic(t, ate, config)
 }
 
 // normalize normalizes the input values so that the output values sum
@@ -435,10 +440,10 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func generateRandomIpList(cidr string, count uint32) []string {
-	netsCh, _ := netutil.CIDRs(cidr, count)
+func generateRandomIPList(t testing.TB, cidr string, count int) []string {
+	t.Helper()
 	gotNets := make([]string, 0)
-	for net := range netsCh {
+	for net := range netutil.GenCIDRs(t, cidr, count) {
 		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
 	}
 

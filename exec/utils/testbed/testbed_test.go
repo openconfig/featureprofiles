@@ -40,9 +40,9 @@ func TestShowVersion(t *testing.T) {
 	content := ""
 	for _, cmd := range commands {
 		testt.CaptureFatal(t, func(t testing.TB) {
-			if result, err := sshClient.SendCommand(ctx, cmd); err == nil {
+			if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
 				content += ">" + cmd + "\n"
-				content += result
+				content += result.Output()
 				content += "\n"
 			} else {
 				content += ">" + cmd + "\n"

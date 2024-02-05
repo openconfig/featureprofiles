@@ -1,8 +1,10 @@
 from firexapp.engine.celery import app
 from celery.utils.log import get_task_logger
+from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
+from firexkit.task import FireXTask
 from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
@@ -50,6 +52,7 @@ whitelist_arguments([
     'test_skip',
     'test_fail_skipped',
     'test_show_skipped',
+    'test_repo_url',
 ])
 
 def _get_go_root_path(ws=None):
@@ -408,14 +411,10 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
-    if 'B4_FIREX_TESTBEDS_COUNT' in os.environ:
-        return int(os.environ.get('B4_FIREX_TESTBEDS_COUNT'))
-    return 1
+    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '1'))
 
 def decommission_testbed_after_tests():
-    if 'B4_FIREX_DECOMMISSION_TESTBED' in os.environ:
-        return bool(int(os.environ.get('B4_FIREX_DECOMMISSION_TESTBED')))
-    return False
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '0') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -424,6 +423,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         reserved_testbed,
                         test_name,
                         test_path,
+                        test_repo_url=PUBLIC_FP_REPO_URL,
                         test_branch='main',
                         test_revision=None,
                         test_pr=None,
@@ -442,8 +442,6 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         **kwargs):
     
     test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
-
-    test_repo_url = PUBLIC_FP_REPO_URL
     if internal_test:
         test_repo_url = internal_fp_repo_url
 
@@ -477,7 +475,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -493,7 +491,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False):
         chain |= TeardownIxiaController.s()
 
     if cflow and testbed:
@@ -505,7 +503,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
@@ -584,22 +582,43 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     finally:
         # if self.console_output_file and Path(self.console_output_file).is_file():
         #     shutil.copyfile(self.console_output_file, json_results_file)
-        
+        logger.debug("After running script")
         suite = _get_testsuite_from_xml(xml_results_file)
+        logger.info(f"suite: {suite}")
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
+            logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}, collect_debug_files [{collect_debug_files}], suite.attrib['failures'] = [{suite.attrib['failures']}]")
             if collect_debug_files and suite.attrib['failures'] != '0':
-                self.enqueue_child(CollectDebugFiles.s(
+                logger.info(f"there were no failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp
+                    timestamp=start_timestamp,
+                    core=False,
+                    xunit_results_filepath=xunit_results_filepath
                 ))
-        elif test_ignore_aborted or test_skip:
-            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
+                logger.info(res)
+            else:
+                logger.info(f"there were failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
+                    ws=ws,
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp,
+                    core=True,
+                    xunit_results_filepath=xunit_results_filepath
+                ))
+                logger.info(res)
 
+        elif test_ignore_aborted or test_skip:
+            logger.debug("elif in ")
+            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
+        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+       
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -717,11 +736,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
     if reserved_testbed.get('sim', False):
-        vxr_testbed = kwargs['testbed_path']
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh staticbind service {vxr_testbed}', 
-            file=ondatra_binding_path)
-        check_output(f'/auto/firex/sw/pyvxr_binding/pyvxr_binding.sh statictestbed service {vxr_testbed}', 
-            file=ondatra_testbed_path)
+        sim_out_dir = os.path.join(testbed_logs_dir, 'bringup_success')
+        pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
+        check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
         if not type(reserved_testbed['baseconf']) is dict:
@@ -881,7 +898,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath) -> str:
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -889,22 +906,93 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
-    collect_debug_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/debug ' \
-            f'-timeout 60m ' \
-            f'-args ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {tmp_binding_file} ' \
-            f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp {str(timestamp)}'
+    # create a directory here to send all logs as firex has a line limit
+    if core:
+        collect_core_files = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)} ' \
+                f'-core=true ' \
+                f'-v 5'
+    else:
+        collect_debug_cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)} ' \
+                f'-core=false ' \
+                f'-v 5'
+
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+        if core:
+            check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
+        else:
+            check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
+        # collect core files if any
+        if core:
+            res = self.enqueue_child_and_get_results(CollectCoreFiles.s(
+                test_log_directory_path=test_log_directory_path,
+                xunit_results_filepath=xunit_results_filepath
+            ))
+            logger.info(res)
         os.remove(tmp_binding_file)
+        return "CollectDebugFiles completed successfully"
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
+    try:
+        logger.print(f'xunit_results_filepath: {xunit_results_filepath}')
+        logger.print(f'test_log_directory_path: {test_log_directory_path}')
+        arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        r = re.compile(r'core\b',re.IGNORECASE)
+        corefileslist = list(filter(lambda x: r.search(str(x)),arr))
+        logger.print(f'Array of core files if any {corefileslist}')
+        
+        try:
+            if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
+                logger.warn(f'file exists and its not empty')
+                tree = ET.parse(xunit_results_filepath)
+                testsuite = tree.find("testsuite")
+                prop = testsuite[0] 
+                if len(corefileslist) == 0:
+                    nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
+                    nsub.set("value","no corefile(s) found")
+                else:
+                    for file in corefileslist:
+                        nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
+                        nsub.set("value",file)
+                    logger.print(f"setting corefile failure {str(len(corefileslist))}")
+                    fe = ET.SubElement(testsuite, "testcase",attrib = {'classname': "",'name':"CoreFileCheck", "time":"1"})
+                    ET.SubElement(fe,"failure",attrib={"message":"Failed"}).text = "Core files were found"
+                    tree.write(xunit_results_filepath,encoding="utf-8")
+                return "CollectCoreFiles exited"
+            else:
+                if os.path.exists(xunit_results_filepath) == True:
+                    logger.warn("File exists but its empty")
+                    return "CollectCoreFiles exited"
+                else:
+                    logger.error("File does not exists")
+                    return "CollectCoreFiles exited"
+        except Exception as error:
+            logger.error(f"XML find was not able to find './testsuite/properties/ with the error: {error}'")
+            return "CollectCoreFiles exited with exception"
+    except Exception as error:
+        logger.warning(f'Failed to collect testbed information. Ignoring... with error: {error}') 
+        return "CollectCoreFiles exited with exception"
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -945,21 +1033,34 @@ def InstallGoDelve(self, ws, repo):
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
     )
-
+        
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, binding_file):
     logger.print("Releasing ixia ports...")
-    try:
-        logger.print(
-            check_output(f'{IXIA_RELEASE_BIN} {binding_file}')
-        )
-    except:
-        logger.warning(f'Failed to release ixia ports. Ignoring...')
+    with tempfile.NamedTemporaryFile() as f:
+        #FIXME: remove once release script is updated to new binding proto
+        tmp_binding_file = f.name
+        shutil.copyfile(binding_file, tmp_binding_file)
+        cmd = "sed -i 's|mutual_tls|#mutual_tls|g;"
+        cmd += "s|trust_bundle_file|#trust_bundle_file|g;"
+        cmd += "s|cert_file|#cert_file|g;"
+        cmd += "s|key_file|#key_file|g' "
+        cmd += f"{tmp_binding_file}"
+        check_output(cmd)
+        
+        try:
+            logger.print(
+                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+            )
+        except:
+            logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, reserved_testbed):
+    # TODO: delete this line
+    logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'

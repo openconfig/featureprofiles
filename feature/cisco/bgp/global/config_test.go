@@ -160,7 +160,7 @@ func Test_Default_Metric(t *testing.T) {
 		t.Log("TC: Retrieve default-metric for DEFAULT vrf")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
-			configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.Get(t, dut, config.Config())
 			t.Logf("Rcvd val - %v", configGot)
 
 			expected_metric := ygot.Uint32(121)
@@ -176,7 +176,7 @@ func Test_Default_Metric(t *testing.T) {
 		t.Log("TC: Retrieve default-metric for custom vrf - CISCO")
 		t.Run("Get", func(t *testing.T) {
 			config := gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").DefaultMetric()
-			configGot := gnmi.GetConfig(t, dut, config.Config())
+			configGot := gnmi.Get(t, dut, config.Config())
 			t.Logf("Rcvd val - %v", configGot)
 
 			expected_metric := ygot.Uint32(144)
@@ -292,7 +292,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, path.Config())
+			configGot := gnmi.Get(t, dut, path.Config())
 
 			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
 				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
@@ -315,7 +315,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 
 		t.Log("Verify after replace")
 		t.Run("Get", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, path.Config())
+			configGot := gnmi.Get(t, dut, path.Config())
 
 			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
 				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
@@ -365,7 +365,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 
 		t.Log("Verify after update")
 		t.Run("Get", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, path.Config())
+			configGot := gnmi.Get(t, dut, path.Config())
 
 			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
 				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)
@@ -388,7 +388,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 
 		t.Log("Verify after replace")
 		t.Run("Get", func(t *testing.T) {
-			configGot := gnmi.GetConfig(t, dut, path.Config())
+			configGot := gnmi.Get(t, dut, path.Config())
 
 			if *configGot.IgnoreNextHopIgpMetric != *routeselopt.IgnoreNextHopIgpMetric {
 				t.Errorf("Failed: Fetching leaf for ignore-next-hop-igp-metric got %v, want %v", *configGot.IgnoreNextHopIgpMetric, *routeselopt.IgnoreNextHopIgpMetric)

@@ -99,7 +99,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 	cli := dut.RawAPIs().CLI(t)
 	for _, folderPath := range devicePaths {
 		fPath := path.Join(folderPath, "devrandom.log")
-		_, err := cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
+		_, err := cli.RunCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
 			t.Fatalf("Failed to create file devrandom.log in the path %v, Error: %v ", folderPath, err)
 		}
@@ -107,7 +107,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		time.Sleep(30 * time.Second)
 		filesCreated = append(filesCreated, fPath)
 		fPath = path.Join(folderPath, ".devrandom.log")
-		_, err = cli.SendCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
+		_, err = cli.RunCommand(context.Background(), fmt.Sprintf(fileCreateDevRand, fPath))
 		if err != nil {
 			t.Fatalf("Failed to create file .devrandom.log in the path %v, Error: %v", folderPath, err)
 
@@ -115,7 +115,7 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 
 		filesCreated = append(filesCreated, fPath)
 		fPath = path.Join(folderPath, "largeFile.log")
-		_, err = dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
+		_, err = dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf(fileCreate, 100, fPath))
 		if err != nil {
 			t.Fatalf("Failed to create file largeFile.log in the path %v, Error: %v", folderPath, err)
 		}
@@ -123,12 +123,12 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 		filesCreated = append(filesCreated, fPath)
 	}
 	for _, fP := range filesCreated {
-		resp, err := cli.SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
+		resp, err := cli.RunCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
 			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
 		t.Logf("%v", resp)
-		if !strings.Contains(resp, fileExists) {
+		if !strings.Contains(resp.Output(), fileExists) {
 			t.Fatalf("Unable to Create a file object %s in device %s", fP, dut.Name())
 		}
 	}
@@ -138,17 +138,17 @@ func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
 // checkFiles check if the files created are deleted from the device after factory reset
 func checkFiles(t *testing.T, dut *ondatra.DUTDevice, filesList []string, factReset bool) {
 	for _, fP := range filesList {
-		resp, err := dut.RawAPIs().CLI(t).SendCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
+		resp, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), fmt.Sprintf(checkFileExists, fP))
 		if err != nil {
 			t.Fatalf("Failed to send command %s on the device, Error: %v", fmt.Sprintf(checkFileExists, fP), err)
 		}
-		t.Logf(resp)
+		t.Logf(resp.Output())
 		if factReset == true {
-			if strings.Contains(resp, fileExists) == true {
+			if strings.Contains(resp.Output(), fileExists) == true {
 				t.Fatalf("File %s not cleared by system Reset, in device %s", fP, dut.Name())
 			}
 		} else {
-			if strings.Contains(resp, fileExists) == false {
+			if strings.Contains(resp.Output(), fileExists) == false {
 				t.Fatalf("File %s not created after bootz succeeded, in device %s", fP, dut.Name())
 			}
 		}
@@ -549,19 +549,19 @@ func remove_known_hosts(t *testing.T) {
 func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 
 	cli_handle := dut.RawAPIs().CLI(t)
-	ztp_resp, err := cli_handle.SendCommand(context.Background(), "ztp clean noprompt")
+	ztp_resp, err := cli_handle.RunCommand(context.Background(), "ztp clean noprompt")
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(ztp_resp)
+	t.Log(ztp_resp.Output())
 	time.Sleep(60 * time.Second)
 	//only for testing purpose
-	ztp_resp, err = cli_handle.SendCommand(context.Background(), "run rm -rf /pkg/etc/giso_ztp.ini ")
+	ztp_resp, err = cli_handle.RunCommand(context.Background(), "run rm -rf /pkg/etc/giso_ztp.ini ")
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(ztp_resp)
-	ztp_resp, err = cli_handle.SendCommand(context.Background(), "run rm -rf /var/log/ztp.log \n ztp initiate management dhcp4 noprompt")
+	ztp_resp, err = cli_handle.RunCommand(context.Background(), "run rm -rf /var/log/ztp.log \n ztp initiate management dhcp4 noprompt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -573,16 +573,16 @@ func ztp_initiate(t *testing.T, dut *ondatra.DUTDevice) {
 	var ztp_logs_full string
 	for i := 1; i <= 10; i++ {
 		cli_handle_new := dutNew.RawAPIs().CLI(t)
-		ztp_logs, err := cli_handle_new.SendCommand(context.Background(), "show ztp log | utility tail -n 60")
+		ztp_logs, err := cli_handle_new.RunCommand(context.Background(), "show ztp log | utility tail -n 60")
 		if err != nil {
 			t.Error(err)
 		}
 		t.Logf("%v\n", ztp_logs)
-		if strings.Contains(ztp_logs, "ZTP completed successfully") {
+		if strings.Contains(ztp_logs.Output(), "ZTP completed successfully") {
 			return
 		}
 		time.Sleep(3 * time.Minute)
-		ztp_logs_full += ztp_logs
+		ztp_logs_full += ztp_logs.Output()
 	}
 	err = fmt.Errorf("ZTP Failed")
 	t.Fatal(err)
@@ -667,11 +667,11 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 }
 func verify_bootz(t *testing.T, dut *ondatra.DUTDevice) {
 	cli_handle_new := dut.RawAPIs().CLI(t)
-	ztp_logs, err := cli_handle_new.SendCommand(context.Background(), `run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`)
+	ztp_logs, err := cli_handle_new.RunCommand(context.Background(), `run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`)
 	if err != nil {
 		t.Fatalf("Failed to send command %s on the device, Error: %v", `run [ -d "/misc/config/grpc/gnsi/" ] && echo "yes" || echo "no"`, err)
 	}
-	if strings.Contains(ztp_logs, "no") {
+	if strings.Contains(ztp_logs.Output(), "no") {
 		t.Errorf("Bootz was successfull but gnsi directory not created")
 	}
 	//checking if authz certz pathz and credz json files are in location /misc/config/grpc/gnsi and if credentailz.cfg vendor.json and oc_config.json is present in /misc/config/bootz

@@ -859,7 +859,7 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	for _, nbr := range nbrs {
 		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
 func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
@@ -966,7 +966,7 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		af6.Enabled = ygot.Bool(false)
 	}
 	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
 // configureATENewPeers configures five more new BGP peers on ATE.
@@ -1071,7 +1071,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	var allFlows []*ondatra.Flow
@@ -1249,7 +1249,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	var allFlows []*ondatra.Flow

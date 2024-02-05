@@ -208,6 +208,12 @@ func NHEntry(nhIndex uint64, address, instance string, expectedResult fluent.Pro
 			nh = nh.WithIPinIP(opt.Src, opt.Dest).
 				WithNextHopNetworkInstance(opt.VrfName)
 		}
+	case "Encap":
+		nh = nh.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithIPinIP(opt.Src, opt.Dest).
+				WithNextHopNetworkInstance(opt.VrfName)
+		}
 	case "VRFOnly":
 		for _, opt := range opts {
 			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
@@ -295,6 +301,29 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
+// AddIPv6 adds an IPv6Entry mapping a prefix to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+		WithNetworkInstance(instance).
+		WithNextHopGroup(nhgIndex)
+	if nhgInstance != "" && nhgInstance != instance {
+		ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	c.fluentC.Modify().AddEntry(t, ipv6Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv6: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
 // DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
@@ -306,6 +335,24 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expect
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
+			WithOperationType(constants.Delete).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+// DeleteIPv6 deletes an IPv6Entry within a network instance, given the route's prefix
+func (c *Client) DeleteIPv6(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).WithNetworkInstance(instance)
+	c.fluentC.Modify().DeleteEntry(t, ipv6Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to delete IPv6: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(prefix).
 			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),

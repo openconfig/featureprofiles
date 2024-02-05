@@ -405,9 +405,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		if activate {
 			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim activate string %v", fimActivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimActivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimActivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
@@ -419,9 +419,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		} else {
 			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim deactivate string %v", fimDeactivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimDeactivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimDeactivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)

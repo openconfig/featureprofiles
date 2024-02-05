@@ -10,17 +10,8 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
-    interface_enabled: true
     explicit_interface_in_default_vrf: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    route_policy_under_afi_unsupported: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -28,8 +19,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    omit_l2_mtu: true
     route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
     bgp_set_med_requires_equal_ospf_set_metric: true

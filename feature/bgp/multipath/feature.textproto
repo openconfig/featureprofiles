@@ -55,14 +55,6 @@ telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/state/enabled"
 }
 
-## ebgp multipath options leaves
-config_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/config/allow-multiple-as"
-}
-telemetry_path {
-  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/state/allow-multiple-as"
-}
-
 # Peer group level BGP multipath leaves
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/config/enabled"
