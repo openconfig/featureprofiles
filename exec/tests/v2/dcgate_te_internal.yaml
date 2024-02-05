@@ -1,0 +1,12 @@
+name: dcgate 
+owners: 
+  - arvbaska
+testbeds:
+  - 8808-1DUT-1ATE
+tests:
+- name: decap 
+  path: feature/gribi/cisco/dcgate
+  timeout: 7200
+  mustpass: true
+  internal: true
+  branch: master
