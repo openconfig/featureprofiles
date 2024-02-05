@@ -48,19 +48,36 @@ func TestMain(m *testing.M) {
 //   - ate:port1 -> dut:port1 subnet 192.0.2.0/30
 //   - ate:port2 -> dut:port2 subnet 192.0.2.4/30
 const (
-	ipv4PrefixLen     = 30
-	ateDstIP          = "198.51.100.1"
-	ateDstNetCIDR     = ateDstIP + "/32"
-	ateIndirectNH     = "203.0.113.1"
-	ateIndirectNHCIDR = ateIndirectNH + "/32"
-	nhIndex           = 1
-	nhgIndex          = 42
-	nhIndex2          = 2
-	nhgIndex2         = 52
-	nonDefaultVRF     = "VRF-1"
-	nhMAC             = "00:1A:11:00:0A:BC"
-	macFilter         = "0xABC" // Hex equalent last 12 bits
-	policyName        = "redirect-to-VRF1"
+	ipv4PrefixLen           = 30
+	ateDstIP                = "198.51.100.1"
+	ateDstNetCIDR           = ateDstIP + "/32"
+	ateIndirectNH           = "203.0.113.1"
+	ateIndirectNHCIDR       = ateIndirectNH + "/32"
+	nhIndex                 = 1
+	nhgIndex                = 42
+	nhIndex2                = 2
+	nhgIndex2               = 52
+	nonDefaultVRF           = "VRF-1"
+	nhMAC                   = "00:1A:11:00:0A:BC"
+	macFilter               = "0xABC" // Hex equalent last 12 bits
+	policyName              = "redirect-to-VRF1"
+	niDecapTeVrf            = "DECAP_TE_VRF"
+	niEncapTeVrfA           = "ENCAP_TE_VRF_A"
+	niEncapTeVrfB           = "ENCAP_TE_VRF_B"
+	niEncapTeVrfC           = "ENCAP_TE_VRF_C"
+	niEncapTeVrfD           = "ENCAP_TE_VRF_D"
+	vrfPolW                 = "vrf_selection_policy_w"
+	niDefault               = "DEFAULT"
+	dscpEncapA1             = 10
+	dscpEncapA2             = 18
+	dscpEncapB1             = 20
+	dscpEncapB2             = 28
+	dscpEncapNoMatch        = 30
+	ipv4OuterSrc111WithMask = "198.51.100.111/32"
+	ipv4OuterSrc222WithMask = "198.51.100.222/32"
+	niTeVrf111              = "TE_VRF_111"
+	niTeVrf222              = "TE_VRF_222"
+	decapFlowSrc            = "198.51.100.111"
 )
 
 var (
@@ -143,6 +160,109 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, defNIPath.PolicyForwarding().Config(), configurePBF(dut))
+}
+
+// configureNetworkInstance configures vrfs DECAP_TE_VRF,ENCAP_TE_VRF_A,ENCAP_TE_VRF_B,
+// ENCAP_TE_VRF_C, ENCAP_TE_VRF_D, TE_VRF_111, TE_VRF_222
+func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	c := &oc.Root{}
+	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222}
+	for _, vrf := range vrfs {
+		ni := c.GetOrCreateNetworkInstance(vrf)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
+	}
+}
+
+func deleteVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
+}
+
+type policyFwRule struct {
+	SeqId           uint32
+	protocol        oc.UnionUint8
+	dscpSet         []uint8
+	sourceAddr      string
+	decapNi         string
+	postDecapNi     string
+	decapFallbackNi string
+}
+
+func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
+
+	pfRule1 := &policyFwRule{SeqId: 1, protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
+	pfRule2 := &policyFwRule{SeqId: 2, protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
+	pfRule3 := &policyFwRule{SeqId: 3, protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
+	pfRule4 := &policyFwRule{SeqId: 4, protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
+
+	pfRule5 := &policyFwRule{SeqId: 5, protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
+	pfRule6 := &policyFwRule{SeqId: 6, protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
+	pfRule7 := &policyFwRule{SeqId: 7, protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
+	pfRule8 := &policyFwRule{SeqId: 8, protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
+
+	pfRule9 := &policyFwRule{SeqId: 9, protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+	pfRule10 := &policyFwRule{SeqId: 10, protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+	pfRule11 := &policyFwRule{SeqId: 11, protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+	pfRule12 := &policyFwRule{SeqId: 12, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
+		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+
+	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
+		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12}
+
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niP := ni.GetOrCreatePolicyForwarding()
+	niPf := niP.GetOrCreatePolicy(vrfPolW)
+	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	for _, pfRule := range pfRuleList {
+		pfR := niPf.GetOrCreateRule(pfRule.SeqId)
+		pfRProtoIPv4 := pfR.GetOrCreateIpv4()
+		pfRProtoIPv4.Protocol = oc.UnionUint8(pfRule.protocol)
+		if pfRule.dscpSet != nil {
+			pfRProtoIPv4.DscpSet = pfRule.dscpSet
+		}
+		pfRProtoIPv4.SourceAddress = ygot.String(pfRule.sourceAddr)
+		pfRAction := pfR.GetOrCreateAction()
+		pfRAction.DecapNetworkInstance = ygot.String(pfRule.decapNi)
+		pfRAction.PostDecapNetworkInstance = ygot.String(pfRule.postDecapNi)
+		pfRAction.DecapFallbackNetworkInstance = ygot.String(pfRule.decapFallbackNi)
+	}
+	pfR := niPf.GetOrCreateRule(13)
+	pfRAction := pfR.GetOrCreateAction()
+	pfRAction.NetworkInstance = ygot.String(niDefault)
+
+	p1 := dut.Port(t, "port1")
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = interfaceID + ".0"
+	}
+
+	intf := niP.GetOrCreateInterface(interfaceID)
+	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+
+	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
 }
 
 // configureDUT configures port1 and port2 on the DUT.
@@ -235,6 +355,14 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(ateDstIP).SetCount(1)
+
+	if name == "transitFlow" {
+		v4.Src().SetValue(decapFlowSrc)
+		v4.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
+		innerIpHdr := flow.Packet().Add().Ipv4()
+		innerIpHdr.Src().SetValue(atePort1.IPv4)
+		innerIpHdr.Dst().SetValue(atePort2.IPv4)
+	}
 	eth := flow.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
 	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
@@ -250,10 +378,10 @@ func ValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, f
 
 	ate.OTG().StartProtocols(t)
 	ate.OTG().StartTraffic(t)
-
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 	time.Sleep(45 * time.Second)
+
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
@@ -287,10 +415,10 @@ type testArgs struct {
 }
 
 // verifyTelemetry verifies the telemetry for route recursilvely
-func verifyTelemetry(t *testing.T, args *testArgs, nhtype string) {
+func verifyTelemetry(t *testing.T, args *testArgs, nhtype string, vrfName string) {
 
 	// Verify that the entry for 198.51.100.1/32 (a) is installed through AFT Telemetry. a->c or a->b are the expected results.
-	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Afts().Ipv4Entry(ateDstNetCIDR).State())
+	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(ateDstNetCIDR).State())
 	if got, want := ipv4Entry.GetPrefix(), ateDstNetCIDR; got != want {
 		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix = %v, want %v", got, want)
 	}
@@ -383,11 +511,14 @@ func testRecursiveIPv4EntrywithIPNexthop(t *testing.T, args *testArgs) {
 	nhg, op2 = gribi.NHGEntry(nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
 	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, nonDefaultVRF, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow")
+
 	time.Sleep(30 * time.Second)
+
 	t.Run("ValidateTelemtry", func(t *testing.T) {
 		t.Log("Validate Telemetry to verify IPV4 entry is resolved through IP next-hop")
-		verifyTelemetry(t, args, "IP")
+		verifyTelemetry(t, args, "IP", nonDefaultVRF)
 	})
 
 	t.Run("ValidateTraffic", func(t *testing.T) {
@@ -441,7 +572,7 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	time.Sleep(30 * time.Second)
 	t.Run("ValidateTelemtry", func(t *testing.T) {
 		t.Log("Validate Telemetry to verify IPV4 entry is resolved through MAC next-hop")
-		verifyTelemetry(t, args, "MAC")
+		verifyTelemetry(t, args, "MAC", nonDefaultVRF)
 	})
 	t.Run("ValidateTraffic", func(t *testing.T) {
 		t.Log("Validate Traffic is recieved on atePort2 with dst MAC as gRIBI NH MAC")
@@ -460,6 +591,58 @@ func testRecursiveIPv4EntrywithMACNexthop(t *testing.T, args *testArgs) {
 	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
 		t.Log("Validate No traffic Traffic is recieved on atePort2 after NH delete")
 		if got, want := ValidateTraffic(t, args.ate, baseFlow, macFilter), 100; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
+}
+
+// testRecursiveIPv4EntrywithVrfPolW verifies recursive IPv4 Entry for
+// 198.51.100.1/32 (a) with vrf selection w
+func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
+
+	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
+	configNonDefaultNetworkInstance(t, args.dut)
+	deleteVrfSelectionPolicy(t, args.dut)
+	configureVrfSelectionPolicyW(t, args.dut)
+
+	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
+	nh, op1 := gribi.NHEntry(nhIndex2, atePort2.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhg, op2 := gribi.NHGEntry(nhgIndex2, map[uint64]uint64{nhIndex2: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
+	args.client.AddIPv4(t, ateIndirectNHCIDR, nhgIndex2, deviations.DefaultNetworkInstance(args.dut), deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	t.Logf("Adding IP %v with NHG %d NH %d  with indirect IP %v via gRIBI", ateDstNetCIDR, nhgIndex, nhIndex, ateIndirectNHCIDR)
+	nh, op1 = gribi.NHEntry(nhIndex, ateIndirectNH, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	nhg, op2 = gribi.NHGEntry(nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddEntries(t, []fluent.GRIBIEntry{nh, nhg}, []*client.OpResult{op1, op2})
+	args.client.AddIPv4(t, ateDstNetCIDR, nhgIndex, niTeVrf111, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	baseFlow := createFlow(t, args.ate, args.top, "transitFlow")
+
+	time.Sleep(30 * time.Second)
+
+	t.Run("ValidateTelemtry", func(t *testing.T) {
+		t.Log("Validate Telemetry to verify IPV4 entry is resolved through IP next-hop")
+		verifyTelemetry(t, args, "IP", niTeVrf111)
+	})
+
+	t.Run("ValidateTraffic", func(t *testing.T) {
+		t.Log("Validate Traffic is recieved on atePort2 with IP next-hop")
+		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 0; int(got) != want {
+			t.Errorf("Loss: got %v, want %v", got, want)
+		}
+	})
+
+	t.Logf("Deleting NH entry and verifing there is no traffic")
+	args.client.DeleteIPv4(t, ateIndirectNHCIDR, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateIndirectNHCIDR)
+	if gnmi.Lookup(t, args.dut, ipv4Path.State()).IsPresent() {
+		t.Errorf("TestRecursiveIPv4Entry: ipv4-entry/state/prefix: Found route %s that should not exist", ateIndirectNHCIDR)
+	}
+	t.Run("ValidateNoTrafficAfterNHDelete", func(t *testing.T) {
+		t.Log("Validate No traffic Traffic is recieved on atePort2 after NH delete")
+		if got, want := ValidateTraffic(t, args.ate, baseFlow, ""), 100; int(got) != want {
 			t.Errorf("Loss: got %v, want %v", got, want)
 		}
 	})
@@ -549,6 +732,11 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 			desc: "Program IPV4 entry recursively to MAC next-hop and verify with Telemetry and Traffic",
 			fn:   testRecursiveIPv4EntrywithMACNexthop,
 		},
+		{
+			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
+			desc: "Program IPV4 entry with VRF Selection Policy W and verify with Telemetry and Traffic.",
+			fn:   testRecursiveIPv4EntrywithVrfPolW,
+		},
 	}
 
 	// Each case will run with its own gRIBI fluent client.
@@ -579,7 +767,6 @@ func TestRecursiveIPv4Entries(t *testing.T) {
 				top:    top,
 				client: &client,
 			}
-
 			tc.fn(t, args)
 		})
 	}
