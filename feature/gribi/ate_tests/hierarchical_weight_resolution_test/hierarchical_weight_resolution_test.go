@@ -62,7 +62,6 @@ const (
 	nonDefaultVRF     = "TE_VRF_111"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
-	vrfPolW           = "vrf_selection_policy_w"
 	decapFlowSrc      = "198.51.100.111"
 	dscpEncapA1       = 10
 )
@@ -696,43 +695,19 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
 
+	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
+		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
+	})
+
 	t.Run("TestHierarchicalWeightBoundaryScenario", func(t *testing.T) {
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 
-	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
-		configureVrfSelectionPolicyW(t, dut)
-		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
-	})
-
 	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
-		configureVrfSelectionPolicyW(t, dut)
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 
 	top.StopProtocols(t)
-}
-
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	p1 := dut.Port(t, "port1")
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
 }
