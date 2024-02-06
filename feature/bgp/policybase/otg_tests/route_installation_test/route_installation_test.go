@@ -88,8 +88,8 @@ const (
 	acceptPolicy             = "PERMIT-ALL"
 	setLocalPrefPolicy       = "SET-LOCAL-PREF"
 	localPrefValue           = 100
-        setMEDPolicy             = "SET-MED-PREF"
-        medValue                 = 100
+	setMEDPolicy             = "SET-MED-PREF"
+	medValue                 = 100
 	setAspathPrependPolicy   = "SET-ASPATH-PREPEND"
 	asPathRepeatValue        = 3
 	aclStatement1            = "10"
@@ -284,7 +284,7 @@ func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-        pdef6 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
+	pdef6 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
 	stmt, err = pdef6.AppendNewStatement(aclStatement2)
 	if err != nil {
 		return nil, err
