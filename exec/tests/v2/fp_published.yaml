@@ -140,6 +140,14 @@ tests:
     mustpass: true
     priority: 3
     pr: 2548
+  - name: TE-11.4 (Gribi Programming with reload)
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
+    timeout: 7200
+    pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
@@ -440,6 +448,7 @@ tests:
     mustpass: true
     priority: 53
     skip: false
+    pr: 2623
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
