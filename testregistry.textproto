@@ -278,6 +278,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.29"
+  description: "BGP chained import/export policy attachment"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/chained_policies/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.31"
   description: "BGP 3 levels of nested import/export policy with match-set-options"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/3level_nested_policies/README.md"
