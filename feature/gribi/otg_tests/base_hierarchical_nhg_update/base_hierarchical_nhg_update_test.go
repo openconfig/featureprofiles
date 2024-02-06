@@ -275,36 +275,12 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	}()
 }
 
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	p1 := dut.Port(t, "port1")
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
-}
-
 type transitKey struct{}
 
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
