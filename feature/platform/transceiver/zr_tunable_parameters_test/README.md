@@ -156,4 +156,5 @@ explicitly through OC operational mode.
     *   /components/component/optical-channel/state/output-power/min
     *   /components/component/optical-channel/state/output-power/max
 * Operational Mode
+    *   /components/component/optical-channel/config/operational-mode
     *   /components/component/optical-channel/state/operational-mode
