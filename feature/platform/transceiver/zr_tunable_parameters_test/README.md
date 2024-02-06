@@ -3,7 +3,7 @@
 ## Summary
 
 Validate setting 400ZR tunable parameters channel frequency, output TX
-launch power and operationla mode and verify corresponding telemetry values.
+launch power and operational mode and verify corresponding telemetry values.
 
 ### Goals
 * Verify full C band frequency tunability for 100GHz line system grid.
