@@ -352,8 +352,6 @@ func createAccountCredentials(filePath string, accountName string) credz.Account
 	optKey2.Value = fmt.Sprintf("show ssh | inc %s", accountName)
 	optArray = append(optArray, &optKey)
 	optArray = append(optArray, &optKey2)
-	var clientKeyNames []string
-	var cakeyNames []string
 
 	for i := 1; i <= 5; i++ {
 		keyTypeName := credz.KeyType_name[int32(i)]
@@ -361,9 +359,6 @@ func createAccountCredentials(filePath string, accountName string) credz.Account
 		bytesForKeygen := tempList[len(tempList)-1]
 		encryption := tempList[2]
 		fileName := fmt.Sprintf("%s/%s_%s", filePath, encryption, bytesForKeygen)
-		caFileName := fmt.Sprintf("%s/ca_%s_%s", filePath, encryption, bytesForKeygen)
-		clientKeyNames = append(clientKeyNames, fileName)
-		cakeyNames = append(cakeyNames, caFileName)
 		publicKeyBytes, _ := os.ReadFile(fmt.Sprintf("%s.pub", fileName))
 		pubKey := strings.Split(string(publicKeyBytes), " ")[1]
 
