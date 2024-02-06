@@ -26,10 +26,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -857,7 +859,7 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	for _, nbr := range nbrs {
 		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
 func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
@@ -906,13 +908,8 @@ func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint6
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
-	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	killResponse := gnoi.Execute(t, dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
 	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-	}
 }
 
 // setBgpPolicy is used to configure routing policy on DUT.
@@ -969,7 +966,7 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		af6.Enabled = ygot.Bool(false)
 	}
 	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
 // configureATENewPeers configures five more new BGP peers on ATE.
@@ -1074,7 +1071,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	var allFlows []*ondatra.Flow
@@ -1252,7 +1249,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	var allFlows []*ondatra.Flow
@@ -1274,7 +1271,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 
-	t.Run("Disable LLGR on dut.", func(t *testing.T) {
+	if deviations.BgpLlgrOcUndefined(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		config := disableLLGRConf(dut, dutAS)
 		t.Logf("Push the CLI config:%s", dut.Vendor())
@@ -1282,7 +1279,7 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 			t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
 		}
-	})
+	}
 
 	d := &oc.Root{}
 	ifName := dut.Port(t, "port2").Name()

@@ -23,20 +23,22 @@ config_path {
 telemetry_path {
     path: "/system/ntp/state/enabled"
 }
-
 config_path {
     path: "/system/ntp/servers/server/config/address"
 }
 telemetry_path {
     path: "/system/ntp/servers/server/state/address"
 }
-
-config_path {
-    path: "/system/ntp/servers/server/config/port"
-}
 telemetry_path {
     path: "/system/ntp/servers/server/state/port"
 }
+config_path {
+    path: "/system/ntp/servers/server/config/source-address"
+}
+telemetry_path {
+    path: "/system/ntp/servers/server/state/source-address"
+}
+
 
 # Counters
 telemetry_path {

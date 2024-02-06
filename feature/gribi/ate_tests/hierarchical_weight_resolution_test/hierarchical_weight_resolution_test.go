@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -58,9 +59,11 @@ const (
 	ipv4FlowCount     = 65000
 	nhEntryIP1        = "192.0.2.111"
 	nhEntryIP2        = "192.0.2.222"
-	nonDefaultVRF     = "VRF-1"
+	nonDefaultVRF     = "TE_VRF_111"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
+	decapFlowSrc      = "198.51.100.111"
+	dscpEncapA1       = 10
 )
 
 var (
@@ -281,7 +284,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
-	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -312,17 +315,13 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
 	gnmi.Replace(t, d, dni.Config(), ni)
-	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+	fptest.LogQuery(t, "NI", dni.Config(), gnmi.Get(t, d, dni.Config()))
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
 	fptest.ConfigureDefaultNetworkInstance(t, d)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, deviations.DefaultNetworkInstance(d))
-	}
 }
 
 // assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
@@ -356,8 +355,12 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
+	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
 	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
 	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -417,7 +420,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithSrcAddress(decapFlowSrc)
+	ipv4Header.WithDSCP(dscpEncapA1)
 	ipv4Header.WithDstAddress(ipv4FlowIP)
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
@@ -691,7 +695,17 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
 
+	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
+		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
+	})
+
 	t.Run("TestHierarchicalWeightBoundaryScenario", func(t *testing.T) {
+		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
+	})
+
+	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 

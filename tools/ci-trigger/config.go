@@ -68,6 +68,7 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
@@ -82,6 +83,7 @@ var triggerKeywords = map[string][]deviceType{
 		{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 		{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 		{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+		{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 		{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 		{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 	},
@@ -91,6 +93,7 @@ var triggerKeywords = map[string][]deviceType{
 	"/fptest cisco-8808":         {{Vendor: opb.Device_CISCO, HardwareModel: "8808"}},
 	"/fptest cisco-xrd":          {{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}},
 	"/fptest juniper-cptx":       {{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}},
+	"/fptest juniper-ncptx":      {{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}},
 	"/fptest juniper-ptx10008":   {{Vendor: opb.Device_JUNIPER, HardwareModel: "PTX10008"}},
 	"/fptest nokia-7250":         {{Vendor: opb.Device_NOKIA, HardwareModel: "7250 IXR-10e"}},
 	"/fptest nokia-srl":          {{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}},
@@ -111,18 +114,20 @@ var virtualDeviceTypes = []deviceType{
 	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"},
 	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"},
 	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"},
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"},
 	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"},
 	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"},
 }
 
 // virtualDeviceMachineType is a map of virtual machines to their expected machine type requirement.
 var virtualDeviceMachineType = map[deviceType]string{
-	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-8",
-	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-8",
-	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-16",
-	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-8",
-	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-8",
+	{Vendor: opb.Device_ARISTA, HardwareModel: "cEOS"}:        "e2-standard-16",
+	{Vendor: opb.Device_CISCO, HardwareModel: "8000E"}:        "n2-standard-32",
+	{Vendor: opb.Device_CISCO, HardwareModel: "XRd"}:          "e2-standard-16",
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "cPTX"}:       "n2-standard-32",
+	{Vendor: opb.Device_JUNIPER, HardwareModel: "ncPTX"}:      "e2-standard-16",
+	{Vendor: opb.Device_NOKIA, HardwareModel: "SR Linux"}:     "e2-standard-16",
+	{Vendor: opb.Device_OPENCONFIG, HardwareModel: "Lemming"}: "e2-standard-16",
 }
 
 // physicalDeviceTypes is a list of device types that can execute tests on real hardware.
