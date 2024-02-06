@@ -448,6 +448,7 @@ tests:
     mustpass: true
     priority: 53
     skip: false
+    pr: 2623
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
