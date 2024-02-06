@@ -18,9 +18,17 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
         example -10 dBm.
       * Both transceivers are tuned to a valid centre frequency
         example 193.1 THz.
-*   With the ZR link established as explained above, verify that the
-    following ZR transceiver telemetry paths exist and are streamed for both
-    the ZR optics.
+
+## Testbed Type
+*   Typical test setup for this test is a DUT1 with 2 ports to 2 ATE ports or 2
+    ports to a second DUT2. For most tests this setup should be sufficient.
+    Ref: [Typical ATE<>DUT Test bed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+*   A and Z ends of  the link should have same 400ZR PMD. For this test a
+    single DUT ZR port connected to a single ZR ATE port is also sufficient. 
+
+Once the ZR link is estabished proceed with the following:
+*  verify that the following ZR transceiver telemetry paths exist and are
+   streamed for both the ZR optics.
     *   /components/component/transceiver/state/supply-voltage/instant
     *   /components/component/transceiver/state/supply-voltage/min
     *   /components/component/transceiver/state/supply-voltage/max
