@@ -1,4 +1,4 @@
-# RT-2.2: BGP Policy AS Path Set
+# RT-7.3: BGP Policy AS Path Set
 
 ## Summary
 
@@ -6,7 +6,7 @@ BGP policy configuration for AS Paths and Community Sets
 
 ## Procedure
 
-* RT-2.2.1 - Test setup
+* RT-7.3.1 - Test setup
   * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1
 
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1
@@ -23,7 +23,7 @@ BGP policy configuration for AS Paths and Community Sets
   * Generate traffic from ATE port-2 to all prefixes
   * Validate that traffic is received on ATE port-1 for all installed prefixes
 
-* RT-2.2.2 - Configure as-path-sets
+* RT-7.3.2 - Configure as-path-sets
   * Configure DUT with the following routing policies
     * Create the following /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/
       * Create as-path-set-name = "my_3_aspaths" with members
