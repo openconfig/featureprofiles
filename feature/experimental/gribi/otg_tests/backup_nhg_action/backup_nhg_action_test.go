@@ -1,3 +1,17 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package backup_nhg_action_test
 
 import (
@@ -27,7 +41,6 @@ const (
 	ipv6PrefixLen      = 126
 	mask               = "32"
 	outerDstIP1        = "198.51.100.1"
-	outerSrcIP1        = "198.51.100.2"
 	outerDstIP2        = "203.0.113.1"
 	outerSrcIP2        = "203.0.113.2"
 	innerDstIP1        = "198.18.0.1"
@@ -62,7 +75,6 @@ const (
 	ipOverIPProtocol   = 4
 	srcTrackingName    = "ipSrcTracking"
 	dstTrackingName    = "ipDstTracking"
-	vrfPolW            = "vrf_selection_policy_w"
 	decapFlowSrc       = "198.51.100.111"
 	dscpEncapA1        = 10
 )
@@ -267,14 +279,14 @@ func TestBackupNHGAction(t *testing.T) {
 			fn:   testBackupDecap,
 		},
 		{
-			name: "testDecapEncap",
-			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
-			fn:   testDecapEncap,
-		},
-		{
 			name: "testBackupDecapWithVrfPolW",
 			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap with vrf policy W",
 			fn:   testBackupDecapWithVrfPolW,
+		},
+		{
+			name: "testDecapEncap",
+			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
+			fn:   testDecapEncap,
 		},
 		{
 			name: "testDecapEncapWithVrfPolW",
@@ -481,12 +493,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testBackupDecapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 	testBackupDecap(ctx, t, args)
 }
 
 func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 	testDecapEncap(ctx, t, args)
 }
 
@@ -584,29 +596,4 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
 		}
 	}
-}
-
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	p1 := dut.Port(t, "port1")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrfA).Interface(p1.Name()).Config())
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
 }
