@@ -13,21 +13,22 @@ OPTICAL_CHANNEL. For 400ZR 1x400GE mode this heirarchy looks like:
 Purpose of this test is to verify the logical channel provisioning and related
 telemetry.
 
-**Note**: Typical test setup is a DUT1 with 2 ports to 2 ATE ports or 2 ports
-to a second DUT2. For most tests this setup should be sufficient.     
-Ref: [Typical ATE<>DUT Test bed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
-
 ## Procedure
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
-    output power of one is the RX input power of the other module. The A and Z
-    ends of the link should be the same 400ZR PMD. Optics can be connected
-    through passive patch panels or an optical switch as needed, as long as the
-    overall link loss budget is kept under 2 - 3 dB. There is no requirement to
-    deploy a separate line system for the functional tests.
-*   Establish a point to point ZR link between DUT port 1 and ATE port 1. Both
-    A and Z ends of  the link should have same 400ZR PMD. Once estabished
-    configure the following entities:
+    output power of one is the RX input power of the other module. Optics can be
+    connected through passive patch panels or an optical switch as needed, as
+    long as the overall link loss budget is kept under 2 - 3 dB. There is no
+    requirement to deploy a separate line system for the functional tests.
+
+## Testbed Type
+*   Typical test setup for this test is a DUT1 with 2 ports to 2 ATE ports or 2
+    ports to a second DUT2. For most tests this setup should be sufficient.
+    Ref: [Typical ATE<>DUT Test bed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+*   A and Z ends of  the link should have same 400ZR PMD. For this test a
+    single DUT ZR port connected to a single ZR ATE port is also sufficient. 
+
+Once the ZR link is estabished proceed to configure the following entities:
 
 ### TRANSCEIVER 11.1 - Test Optical Channel and Tunable Parameters
 *   Ensure optical channel related tunable parameters are set through the
