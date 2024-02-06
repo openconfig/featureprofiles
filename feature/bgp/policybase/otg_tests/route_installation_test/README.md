@@ -15,7 +15,7 @@ Base BGP policy configuration and route installation.
         *   Default accept for policies.
         *   Default deny for policies.
         *   Explicitly specifying local preference.
-        *   TODO: Explicitly specifying MED value.
+        *   Explicitly specifying MED value.
         *   Explicitly prepending AS for advertisement with a specified AS
             number.
         *   as-path with match-set-options ANY
