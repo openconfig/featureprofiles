@@ -85,14 +85,14 @@ Once the ZR link is estabished proceed with the following:
 
     *   Verify the ZR optics TX output power telemetry values are updated to
         the value in the normal range again.
-        * Typical min/max value range for TX Output Power -13 to -9 dbm.
-        * values must always be of type decimal64.
-        * When link interfaces are in down state 0 must be reported as a valid
-          value.
+        *  Typical min/max value range for TX Output Power -13 to -9 dbm.
+        *  values must always be of type decimal64.
+        *  When link interfaces are in down state 0 must be reported as a valid
+           value.
 
     *   When the modules or the devices are still in a boot stage, they must not
-    stream any invalid string values like "nil" or "-inf" until valid values
-    are available for streaming.
+        stream any invalid string values like "nil" or "-inf" until valid values
+        are available for streaming.
 
 ## Config Parameter coverage
 
