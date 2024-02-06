@@ -12,7 +12,7 @@ launch power and operational mode and verify corresponding telemetry values.
   in steps of 1 dB.
 * Verify  that the ZR module Host Interface ID and Media Interface ID
   combination to ZR module AppSel mapping can be configured through the OC
-  Operatioanl-Mode. operational-mode is a construct in OpenConfig that masks
+  `operational-mode`. `operational-mode` is a construct in OpenConfig that masks
   features related to line port transmission. OC operational modes provides a
   platform-defined summary of information such as symbol rate, modulation,
   pulse shaping, etc.
