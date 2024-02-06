@@ -75,9 +75,6 @@ func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	setMedBGP := actions5.GetOrCreateBgpActions()
 	setMedBGP.SetMed = oc.UnionUint32(bgpMED)
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
-		actions5.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED)
-	}
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
