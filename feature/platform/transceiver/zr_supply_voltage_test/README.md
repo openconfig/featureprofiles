@@ -56,7 +56,7 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 
 ## Telemetry Parameter coverage
 
-*   /platform/components/component/state/supply-voltage/instant
-*   /platform/components/component/state/supply-voltage/min
-*   /platform/components/component/state/supply-voltage/max
-*   /platform/components/component/state/supply-voltage/avg
+    *   /components/component/transceiver/state/supply-voltage/instant
+    *   /components/component/transceiver/state/supply-voltage/min
+    *   /components/component/transceiver/state/supply-voltage/max
+    *   /components/component/transceiver/state/supply-voltage/avg
