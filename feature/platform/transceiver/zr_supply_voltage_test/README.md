@@ -21,10 +21,10 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 *   With the ZR link established as explained above, verify that the
     following ZR transceiver telemetry paths exist and are streamed for both
     the ZR optics.
-    *   /platform/components/component/state/supply-voltage/instant
-    *   /platform/components/component/state/supply-voltage/min
-    *   /platform/components/component/state/supply-voltage/max
-    *   /platform/components/component/state/supply-voltage/avg
+    *   /components/component/transceiver/state/supply-voltage/instant
+    *   /components/component/transceiver/state/supply-voltage/min
+    *   /components/component/transceiver/state/supply-voltage/max
+    *   /components/component/transceiver/state/supply-voltage/avg
 *   For reported data check for validity min <= avg/instant <= max
 
 *   If the modules or the devices are in a boot stage, they must not stream
