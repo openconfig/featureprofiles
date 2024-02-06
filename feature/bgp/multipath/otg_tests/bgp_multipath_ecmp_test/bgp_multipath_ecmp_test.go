@@ -177,7 +177,7 @@ func TestBGPSetup(t *testing.T) {
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
 				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
 			}
-			if tc.enableMultiAS {
+			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 				gEBGP.AllowMultipleAs = ygot.Bool(true)
 			}
 
