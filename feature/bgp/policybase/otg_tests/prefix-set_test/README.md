@@ -4,7 +4,11 @@
 
 BGP policy configuration with prefix-set matching
 
-Procedure
+## Testbed type
+
+*   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
+
+## Procedure
 Establish eBGP sessions between:
 	•	ATE port-1 and DUT port-1
 	•	ATE port-2 and DUT port-2
@@ -25,7 +29,7 @@ For IPv4 and IPv6:
 	•	Validate that the prefixes are accepted after policy application.
 	•	DUT conditionally advertises prefixes received from ATE port-1 to ATE port-2 after policy application. Ensure that multiple routes are accepted and advertised to the neighbor on ATE port-2.
 
-Config Parameter Coverage
+## Config Parameter Coverage
 /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
 /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
 /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
@@ -39,7 +43,7 @@ Config Parameter Coverage
 /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
 /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
-Telemetry Parameter coverage
+## Telemetry Parameter coverage
 N/A
 Protocol/RPC Parameter coverage
 N/A
