@@ -278,6 +278,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.31"
+  description: "BGP 3 levels of nested import/export policy with match-set-options"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/3level_nested_policies/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.32"
   description: "BGP policy actions - MED, LocPref, prepend, flow-control"
   readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
