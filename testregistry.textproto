@@ -206,24 +206,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.17"
-  description: "RT-1.17: BGP Link Bandwidth Community Forwarding"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-1.18"
-  description: "RT-1.18: BGP Link Bandwidth Community - Aggregation"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-1.19"
-  description: "RT-1.19: BGP Link Bandwidth Community - Set Bandwidth"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn/README.md"
-  exec: " "
-}
-test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
@@ -350,25 +332,6 @@ test: {
   readme: ""
   exec: " "
 }
-test: {
-  id: "RT-2.2"
-  description: "BGP Policy AS Path Set"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.3"
-  description: "BGP Policy Community Set"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.4"
-  description: "BGP Policy AS Path Set and Community Set"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
-  exec: " "
-}
-
 test: {
   id: "RT-2.6"
   description: "IS-IS Hello-Padding  enabled at interface level"
@@ -502,9 +465,57 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7"
+  id: "RT-7.1"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.2"
+  description: "BGP Policy Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.3"
+  description: "BGP Policy AS Path Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.4"
+  description: "BGP Policy AS Path Set and Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.5"
+  description: "RT-7.5: BGP Link Bandwidth Community Forwarding"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-7.6"
+  description: "RT-7.6: BGP Link Bandwidth Community - Aggregation"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-7.7"
+  description: "RT-7.7: BGP Link Bandwidth Community - Set Bandwidth"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.8"
+  description: "RT-7.8: BGP Policy - Ext Community Matching"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.9"
+  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
+  readme: " "
   exec: " "
 }
 test: {
