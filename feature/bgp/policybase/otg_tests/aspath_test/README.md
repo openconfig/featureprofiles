@@ -57,7 +57,7 @@ BGP policy configuration for AS Paths and Community Sets
         * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
         * actions/config/policy-result = ACCEPT_ROUTE
 
-* RT-2.2.7 - Replace /routing-policy DUT config 
+* RT-7.3.3 - Replace /routing-policy DUT config 
   * For each DUT policy-definition
     * Replace the configuration for BGP neighbor policy (`.../apply-policy/config/import-policy`) to the currently tested policy
       * Verify prefixes sent, received and installed are as expected
