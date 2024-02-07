@@ -425,9 +425,8 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config) {
 // createGracefulRestartAction create a bgp control action for initiating the graceful restart process
 func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay uint32) gosnappi.ControlAction {
 	t.Helper()
-	grAction := gosnappi.NewControlAction().SetChoice(gosnappi.ControlActionChoice.PROTOCOL)
-	grAction.Protocol().SetChoice(gosnappi.ActionProtocolChoice.BGP).Bgp().
-		SetChoice(gosnappi.ActionProtocolBgpChoice.INITIATE_GRACEFUL_RESTART).InitiateGracefulRestart().
+	grAction := gosnappi.NewControlAction()
+	grAction.Protocol().Bgp().InitiateGracefulRestart().
 		SetPeerNames(peerNames).SetRestartDelay(restartDelay)
 	return grAction
 }
@@ -576,7 +575,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	nbrList := buildNbrList(ateAS)
 	dutConf := bgpWithNbr(dutAS, nbrList, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Log("Start ATE Config")
