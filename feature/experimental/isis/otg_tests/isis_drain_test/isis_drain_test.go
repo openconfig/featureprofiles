@@ -213,18 +213,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// handle deviations for ports and lags
-	if deviations.ExplicitPortSpeed(dut) {
-		for _, port := range dut.Ports() {
-			fptest.SetPortSpeed(t, port)
-		}
-	}
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, agg2ID, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, agg3ID, deviations.DefaultNetworkInstance(dut), 0)
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		for _, port := range dut.Ports() {
+			fptest.SetPortSpeed(t, port)
+		}
 	}
 
 	// configure ISIS
@@ -476,8 +476,9 @@ func TestDrain(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
-	ateTopo := configureATE(t, otg)
+
 	configureDUT(t, dut)
+	ateTopo := configureATE(t, otg)
 
 	ecmpFlows := createFlow(t, ateTopo, "ecmp-flow", atePort2.Name+".IPv4", atePort3.Name+".IPv4")
 	lag2Flow := createFlow(t, ateTopo, "trunk2-flow", atePort2.Name+".IPv4")
