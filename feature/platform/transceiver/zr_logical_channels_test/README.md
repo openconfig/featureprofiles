@@ -65,7 +65,7 @@ Once the ZR link is estabished proceed to configure the following entities:
     * admin-state: ENABLED
     * description: ETH Logical Channel
     * index: 40000 (unique integer value)
-*   Not that each logical-channel created above must be assigned an integer value that
+*   Note that each logical-channel created above must be assigned an integer value that
     is unique across the system.
 
 ### TRANSCEIVER 11.3 - Test Coherent Logical Channels 
@@ -95,7 +95,7 @@ Once the ZR link is estabished proceed to configure the following entities:
   below under Telemetry Parameter coverage heading.
 
 **Note**: There are other telemetry and config leaves related to optical and
-          logical channelsthat are covered under separately published tests
+          logical channels that are covered under separately published tests
           under platforms/transceiver.
 
 ## Config Parameter coverage
