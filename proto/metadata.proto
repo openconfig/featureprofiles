@@ -36,6 +36,7 @@ message Metadata {
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
+    TESTBED_DUT_ATE_8LINKS = 7;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -401,6 +402,9 @@ message Metadata {
     // Devices does not support bgp max multipaths
     // Juniper: b/319301559
     bool bgp_max_multipath_paths_unsupported = 140;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 

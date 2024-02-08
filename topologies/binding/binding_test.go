@@ -16,6 +16,7 @@ package binding
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -225,11 +227,8 @@ func TestReservation_Error(t *testing.T) {
 func TestDialOTGTimeout(t *testing.T) {
 	const timeoutSecs = 42
 	a := &staticATE{
-		AbstractATE: &binding.AbstractATE{Dims: &binding.Dims{Name: "my_ate"}},
-		r:           resolver{&bindpb.Binding{}},
-		dev: &bindpb.Device{Otg: &bindpb.Options{
-			Timeout: timeoutSecs,
-		}},
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Otg: &bindpb.Options{Timeout: timeoutSecs}},
 	}
 	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, nil
@@ -255,4 +254,37 @@ type captureAPI struct {
 func (a *captureAPI) NewGrpcTransport() gosnappi.GrpcTransport {
 	a.gotTransport = a.Api.NewGrpcTransport()
 	return a.gotTransport
+}
+
+func TestDialer(t *testing.T) {
+	const (
+		wantDevName = "mydev"
+		wantDevPort = 1234
+	)
+	fakeSvc := introspect.Service("fake")
+	dutSvcParams[fakeSvc] = &svcParams{
+		port:   wantDevPort,
+		optsFn: func(d *bindpb.Device) *bindpb.Options { return nil },
+	}
+	d := &staticDUT{
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Name: wantDevName},
+	}
+
+	dialer, err := d.Dialer(fakeSvc)
+	if err != nil {
+		t.Fatalf("Dialer() got err: %v", err)
+	}
+	if dialer.DevicePort != wantDevPort {
+		t.Errorf("Dialer() got DevicePort %v, want %v", dialer.DevicePort, wantDevPort)
+	}
+	if dialer.DialFunc == nil {
+		t.Errorf("Dialer() got nil DialFunc, want non-nil DialFunc")
+	}
+	if len(dialer.DialOpts) == 0 {
+		t.Errorf("Dialer() got empty DialOpts, want non-empty DialOpts")
+	}
+	if wantTarget := fmt.Sprintf("%v:%v", wantDevName, wantDevPort); dialer.DialTarget != wantTarget {
+		t.Errorf("Dialer() got Target %v, want %v", dialer.DialTarget, wantTarget)
+	}
 }
