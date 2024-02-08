@@ -514,7 +514,7 @@ test: {
 }
 test: {
   id: "RT-7.9"
-  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
+  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Extended Communities"
   readme: " "
   exec: " "
 }
