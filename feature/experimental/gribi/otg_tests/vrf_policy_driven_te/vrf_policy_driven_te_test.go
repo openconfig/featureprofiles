@@ -85,7 +85,6 @@ const (
 	gribiIPv6EntryEncapVRF  = "2001:db8::138:0:11:0"
 	ipv4OuterDst111         = "192.51.100.64"
 	ipv4OuterSrc111         = "198.51.100.111"
-	ipv4OuterDst333         = "192.58.200.7"
 	ipv4OuterSrc222         = "198.51.100.222"
 	ipv4OuterSrc333         = "198.100.200.123"
 	prot4                   = 4
@@ -628,14 +627,13 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowValues.flowName)
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{flowValues.srcPort.Name + ".IPv4"})
-	for _, dstPort := range flowValues.dstPortList {
-		flow.TxRx().Device().SetRxNames([]string{dstPort.Name + ".IPv4"})
-	}
+	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"})
+	flow.TxRx().Device().SetRxNames([]string{"atePort2.IPv4", "atePort3.IPv4", "atePort4.IPv4",
+		"atePort5.IPv4", "atePort6.IPv4", "atePort7.IPv4", "atePort8.IPv4"})
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(100)
 	flow.Duration().Continuous()
-	flow.Packet().Add().Ethernet().Src().SetValue(flowValues.srcPort.MAC)
+	flow.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
 	// Outer IP header
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
@@ -793,14 +791,16 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(2).AddNextHop(3, 1).WithBackupNHG(1001),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
-			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
+			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(5).WithIPAddress(gribiIPv4EntryDefVRF5),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(4).AddNextHop(5, 1).WithBackupNHG(1001),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
-			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
+			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -827,14 +827,16 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(1000),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1),
+			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(3).AddNextHop(4, 1).WithBackupNHG(1002),
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3),
+			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -873,11 +875,37 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 			WithIPinIP(ipv4OuterSrc111, gribiIPv4EntryVRF1112).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(102).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(200),
+			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(200),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(102),
+			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix(gribiIPv6EntryEncapVRF+"/"+maskLen126).WithNextHopGroup(102),
+			WithPrefix(gribiIPv6EntryEncapVRF+"/"+maskLen126).WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+
+	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation(gribiIPv4EntryEncapVRF+"/24").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(102).AddNextHop(101, 3).AddNextHop(102, 1).WithBackupNHG(200),
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfB).
+			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfB).
+			WithPrefix(gribiIPv6EntryEncapVRF+"/"+maskLen126).WithNextHopGroup(102).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -900,7 +928,8 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(60).AddNextHop(60, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix("0.0.0.0/0").WithNextHopGroup(60),
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(60).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -917,7 +946,8 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(61).AddNextHop(61, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfB).
-			WithPrefix("0.0.0.0/0").WithNextHopGroup(61),
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(61).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -940,25 +970,12 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
 			WithPrefix(prefWithMask).WithNextHopGroup(1001),
 	)
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(51).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(51).AddNextHop(51, 1),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix("0.0.0.0/0").WithNextHopGroup(51),
-	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
 
 	chk.HasResult(t, args.client.Results(t),
 		fluent.OperationResult().WithIPv4Operation(prefWithMask).WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
@@ -974,15 +991,6 @@ func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *onda
 		)
 	}
 
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(53).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(53).AddNextHop(53, 1),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix("0.0.0.0/0").WithNextHopGroup(53),
-	)
-
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
@@ -994,12 +1002,6 @@ func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *onda
 			chk.IgnoreOperationID(),
 		)
 	}
-
-	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
-			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
-		chk.IgnoreOperationID(),
-	)
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -1401,23 +1403,11 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, out
 	}
 } */
 
-func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix, nexthop, niName string) {
-	t.Helper()
-	ni := oc.NetworkInstance{Name: ygot.String(niName)}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-}
-
 type flowArgs struct {
 	flowName                     string
 	outHdrSrcIP, outHdrDstIP     string
 	InnHdrSrcIP, InnHdrDstIP     string
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
-	srcPort                      attrs.Attributes
-	dstPortList                  []attrs.Attributes
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
 	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
@@ -1464,15 +1454,15 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
 			// VRF that matches the inner IP address.
 			portList := []string{"port8"}
-			dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 			t.Run("Create ip-in-ip and ipv6-in-ip flows, send traffic and verify decap functionality",
 				func(t *testing.T) {
 
-					flow1 := createFlow(&flowArgs{flowName: flow4in4, srcPort: atePort1, dstPortList: dstPorts,
+					flow1 := createFlow(&flowArgs{flowName: flow4in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapNoMatch},
 						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
 
-					flow2 := createFlow(&flowArgs{flowName: flow6in4, srcPort: atePort1, dstPortList: dstPorts,
+					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
@@ -1482,17 +1472,18 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						outDstIP: []string{ipv4OuterDst111}, inHdrIP: ipv4InnerDst, validateTTL: true, validateDecap: true})
 				})
 
-			// Test with packets with a destination address such as 192.58.200.7(ipv4OuterDst333) that does not match
+			// Test with packets with a destination address that does not match
 			// the decap route, and verify that such packets are not decapped.
+			portList = []string{"port4"}
 			t.Run("Send traffic to non decap route and verify the behavior",
 				func(t *testing.T) {
-					flow3 := createFlow(&flowArgs{flowName: flowNegTest, srcPort: atePort1, dstPortList: dstPorts,
-						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst333, isInnHdrV4: true,
+					flow3 := createFlow(&flowArgs{flowName: flowNegTest,
+						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, isInnHdrV4: true,
 						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst})
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow3})
 					verifyTraffic(t, args, []string{flowNegTest}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-						outDstIP: []string{ipv4OuterDst333}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
+						outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
 				})
 		})
 	}
@@ -1536,15 +1527,15 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 			// v4 header stripped and are forwarded according to the route in the DEFAULT
 			// VRF that matches the inner IP address.
 			portList := []string{"port8"}
-			dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
+			//dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 			t.Run("Create ip-in-ip and ipv6-in-ip flows, send traffic and verify decap functionality",
 				func(t *testing.T) {
 
-					flow1 := createFlow(&flowArgs{flowName: flow4in4, srcPort: atePort1, dstPortList: dstPorts,
+					flow1 := createFlow(&flowArgs{flowName: flow4in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
 						InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDstNoEncap, isInnHdrV4: true})
 
-					flow2 := createFlow(&flowArgs{flowName: flow6in4, srcPort: atePort1, dstPortList: dstPorts,
+					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDstNoEncap, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapA1}})
 
@@ -1584,17 +1575,16 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	// v4 header stripped and are forwarded according to the route in the DEFAULT
 	// VRF that matches the inner IP address.
 	portList := []string{"port8"}
-	dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-	flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+	flow1 := createFlow(&flowArgs{flowName: "flow1",
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, outHdrDscp: []uint32{dscpEncapNoMatch},
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
 
-	flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+	flow2 := createFlow(&flowArgs{flowName: "flow2",
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIPv6: atePort1.IPv6,
 		InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
-	flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+	flow3 := createFlow(&flowArgs{flowName: "flow3",
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP3, InnHdrSrcIP: atePort1.IPv4,
 		InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
@@ -1603,15 +1593,19 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 		outDstIP: []string{traffiDstIP1}, inHdrIP: ipv4InnerDst, validateTTL: false, validateDecap: true})
 
+	// Test with packets with a destination address that does not match
+	// the decap route, and verify that such packets are not decapped.
+	portList = []string{"port4"}
 	t.Run("Send traffic to non decap route and verify the behavior", func(t *testing.T) {
-		flow4 := createFlow(&flowArgs{flowName: flowNegTest, srcPort: atePort1, dstPortList: dstPorts,
-			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst333, isInnHdrV4: true,
+		flow4 := createFlow(&flowArgs{flowName: flowNegTest,
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, isInnHdrV4: true,
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst})
 		sendTraffic(t, args, portList, []gosnappi.Flow{flow4})
 		verifyTraffic(t, args, []string{flowNegTest}, !wantLoss)
 		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-			outDstIP: []string{ipv4OuterDst333}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
+			outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
 	})
+
 }
 
 // testTunnelTrafficNoDecap is validate Test-4: Tunneled traffic with no decap:
@@ -1633,13 +1627,12 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 	// Below code will be uncommented once ixia issue is fixed.
 	/*
 		portList := []string{"port2"}
-		dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-		flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+		flow1 := createFlow(&flowArgs{flowName: "flow1",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
-		flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+		flow2 := createFlow(&flowArgs{flowName: "flow2",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: gribiIPv4EntryVRF1111, InnHdrSrcIPv6: atePort1.IPv6, inHdrDscp: []uint32{dscpEncapA1},
 			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapA1}})
 
@@ -1659,11 +1652,11 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 		}
 		validateTrafficDistribution(t, args.ate, wantWeights)
 
-		flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+		flow3 := createFlow(&flowArgs{flowName: "flow3",
 			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true})
 
-		flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
+		flow4 := createFlow(&flowArgs{flowName: "flow4",
 			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: gribiIPv4EntryVRF2221, InnHdrSrcIPv6: atePort1.IPv6,
 			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, outHdrDscp: []uint32{dscpEncapNoMatch, dscpEncapB1}})
 
@@ -1702,13 +1695,12 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 	configGribiBaselineAFT(ctx, t, dut, args)
 
 	portList := []string{"port8"}
-	dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-	flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+	flow1 := createFlow(&flowArgs{flowName: "flow1",
 		outHdrSrcIP: ipv4OuterSrc333, outHdrDstIP: ipv4InnerDst,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
 
-	flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+	flow2 := createFlow(&flowArgs{flowName: "flow2",
 		outHdrSrcIP: ipv4OuterSrc333, outHdrDstIP: ipv4InnerDst, InnHdrSrcIPv6: atePort1.IPv6,
 		InnHdrDstIPv6: ipv6InnerDst2, isInnHdrV4: false})
 
@@ -1726,11 +1718,11 @@ func testTunnelTrafficMatchDefaultTerm(ctx context.Context, t *testing.T, dut *o
 		t.Error("Traffic did not egressed through Default VRF")
 	}
 
-	flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+	flow3 := createFlow(&flowArgs{flowName: "flow3",
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4InnerDst, proto: 17, udp: true,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
 
-	flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
+	flow4 := createFlow(&flowArgs{flowName: "flow4",
 		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4InnerDst, proto: 17, udp: true,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst2, isInnHdrV4: true})
 
@@ -1778,13 +1770,12 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	// Below code will be uncommented once ixia issue is fixed.
 	/*
 		portList := []string{"port2"}
-		dstPorts := []attrs.Attributes{atePort2, atePort3, atePort4, atePort5, atePort6, atePort7, atePort8}
 
-		flow1 := createFlow(&flowArgs{flowName: "flow1", srcPort: atePort1, dstPortList: dstPorts,
+		flow1 := createFlow(&flowArgs{flowName: "flow1",
 			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
-		flow2 := createFlow(&flowArgs{flowName: "flow2", srcPort: atePort1, dstPortList: dstPorts,
+		flow2 := createFlow(&flowArgs{flowName: "flow2",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
 			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, udp: true, inHdrDscp: []uint32{dscpEncapA1}})
 
@@ -1805,11 +1796,11 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 		}
 		validateTrafficDistribution(t, args.ate, wantWeights)
 
-		flow3 := createFlow(&flowArgs{flowName: "flow3", srcPort: atePort1, dstPortList: dstPorts,
+		flow3 := createFlow(&flowArgs{flowName: "flow3",
 			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapB1}})
 
-		flow4 := createFlow(&flowArgs{flowName: "flow4", srcPort: atePort1, dstPortList: dstPorts,
+		flow4 := createFlow(&flowArgs{flowName: "flow4",
 			outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
 			InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, udp: true, inHdrDscp: []uint32{dscpEncapB1}})
 
@@ -1877,11 +1868,6 @@ func TestGribiDecap(t *testing.T) {
 
 	verifyISISTelemetry(t, dut, dut.Port(t, "port8").Name())
 	verifyBgpTelemetry(t, dut)
-
-	negTestAddr := fmt.Sprintf("%s/%d", ipv4OuterDst333, uint32(32))
-	t.Run("Add static route for validating negative traffic test", func(t *testing.T) {
-		configStaticRoute(t, dut, negTestAddr, atePort8.IPv4, niDefault)
-	})
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.

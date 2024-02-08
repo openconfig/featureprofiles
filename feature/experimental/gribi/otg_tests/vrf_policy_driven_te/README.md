@@ -555,8 +555,6 @@ The DUT should be reset to the baseline after each of the following tests.
     NH#1001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
-    ```
-    Install 0/0 route in TE_VRF_111. 
     
     ```
 
@@ -588,7 +586,7 @@ The DUT should be reset to the baseline after each of the following tests.
 
 6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are decapped and forwarded correctly.
 
-7.  Repeat the test with packets with a destination address 192.58.200.7 that does not match the decap entry, and verify that such packets are not decapped.
+7.  Repeat the test with packets with a destination address that does not match the decap entry, and verify that such packets are not decapped.
 
 #### Test-2, match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT
 
@@ -652,10 +650,6 @@ Support for decap actions with mixed prefixes installed through gRIBI
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
-    Install 0/0 route in TE_VRF_111.
-
-    ```    
-
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
 
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
@@ -688,7 +682,7 @@ Support for decap actions with mixed prefixes installed through gRIBI
 
 4.  Verify that the packets have their outer v4 header stripped, and are forwarded according to the route in the DEFAULT VRF that matches the inner IP address.
 
-5.  Repeat the test with packets with a destination address 192.58.200.7 such as that does not match the decap route, and verify that such packets are not decapped.
+5.  Repeat the test with packets with a destination address that does not match the decap route, and verify that such packets are not decapped.
 
 #### Test-4: Tunneled traffic with no decap
 
@@ -699,7 +693,7 @@ Ensures that tunneled traffic is correctly forwarded when there is no match in t
     *   The outer v4 header has the destination address 203.0.113.1.
     *   The outer v4 header has the source address ipv4_outer_src_111.
     *   The outer v4 header has DSCP value has `dscp_encap_no_match` and `dscp_encap_match`
-3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
+3.  We should expect that all egress packets (100%) are IPinIP encapped with 203.0.113.1 as the outer header, and egress on DUT port-2, port-3 and port-4 per the hierarchical weight.
 4.  Send 4in4 (IP protocol 4) and 6in4 (IP protocol 41) packets to DUT port-2 where
     *   The outer v4 header has the destination address 203.0.113.100.
     *   The outer v4 header has the source address ipv4_outer_src_222.
