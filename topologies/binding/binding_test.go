@@ -227,11 +227,8 @@ func TestReservation_Error(t *testing.T) {
 func TestDialOTGTimeout(t *testing.T) {
 	const timeoutSecs = 42
 	a := &staticATE{
-		AbstractATE: &binding.AbstractATE{Dims: &binding.Dims{Name: "my_ate"}},
-		r:           resolver{&bindpb.Binding{}},
-		dev: &bindpb.Device{Otg: &bindpb.Options{
-			Timeout: timeoutSecs,
-		}},
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Otg: &bindpb.Options{Timeout: timeoutSecs}},
 	}
 	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, nil
@@ -270,9 +267,8 @@ func TestDialer(t *testing.T) {
 		optsFn: func(d *bindpb.Device) *bindpb.Options { return nil },
 	}
 	d := &staticDUT{
-		AbstractDUT: &binding.AbstractDUT{Dims: &binding.Dims{}},
-		r:           resolver{&bindpb.Binding{}},
-		dev:         &bindpb.Device{Name: wantDevName},
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Name: wantDevName},
 	}
 
 	dialer, err := d.Dialer(fakeSvc)
