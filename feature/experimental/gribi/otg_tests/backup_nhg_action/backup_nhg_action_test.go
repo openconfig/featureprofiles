@@ -1,3 +1,17 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package backup_nhg_action_test
 
 import (
@@ -18,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
 )
 
@@ -26,14 +41,13 @@ const (
 	ipv6PrefixLen      = 126
 	mask               = "32"
 	outerDstIP1        = "198.51.100.1"
-	outerSrcIP1        = "198.51.100.2"
 	outerDstIP2        = "203.0.113.1"
 	outerSrcIP2        = "203.0.113.2"
 	innerDstIP1        = "198.18.0.1"
 	innerSrcIP1        = "198.18.0.255"
 	vip1               = "198.18.1.1"
 	vip2               = "198.18.1.2"
-	vrfA               = "VRF-A"
+	vrfA               = "TE_VRF_111"
 	vrfB               = "VRF-B"
 	vrfC               = "VRF-C"
 	nh1ID              = 1
@@ -50,17 +64,19 @@ const (
 	nhg103ID           = 103
 	nh104ID            = 104
 	nhg104ID           = 104
-	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 6 bits of src 198.51.100.2
-	baseDstFlowFilter  = "0x31" // hexadecimal value of first 6 bits of dst 198.51.100.1
-	encapSrcFlowFilter = "0x02" // hexadecimal value of last 6 bits of src 203.0.113.2
-	encapDstFlowFilter = "0x32" // hexadecimal value of first 6 bits of dst 203.0.113.1
-	decapSrcFlowFliter = "0x3f" // hexadecimal value of last 6 bits of src 198.18.0.255
-	decapDstFlowFliter = "0x31" // hexadecimal value of first 6 bits of dst 198.18.0.1
+	baseSrcFlowFilter  = "0x0f" // hexadecimal value of last 5 bits of src 198.51.100.111
+	baseDstFlowFilter  = "0x18" // hexadecimal value of first 5 bits of dst 198.51.100.1
+	encapSrcFlowFilter = "0x02" // hexadecimal value of last 5 bits of src 203.0.113.2
+	encapDstFlowFilter = "0x19" // hexadecimal value of first 5 bits of dst 203.0.113.1
+	decapSrcFlowFliter = "0x1f" // hexadecimal value of last 5 bits of src 198.18.0.255
+	decapDstFlowFliter = "0x18" // hexadecimal value of first 5 bits of dst 198.18.0.1
 	ethernetCsmacd     = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	policyID           = "match-ipip"
 	ipOverIPProtocol   = 4
 	srcTrackingName    = "ipSrcTracking"
 	dstTrackingName    = "ipDstTracking"
+	decapFlowSrc       = "198.51.100.111"
+	dscpEncapA1        = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -183,7 +199,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-
 }
 
 // addStaticRoute configures static route.
@@ -228,8 +243,7 @@ func TestBackupNHGAction(t *testing.T) {
 		configureDUT(t, dut)
 	}
 
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	configureNetworkInstance(t, dut)
 
 	// For interface configuration, Arista prefers config Vrf first then the IP address
@@ -265,9 +279,19 @@ func TestBackupNHGAction(t *testing.T) {
 			fn:   testBackupDecap,
 		},
 		{
+			name: "testBackupDecapWithVrfPolW",
+			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap with vrf policy W",
+			fn:   testBackupDecapWithVrfPolW,
+		},
+		{
 			name: "testDecapEncap",
 			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
 			fn:   testDecapEncap,
+		},
+		{
+			name: "testDecapEncapWithVrfPolW",
+			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap with vrf policy W",
+			fn:   testDecapEncapWithVrfPolW,
 		},
 	}
 	// Configure the gRIBI client
@@ -327,23 +351,19 @@ func testBackupDecap(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("Create flows with dst %s for each path", outerDstIP1)
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow", &atePort2)
 	decapFlow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
+	updateFlows(t, args.ate, []gosnappi.Flow{baseFlow, decapFlow})
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Log("Validate primary path traffic recieved ate port2 and no traffic on decap flow/port4")
 		validateTrafficFlows(t, args.ate, []gosnappi.Flow{baseFlow}, []gosnappi.Flow{decapFlow}, baseSrcFlowFilter, baseDstFlowFilter)
 	})
 	t.Log("Shutdown Port2")
 	p2 := args.dut.Port(t, "port2")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, p2, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction := gosnappi.NewControlState()
+	linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -425,6 +445,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	baseFlow := createFlow(t, args.ate, args.top, "BaseFlow", &atePort2)
 	encapFLow := createFlow(t, args.ate, args.top, "DecapEncapFlow", &atePort3)
 	decapFLow := createFlow(t, args.ate, args.top, "DecapFlow", &atePort4)
+	updateFlows(t, args.ate, []gosnappi.Flow{baseFlow, encapFLow, decapFLow})
 
 	t.Run("ValidatePrimaryPath", func(t *testing.T) {
 		t.Logf("Validate Primary path traffic recieved on port 2 and no traffic on other flows/ate ports")
@@ -432,18 +453,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port2")
-	dutP2 := args.dut.Port(t, "port2")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort2, dutP2, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction := gosnappi.NewControlState()
+	linkState := portStateAction.Port().Link().SetPortNames([]string{"port2"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port2 status if down")
 	gnmi.Await(t, args.dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
@@ -457,18 +472,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 
 	t.Log("Shutdown Port3")
-	dutP3 := args.dut.Port(t, "port3")
-	if deviations.ATEPortLinkStateOperationsUnsupported(args.ate) {
-		setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, false)
-		defer setDUTInterfaceWithState(t, args.dut, &dutPort3, dutP3, true)
-	} else {
-		portStateAction := gosnappi.NewControlState()
-		linkState := portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.DOWN)
-		args.ate.OTG().SetControlState(t, portStateAction)
-		// Restore port state at end of test case.
-		linkState.SetState(gosnappi.StatePortLinkState.UP)
-		defer args.ate.OTG().SetControlState(t, portStateAction)
-	}
+	portStateAction = gosnappi.NewControlState()
+	linkState = portStateAction.Port().Link().SetPortNames([]string{"port3"}).SetState(gosnappi.StatePortLinkState.DOWN)
+	args.ate.OTG().SetControlState(t, portStateAction)
+	// Restore port state at end of test case.
+	linkState.SetState(gosnappi.StatePortLinkState.UP)
+	defer args.ate.OTG().SetControlState(t, portStateAction)
 
 	t.Log("Capture port3 status if down")
 	p3 := args.dut.Port(t, "port3")
@@ -483,6 +492,16 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 }
 
+func testBackupDecapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	testBackupDecap(ctx, t, args)
+}
+
+func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	testDecapEncap(ctx, t, args)
+}
+
 // createFlow returns a flow name from atePort1 to the dstPfx.
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string, dst *attrs.Attributes) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(name)
@@ -491,32 +510,38 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	outerIPHeader := flow.Packet().Add().Ipv4()
-	outerIPHeader.Src().SetValue(outerSrcIP1)
+	outerIPHeader.Src().SetValue(decapFlowSrc)
 	outerIPHeader.Dst().Increment().SetStart(outerDstIP1).SetCount(1)
+	outerIPHeader.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
 	innerIPHeader := flow.Packet().Add().Ipv4()
 	innerIPHeader.Src().SetValue(innerSrcIP1)
 	innerIPHeader.Dst().Increment().SetStart(innerDstIP1).SetCount(1)
 	flow.EgressPacket().Add().Ethernet()
 	ipTracking := flow.EgressPacket().Add().Ipv4()
 	ipSrcTracking := ipTracking.Src().MetricTags().Add()
-	ipSrcTracking.SetName(srcTrackingName).SetOffset(26).SetLength(6)
+	ipSrcTracking.SetName(srcTrackingName).SetOffset(27).SetLength(5)
 	ipDstTracking := ipTracking.Dst().MetricTags().Add()
-	ipDstTracking.SetName(dstTrackingName).SetOffset(0).SetLength(6)
+	ipDstTracking.SetName(dstTrackingName).SetOffset(0).SetLength(5)
 
 	return flow
+}
+
+func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
+	top := ate.OTG().FetchConfig(t)
+	top.Flows().Clear()
+	for _, flow := range flows {
+		top.Flows().Append(flow)
+	}
+	ate.OTG().PushConfig(t, top)
+
+	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 // TODO: Egress Tracking to verify the correctness of packet after decap or encap needs to be added
 // validateTrafficFlows verifies that the flow on ATE, traffic should pass for good flow and fail for bad flow.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.Flow, bad []gosnappi.Flow, srcFlowFilter string, dstFlowFilter string) {
 	top := ate.OTG().FetchConfig(t)
-	top.Flows().Clear()
-	for _, flow := range append(good, bad...) {
-		top.Flows().Append(flow)
-	}
-	ate.OTG().PushConfig(t, top)
-
-	ate.OTG().StartProtocols(t)
 	ate.OTG().StartTraffic(t)
 
 	time.Sleep(15 * time.Second)
@@ -557,7 +582,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 		if got := ets[0].GetCounters().GetInPkts(); got != uint64(inPkts) {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, uint64(inPkts))
 		} else {
-			t.Logf("Received %d packets with %s as the last 6 bits of the src IP and %s as first 6 bits of dst IP ", got, srcFlowFilter, dstFlowFilter)
+			t.Logf("Received %d packets with %s as the last 5 bits of the src IP and %s as first 5 bits of dst IP ", got, srcFlowFilter, dstFlowFilter)
 		}
 	}
 
@@ -571,14 +596,4 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
 		}
 	}
-}
-
-// setDUTInterfaceState sets the admin state on the dut interface
-func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, dutPort *attrs.Attributes, p *ondatra.Port, state bool) {
-	dc := gnmi.OC()
-	i := &oc.Interface{}
-	i.Enabled = ygot.Bool(state)
-	i.Type = ethernetCsmacd
-	i.Name = ygot.String(p.Name())
-	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
 }

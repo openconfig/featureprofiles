@@ -206,24 +206,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.17"
-  description: "RT-1.17: BGP Link Bandwidth Community Forwarding"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-1.18"
-  description: "RT-1.18: BGP Link Bandwidth Community - Aggregation"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-1.19"
-  description: "RT-1.19: BGP Link Bandwidth Community - Set Bandwidth"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn/README.md"
-  exec: " "
-}
-test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
@@ -266,6 +248,42 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.27"
+  description: "Static route to BGP redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static-route_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.28"
+  description: "BGP to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_isis_redistribution/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.29"
+  description: "BGP chained import/export policy attachment"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/chained_policies/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.30"
+  description: "BGP nested import/export policy attachment"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/nested_policies/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.31"
+  description: "BGP 3 levels of nested import/export policy with match-set-options"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/3level_nested_policies/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.32"
+  description: "BGP policy actions - MED, LocPref, prepend, flow-control"
+  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
@@ -282,6 +300,18 @@ test: {
   description: "BGP Prefix Limit"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test/README.md"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.51"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.52"
+  description: "BGP multipath ECMP support with Link Bandwidth Community"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test/README.md"
   exec: " "
 }
 test: {
@@ -336,6 +366,12 @@ test: {
   id: "RT-2.11"
   description: "IS-IS  metric style wide not enabled"
   readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-2.12"
+  description: "Static route to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
   exec: " "
 }
 test: {
@@ -429,9 +465,57 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7"
+  id: "RT-7.1"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.2"
+  description: "BGP Policy Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.3"
+  description: "BGP Policy AS Path Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.4"
+  description: "BGP Policy AS Path Set and Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-7.5"
+  description: "RT-7.5: BGP Link Bandwidth Community Forwarding"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-7.6"
+  description: "RT-7.6: BGP Link Bandwidth Community - Aggregation"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-7.7"
+  description: "RT-7.7: BGP Link Bandwidth Community - Set Bandwidth"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.8"
+  description: "RT-7.8: BGP Policy - Ext Community Matching"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.9"
+  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
+  readme: " "
   exec: " "
 }
 test: {
