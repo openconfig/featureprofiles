@@ -750,3 +750,8 @@ func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+}
