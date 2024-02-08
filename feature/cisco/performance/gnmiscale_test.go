@@ -16,6 +16,7 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -27,11 +28,11 @@ import (
 // )
 
 var (
-	addr = flag.String("addr", "172.26.228.170:9867", "address of the gRIBI server in the format hostname:port")
+	addr = flag.String("addr", "10.85.232.104:15473", "address of the gRIBI server in the format hostname:port")
 	//addr       = flag.String("addr", "10.85.84.159:57900", "address of the gRIBI server in the format hostname:port")
-	insec      = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
+	insec      = flag.Bool("insecure", true, "dial insecure gRPC (no TLS)")
 	skipVerify = flag.Bool("skip_verify", true, "allow self-signed TLS certificate; not needed for -insecure")
-	username   = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")
+	username   = flag.String("username", "cisco", "username to be sent as gRPC metadata")
 	password   = flag.String("password", "cisco123", "password to be sent as gRPC metadata")
 	grpcStub   *grpc.ClientConn
 )
@@ -106,14 +107,30 @@ func TestMain(m *testing.M) {
 // 	ControlPlaneVerification(ygnmiCli)
 // }
 
+// beforeEach invoke getcpuusage and defer wait additional 60s 
 func TestEmsdRestart(t *testing.T) {
 	gnmiC := gpb.NewGNMIClient(grpcStub)
-	//isRunning := true
 	ygnmiCli, err := ygnmi.NewClient(gnmiC)
 	if err != nil {
 		fmt.Printf("Could not connect to GNMI service: %v", err)
 		os.Exit(2)
 	}
+	// get the actual value of isRunning
+	isRunning := true
+
+	// if client was successfully connected, does this imply isRunning?
+	cpuChannel := CCpuVerify(ygnmiCli, &isRunning)
+
+	//maybe move to different func
+	go func(cpuChannel chan []*oc.System_Cpu) {
+		for cpuData := range cpuChannel {
+			fmt.Printf("CPU INFO:\n%s\n", PrettyPrint(cpuData))
+			// pass each memUse to channel
+		}
+		
+	}(cpuChannel)
+
+	
 	//dut := ondatra.DUT(t, "dut")
 	//RestartEmsd(t, dut)
 	//ControlPlaneVerification(ygnmiCli)
