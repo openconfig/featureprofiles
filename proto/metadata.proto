@@ -404,10 +404,10 @@ message Metadata {
     bool skip_setting_allow_multiple_as = 140;
     // Devices which does not support copying TTL.
     // Juniper: b/307258544
-    bool ttl_copy_unsupported = 140;
+    bool ttl_copy_unsupported = 141;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
-    bool gribi_decap_mixed_plen_unsupported = 141;
+    bool gribi_decap_mixed_plen_unsupported = 142;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
