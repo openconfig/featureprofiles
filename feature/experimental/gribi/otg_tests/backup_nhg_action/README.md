@@ -94,11 +94,14 @@ Different test scenarios requires different setups.
         traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
         at ATE port-4.
 
-[TODO]: Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
+Repeat the above tests with one additional scenario with the following changes,
+and it should not change the expected test result.
 
 *   Add an empty decap VRF, `DECAP_TE_VRF`.
-*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C` and `ENCAP_TE_VRF_D`.
-*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as in <https://github.com/openconfig/featureprofiles/pull/2217>
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C`
+    and `ENCAP_TE_VRF_D`.
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
+    in <https://github.com/openconfig/featureprofiles/pull/2217>
 
 ## Config Parameter coverage
 
@@ -113,3 +116,4 @@ No new telemetry covered.
 ## Minimum DUT platform requirement
 
 vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
