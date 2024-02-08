@@ -40,13 +40,12 @@ const (
 
 // TGNoptions are optional parameters to a validate traffic function.
 type TGNoptions struct {
-	burst           bool
-	traffic_timer   int
-	tolerance       float32
-	continue_stream bool
-	SrcIP           string
-	LCOIR           string
-	fps             uint64
+	drop          bool
+	mpls          bool
+	traffic_timer int
+	SrcIP         string
+	fps           uint64
+	event         eventType
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -201,22 +200,44 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameRateFPS(opts[0].fps)
+		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameRateFPS(opts[0].fps).WithFrameSize(300)
 
 	return flow
 }
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, drop bool, opts ...*TGNoptions) uint64 {
-
+func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TGNoptions) uint64 {
 	a.ate.Traffic().Start(t, flow)
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
-	a.ate.Traffic().Stop(t)
-	if drop {
-		flowPath := gnmi.OC().Flow(flow.Name())
-		got := gnmi.Get(t, a.ate, flowPath.LossPct().State())
-		return uint64(got)
-	} else {
-		return gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+
+	// Set configs if needed for scenario
+	for _, op := range opts {
+		if eventAction, ok := op.event.(*event_interface_action); ok {
+			eventAction.interface_action(t)
+		}
+		if eventAction, ok := op.event.(*event_static_route_to_null); ok {
+			eventAction.static_route_to_null(t)
+		}
 	}
+	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
+	a.ate.Traffic().Stop(t)
+
+	// remove set configs before further check
+	for _, op := range opts {
+		if _, ok := op.event.(*event_static_route_to_null); ok {
+			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", set: false}
+			eventAction.static_route_to_null(t)
+		}
+	}
+
+	for _, op := range opts {
+		if op.drop {
+			in := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
+			out := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+			return uint64(out - in)
+		} else {
+			return gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+		}
+	}
+	return 0
 }

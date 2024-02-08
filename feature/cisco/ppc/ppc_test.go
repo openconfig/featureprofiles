@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -31,6 +32,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"golang.org/x/exp/slices"
 )
+
+var chassis_type string // check if its distributed or fixed chassis
 
 type testArgs struct {
 	ate *ondatra.ATEDevice
@@ -44,6 +47,7 @@ const (
 	policyID         = "match-ipip"
 	ipOverIPProtocol = 4
 	vrf1             = "TE"
+	tolerance        = 2
 )
 
 func TestMain(m *testing.M) {
@@ -130,6 +134,15 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 // 	}
 // )
 
+func checkChassisType(t *testing.T, dut *ondatra.DUTDevice) {
+	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(cs) < 2 {
+		chassis_type = "distributed"
+	} else {
+		chassis_type = "fixed"
+	}
+}
+
 type SubscriptionType interface {
 	isSubscriptionType()
 }
@@ -147,13 +160,55 @@ type SubscriptionListWrapper struct {
 
 func (s *SubscriptionListWrapper) isSubscriptionType() {}
 
+type eventType interface {
+}
+
+type event_interface_action struct {
+	action bool
+	port   []string
+}
+
+func (ia event_interface_action) interface_action(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	for _, port := range ia.port {
+		dutP := dut.Port(t, port)
+		if ia.action {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+		}
+	}
+}
+
+type event_static_route_to_null struct {
+	prefix string
+	set    bool
+}
+
+func (ia event_static_route_to_null) static_route_to_null(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
+	var static_route string
+	if ia.set {
+		static_route = fmt.Sprintf("router static address-family ipv4 unicast %s null 0", ia.prefix)
+	} else {
+		static_route = fmt.Sprintf("no router static address-family ipv4 unicast %s null 0", ia.prefix)
+	}
+	gnmi.Update(t, dut, cliPath, static_route)
+
+}
+
 // Testcase defines testcase structure
 type Testcase struct {
-	name     string
-	desc     string
-	flow     *ondatra.Flow
-	dstPorts *ondatra.Port
-	sub_type SubscriptionType
+	name       string
+	desc       string
+	npu        string
+	flow       *ondatra.Flow
+	sub_type   SubscriptionType
+	event_type eventType // trigger for creating the scenario
 }
 
 // to do subscriptions
@@ -233,90 +288,6 @@ func create_gnmi_request(t *testing.T, path, npu string, sub SubscriptionType) *
 	}
 }
 
-func (a *testArgs) testOC_PPC_interface_subsystem(t *testing.T) {
-
-	test := []Testcase{
-		{
-			name:     "packet/queueing-block/state/in-packets",
-			flow:     a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
-			dstPorts: a.dut.Port(t, "port2"),
-		},
-		{
-			name: "packet/interface-block/state/out-packets/state",
-			// flow: "",
-		},
-		{
-			name: "packet/interface-block/state/in-bytes/state",
-			//flow: "",
-		},
-		{
-			name: "packet/interface-block/state/out-bytes/state",
-			//flow: "",
-		},
-		{
-			name: "drop/interface-block/state/oversubscription/state",
-			//flow: "",
-		},
-		{
-			name: "drop/interface-block/state/in-drops/state",
-			//flow: "",
-		},
-		{
-			name: "drop/interface-block/state/out-drops/state",
-			//flow: "",
-		},
-		{
-			name: "errors/interface-block/state/error-action/state",
-			//flow: "",
-		},
-		{
-			name: "errors/interface-block/state/error-count/state",
-			//flow: "",
-		},
-		{
-			name: "errors/interface-block/state/error-level/state",
-			//flow: "",
-		},
-		{
-			name: "errors/interface-block/state/error-name/state",
-			//flow: "",
-		},
-		{
-			name: "errors/interface-block/state/error-threshold/state",
-			//flow: "",
-		},
-	}
-
-	for _, tt := range test {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			tgn_data := a.validateTrafficFlows(t, tt.flow, false, &TGNoptions{traffic_timer: 120})
-			npu := a.interfaceToNPU(t, tt.dstPorts)
-			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, tt.name)
-			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
-			_, notOk := gnmi.WatchAll(t,
-				a.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
-				query,
-				10*time.Second,
-				// Stop the gnmi.Watch() if value is invalid.
-				func(val *ygnmi.Value[uint64]) bool {
-					id, present := val.Val()
-					element := val.Path.Elem
-					if getPathFromElements(element) == path {
-						fmt.Println(id, tgn_data)
-						return present
-					}
-					return !present
-				}).Await(t)
-			if notOk {
-				t.Log("PASS")
-			} else {
-				t.Errorf("Failed to collect data for path %s", path)
-			}
-		})
-	}
-}
-
 func getPathFromElements(input []*gpb.PathElem) string {
 	var result []string
 	for _, elem := range input {
@@ -330,254 +301,121 @@ func getPathFromElements(input []*gpb.PathElem) string {
 		}
 	}
 	return "/" + strings.Join(result, "/")
-
-	// var pathElements []string
-	// for _, element := range input {
-	// 	// Extract the "name" field value
-	// 	if strings.Contains(element, "name:") {
-	// 		parts := strings.Split(element, ":")
-	// 		name := strings.Trim(parts[1], "\"")
-	// 		pathElements = append(pathElements, name)
-	// 	}
-	// 	// Extract the "key" field value
-	// 	if strings.Contains(element, "key:") {
-	// 		parts := strings.Split(element, ":")
-	// 		key := strings.Split(strings.Trim(parts[2], "value"), "\"")[1]
-	// 		value := strings.Split(strings.Split(strings.Trim(parts[3], "value"), "}")[0], "\"")[1]
-	// 		pathElements[len(pathElements)-1] += "[" + key + "=" + value + "]"
-	// 	}
-	// }
-	// return "/" + strings.Join(pathElements, "/")
 }
 
 func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
 }
 
-// func (a *testArgs) testOC_PPC_queuing_subsystem(t *testing.T) {
-// 	type testCase struct {
-// 		desc     string
-// 		path     string
-// 		counters []*ygnmi.Value[uint64]
-// 	}
-// 	interfaces := sortedInterfaces(a.dut.Ports())
-// 	t.Logf("Interfaces: %s", interfaces)
-// 	for _, intf := range interfaces {
-// 		t.Run(intf, func(t *testing.T) {
-// 			qosInterface := gnmi.OC().Qos().Interface(intf)
-// 			cases := []testCase{
-// 				{
-// 					desc:     "Queue Input Dropped packets",
-// 					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
-// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
-// 				},
-// 				{
-// 					desc:     "Queue Output Dropped packets",
-// 					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
-// 				},
-// 				{
-// 					desc:     "Queue input voq-output-interface dropped packets",
-// 					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-// 					counters: gnmi.LookupAll(t, a.dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
-// 				},
-// 			}
-// 			for _, c := range cases {
-// 				t.Run(c.desc, func(t *testing.T) {
-// 					if len(c.counters) == 0 {
-// 						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
-// 					}
-// 					for queueID, dropPkt := range c.counters {
-// 						dropCount, present := dropPkt.Val()
-// 						if !present {
-// 							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
-// 						} else {
-// 							t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
-// 						}
-// 					}
-// 				})
-// 			}
-// 		})
-// 	}
-// }
+func (a *testArgs) testOC_drop_block(t *testing.T) {
 
-// func (a *testArgs) testOC_PPC_lookup_subsystem(t *testing.T) {
-// 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().State()
-// 	asicDrops := gnmi.LookupAll(t, a.dut, query)
-// 	if len(asicDrops) == 0 {
-// 		t.Fatalf("ERROR: Could not perform lookup as no asic drop paths exist")
-// 	}
+	test := []Testcase{
+		{
+			name:       "drop/lookup-block/state/no-route",
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			event_type: &event_interface_action{action: false, port: []string{"port2"}},
+		},
+		{
+			name:       "drop/lookup-block/state/no-nexthop",
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", set: true},
+		},
+		// {
+		// 	name: "drop/lookup-block/state/no-label",
+		// 	flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+		// 	npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		// },
+		// {
+		// 	name: "drop/lookup-block/state/incorrect-software-state",
+		// 	// flow: "",
+		// },
+		// {
+		// 	name: "drop/lookup-block/state/invalid-packet",
+		// 	// flow: "",
+		// },
+		// {
+		// 	name: "drop/lookup-block/state/fragment-total-drops",
+		// 	// flow: "",
+		// },
+		// {
+		// 	name: "drop/lookup-block/state/acl-drops",
+		// 	// flow: "",
+		// },
+	}
 
-// 	for _, asicDrop := range asicDrops {
-// 		component := asicDrop.Path.GetElem()[1].GetKey()["name"]
-// 		t.Run("Component "+component, func(t *testing.T) {
-// 			drop, _ := asicDrop.Val()
-// 			if drop.InterfaceBlock != nil {
-// 				if drop.InterfaceBlock.InDrops == nil {
-// 					t.Errorf("ERROR: InDrops counter is not present")
-// 				} else {
-// 					t.Logf("INFO: InDrops counter: %d", drop.InterfaceBlock.GetInDrops())
-// 				}
-// 				if drop.InterfaceBlock.OutDrops == nil {
-// 					t.Errorf("ERROR: OutDrops counter is not present")
-// 				} else {
-// 					t.Logf("INFO: OutDrops counter: %d", drop.InterfaceBlock.GetInDrops())
-// 				}
-// 				if drop.InterfaceBlock.Oversubscription == nil {
-// 					t.Errorf("ERROR: Oversubscription counter is not present")
-// 				} else {
-// 					t.Logf("INFO: Oversubscription counter: %d", drop.InterfaceBlock.GetInDrops())
-// 				}
-// 			}
-// 			if drop.LookupBlock != nil {
-// 				if drop.LookupBlock.AclDrops == nil {
-// 					t.Errorf("ERROR: AclDrops counter is not present")
-// 				} else {
-// 					t.Logf("INFO: AclDrops counter: %d", drop.LookupBlock.GetAclDrops())
-// 				}
-// 				if drop.LookupBlock.ForwardingPolicy == nil {
-// 					t.Errorf("ERROR: ForwardingPolicy is not present")
-// 				} else {
-// 					t.Logf("INFO: GetForwardingPolicy counter: %d", drop.LookupBlock.GetForwardingPolicy())
-// 				}
-// 				if drop.LookupBlock.FragmentTotalDrops == nil {
-// 					t.Errorf("ERROR: FragmentTotalDrops is not present")
-// 				} else {
-// 					t.Logf("INFO: FragmentTotalDrops: %d", drop.LookupBlock.GetFragmentTotalDrops())
-// 				}
-// 				if drop.LookupBlock.IncorrectSoftwareState == nil {
-// 					t.Errorf("ERROR: IncorrectSoftwareState counter is not present")
-// 				} else {
-// 					t.Logf("INFO: IncorrectSoftwareState counter: %d", drop.LookupBlock.GetIncorrectSoftwareState())
-// 				}
-// 				if drop.LookupBlock.InvalidPacket == nil {
-// 					t.Errorf("ERROR: InvalidPacket counter is not present")
-// 				} else {
-// 					t.Logf("INFO: InvalidPacket counter: %d", drop.LookupBlock.GetInvalidPacket())
-// 				}
-// 				if drop.LookupBlock.LookupAggregate == nil {
-// 					t.Errorf("ERROR: LookupAggregate counter is not present")
-// 				} else {
-// 					t.Logf("INFO: LookupAggregate counter: %d", drop.LookupBlock.GetLookupAggregate())
-// 				}
-// 				if drop.LookupBlock.NoLabel == nil {
-// 					t.Errorf("ERROR: NoLabel counter is not present")
-// 				} else {
-// 					t.Logf("INFO: NoLabel counter: %d", drop.LookupBlock.GetNoLabel())
-// 				}
-// 				if drop.LookupBlock.NoNexthop == nil {
-// 					t.Errorf("ERROR: NoNexthop counter is not present")
-// 				} else {
-// 					t.Logf("INFO: NoNexthop counter: %d", drop.LookupBlock.GetNoNexthop())
-// 				}
-// 				if drop.LookupBlock.NoRoute == nil {
-// 					t.Errorf("ERROR: NoRoute counter is not present")
-// 				} else {
-// 					t.Logf("INFO: NoRoute counter: %d", drop.LookupBlock.GetNoNexthop())
-// 				}
-// 				if drop.LookupBlock.RateLimit == nil {
-// 					t.Errorf("ERROR: RateLimit counter is not present")
-// 				} else {
-// 					t.Logf("INFO: RateLimit counter: %d", drop.LookupBlock.GetRateLimit())
-// 				}
-// 			}
-// 		})
-// 	}
-// }
+	for _, tt := range test {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Name: %s", tt.name)
+			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", tt.npu, tt.name)
+			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
 
-// func (a *testArgs) testOC_PPC_host_subsystem(t *testing.T) {
-// 	query := gnmi.OC().System().AlarmAny().State()
-// 	alarms := gnmi.LookupAll(t, a.dut, query)
-// 	if len(alarms) > 0 {
-// 		for _, alarm := range alarms {
-// 			val, _ := alarm.Val()
-// 			alarmSeverity := val.GetSeverity()
-// 			// Checking for major system alarms.
-// 			if alarmSeverity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_MAJOR {
-// 				t.Logf("INFO: System Alarm with severity %s seen: %s", alarmSeverity, val.GetText())
-// 			}
-// 		}
-// 	}
-// }
+			pre_data, _ := get_data(t, path, query)
 
-// func (a *testArgs) testOC_PPC_fabric_subsystem(t *testing.T) {
-// 	t.Logf("INFO: Check no fabric drop")
-// 	if deviations.FabricDropCounterUnsupported(a.dut) {
-// 		t.Skipf("INFO: Skipping test due to deviation fabric_drop_counter_unsupported")
-// 	}
-// 	query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().FabricBlock().State()
-// 	t.Logf("query %s", query)
-// 	fabricBlocks := gnmi.GetAll(t, a.dut, query)
-// 	if len(fabricBlocks) == 0 {
-// 		t.Fatalf("ERROR: %s is not present", query)
-// 	}
-// 	for _, fabricBlock := range fabricBlocks {
-// 		drop := fabricBlock.GetLostPackets()
-// 		if fabricBlock.LostPackets == nil {
-// 			t.Errorf("ERROR: Fabric drops is not present")
-// 		} else {
-// 			t.Logf("INFO: Fabric drops: %d", drop)
-// 		}
-// 	}
-// }
+			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 30, drop: true, event: tt.event_type})
 
-// func (a *testArgs) testOC_PPC_ethernet_drop(t *testing.T) {
-// 	interfaces := sortedInterfaces(a.dut.Ports())
-// 	t.Logf("Interfaces: %s", interfaces)
-// 	for _, intf := range interfaces {
-// 		t.Run(intf, func(t *testing.T) {
-// 			counters := gnmi.OC().Interface(intf).Ethernet().Counters()
-// 			cases := []struct {
-// 				desc    string
-// 				counter ygnmi.SingletonQuery[uint64]
-// 			}{
-// 				{
-// 					desc:    "InCrcErrors",
-// 					counter: counters.InCrcErrors().State(),
-// 				},
-// 				{
-// 					desc:    "InMacPauseFrames",
-// 					counter: counters.InMacPauseFrames().State(),
-// 				},
-// 				{
-// 					desc:    "OutMacPauseFrames",
-// 					counter: counters.OutMacPauseFrames().State(),
-// 				},
-// 				{
-// 					desc:    "InBlockErrors",
-// 					counter: counters.InBlockErrors().State(),
-// 				},
-// 			}
+			post_data, _ := get_data(t, path, query)
 
-// 			for _, c := range cases {
-// 				t.Run(c.desc, func(t *testing.T) {
-// 					if val, present := gnmi.Lookup(t, a.dut, c.counter).Val(); present {
-// 						t.Logf("INFO: %s: %d", c.counter, val)
-// 					} else {
-// 						t.Errorf("ERROR: %s is not present", c.counter)
-// 					}
-// 				})
-// 			}
-// 		})
-// 	}
-// }
+			got := post_data - pre_data
+			if ((tgn_data-got)/tgn_data)*100 > tolerance {
+				t.Errorf("Data doesn't match for path %s, got: %d, want: %d", path, got, tgn_data)
+			} else {
+				t.Logf("Data for path %s, got: %d, want: %d", path, got, tgn_data)
+			}
+		})
+	}
+}
+
+func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
+	dut := ondatra.DUT(t, "dut")
+	data, _ := gnmi.WatchAll(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
+		query,
+		30*time.Second,
+		// Stop the gnmi.Watch() if value is invalid.
+		func(val *ygnmi.Value[uint64]) bool {
+			_, present := val.Val()
+			element := val.Path.Elem
+			if getPathFromElements(element) == path {
+				return present
+			}
+			return !present
+		}).Await(t)
+	counter, ok := data.Val()
+	if ok {
+		return counter, nil
+	} else {
+		return 0, fmt.Errorf("Failed to collect data for path %s", path)
+	}
+}
 
 func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
 	dut := ondatra.DUT(t, "dut")
+
+	//Determine if its fixed or distributed chassis
+	checkChassisType(t, dut)
+
 	// ctx := context.Background()
+
 	// Configure the DUT
 	var vrfs = []string{vrf1}
 	configVRF(t, dut, vrfs)
+
 	configureDUT(t, dut)
+
 	// PBR config
 	// configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+
 	// RoutePolicy config
 	configRP(t, dut)
+
 	// configure ISIS on DUT
 	addISISOC(t, dut, "Bundle-Ether121")
+
 	// configure BGP on DUT
 	addBGPOC(t, dut, "100.100.100.100")
 
@@ -600,23 +438,7 @@ func TestOC_PPC(t *testing.T) {
 	// t.Logf("check CPU/memory in the background")
 	// args.runBackgroundMonitor(t)
 
-	t.Run("Test interface subsystem", func(t *testing.T) {
-		args.testOC_PPC_interface_subsystem(t)
+	t.Run("Test drop block", func(t *testing.T) {
+		args.testOC_drop_block(t)
 	})
-
-	// t.Run("Test queuing subsystem", func(t *testing.T) {
-	// 	args.testOC_PPC_queuing_subsystem(t)
-	// })
-
-	// t.Run("Test lookup subsystem", func(t *testing.T) {
-	// 	args.testOC_PPC_lookup_subsystem(t)
-	// })
-
-	// t.Run("Test host subsystem", func(t *testing.T) {
-	// 	args.testOC_PPC_host_subsystem(t)
-	// })
-
-	// t.Run("Test fabric subsystem", func(t *testing.T) {
-	// 	args.testOC_PPC_fabric_subsystem(t)
-	// })
 }
