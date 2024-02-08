@@ -489,12 +489,6 @@ func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRequireSameL1MetricWithL2Metric()
 }
 
-// BGPSetMedRequiresEqualOspfSetMetric returns true for devices that require configuring
-// the same OSPF setMetric when BGP SetMED is configured.
-func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
-}
-
 // SetNativeUser creates a user and assigns role/rbac to that user via native model.
 func SetNativeUser(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetNativeUser()

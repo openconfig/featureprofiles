@@ -273,8 +273,6 @@ message Metadata {
     // configuring Level 2 Metrics.
     bool isis_require_same_l1_metric_with_l2_metric = 91;
     // Devices require configuring the same OSPF setMetric when BGP
-    // SetMED is configured.
-    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
     // Devices require configuring subinterface with tagged vlan for p4rt
     // packet in.
     bool p4rt_gdp_requires_dot1q_subinterface = 93;
@@ -404,7 +402,7 @@ message Metadata {
     bool skip_setting_allow_multiple_as = 140;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 92;
   }
 
   message PlatformExceptions {

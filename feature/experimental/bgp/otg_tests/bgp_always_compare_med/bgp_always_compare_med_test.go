@@ -446,9 +446,6 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
-	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
-		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
-	}
 	actions1.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
@@ -458,9 +455,6 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
-	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
-		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
-	}
 	actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
