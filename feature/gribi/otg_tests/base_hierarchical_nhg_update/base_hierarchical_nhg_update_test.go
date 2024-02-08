@@ -280,6 +280,9 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
+	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
+		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
+	}
 	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
