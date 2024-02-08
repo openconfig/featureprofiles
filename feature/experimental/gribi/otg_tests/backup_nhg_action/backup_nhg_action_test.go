@@ -505,7 +505,6 @@ func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs
 		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
 	}
 	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
-	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 	testDecapEncap(ctx, t, args)
 }
 
