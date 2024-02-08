@@ -577,9 +577,9 @@ func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introsp
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, bopts.Target, opts...)
+			return grpcDialContextFn(ctx, target, opts...)
 		},
-		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
+		DialTarget: bopts.Target,
 		DialOpts:   opts,
 	}, nil
 }
