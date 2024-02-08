@@ -399,6 +399,9 @@ message Metadata {
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
     // Devices which does not support copying TTL.
     // Juniper: b/307258544
     bool ttl_copy_unsupported = 140;
