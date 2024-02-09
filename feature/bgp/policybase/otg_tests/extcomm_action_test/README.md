@@ -13,10 +13,16 @@ Matches should be performed against a subset of extended community types
 * TODO: Additional match types can be added here.  Currently these match types
   cover the use cases needed for RT-7.9
 
+## Testbed type
+
+* https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
+
 * Testbed configuration - Setup BGP sessions and prefixes
-  * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
-  * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
-  * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
+  * Generate config for 2 DUT and ATE ports where
+    * DUT port 1 to ATE port 1.
+    * DUT port 2 to ATE port 2.
+  * Configure ATE port 1 with a BGP session to DUT port 1
+    * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
     * prefix-set-1 with 2 routes with communities `[100:95000, 200000:2, 300000:300000]`
     * prefix-set-2 with 2 routes with communities `[100000:1, 101000:1, 200000:1]`
     * prefix-set-3 with 2 routes with communities `[109000:1]`
@@ -94,8 +100,12 @@ Matches should be performed against a subset of extended community types
       * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
       * actions/config/policy-result = REJECT_ROUTE
 
-  * For each policy-definition
-    * Use gnmi Set REPLACE option for `/routing-policy/policy-definitions` configuration on the DUT
+  * For each policy-definition created
+    * Use gnmi Set REPLACE option for:
+      * `/routing-policy/policy-definitions` to configure the policy
+      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
+        to apply the policy to the ATE port 2 bgp neighbor
+
     * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
