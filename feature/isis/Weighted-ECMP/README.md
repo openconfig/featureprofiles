@@ -39,7 +39,7 @@ In the topology above,
 * Start 1024 flows from IPv4 addresses in 100.0.2.0/24 to 100.0.1.0/24
 * Start 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to 2001:db8:64:64::/64
 * Ensure that the total traffic of all flows combined is ~20Gbps
-### Verfication
+### Verification
 * Ensure that the DUT has learnt the routes for prefixes 100.0.1.0/24 and 2001:db8:64:64::/64 over IBGP. Following paths
  * /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 * Ensure that the DUT has learnt routes to the IPv4 and IPv6 loopback addresses of ATE2. It is expected that these prefixes are reachable via 3 different Next-Hop addresses corresponding to the LAG1, LAG2 and LAG3 interfaces on ATE2.
@@ -56,7 +56,7 @@ In the topology above,
 * Restart 1024 flows from IPv4 addresses in 100.0.2.0/24 to 100.0.1.0/24 
 * Restart 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to 2001:db8:64:64::/64
 * Ensure that the total traffic of all flows combined is ~20Gbps
-### Verfication
+### Verification
 * It is expected that the IS-IS instance in DUT will unequally distribute the traffic received from ATE1:LAG1 over the LAG bundles corresponding to ATE2:LAG1, ATE2:LAG2 and ATE3:LAG3. 
   *  Traffic on DUT:LAG2 is expected to be ~20% while traffic on DUT:LAG3 and DUT:LAG4 is expected to be ~40% each of the total traffic received on DUT:LAG1. If the traffic is not unequally shared between the DUT LAG bundles towards ATE2 then this test is a failure.
   *  Check for the following paths
