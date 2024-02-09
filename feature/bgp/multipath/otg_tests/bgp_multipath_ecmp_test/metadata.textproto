@@ -33,6 +33,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     missing_value_for_defaults: true
+    skip_setting_allow_multiple_as: false
   }
 }
 tags: TAGS_DATACENTER_EDGE
