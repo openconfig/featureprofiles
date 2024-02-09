@@ -64,22 +64,6 @@ func sortedInterfaces(ports []*ondatra.Port) []string {
 }
 
 func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
-	// tmp := make(map[string]bool)
-	// var result []string
-	// for _, p := range args.dut.Ports() {
-	// 	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	// 	if !tmp[hwport] {
-	// 		tmp[hwport] = true
-	// 		result = append(result, hwport)
-	// 	}
-	// }
-	// result = nil
-	// for _, comp := range result {
-	// 	int_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(comp).Parent().State())
-	// 	result = append(result, int_npu)
-	// }
-	// return result
-
 	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
 	intf_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State())
 	return intf_npu
@@ -163,26 +147,45 @@ func (s *SubscriptionListWrapper) isSubscriptionType() {}
 type eventType interface {
 }
 
-type event_interface_action struct {
-	action bool
+type event_interface_config struct {
+	config bool
+	shut   bool
+	mtu    int
 	port   []string
 }
 
-func (ia event_interface_action) interface_action(t *testing.T) {
+func (ia event_interface_config) interface_config(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
 	for _, port := range ia.port {
 		dutP := dut.Port(t, port)
-		if ia.action {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+		if ia.config {
+			if ia.shut {
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+			}
+			if ia.mtu != 0 {
+				mtu := fmt.Sprintf("interface bundle-Ether 121 mtu %d", ia.mtu)
+				gnmi.Update(t, dut, cliPath, mtu)
+			}
 		} else {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+			if ia.shut {
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+			}
+			if ia.mtu != 0 {
+				mtu := fmt.Sprintf("no interface bundle-Ether 121 mtu %d", ia.mtu)
+				gnmi.Update(t, dut, cliPath, mtu)
+			}
 		}
+
 	}
 }
 
 type event_static_route_to_null struct {
 	prefix string
-	set    bool
+	config bool
 }
 
 func (ia event_static_route_to_null) static_route_to_null(t *testing.T) {
@@ -192,12 +195,32 @@ func (ia event_static_route_to_null) static_route_to_null(t *testing.T) {
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
 	var static_route string
-	if ia.set {
+	if ia.config {
 		static_route = fmt.Sprintf("router static address-family ipv4 unicast %s null 0", ia.prefix)
 	} else {
 		static_route = fmt.Sprintf("no router static address-family ipv4 unicast %s null 0", ia.prefix)
 	}
 	gnmi.Update(t, dut, cliPath, static_route)
+
+}
+
+type event_enable_mpls_ldp struct {
+	config bool
+}
+
+func (ia event_enable_mpls_ldp) enable_mpls_ldp(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	cliPath, err := schemaless.NewConfig[string]("", "cli")
+	if err != nil {
+		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+	}
+	var mpls_ldp string
+	if ia.config {
+		mpls_ldp = fmt.Sprintf("mpls ldp interface bundle-Ether 120")
+	} else {
+		mpls_ldp = fmt.Sprintf("no mpls ldp")
+	}
+	gnmi.Update(t, dut, cliPath, mpls_ldp)
 
 }
 
@@ -312,36 +335,41 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 	test := []Testcase{
 		{
 			name:       "drop/lookup-block/state/no-route",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
 			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_interface_action{action: false, port: []string{"port2"}},
+			event_type: &event_interface_config{config: true, shut: true, port: []string{"port2"}},
 		},
 		{
 			name:       "drop/lookup-block/state/no-nexthop",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
 			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", set: true},
+			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
+		},
+		{
+			name:       "drop/lookup-block/state/no-label",
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
+			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			event_type: &event_enable_mpls_ldp{config: true},
+		},
+		{
+			name: "drop/lookup-block/state/incorrect-software-state",
+			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
+			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		},
+		{
+			name: "drop/lookup-block/state/invalid-packet",
+			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, ttl: true}),
+			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		},
+		{
+			name:       "drop/lookup-block/state/fragment-total-drops",
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
+			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			event_type: &event_interface_config{config: true, mtu: 500, port: []string{"port2"}},
 		},
 		// {
-		// 	name: "drop/lookup-block/state/no-label",
-		// 	flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{fps: 1000}),
-		// 	npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-		// },
-		// {
-		// 	name: "drop/lookup-block/state/incorrect-software-state",
-		// 	// flow: "",
-		// },
-		// {
-		// 	name: "drop/lookup-block/state/invalid-packet",
-		// 	// flow: "",
-		// },
-		// {
-		// 	name: "drop/lookup-block/state/fragment-total-drops",
-		// 	// flow: "",
-		// },
-		// {
 		// 	name: "drop/lookup-block/state/acl-drops",
-		// 	// flow: "",
+		// 	CSCwi94987,
 		// },
 	}
 

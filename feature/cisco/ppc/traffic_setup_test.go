@@ -23,11 +23,10 @@ import (
 )
 
 const (
-	dst                   = "198.51.100.0"
-	dstPfxMin             = "198.51.100.0"
+	dst                   = "202.1.0.1"
 	v4mask                = "32"
 	v6mask                = "128"
-	gribiscale            = 2
+	dstCount              = 1
 	innersrcPfx           = "200.1.0.1"
 	totalbgpPfx           = 1 //set value for scale bgp setup ex: 100000
 	innerdstPfxMin_bgp    = "202.1.0.1"
@@ -40,12 +39,11 @@ const (
 
 // TGNoptions are optional parameters to a validate traffic function.
 type TGNoptions struct {
-	drop          bool
-	mpls          bool
-	traffic_timer int
-	SrcIP         string
-	fps           uint64
-	event         eventType
+	drop, mpls, ipv4, ttl bool
+	traffic_timer         int
+	fps                   uint64
+	frame_size            uint32
+	event                 eventType
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
@@ -186,21 +184,42 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TGNoptions) *ondatra.Flow {
 	srcEndPoint := a.top.Interfaces()[atePort1.Name]
-	hdr := ondatra.NewIPv4Header()
-	if len(opts) != 0 {
-		for _, opt := range opts {
-			if opt.SrcIP != "" {
-				hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(gribiscale).WithStep("0.0.0.1")
-			}
-		}
-	} else {
-		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dstPfxMin).WithCount(gribiscale).WithStep("0.0.0.1")
-	}
+	var flow *ondatra.Flow
+	var header []ondatra.Header
 
-	flow := a.ate.Traffic().NewFlow(name).
+	for _, opt := range opts {
+		if opt.mpls {
+			hdr_mpls := ondatra.NewMPLSHeader()
+			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_mpls}
+		}
+		if opt.ipv4 {
+			var hdr_ipv4 *ondatra.IPv4Header
+			// explicity set ttl 0 if zero
+			if opt.ttl {
+				hdr_ipv4 = ondatra.NewIPv4Header().WithTTL(0)
+			} else {
+				hdr_ipv4 = ondatra.NewIPv4Header()
+			}
+			hdr_ipv4.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
+			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_ipv4}
+		}
+	}
+	flow = a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
-		WithHeaders(ondatra.NewEthernetHeader(), hdr).WithFrameRateFPS(opts[0].fps).WithFrameSize(300)
+		WithHeaders(header...)
+
+	if opts[0].fps != 0 {
+		flow.WithFrameRateFPS(opts[0].fps)
+	} else {
+		flow.WithFrameRateFPS(1000)
+	}
+
+	if opts[0].frame_size != 0 {
+		flow.WithFrameSize(opts[0].frame_size)
+	} else {
+		flow.WithFrameSize(300)
+	}
 
 	return flow
 }
@@ -212,11 +231,12 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 
 	// Set configs if needed for scenario
 	for _, op := range opts {
-		if eventAction, ok := op.event.(*event_interface_action); ok {
-			eventAction.interface_action(t)
-		}
-		if eventAction, ok := op.event.(*event_static_route_to_null); ok {
+		if eventAction, ok := op.event.(*event_interface_config); ok {
+			eventAction.interface_config(t)
+		} else if eventAction, ok := op.event.(*event_static_route_to_null); ok {
 			eventAction.static_route_to_null(t)
+		} else if eventAction, ok := op.event.(*event_enable_mpls_ldp); ok {
+			eventAction.enable_mpls_ldp(t)
 		}
 	}
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
@@ -224,9 +244,15 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 
 	// remove set configs before further check
 	for _, op := range opts {
-		if _, ok := op.event.(*event_static_route_to_null); ok {
-			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", set: false}
+		if _, ok := op.event.(*event_interface_config); ok {
+			eventAction := event_interface_config{config: false, shut: false, mtu: 1514, port: []string{"port2"}}
+			eventAction.interface_config(t)
+		} else if _, ok := op.event.(*event_static_route_to_null); ok {
+			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", config: false}
 			eventAction.static_route_to_null(t)
+		} else if _, ok := op.event.(*event_enable_mpls_ldp); ok {
+			eventAction := event_enable_mpls_ldp{config: false}
+			eventAction.enable_mpls_ldp(t)
 		}
 	}
 
@@ -235,8 +261,6 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 			in := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
 			out := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
 			return uint64(out - in)
-		} else {
-			return gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
 		}
 	}
 	return 0
