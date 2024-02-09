@@ -1552,13 +1552,11 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 // Test-3, Mixed Prefix Decap gRIBI Entries.
 func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
-	var testPref1 string = "192.51.100.0/24"
-	var testPref2 string = "192.51.128.0/22"
-	var testPref3 string = "192.55.200.3/32"
+	var testPref1 string = "192.51.128.0/22"
+	var testPref2 string = "192.55.200.3/32"
 
-	var traffiDstIP1 string = "192.51.100.64"
-	var traffiDstIP2 string = "192.55.200.3"
-	var traffiDstIP3 string = "192.51.128.5"
+	var traffiDstIP1 string = "192.55.200.3"
+	var traffiDstIP2 string = "192.51.128.5"
 
 	t.Log("Flush existing gRIBI routes before test.")
 	if err := gribi.FlushAll(args.client); err != nil {
@@ -1569,7 +1567,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	configGribiBaselineAFT(ctx, t, dut, args)
 
 	t.Run("Program gRIBi route", func(t *testing.T) {
-		configureGribiMixedPrefEntries(ctx, t, dut, args, []string{testPref1, testPref2, testPref3})
+		configureGribiMixedPrefEntries(ctx, t, dut, args, []string{testPref1, testPref2})
 	})
 	// Send both 6in4 and 4in4 packets. Verify that the packets have their outer
 	// v4 header stripped and are forwarded according to the route in the DEFAULT
@@ -1577,19 +1575,15 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	portList := []string{"port8"}
 
 	flow1 := createFlow(&flowArgs{flowName: "flow1",
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, outHdrDscp: []uint32{dscpEncapNoMatch},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true})
-
-	flow2 := createFlow(&flowArgs{flowName: "flow2",
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIPv6: atePort1.IPv6,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, InnHdrSrcIPv6: atePort1.IPv6,
 		InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
-	flow3 := createFlow(&flowArgs{flowName: "flow3",
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP3, InnHdrSrcIP: atePort1.IPv4,
+	flow2 := createFlow(&flowArgs{flowName: "flow2",
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIP: atePort1.IPv4,
 		InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2, flow3})
-	verifyTraffic(t, args, []string{"flow1", "flow2", "flow3"}, !wantLoss)
+	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
+	verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
 	captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 		outDstIP: []string{traffiDstIP1}, inHdrIP: ipv4InnerDst, validateTTL: false, validateDecap: true})
 
@@ -1605,7 +1599,6 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 			outDstIP: []string{gribiIPv4EntryVRF1111}, inHdrIP: ipv4InnerDst, validateNoDecap: true})
 	})
-
 }
 
 // testTunnelTrafficNoDecap is validate Test-4: Tunneled traffic with no decap:

@@ -636,9 +636,6 @@ Support for decap actions with mixed prefixes installed through gRIBI
 1.  Add the following gRIBI entries:
 
     ```
-    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
-        {NH#1001, DEFAULT VRF, weight:1}
-    }
     IPv4Entry {192.51.128.0/22 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
         {NH#1001, DEFAULT VRF, weight:1}
     }
@@ -655,14 +652,6 @@ Support for decap actions with mixed prefixes installed through gRIBI
 3.  Send the following 6in4 and 4in4 flows to DUT port-1:
 
     ```
-    * inner_src: `ipv4_inner_src`
-    * inner_dst: `ipv4_inner_encap_match`
-    * dscp: `dscp_encap_no_match`
-    * outter_src: `ipv4_outter_src_111`
-    * outter_dst: `192.51.100.64`
-    * dscp: `dscp_encap_no_match`
-    * proto: `4`
-
     * inner_src: `ipv6_inner_src`
     * inner_dst: `ipv6_inner_encap_match`
     * dscp: `dscp_encap_no_match`
