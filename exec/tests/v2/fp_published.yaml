@@ -100,6 +100,7 @@ tests:
     skip: false
     mustpass: true
     priority: 3
+    pr: 2648
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -126,6 +127,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2648   
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -133,13 +135,14 @@ tests:
     mustpass: true
     priority: 3
     internal: false
+    pr: 2648
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
-    pr: 2548
+    pr: 2648
   - name: TE-11.4 (Gribi Programming with reload)
     path: feature/experimental/gribi/otg_tests/programming_with_reload
     owners:
@@ -315,6 +318,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
+    pr: 2622
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
