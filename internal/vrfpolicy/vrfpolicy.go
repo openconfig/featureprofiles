@@ -150,6 +150,12 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12,
 	}
 
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		pfRule10.seqID = 910
+		pfRule11.seqID = 911
+		pfRule12.seqID = 912
+	}
+
 	ni := d.GetOrCreateNetworkInstance(niName)
 	niP := ni.GetOrCreatePolicyForwarding()
 	niPf := niP.GetOrCreatePolicy(vrfPolW)
@@ -169,9 +175,20 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 		pfRAction.DecapFallbackNetworkInstance = ygot.String(pfRule.action.decapFallbackNI)
 	}
 
-	pfR := niPf.GetOrCreateRule(13)
-	pfRAction := pfR.GetOrCreateAction()
-	pfRAction.NetworkInstance = ygot.String(niDefault)
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		pfR13 := niPf.GetOrCreateRule(913)
+		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+		pfRAction := pfR13.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfR14 := niPf.GetOrCreateRule(914)
+		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+		pfRAction = pfR14.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+	} else {
+		pfR := niPf.GetOrCreateRule(13)
+		pfRAction := pfR.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+	}
 
 	return niP
 }

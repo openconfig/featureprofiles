@@ -402,7 +402,11 @@ message Metadata {
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
     bool skip_setting_allow_multiple_as = 140;
-
+    // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 141;    
+    // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 142;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }

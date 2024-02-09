@@ -222,6 +222,12 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	pfRule12 := &policyFwRule{SeqId: 12, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
 
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		pfRule10.SeqId = 910
+		pfRule11.SeqId = 911
+		pfRule12.SeqId = 912
+	}
+
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12}
 
@@ -243,9 +249,21 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 		pfRAction.PostDecapNetworkInstance = ygot.String(pfRule.postDecapNi)
 		pfRAction.DecapFallbackNetworkInstance = ygot.String(pfRule.decapFallbackNi)
 	}
-	pfR := niPf.GetOrCreateRule(13)
-	pfRAction := pfR.GetOrCreateAction()
-	pfRAction.NetworkInstance = ygot.String(niDefault)
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		pfR13 := niPf.GetOrCreateRule(913)
+		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
+		pfRAction := pfR13.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfR14 := niPf.GetOrCreateRule(914)
+		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
+		pfRAction = pfR14.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+	} else {
+		pfR := niPf.GetOrCreateRule(13)
+		pfRAction := pfR.GetOrCreateAction()
+		pfRAction.NetworkInstance = ygot.String(niDefault)
+	}
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()

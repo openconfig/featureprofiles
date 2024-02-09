@@ -13,6 +13,8 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     gribi_mac_override_with_static_arp: true
     interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true    
   }
 }
 platform_exceptions: {

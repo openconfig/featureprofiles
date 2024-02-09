@@ -750,3 +750,13 @@ func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
+
+// PfRequireMatchDefaultRule returns true for device which requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
+}
+
+// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+}
