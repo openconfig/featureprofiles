@@ -43,7 +43,7 @@ In the topology above,
 * Ensure that the DUT has learnt the routes for prefixes 100.0.1.0/24 and 2001:db8:64:64::/64 over IBGP. Following paths
  * /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 * Ensure that the DUT has learnt routes to the IPv4 and IPv6 loopback addresses of ATE2. It is expected that these prefixes are reachable via 3 different Next-Hop addresses corresponding to the LAG1, LAG2 and LAG3 interfaces on ATE2.
-* It is expected that the IS-IS intance in DUT will equally distribute the traffic received on DUT:LAG1 over the LAG bundles corresponding to ATE2:LAG1, ATE2:LAG2 and ATE2:LAG3 when the 3 LAG bundles have the same bandwidth available.
+* It is expected that the IS-IS instance in DUT will equally distribute the traffic received on DUT:LAG1 over the LAG bundles corresponding to ATE2:LAG1, ATE2:LAG2 and ATE2:LAG3 when the 3 LAG bundles have the same bandwidth available.
   *  Traffic distribution between DUT:LAG2, DUT:LAG3 and DUT:LAG4 is expected to be ~33% each of the total traffic received on DUT:LAG1.
   *  Check for the following paths
     *  /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp, should be true
@@ -57,7 +57,7 @@ In the topology above,
 * Restart 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to 2001:db8:64:64::/64
 * Ensure that the total traffic of all flows combined is ~20Gbps
 ### Verfication
-* It is expected that the IS-IS intance in DUT will unequally distribute the traffic received from ATE1:LAG1 over the LAG bundles corresponding to ATE2:LAG1, ATE2:LAG2 and ATE3:LAG3. 
+* It is expected that the IS-IS instance in DUT will unequally distribute the traffic received from ATE1:LAG1 over the LAG bundles corresponding to ATE2:LAG1, ATE2:LAG2 and ATE3:LAG3. 
   *  Traffic on DUT:LAG2 is expected to be ~20% while traffic on DUT:LAG3 and DUT:LAG4 is expected to be ~40% each of the total traffic received on DUT:LAG1. If the traffic is not unequally shared between the DUT LAG bundles towards ATE2 then this test is a failure.
   *  Check for the following paths
     *  /interfaces/interface/state/counters/out-pkts
