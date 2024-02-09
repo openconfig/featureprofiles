@@ -227,7 +227,8 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
 func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TGNoptions) uint64 {
 	a.ate.Traffic().Start(t, flow)
-	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
+	// run traffic for 30 seconds, before introducing fault
+	time.Sleep(time.Duration(30) * time.Second)
 
 	// Set configs if needed for scenario
 	for _, op := range opts {
@@ -239,6 +240,9 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 			eventAction.enable_mpls_ldp(t)
 		}
 	}
+	// Space to add trigger code
+	a.restartProcessBackground(t)
+
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	a.ate.Traffic().Stop(t)
 

@@ -15,27 +15,31 @@
 package ppc_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ygnmi/schemaless"
-	"github.com/openconfig/ygnmi/ygnmi"
-
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/schemaless"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var chassis_type string // check if its distributed or fixed chassis
+const (
+	with_RPFO = false
+)
 
 type testArgs struct {
 	ate *ondatra.ATEDevice
-	// ctx context.Context
+	ctx context.Context
 	dut *ondatra.DUTDevice
 	top *ondatra.ATETopology
 }
@@ -205,9 +209,9 @@ func (ia event_enable_mpls_ldp) enable_mpls_ldp(t *testing.T) {
 	}
 	var mpls_ldp string
 	if ia.config {
-		mpls_ldp = fmt.Sprintf("mpls ldp interface bundle-Ether 120")
+		mpls_ldp = "mpls ldp interface bundle-Ether 120"
 	} else {
-		mpls_ldp = fmt.Sprintf("no mpls ldp")
+		mpls_ldp = "no mpls ldp"
 	}
 	gnmi.Update(t, dut, cliPath, mpls_ldp)
 
@@ -370,7 +374,7 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 
 			pre_data, _ := get_data(t, path, query)
 
-			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 30, drop: true, event: tt.event_type})
+			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 60, drop: true, event: tt.event_type})
 
 			post_data, _ := get_data(t, path, query)
 
@@ -407,6 +411,25 @@ func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uin
 	}
 }
 
+func (args *testArgs) restartProcessBackground(t *testing.T) {
+	processes := []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}
+	// Add code to restart npu_drvr from linux prompt, ofa_npd on LC
+
+	//patch for CLIviaSSH failing, else pattern to use is #
+	var acp string
+	if with_RPFO {
+		acp = ".*Last switch-over.*ago"
+	} else {
+		acp = ".*"
+	}
+	for _, process := range processes {
+		ticker1 := time.NewTicker(3 * time.Second)
+		runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", process), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 4*time.Second)
+		time.Sleep(4 * time.Second)
+		ticker1.Stop()
+	}
+}
+
 func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
@@ -415,7 +438,7 @@ func TestOC_PPC(t *testing.T) {
 	//Determine if its fixed or distributed chassis
 	checkChassisType(t, dut)
 
-	// ctx := context.Background()
+	ctx := context.Background()
 
 	// Configure the DUT
 	var vrfs = []string{vrf1}
@@ -449,6 +472,7 @@ func TestOC_PPC(t *testing.T) {
 		dut: dut,
 		ate: ate,
 		top: top,
+		ctx: ctx,
 	}
 
 	// goroutine to check cpu/memory in the background, need to work on it
