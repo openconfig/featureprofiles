@@ -134,6 +134,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "IC-1"
+  description: "Integrated Circuit Utilization and Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"
+  exec: " "
+}
+test: {
   id: "DP-1.9"
   description: "WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/wrr_traffic_test/README.md"
@@ -248,6 +254,30 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.25"
+  description: "Management network-instance default static route"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.26"
+  description: "Basic static route support test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/static_route_support/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.27"
+  description: "Static route to BGP redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static-route_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.28"
+  description: "BGP to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_isis_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.3"
   description: "BGP Route Propagation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
@@ -264,6 +294,18 @@ test: {
   description: "BGP Prefix Limit"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test/README.md"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.51"
+  description: "BGP multipath ECMP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.52"
+  description: "BGP multipath ECMP support with Link Bandwidth Community"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test/README.md"
   exec: " "
 }
 test: {
@@ -284,6 +326,25 @@ test: {
   readme: ""
   exec: " "
 }
+test: {
+  id: "RT-2.2"
+  description: "BGP Policy AS Path Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.3"
+  description: "BGP Policy Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.4"
+  description: "BGP Policy AS Path Set and Community Set"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
+  exec: " "
+}
+
 test: {
   id: "RT-2.6"
   description: "IS-IS Hello-Padding  enabled at interface level"
@@ -321,6 +382,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.12"
+  description: "Static route to IS-IS redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
@@ -330,6 +397,12 @@ test: {
   id: "RT-3.2"
   description: "Policy based VRF selection with multiple protocol and DSCP values"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-4.10"
+  description: "AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
 test: {
@@ -381,7 +454,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.6"
+  id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
@@ -395,7 +468,7 @@ test: {
 test: {
   id: "RT-5.8"
   description: "IPv6 link local"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
   exec: " "
 }
 test: {
@@ -408,6 +481,18 @@ test: {
   id: "RT-7"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-8"
+  description: "Singleton with breakouts"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
+  exec: " "
+}
+test: {
+  id: "SFLOW-1"
+  description: "sFlow Configuration and Traffic Sampling"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/README.md"
   exec: " "
 }
 test: {
@@ -610,8 +695,13 @@ test: {
 }
 test: {
   id: "TE-9"
-  description: "Base gRIBI MPLS Compliance"
+  description: "MPLS based forwarding Static LSP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+}
+test: {
+  id: "TE-9.1"
+  description: "Base gRIBI MPLS Compliance"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
 }
 test: {
   id: "TE-10"
@@ -626,7 +716,7 @@ test: {
 }
 test: {
   id: "TR-6.2"
-  description: "system logging console vty file"
+  description: "Local logging destinations"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/console_vty_file/tests/README.md"
   exec: " "
 }
@@ -782,6 +872,24 @@ test: {
   exec: " "
 }
 test: {
+  id: "gNMI-1.18"
+  description: "gNMI subscribe with sample mode for backplane capacity counters"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.19"
+  description: "gNMI ConfigPush after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-1.20"
+  description: "Telemetry: Optics Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/optics_thresholds_test/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -803,6 +911,12 @@ test: {
   id: "gNMI-1.9"
   description: "Get requests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/get/tests/system_gnmi_get_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNMI-2"
+  description: "Gnmi Subscriptionlist Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test/README.md"
   exec: " "
 }
 test: {
@@ -877,4 +991,39 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_firmware_version_test/README.md"
   exec: " "
 }
-
+test: {
+  id: "TRANSCEIVER-4"
+  description: "400ZR Optics RX Input and TX Output Power streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_input_output_power_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-5"
+  description: "400ZR channel frequency and output TX launch power setting"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_tunable_parameters_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-8"
+  description: "400ZR Optics module temperature streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_temperature_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-9"
+  description: "400ZR TX laser bias current telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_laser_bias_current_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-10"
+  description: "400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_fec_uncorrectable_frames_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.1"
+  description: "Interface breakout Test"
+  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}

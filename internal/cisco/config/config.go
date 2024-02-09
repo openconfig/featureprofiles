@@ -59,14 +59,14 @@ func TextWithSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg 
 	tctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	response, err := sshClient.SendCommand(tctx, cfg)
+	response, err := sshClient.RunCommand(tctx, cfg)
 	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	if !checkCLIConfigIsApplied(response) {
+	if !checkCLIConfigIsApplied(response.Output()) {
 		t.Fatalf("Response message for ssh is not as expected %s", response)
 	}
-	return response
+	return response.Output()
 }
 
 func checkCLIConfigIsApplied(output string) bool {
@@ -382,9 +382,9 @@ func CLIViaSSH(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd st
 	tctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	response, err := sshClient.SendCommand(tctx, cmd)
+	response, err := sshClient.RunCommand(tctx, cmd)
 	if err != nil {
 		t.Fatalf("Failed to write using ssh: %v", err)
 	}
-	return response
+	return response.Output()
 }

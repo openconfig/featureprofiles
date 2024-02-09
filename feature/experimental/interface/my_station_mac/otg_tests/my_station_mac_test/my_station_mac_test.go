@@ -159,7 +159,7 @@ func testTraffic(
 	flow.Metrics().SetEnable(true)
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	eth.Dst().SetChoice("value").SetValue(myStationMAC)
+	eth.Dst().SetValue(myStationMAC)
 	if ipType == "IPv4" {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)

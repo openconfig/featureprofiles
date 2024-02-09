@@ -357,6 +357,22 @@ In particular:
     used for traffic testing; split as needed.
 *   `BMWG`: (198.18.0.0/15): additional data plane networks.
 
+*   20.0.0.1/15: data plane source network addresses used for scale testing.
+
+*   30.0.0.1/15: data plane source network addresses used for scale testing.
+
+*   100.0.0.0/12: data plane source network addresses used for scale testing.
+
+*   138.0.11.0/24: data plane source network addresses used for traffic testing; split as needed.
+
+*   192.51.100.1/24: data plane source network addresses used for traffic testing; split as needed.
+
+*   192.51.129.0/22: data plane source network addresses used for traffic testing; split as needed.
+
+*   192.55.200.3/32: data plane source network addresses used for traffic testing; split as needed.
+
+*   198.100.200.123/24: data plane source network addresses used for traffic testing; split as needed.
+
 ### IPv6
 
 2001:DB8::/32 is a very large space, so we divide them as follows.

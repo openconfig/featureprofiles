@@ -14,6 +14,34 @@ nodes: {
             }
         }
     }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
+        }
+    }
     interfaces: {
         key: "e1-1"
         value: {
@@ -40,6 +68,34 @@ nodes: {
                 key_name: "N/A"
                 key_size: 4096
             }
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
         }
     }
     interfaces: {

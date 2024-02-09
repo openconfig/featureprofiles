@@ -1,4 +1,4 @@
-# RT-5.6: Disable IPv6 ND Router Arvetisment
+# RT-9: Disable IPv6 ND Router Arvetisment
 
 ## Summary
 

@@ -12,5 +12,6 @@ platform_exceptions: {
   deviations: {
     gnoi_fabric_component_reboot_unsupported: true
     gnoi_subcomponent_path: true
+    gnoi_subcomponent_reboot_status_unsupported: true
   }
 }

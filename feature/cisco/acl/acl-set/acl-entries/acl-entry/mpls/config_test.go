@@ -59,7 +59,7 @@ func TestStartLabelValue(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.StartLabelValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/start-label-value: got %v, want %v", configGot, input)
 					}
@@ -110,7 +110,7 @@ func TestTrafficClass(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.TrafficClass != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/traffic-class: got %v, want %v", configGot, input)
 					}
@@ -161,7 +161,7 @@ func TestEndLabelValue(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.EndLabelValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/end-label-value: got %v, want %v", configGot, input)
 					}
@@ -212,7 +212,7 @@ func TestTtlValue(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.TtlValue != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/mpls/config/ttl-value: got %v, want %v", configGot, input)
 					}
