@@ -402,7 +402,10 @@ message Metadata {
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
     bool skip_setting_allow_multiple_as = 140;
-
+    //Skip tests with decap encap vrf as PBF action 
+    // Nokia: partnerissuetracker.corp.google.com/issues/323251581
+    bool skip_pbf_with_decap_encap_vrf = 141;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
