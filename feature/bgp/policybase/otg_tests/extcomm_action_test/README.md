@@ -103,9 +103,8 @@ Matches should be performed against a subset of extended community types
   * For each policy-definition created
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
-      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
-        to apply the policy to the ATE port 2 bgp neighbor
-
+      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
+        to configure the policy on the DUT to the ATE port 1 bgp neighbor
     * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
@@ -182,7 +181,10 @@ Matches should be performed against a subset of extended community types
       * actions/config/policy-result = REJECT_ROUTE
 
   * For each policy-definition
-    * Use gnmi Set REPLACE option for `/routing-policy/policy-definitions` configuration on the DUT
+    * Use gnmi Set REPLACE option for:
+      * `/routing-policy/policy-definitions` to configure the policy
+      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
+        to configure the policy on the DUT to the ATE port 1 bgp neighbor
     * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
@@ -239,8 +241,10 @@ Matches should be performed against a subset of extended community types
       * actions/config/policy-result = REJECT_ROUTE
 
   * For each policy-definition
-    * Use gnmi Set REPLACE option for `/routing-policy/policy-definitions`
-      configuration on the DUT.
+    * Use gnmi Set REPLACE option for:
+      * `/routing-policy/policy-definitions` to configure the policy
+      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
+        to configure the policy on the DUT to the ATE port 1 bgp neighbor
     * Send traffic from ATE port-2 to all prefix-sets-5,6.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
@@ -299,8 +303,10 @@ Matches should be performed against a subset of extended community types
       * actions/config/policy-result = REJECT_ROUTE
 
   * For each policy-definition
-    * Use gnmi Set REPLACE option for `/routing-policy/policy-definitions`
-      configuration on the DUT.
+    * Use gnmi Set REPLACE option for:
+      * `/routing-policy/policy-definitions` to configure the policy
+      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy`
+        to configure the policy on the DUT to the ATE port 1 bgp neighbor
     * Send traffic from ATE port-2 to all prefix-sets-5,6.
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
