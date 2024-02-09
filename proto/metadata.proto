@@ -399,19 +399,25 @@ message Metadata {
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
+    //Skip tests with decap encap vrf as PBF action 
+    // Nokia: partnerissuetracker.corp.google.com/issues/323251581
+    bool skip_pbf_with_decap_encap_vrf = 141;
     // Skip gNMI container OP tc.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool skip_container_op = 140;
+    bool skip_container_op = 142;
     // Reorder calls for vendor compatibility.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool reorder_calls_for_vendor_compatibilty = 141;
+    bool reorder_calls_for_vendor_compatibilty = 143;
     // Add missing base config using cli.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool add_missing_base_config_via_cli = 142;
+    bool add_missing_base_config_via_cli = 144;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool skip_macaddress_check = 143;
-
+    bool skip_macaddress_check = 145;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
