@@ -166,6 +166,10 @@ func TestInterfaceCounters(t *testing.T) {
 			if tc.skip {
 				t.Skipf("Counter %v is not supported.", tc.desc)
 			}
+			_, present := gnmi.Watch(t, dut, tc.counter, 15*time.Second, func(val *ygnmi.Value[uint64]) bool {
+				_, present := val.Val()
+				return present
+			}).Await(t)
 			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
 				t.Errorf("Get IsPresent status for path %q: got false, want true", tc.path)
