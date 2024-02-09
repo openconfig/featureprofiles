@@ -20,33 +20,30 @@ Each LAG bundle below is made up of 2x10G ports.
 graph LR; 
 A[ATE1:LAG1] <-- IBGP+IS-IS --> B[LAG1:DUT];
 C[DUT:LAG2] <-- IBGP+IS-IS --> D[LAG1:ATE2];
-E[DUT:LAG3] <-- IBGP+IS-IS --> F[LAG1:ATE3];
-G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG1:ATE4];
+E[DUT:LAG3] <-- IBGP+IS-IS --> F[LAG2:ATE2];
+G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 ```
 
 ## Procedure
 
 In the topology above, 
-* Configure IPv4 and IPv6 L2 adjacency between DUT and ATE LAG bundles.
+* Configure IPv4 and IPv6 L2 adjacency between DUT and ATE LAG bundles. Therefore DUT will have 1xIS-IS adjacency with ATE1 i.e. DUT:LAG1<->ATE1:LAG1, and 3xIS-IS adjacencies with ATE2 i.e. DUT:LAG2<->ATE2:LAG1, DUT:LAG3<->ATE2:LAG2 and DUT:LAG4<->ATE2:LAG3
   * /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
   * /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability, set to LEVEL_2
   * /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style set to WIDE_METRIC
-* Configure IPv4 and IPv6 IBGP peering between all ATEs and DUT using their loopback addresses.
+* Configure IPv4 and IPv6 IBGP peering between both ATEs and the DUT using their loopback addresses.
   * /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config
-* Configure a network with an IPv4 and an IPv6 prefix and have it attached to ATE2, ATE3 and ATE4 and have these ATEs to advertise the IPv4 and IPv6 prefix of this network to the DUT over their respective IBGP peering. The DUT in turn should advertise these prefixes over its IBGP peering with ATE1
+* Attach a network with an IPv4 and an IPv6 prefix to ATE2 and have it advertise these prefixes over its IBGP peering with the DUT. The DUT in turn should advertise these prefixes over its IBGP peering with ATE1
   * Please use `IPv4 prefix = 192.168.1.0/24` and `IPv6 prefix = 2024:db8:64:64::/64`
-* Similarly, attach a different network to ATE1 with IPv4 and IPv6 prefix and advertise the same over IBGP peering with DUT.
+* Similarly, attach a different network to ATE1 with IPv4 and IPv6 prefixes and advertise the same over its IBGP peering with the DUT.
   * Please use `IPv4 prefix = 192.168.2.0/24` and `IPv6 prefix = 2024:db8:64:65::/64`
-* Ensure that the DUT is configured for multipath
-  * /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
-  * /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths, set to 3
 * On the DUT, enable WECMP loadbalancing for multipath IS-IS routes and set the load-balancing-weight to use LAG bandwidth.
   * /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp set to Enabled
   * /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight set to Auto
   
  
 ## RT-9.1: Equal distribution of traffic
-* Start 1024 flows from IPv4 addresses in 192.168.2.0/24 to 192.168.1.0/24 and 2024:db8:64:64::/64 
+* Start 1024 flows from IPv4 addresses in 192.168.2.0/24 to 192.168.1.0/24
 * Start 1024 flows from IPv6 addresses in 2024:db8:64:65::/64 to 2024:db8:64:64::/64
 * Ensure that the total traffic of all flows combined is ~20Gbps
 ### Verfication
