@@ -243,6 +243,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 	// Space to add trigger code
 	a.restartProcessBackground(t)
 
+	if with_RPFO {
+		a.rpfo(t)
+	}
+
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	a.ate.Traffic().Stop(t)
 

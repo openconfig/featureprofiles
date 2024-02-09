@@ -23,18 +23,27 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
-var chassis_type string // check if its distributed or fixed chassis
+var (
+	chassis_type string // check if its distributed or fixed chassis
+	rpfo_count   = 0    // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
+)
+
 const (
-	with_RPFO = false
+	with_RPFO  = true
+	active_rp  = "0/RP0/CPU0"
+	standby_rp = "0/RP1/CPU0"
 )
 
 type testArgs struct {
@@ -68,6 +77,9 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 // 		ticker := time.NewTicker(5 * time.Second) // Adjust the interval as needed
 
 // 		for {
+// gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
+// gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
+
 // 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
 // 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
 // 			select {
@@ -374,7 +386,7 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 
 			pre_data, _ := get_data(t, path, query)
 
-			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 60, drop: true, event: tt.event_type})
+			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type})
 
 			post_data, _ := get_data(t, path, query)
 
@@ -413,7 +425,7 @@ func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uin
 
 func (args *testArgs) restartProcessBackground(t *testing.T) {
 	processes := []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}
-	// Add code to restart npu_drvr from linux prompt, ofa_npd on LC
+	// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
 
 	//patch for CLIviaSSH failing, else pattern to use is #
 	var acp string
@@ -428,6 +440,141 @@ func (args *testArgs) restartProcessBackground(t *testing.T) {
 		time.Sleep(4 * time.Second)
 		ticker1.Stop()
 	}
+}
+
+func (args *testArgs) rpfo(t *testing.T) {
+
+	// reload the HW is rfpo count is 10 or more
+	if rpfo_count == 10 {
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
+		rebootRequest := &gnps.RebootRequest{
+			Method: gnps.RebootMethod_COLD,
+			Force:  true,
+		}
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+		if err != nil {
+			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+		}
+		rpfo_count = 0
+		time.Sleep(time.Minute * 20)
+	}
+	// supervisor info
+	var supervisors []string
+	active_state := gnmi.OC().Component(active_rp).Name().State()
+	active := gnmi.Get(t, args.dut, active_state)
+	standby_state := gnmi.OC().Component(standby_rp).Name().State()
+	standby := gnmi.Get(t, args.dut, standby_state)
+	supervisors = append(supervisors, active, standby)
+
+	// find active and standby RP
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, args.dut, supervisors)
+	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+
+	// make sure standby RP is reachable
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, args.dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, args.dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	gnoiClient, _ := args.dut.RawAPIs().BindingDUT().DialGNOI(args.ctx)
+	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+	switchoverRequest := &gnps.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	var switchoverResponse *gnps.SwitchControlProcessorResponse
+	err := retryUntilTimeout(func() error {
+		switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+		return nil
+	}, 5, 1*time.Minute)
+
+	if err != nil {
+		fmt.Printf("RPFO failed: %v\n", err)
+	} else {
+		fmt.Println("RPFO succeeded!")
+	}
+	// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if useNameOnly {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, args.dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, args.dut, supervisors)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, args.dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, args.dut, activeRP.LastSwitchoverTime().State()))
+	}
+
+	if got, want := gnmi.Lookup(t, args.dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, args.dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
+	startTime := time.Now()
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := task(); err == nil {
+			return nil
+		}
+
+		// Calculate how much time has passed
+		elapsedTime := time.Since(startTime)
+
+		// If the elapsed time exceeds the timeout, break out of the loop
+		if elapsedTime >= timeout {
+			break
+		}
+
+		// Wait for a short interval before the next attempt
+		// You can adjust the sleep duration based on your needs
+		time.Sleep(1 * time.Second)
+	}
+	return fmt.Errorf("Task failed after %d attempts within a %s timeout", maxAttempts, timeout)
 }
 
 func TestOC_PPC(t *testing.T) {
