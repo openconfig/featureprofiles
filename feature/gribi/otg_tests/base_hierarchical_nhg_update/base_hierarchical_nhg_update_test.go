@@ -970,14 +970,15 @@ func generateIPAddress(dstP string, i int) string {
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	s := &oc.Root{}
-	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	ni := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	ipv4Nh := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("0")
 	ipv4Nh1 := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("1")
 	ipv4Nh2 := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("2")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort2.IPv4)
 	ipv4Nh1.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
 	ipv4Nh2.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort4.IPv4)
-	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 }
 
 // getLossPct returns the loss percentage for a given flow
