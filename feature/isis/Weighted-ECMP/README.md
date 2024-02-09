@@ -1,4 +1,4 @@
-# RT-9: Weighted-ECMP with IS-IS
+# RT-9: Weighted-ECMP for IS-IS
 
 ## Summary
 This is to ensure that,
