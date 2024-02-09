@@ -15,7 +15,6 @@
 package ppc_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -30,14 +29,13 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"golang.org/x/exp/slices"
 )
 
 var chassis_type string // check if its distributed or fixed chassis
 
 type testArgs struct {
 	ate *ondatra.ATEDevice
-	ctx context.Context
+	// ctx context.Context
 	dut *ondatra.DUTDevice
 	top *ondatra.ATETopology
 }
@@ -52,15 +50,6 @@ const (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func sortedInterfaces(ports []*ondatra.Port) []string {
-	var interfaces []string
-	for _, port := range ports {
-		interfaces = append(interfaces, port.Name())
-	}
-	slices.Sort(interfaces)
-	return interfaces
 }
 
 func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
@@ -226,90 +215,90 @@ func (ia event_enable_mpls_ldp) enable_mpls_ldp(t *testing.T) {
 
 // Testcase defines testcase structure
 type Testcase struct {
-	name       string
-	desc       string
-	npu        string
-	flow       *ondatra.Flow
-	sub_type   SubscriptionType
+	name string
+	// desc       string
+	npu  string
+	flow *ondatra.Flow
+	// sub_type   SubscriptionType
 	event_type eventType // trigger for creating the scenario
 }
 
 // to do subscriptions
-var (
-	subscriptions = []Testcase{
-		//subcription mode covers for all leaf, container and root level
-		// {
-		// 	name:     "once",
-		// 	desc:     "validates subscription mode once at the root, container and leaf level once using gNMI get",
-		// 	sub_type: &SubscriptionListWrapper{List: &gpb.SubscriptionList_ONCE},
-		// },
-		{
-			name:     "on-change",
-			desc:     "validates subscription on-change at the root, container and leaf level",
-			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_ON_CHANGE},
-		},
-		{
-			name:     "sample",
-			desc:     "validates subscription mode sampling at the root, container and leaf level",
-			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_SAMPLE},
-		},
-		// {
-		// 	name: "sample",
-		// 	desc: "validates subscription mode sampling at the root, container and leaf level",
-		// 	mode: gpb.SubscriptionMode_TARGET_DEFINED,
-		// },
-		// {
-		// 	name: "multiple_subcriptions",
-		// 	desc: "mix various subscription modes and levels",
-		// },
-	}
-)
+// var (
+// 	subscriptions = []Testcase{
+// 		//subcription mode covers for all leaf, container and root level
+// 		// {
+// 		// 	name:     "once",
+// 		// 	desc:     "validates subscription mode once at the root, container and leaf level once using gNMI get",
+// 		// 	sub_type: &SubscriptionListWrapper{List: &gpb.SubscriptionList_ONCE},
+// 		// },
+// 		{
+// 			name:     "on-change",
+// 			desc:     "validates subscription on-change at the root, container and leaf level",
+// 			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_ON_CHANGE},
+// 		},
+// 		{
+// 			name:     "sample",
+// 			desc:     "validates subscription mode sampling at the root, container and leaf level",
+// 			sub_type: &SubscriptionModeWrapper{Mode: gpb.SubscriptionMode_SAMPLE},
+// 		},
+// 		// {
+// 		// 	name: "sample",
+// 		// 	desc: "validates subscription mode sampling at the root, container and leaf level",
+// 		// 	mode: gpb.SubscriptionMode_TARGET_DEFINED,
+// 		// },
+// 		// {
+// 		// 	name: "multiple_subcriptions",
+// 		// 	desc: "mix various subscription modes and levels",
+// 		// },
+// 	}
+// )
 
-func create_gnmi_request(t *testing.T, path, npu string, sub SubscriptionType) *gpb.SubscribeRequest {
+// func create_gnmi_request(t *testing.T, path, npu string, sub SubscriptionType) *gpb.SubscribeRequest {
 
-	var request *gpb.SubscribeRequest
+// 	var request *gpb.SubscribeRequest
 
-	switch v := sub.(type) {
-	case *SubscriptionModeWrapper:
-		request = &gpb.SubscribeRequest{
-			Request: &gpb.SubscribeRequest_Subscribe{
-				Subscribe: &gpb.SubscriptionList{
-					Subscription: []*gpb.Subscription{
-						{
-							Path: &gpb.Path{
-								Elem: []*gpb.PathElem{
-									{Name: fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, path)},
-								},
-							},
-							Mode:           v.Mode,
-							SampleInterval: 10000,
-						},
-					},
-				},
-			},
-		}
-		return request
-	// case *SubscriptionListWrapper:
-	// 	request = &gpb.SubscribeRequest{
-	// 		Request: &gpb.SubscribeRequest_Subscribe{
-	// 			Subscribe: &gpb.SubscriptionList{
-	// 				Subscription: []*gpb.Subscription{
-	// 					{
-	// 						Path: &gpb.Path{
-	// 							Elem: []*gpb.PathElem{
-	// 								{Name: path},
-	// 							},
-	// 						},
-	// 						List: v.List,
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	default:
-		return request
-	}
-}
+// 	switch v := sub.(type) {
+// 	case *SubscriptionModeWrapper:
+// 		request = &gpb.SubscribeRequest{
+// 			Request: &gpb.SubscribeRequest_Subscribe{
+// 				Subscribe: &gpb.SubscriptionList{
+// 					Subscription: []*gpb.Subscription{
+// 						{
+// 							Path: &gpb.Path{
+// 								Elem: []*gpb.PathElem{
+// 									{Name: fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, path)},
+// 								},
+// 							},
+// 							Mode:           v.Mode,
+// 							SampleInterval: 10000,
+// 						},
+// 					},
+// 				},
+// 			},
+// 		}
+// 		return request
+// 	// case *SubscriptionListWrapper:
+// 	// 	request = &gpb.SubscribeRequest{
+// 	// 		Request: &gpb.SubscribeRequest_Subscribe{
+// 	// 			Subscribe: &gpb.SubscriptionList{
+// 	// 				Subscription: []*gpb.Subscription{
+// 	// 					{
+// 	// 						Path: &gpb.Path{
+// 	// 							Elem: []*gpb.PathElem{
+// 	// 								{Name: path},
+// 	// 							},
+// 	// 						},
+// 	// 						List: v.List,
+// 	// 					},
+// 	// 				},
+// 	// 			},
+// 	// 		},
+// 	// 	}
+// 	default:
+// 		return request
+// 	}
+// }
 
 func getPathFromElements(input []*gpb.PathElem) string {
 	var result []string
@@ -326,9 +315,9 @@ func getPathFromElements(input []*gpb.PathElem) string {
 	return "/" + strings.Join(result, "/")
 }
 
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
-}
+// func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
+// 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
+// }
 
 func (a *testArgs) testOC_drop_block(t *testing.T) {
 

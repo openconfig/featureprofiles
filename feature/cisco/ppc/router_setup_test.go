@@ -16,7 +16,6 @@ package ppc_test
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -272,37 +271,37 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// }
 }
 
-func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
-	//create empty subinterface
-	si := &oc.Interface_Subinterface{}
-	si.Index = ygot.Uint32(subint)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
+// func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
+// 	//create empty subinterface
+// 	si := &oc.Interface_Subinterface{}
+// 	si.Index = ygot.Uint32(subint)
+// 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
 
-	//create vrf and apply on subinterface
-	v := &oc.NetworkInstance{
-		Name: ygot.String(name),
-	}
-	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
-	vi.Subinterface = ygot.Uint32(subint)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(name).Config(), v)
-}
+// 	//create vrf and apply on subinterface
+// 	v := &oc.NetworkInstance{
+// 		Name: ygot.String(name),
+// 	}
+// 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
+// 	vi.Subinterface = ygot.Uint32(subint)
+// 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(name).Config(), v)
+// }
 
-func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint8, vlanID uint16, index uint32) *oc.Interface_Subinterface {
-	s := &oc.Interface_Subinterface{}
-	s.Index = ygot.Uint32(index)
-	s4 := s.GetOrCreateIpv4()
-	a := s4.GetOrCreateAddress(ipv4)
-	a.PrefixLength = ygot.Uint8(prefixlen4)
-	s6 := s.GetOrCreateIpv6()
-	a6 := s6.GetOrCreateAddress(ipv6)
-	a6.PrefixLength = ygot.Uint8(prefixlen6)
-	v := s.GetOrCreateVlan()
-	m := v.GetOrCreateMatch()
-	if index != 0 {
-		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
-	}
-	return s
-}
+// func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint8, vlanID uint16, index uint32) *oc.Interface_Subinterface {
+// 	s := &oc.Interface_Subinterface{}
+// 	s.Index = ygot.Uint32(index)
+// 	s4 := s.GetOrCreateIpv4()
+// 	a := s4.GetOrCreateAddress(ipv4)
+// 	a.PrefixLength = ygot.Uint8(prefixlen4)
+// 	s6 := s.GetOrCreateIpv6()
+// 	a6 := s6.GetOrCreateAddress(ipv6)
+// 	a6.PrefixLength = ygot.Uint8(prefixlen6)
+// 	v := s.GetOrCreateVlan()
+// 	m := v.GetOrCreateMatch()
+// 	if index != 0 {
+// 		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+// 	}
+// 	return s
+// }
 
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(name)}
