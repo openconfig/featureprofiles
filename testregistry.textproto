@@ -502,14 +502,14 @@ test: {
 }
 test: {
   id: "RT-7.7"
-  description: "RT-7.7: BGP Link Bandwidth Community - Set Bandwidth"
+  description: "RT-7.7: BGP Link Bandwidth Community - Set Link Bandwidth"
   readme: " "
   exec: " "
 }
 test: {
   id: "RT-7.8"
-  description: "RT-7.8: BGP Policy - Ext Community Matching"
-  readme: " "
+  description: "RT-7.8: BGP Policy - Set Communities"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_action_set_test/README.md"
   exec: " "
 }
 test: {
