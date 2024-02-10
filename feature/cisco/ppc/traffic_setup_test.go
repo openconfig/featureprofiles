@@ -240,11 +240,19 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 			eventAction.enable_mpls_ldp(t)
 		}
 	}
-	// Space to add trigger code
-	a.restartProcessBackground(t)
 
-	if with_RPFO {
-		a.rpfo(t)
+	// Space to add trigger code
+	for _, tt := range triggers {
+		t.Logf("Name: %s", tt.name)
+		t.Logf("Description: %s", tt.desc)
+		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
+			triggerAction.restartProcessBackground(t, a.ctx)
+		}
+		if with_RPFO {
+			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+				triggerAction.rpfo(t, a.ctx)
+			}
+		}
 	}
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
