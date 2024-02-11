@@ -18,6 +18,8 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+var NTPServer = []string{"223.255.254.254", "5.13.254.254", "192.0.2.3", "192.0.2.4"}
+
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
@@ -25,6 +27,7 @@ const (
 	upTimer       = 5000
 	downTimer     = 300
 	toleranceMS   = 200 // Define the tolerance in milliseconds
+
 )
 
 var (
@@ -70,6 +73,48 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func ConfigureNtpServer(t *testing.T) {
+	// Define the NTP server configuration for the default VRF
+	NtpConfig := struct {
+		description string
+		addresses   []string
+	}{
+		description: "NTP Server Config",
+		addresses:   NTPServer,
+	}
+
+	dut := ondatra.DUT(t, "dut")
+
+	// Begin configuring the NTP server
+	t.Run(NtpConfig.description, func(t *testing.T) {
+		ntpPath := gnmi.OC().System().Ntp()
+
+		d := &oc.Root{}
+		ntp := d.GetOrCreateSystem().GetOrCreateNtp()
+		ntp.SetEnabled(true)
+
+		// Configure each NTP server address
+		for _, address := range NtpConfig.addresses {
+			ntp.GetOrCreateServer(address)
+		}
+
+		// Replace the current NTP configuration with our new one
+		gnmi.Update(t, dut, ntpPath.Config(), ntp)
+
+		// Retrieve the NTP state to verify the configuration
+		ntpState := gnmi.Get(t, dut, ntpPath.State())
+
+		// Check that each NTP server is present in the state
+		for _, address := range NtpConfig.addresses {
+			ntpServer := ntpState.GetServer(address)
+			if ntpServer == nil {
+				t.Errorf("Missing NTP server from NTP state: %s", address)
+			}
+		}
+	})
+}
+
+// TestNtpServerConfigurability validates that an NTP server can be configured on the DUT.
 func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
 	t.Helper()
 
@@ -135,14 +180,17 @@ func OTGInterfaceUP(t *testing.T,
 }
 
 func OTGInterfaceDOWN(t *testing.T,
-	ate *ondatra.ATEDevice) {
+	ate *ondatra.ATEDevice) time.Time {
 
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
+	timestamp := time.Now()
 
 	// make sure interface is not down
 	portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
+
+	return timestamp
 }
 
 func configureOTGBundle(t *testing.T,
@@ -157,10 +205,6 @@ func configureOTGBundle(t *testing.T,
 
 	for i, p := range aggPorts {
 		port := top.Ports().Add().SetName(p.ID())
-		// newMac, err := incrementMAC(ateDst.MAC, i+1)
-		// if err != nil {
-		// 	t.Fatal(err)
-		// }
 		agg.Ports().Add().SetPortName(port.Name()).Ethernet().SetMac(ateSrc.MAC).SetName("LAGRx-" + strconv.Itoa(i))
 	}
 
@@ -170,35 +214,86 @@ func configureOTGBundle(t *testing.T,
 	dstEth.Ipv4Addresses().Add().SetName(lagName + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 }
 
+func displaySummaryTable(t *testing.T,
+	preActionTS,
+	postActionTS string,
+	actualDurationInMS,
+	minToleranceInMS,
+	maxToleranceInMS int64,
+	expectedOperStatus,
+	actualOperStatus string,
+	pass bool) {
+
+	result := "FAIL"
+	if pass {
+		result = "PASS"
+	}
+
+	// Prepare the strings for output.
+	expectedDurationStr := "300ms" // Assuming this is a constant value
+	minToleranceStr := fmt.Sprintf("%dms", minToleranceInMS)
+	maxToleranceStr := fmt.Sprintf("%dms", maxToleranceInMS)
+	actualDurationStr := fmt.Sprintf("%dms", actualDurationInMS)
+
+	// Create a slice of metrics and corresponding values.
+	metrics := []string{"Pre-action TS", "Post-action TS", "Expected Duration", "Actual Duration", "Min Tolerance", "Max Tolerance", "Expected Oper Status", "Actual Oper Status", "Result"}
+	values := []string{preActionTS, postActionTS, expectedDurationStr, actualDurationStr, minToleranceStr, maxToleranceStr, expectedOperStatus, actualOperStatus, result}
+
+	// Find the maximum width for the metrics to align the values.
+	maxMetricWidth := 0
+	for _, metric := range metrics {
+		if len(metric) > maxMetricWidth {
+			maxMetricWidth = len(metric)
+		}
+	}
+
+	// Create the vertical table.
+	table := ""
+	for i, metric := range metrics {
+		table += fmt.Sprintf("%-*s: %s\n", maxMetricWidth, metric, values[i])
+	}
+
+	t.Logf("\n%s", table)
+}
+
 func flapOTGInterface(t *testing.T,
 	ate *ondatra.ATEDevice,
 	dut *ondatra.DUTDevice,
-	actionState string) (time.Time, time.Time) {
+	actionState string) (time.Time, time.Time, string, string) {
 
 	// Shut down OTG Interface
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
 
-	var beforeEventChangeStr string
+	var otgStateChangeTsStr string
 
-	preStateTS := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
-
+	// TC2 Step 1 Read timestamp of last oper-status change  form DUT port-1
+	preStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
+	DutLastChangeTS1 := time.Unix(0, int64(preStateTSSTR)).UTC().Format(time.RFC3339Nano)
+	t.Logf("Step1. DutLastChangeTS1 is: %v", DutLastChangeTS1)
 	if actionState == "UP" {
-
 		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-		beforeEventChangeStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		otgStateChangeTsStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		ate.OTG().SetControlState(t, portStateAction)
+	} else if actionState == "DOWN" {
+		// TC2 Step 2 Bring Down OTG Interface
+		t.Log("Step 2 sending remote fault")
+		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		//otgStateChangeTsStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		otgStateChangeTsStr = time.Now().UTC().Format(time.RFC3339Nano)
+
 		ate.OTG().SetControlState(t, portStateAction)
 
-	} else if actionState == "DOWN" {
-		// Bring Down OTG Interface
-		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-		beforeEventChangeStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		ate.OTG().SetControlState(t, portStateAction)
+		// TC2 Step 3
+		t.Log("Step 3 sleeping 1000ms")
+		time.Sleep(1000 * time.Millisecond)
 	}
 
-	time.Sleep(5 * time.Second)
+	// Step 4. Read timestamp of last oper-status change  form DUT port-1 (DUT_LAST_CHANGE_TS)
+	postStateTSSTR := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
+	DutLastChangeTS2STR := time.Unix(0, int64(postStateTSSTR)).UTC().Format(time.RFC3339Nano)
 
-	status := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
+	DutLastChangeOper2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 
 	var expectedStatus oc.E_Interface_OperStatus
 	if actionState == "UP" {
@@ -207,34 +302,34 @@ func flapOTGInterface(t *testing.T,
 		expectedStatus = oc.Interface_OperStatus_DOWN
 	}
 
-	// Validate the operational status
-	if status != expectedStatus {
-		t.Errorf("Interface %s status got %v, want %v", aggID, status, expectedStatus)
+	// Step 5. verify oper-status is DOWN
+	if DutLastChangeOper2 != expectedStatus {
+		t.Errorf("Interface %s status got %v, want %v", aggID, DutLastChangeTS2STR, expectedStatus.String())
 	} else {
-		t.Logf("Interface %s status got %v, want %v", aggID, status, expectedStatus)
+		t.Logf("Interface %s status got %v, want %v", aggID, DutLastChangeTS2STR, expectedStatus.String())
 	}
 
-	EventChange := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
-	// Convert the nanoseconds timestamp to a time.Time object in UTC
-	eventChangeTime := time.Unix(0, int64(EventChange)).UTC()
-
 	// convert string type change to time.time
-	beforeEvent, err := time.Parse(time.RFC3339, beforeEventChangeStr)
+	otgStateChangeTs, err := time.Parse(time.RFC3339Nano, otgStateChangeTsStr)
+	DutLastChangeTS2, err := time.Parse(time.RFC3339Nano, DutLastChangeTS2STR)
+
 	if err != nil {
 		t.Fatalf("failed to parse event timestamp: %v", err)
 	}
 
+	// Step 6. verify oper-status last change time has changed
 	t.Log("Compare if pre and post timestamps are the same for the last change before and after shut event")
-	if preStateTS == EventChange {
-		t.Fatalf("Before Trigger Last Change was %d after trigger Last Change was %d", preStateTS, EventChange)
+	if DutLastChangeTS1 == DutLastChangeTS2STR {
+		t.Fatalf("Before Trigger Last Change was %v after trigger Last Change was %v", DutLastChangeTS1, DutLastChangeTS2STR)
 	} else {
-		t.Logf("Before Trigger Last Change was %d after trigger Last Change was %d", preStateTS, EventChange)
+		t.Logf("Before Trigger Last Change was %v after trigger Last Change was %v", DutLastChangeTS1, DutLastChangeTS2STR)
 	}
 
-	// Convert the parsed time to UTC
-	beforeEventChange := beforeEvent.UTC()
+	// convert to time objects
+	otgStateChangeTs = otgStateChangeTs.UTC()
+	DutLastChangeTS2 = DutLastChangeTS2.UTC()
 
-	return beforeEventChange, eventChangeTime
+	return otgStateChangeTs, DutLastChangeTS2, expectedStatus.String(), DutLastChangeOper2.String()
 
 }
 
@@ -253,7 +348,7 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string) {
 		want = oc.Interface_OperStatus_DOWN
 	}
 
-	// Use a single if statement to check the status and log the result.
+	// check the status and log the result.
 	if status != want {
 		t.Fatalf("Failed: %s Status: got %v, want %v", aggID, status, want)
 	} else {
@@ -265,9 +360,35 @@ func TestHoldTimeConfig(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	// top := gosnappi.NewConfig()
+
+	t.Run(fmt.Sprintf("Configure NTP Server on DUT"), func(t *testing.T) {
+		ntpPath := gnmi.OC().System().Ntp()
+		ntpServers := gnmi.Get(t, dut, ntpPath.State())
+		t.Log("Checking for any existing NTP config on DUT")
+		if ntpServers.Server == nil {
+			t.Logf("No NTP Sever detected configuring NTP server")
+			ConfigureNtpServer(t)
+		}
+
+		t.Log("Polling that NTP server is enabled")
+		for i := 0; i < 5; i++ {
+			t.Logf("Polling NTP attempt %d", i)
+			ntpSyncEnabled := gnmi.Get(t, dut, ntpPath.Enabled().State())
+			ntpSyncStatus := gnmi.Get(t, dut, ntpPath.State())
+			t.Log(ntpSyncStatus)
+			if ntpSyncEnabled {
+				t.Log("NTP server is enabled")
+				break
+			} else if i == 5 {
+				t.Fatalf("No NTP configuration on device results are not likely to be accuarte")
+			}
+			time.Sleep(10 * time.Second)
+		}
+
+	})
+
 	dutPort1Intf = dut.Port(t, "port1")
-	t.Run(fmt.Sprintf("configureDUT Interfaces"), func(t *testing.T) {
+	t.Run(fmt.Sprintf("ConfigureDUT Interfaces"), func(t *testing.T) {
 		// Configure the DUT
 		aggID = netutil.NextAggregateInterface(t, dut)
 		t.Log(dutPort1Intf)
@@ -305,6 +426,7 @@ func TestHoldTimeConfig(t *testing.T) {
 
 func TestTC1ValidateTimersConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
 	holdTimePath := gnmi.OC().Interface(dutPort1Intf.Name()).HoldTime().State()
 
 	holdTimeState := gnmi.Get(t, dut, holdTimePath)
@@ -320,46 +442,52 @@ func TestTC1ValidateTimersConfig(t *testing.T) {
 }
 
 func TestTC2LongDown(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	var beforeEventChange time.Time
-	var eventTimeStampStr time.Time
+	var otgStateChangeTs, DutLastChangeTS2 time.Time
+	var expectedOper, actualOper string
 
 	t.Run(fmt.Sprintf("Shut down OTG interface to cause remote fault on %s", aggID), func(t *testing.T) {
-
-		beforeEventChange, eventTimeStampStr = flapOTGInterface(t, ate, dut, "DOWN")
-
-		// Log the start and end times
-		t.Logf("Shutdown triggered at: %v", beforeEventChange)
-		t.Logf("Last change reported at: %v", eventTimeStampStr)
-
+		otgStateChangeTs, DutLastChangeTS2, expectedOper, actualOper = flapOTGInterface(t, ate, dut, "DOWN")
+		if expectedOper != actualOper {
+			t.Errorf("expectedOper and actualOper do not match: expected %s, got %s", expectedOper, actualOper)
+		}
 	})
+
+	duration := DutLastChangeTS2.Sub(otgStateChangeTs)
+	durationInMS := duration.Milliseconds()
+
+	// Define the expected delay and tolerance
+	expectedDelayMS := 300 // Expected delay in milliseconds
+	minDuration := int64(expectedDelayMS - toleranceMS)
+	maxDuration := int64(expectedDelayMS + toleranceMS)
+
+	// Check if the actual duration falls within the expected range
+	pass := durationInMS >= minDuration && durationInMS <= maxDuration
 
 	t.Run(fmt.Sprintf("Calculate fault duration on %s", aggID), func(t *testing.T) {
-
-		// Calculate the difference in time
-		duration := eventTimeStampStr.Sub(beforeEventChange)
-
-		// Convert the duration to milliseconds
-		durationInMS := duration.Milliseconds()
+		t.Logf("Shutdown triggered at: %v", otgStateChangeTs)
+		t.Logf("Last change reported at: %v", DutLastChangeTS2)
 		t.Logf("Duration between shutdown triggered and last change reported: %v ms", durationInMS)
 
-		if durationInMS >= downTimer {
-			t.Logf("PASS: Duration is within the expected range; got %d MS", durationInMS)
+		if pass {
+			t.Logf("PASS: Duration is within the expected range; got %d ms", durationInMS)
 		} else {
-			t.Fatalf("FAIL: Expected duration to be at least %d MS; got %d MS", downTimer, durationInMS)
+			t.Errorf("FAIL: Expected duration to be within %d ms to %d ms; got %d ms", minDuration, maxDuration, durationInMS)
 		}
-
 	})
 
-	t.Run(fmt.Sprintf("Bring back UP OTG Interface"), func(t *testing.T) {
-
+	t.Run("Bring back UP OTG Interface", func(t *testing.T) {
 		OTGInterfaceUP(t, ate)
 		time.Sleep(45 * time.Second)
 		t.Logf("Verifying port status for %s", aggID)
 		verifyPortsStatus(t, dut, "UP")
+	})
+
+	t.Run(fmt.Sprintf("Verify test results"), func(t *testing.T) {
+		displaySummaryTable(t, otgStateChangeTs.Format(time.RFC3339Nano), DutLastChangeTS2.Format(time.RFC3339Nano),
+			durationInMS, minDuration, maxDuration, expectedOper, actualOper, pass)
 
 	})
 
@@ -460,41 +588,83 @@ func TestTC5ShortDOWN(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	t.Run(fmt.Sprintf("Start sending Ethernet Remote Fault on OTG"), func(t *testing.T) {
+	var time1 time.Time
+	var change1 *oc.Interface
+
+	// Construct the hold-time config object
+	holdTimeConfig := &oc.Interface_HoldTime{
+		Up:   ygot.Uint32(upTimer),
+		Down: ygot.Uint32(2000),
+	}
+
+	t.Run(fmt.Sprintf("Update hold timer configs down"), func(t *testing.T) {
+		intfPath := gnmi.OC().Interface(dutPort1Intf.Name())
+		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
+
+		time.Sleep(10 * time.Second)
+
+	})
+
+	t.Run(fmt.Sprintf("Flap OTG Interfaces"), func(t *testing.T) {
 
 		t.Log("Verify Interface State before TC Start")
 		verifyPortsStatus(t, dut, "UP")
 		// shutting down OTG interface to emulate the RF
-		// t.Log("Shutdown OTG Interface")
-		OTGInterfaceDOWN(t, ate)
-		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
-		// t.Log("Bring OTG Interface Back UP")
+		t.Log("Shutdown OTG Interface")
+		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
+		t.Logf("change1 last change is %v and status is %v", change1.LastChange, change1.AdminStatus)
+
+		time1 = OTGInterfaceDOWN(t, ate)
+		time.Sleep(200 * time.Millisecond)
+		t.Log("Bring OTG Interface Back UP")
 		OTGInterfaceUP(t, ate)
-		time.Sleep(3000 * time.Millisecond)
-		// ensure the LAG interface is still down
-
-		// Collecting time stamp of interface up
-		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
-
-		change1Time := time.Unix(0, int64(change1)).UTC()
-		change2Time := time.Unix(0, int64(change2)).UTC()
-
-		// Calculate the difference in time
-		duration := change2Time.Sub(change1Time)
-
-		// Convert the duration to milliseconds
-		durationInMS := duration.Milliseconds()
-		t.Logf("Duration interface %v ms", durationInMS)
-
-		// Compare the times and ensure there is no change in the last change
-		if change1Time.Before(change2Time) || change1Time.After(change2Time) {
-			t.Fatalf("FAILED: Time 1 %v and Time 2 dont match %v", change1Time, change2Time)
-		} else if change1Time.Equal(change2Time) {
-			t.Logf("PASS: Time 1 %v and Time 2 the the same which is expected %v", change1Time, change2Time)
-		}
-
-		verifyPortsStatus(t, dut, "UP")
 
 	})
 
+	t.Run(fmt.Sprintf("Verify Short Down Results"), func(t *testing.T) {
+
+		// Start building the log message
+		logMessage := "Interface Status Timeline\n" +
+			"----------------------------------------------------\n" +
+			"Event                   | Time                             | Oper Status\n" +
+			"----------------------------------------------------\n" +
+			"Last-change time 1      | %v                               | %v\n" +
+			"Trigger Start Time      | %v                               | -\n" +
+			"Last-change Re-check    | %v                               | %v\n"
+
+		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
+
+		if *change2.LastChange == *change1.LastChange && change2.OperStatus == change1.OperStatus {
+			time2 := time.Now()
+
+			// Dereference the value and convert to int64 before passing to time.Unix function
+			change2LastChangeTime := time.Unix(0, int64(*change2.LastChange)).UTC().Format(time.RFC3339Nano)
+			change1LastChangeTime := time.Unix(0, int64(*change1.LastChange)).UTC().Format(time.RFC3339Nano)
+			t1 := time1.UTC().Format(time.RFC3339Nano)
+			t2 := time2.UTC().Format(time.RFC3339Nano)
+
+			timeDiff := time2.Sub(time1).Milliseconds()
+
+			logMessage += fmt.Sprintf("End Time                | %v                               | -\n"+
+				"-----------------------------------------------------\n"+
+				"Total Elapsed Time: %vms\n", t2, timeDiff)
+			t.Logf(logMessage, change1LastChangeTime, change1.OperStatus, t1, change2LastChangeTime, change2.OperStatus)
+
+		} else {
+			// Dereference the value and convert to int64 before passing to time.Unix function
+			change2LastChangeTime := time.Unix(0, int64(*change2.LastChange)).UTC().Format(time.RFC3339Nano)
+			change1LastChangeTime := time.Unix(0, int64(*change1.LastChange)).UTC().Format(time.RFC3339Nano)
+			t1 := time1.UTC().Format(time.RFC3339Nano)
+
+			// Log failure message and the partially built log message without end time
+			t.Log("Failed due to an unexpected match such as last-change time or interface oper-status")
+			t.Fatalf(logMessage, change1LastChangeTime, change1.OperStatus, t1, change2LastChangeTime, change2.OperStatus)
+		}
+	})
+
+	t.Run(fmt.Sprintf("Verify port status UP"), func(t *testing.T) {
+		t.Log("re-verify that the interface state is still up")
+		verifyPortsStatus(t, dut, "UP")
+
+	})
 }
