@@ -328,7 +328,7 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		}
 	}
 
-	if errs != nil {
+	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 	return &binding.Reservation{
@@ -407,7 +407,7 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 		}
 	}
 
-	if errs != nil {
+	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 	return portmap, nil
