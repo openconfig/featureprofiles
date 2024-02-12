@@ -182,6 +182,11 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port3").Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // TE11.4 Gribi Programming with Reload.
