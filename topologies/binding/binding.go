@@ -46,6 +46,12 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
+var (
+	// To be stubbed out by unit tests.
+	grpcDialContextFn = grpc.DialContext
+	gosnappiNewAPIFn  = gosnappi.NewApi
+)
+
 // staticBind implements the binding.Binding interface by creating a
 // static reservation from a binding configuration file and the
 // testbed topology.
@@ -135,8 +141,8 @@ func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known DUT service %v", svc)
 	}
-	bopts := d.r.dutGRPC(d.dev, params)
-	return makeDialer(d.Name(), params, bopts)
+	bopts := d.r.grpc(d.dev, params)
+	return makeDialer(params, bopts)
 }
 
 func (d *staticDUT) reset(ctx context.Context) error {
@@ -232,8 +238,8 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 	if !ok {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
-	bopts := a.r.ateGRPC(a.dev, params)
-	return makeDialer(a.Name(), params, bopts)
+	bopts := a.r.grpc(a.dev, params)
+	return makeDialer(params, bopts)
 }
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
@@ -244,7 +250,7 @@ func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
-func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.GosnappiApi, error) {
+func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosnappi.Api, error) {
 	if a.dev.Otg == nil {
 		return nil, fmt.Errorf("otg must be configured in ATE binding to run OTG test")
 	}
@@ -253,9 +259,9 @@ func (a *staticATE) DialOTG(ctx context.Context, opts ...grpc.DialOption) (gosna
 		return nil, err
 	}
 
-	api := gosnappi.NewApi()
+	api := gosnappiNewAPIFn()
 	transport := api.NewGrpcTransport().SetClientConnection(conn)
-	if timeout := a.r.dutGRPC(a.dev, ateSvcParams[introspect.OTG]).Timeout; timeout != 0 {
+	if timeout := a.r.grpc(a.dev, ateSvcParams[introspect.OTG]).Timeout; timeout != 0 {
 		transport.SetRequestTimeout(time.Duration(timeout) * time.Second)
 	}
 	return api, nil
@@ -558,7 +564,7 @@ func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 	return opts, nil
 }
 
-func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
+func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
 	opts, err := dialOpts(bopts)
 	if err != nil {
 		return nil, err
@@ -571,9 +577,9 @@ func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introsp
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpc.DialContext(ctx, bopts.Target, opts...)
+			return grpcDialContextFn(ctx, target, opts...)
 		},
-		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
+		DialTarget: bopts.Target,
 		DialOpts:   opts,
 	}, nil
 }

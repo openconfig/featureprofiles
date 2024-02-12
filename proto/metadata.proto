@@ -36,6 +36,7 @@ message Metadata {
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
+    TESTBED_DUT_ATE_8LINKS = 7;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -392,7 +393,19 @@ message Metadata {
     // Devices which needs to enable leaf specific flag
     // Juniper: b/319202763
     bool enable_flowctrl_flag = 137;
-
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974 
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
+    //Skip tests with decap encap vrf as PBF action 
+    // Nokia: partnerissuetracker.corp.google.com/issues/323251581
+    bool skip_pbf_with_decap_encap_vrf = 141;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
