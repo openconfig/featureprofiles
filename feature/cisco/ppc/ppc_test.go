@@ -36,14 +36,18 @@ import (
 )
 
 var (
-	chassis_type string // check if its distributed or fixed chassis
-	rpfo_count   = 0    // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
+	chassis_type                  string // check if its distributed or fixed chassis
+	tolerance                     uint64
+	rpfo_count                    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
+	multiple_subscription         = 5 // total 5 parallel subscriptions will be tested
+	multiple_subscription_runtime = 5 // for 5 mins multiple subscriptions will keep on running
 )
 
 const (
-	with_RPFO  = true
-	active_rp  = "0/RP0/CPU0"
-	standby_rp = "0/RP1/CPU0"
+	with_RPFO      = true
+	with_lc_reload = true
+	active_rp      = "0/RP0/CPU0"
+	standby_rp     = "0/RP1/CPU0"
 )
 
 type testArgs struct {
@@ -58,7 +62,6 @@ const (
 	policyID         = "match-ipip"
 	ipOverIPProtocol = 4
 	vrf1             = "TE"
-	tolerance        = 2
 )
 
 func TestMain(m *testing.M) {
@@ -102,26 +105,218 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 // 	}()
 // }
 
-// to do triggers
-// var (
-// 	triggers = []Testcase{
-// 		{
-// 			name: "Interface flap",
-// 			desc: "",
-// 			// fn:   test,
-// 		},
-// 		{
-// 			name: "Process restart",
-// 			desc: "restart the process (emsd, ifmgr, dbwriter, fib_mgr, ipv4/ipv6 rib) and validate pipeline counters",
-// 			// fn:   test,
-// 		},
-// 		{
-// 			name: "HA triggers",
-// 			desc: "perform HA triggers like RPFO, LC reload and validate pipeline counters",
-// 			// fn:   test,
-// 		},
+type triggerType interface {
+}
+
+type trigger_process_restart struct {
+	processes []string
+}
+
+func (tt trigger_process_restart) restartProcessBackground(t *testing.T, ctx context.Context) {
+	dut := ondatra.DUT(t, "dut")
+	for _, process := range tt.processes {
+
+		//patch for CLIviaSSH failing, else pattern to use is #
+		var acp string
+		if with_RPFO {
+			acp = ".*Last switch-over.*ago"
+		} else {
+			acp = ".*"
+		}
+
+		ticker1 := time.NewTicker(3 * time.Second)
+		runner.RunCLIInBackground(ctx, t, dut, fmt.Sprintf("process restart %s", process), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 4*time.Second)
+		time.Sleep(4 * time.Second)
+		ticker1.Stop()
+	}
+}
+
+type trigger_rpfo struct {
+}
+
+func (tt trigger_rpfo) rpfo(t *testing.T, ctx context.Context) {
+	dut := ondatra.DUT(t, "dut")
+	// reload the HW is rfpo count is 10 or more
+	if rpfo_count == 10 {
+		gnoiClient := dut.RawAPIs().GNOI(t)
+		rebootRequest := &gnps.RebootRequest{
+			Method: gnps.RebootMethod_COLD,
+			Force:  true,
+		}
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+		if err != nil {
+			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+		}
+		rpfo_count = 0
+		time.Sleep(time.Minute * 20)
+	}
+	// supervisor info
+	var supervisors []string
+	active_state := gnmi.OC().Component(active_rp).Name().State()
+	active := gnmi.Get(t, dut, active_state)
+	standby_state := gnmi.OC().Component(standby_rp).Name().State()
+	standby := gnmi.Get(t, dut, standby_state)
+	supervisors = append(supervisors, active, standby)
+
+	// find active and standby RP
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, supervisors)
+	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
+
+	// make sure standby RP is reachable
+	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	gnoiClient, _ := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	switchoverRequest := &gnps.SwitchControlProcessorRequest{
+		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
+	}
+	t.Logf("switchoverRequest: %v", switchoverRequest)
+	var switchoverResponse *gnps.SwitchControlProcessorResponse
+	err := retryUntilTimeout(func() error {
+		switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+		return nil
+	}, 5, 1*time.Minute)
+
+	if err != nil {
+		fmt.Printf("RPFO failed: %v\n", err)
+	} else {
+		fmt.Println("RPFO succeeded!")
+	}
+	// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+
+	want := rpStandbyBeforeSwitch
+	got := ""
+	if useNameOnly {
+		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
+	} else {
+		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
+	}
+	if got != want {
+		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
+	}
+
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, supervisors)
+	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
+
+	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
+		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
+	}
+	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
+		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
+	}
+
+	t.Log("Validate OC Switchover time/reason.")
+	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
+	}
+
+	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
+		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	} else {
+		lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
+		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
+		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
+	}
+}
+
+type trigger_lc_reload struct {
+	tolerance uint64
+}
+
+// func (tt trigger_lc_reload) lc_reload(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	ls := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+
+// 	for _, l := range ls {
+// 		t.Run(l, func(t *testing.T) {
+// 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
+// 			if ok && empty {
+// 				t.Skipf("Linecard Component %s is empty, hence skipping", l)
+// 			}
+// 			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+// 				t.Skipf("Skip the test on non-removable linecard.")
+// 			}
+
+// 			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
+
+// 			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+// 				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
+// 			}
+
+// 			gnoiClient := dut.RawAPIs().GNOI(t)
+// 			useNameOnly := deviations.GNOISubcomponentPath(dut)
+// 			lineCardPath := components.GetSubcomponentPath(l, useNameOnly)
+// 			rebootSubComponentRequest := &gnps.RebootRequest{
+// 				Method: gnps.RebootMethod_COLD,
+// 				Subcomponents: []*tpb.Path{
+// 					// {
+// 					//  Elem: []*tpb.PathElem{{Name: lc}},
+// 					// },
+// 					lineCardPath,
+// 				},
+// 			}
+// 			t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+// 			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+// 			if err != nil {
+// 				t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+// 			}
+// 			t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+// 			// sleep while lc reloads
+// 			time.Sleep(10 * time.Minute)
+// 		})
 // 	}
-// )
+// }
+
+// Extend triggers
+var (
+	triggers = []Testcase{
+		{
+			name: "Process restart",
+			// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
+			desc:         "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
+			trigger_type: &trigger_process_restart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}},
+		},
+		{
+			name:         "RPFO",
+			desc:         "perform RPFO and validate pipeline counters",
+			trigger_type: &trigger_rpfo{},
+		},
+		{
+			name:         "LC reload",
+			desc:         "perform LC reload and validate pipeline counters",
+			trigger_type: &trigger_lc_reload{tolerance: 40}, //when LC is reloading, component is missing and indeed no data will be collected hence tolerance is needed
+		},
+	}
+)
 
 func checkChassisType(t *testing.T, dut *ondatra.DUTDevice) {
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
@@ -232,11 +427,12 @@ func (ia event_enable_mpls_ldp) enable_mpls_ldp(t *testing.T) {
 // Testcase defines testcase structure
 type Testcase struct {
 	name string
-	// desc       string
+	desc string
 	npu  string
 	flow *ondatra.Flow
 	// sub_type   SubscriptionType
-	event_type eventType // trigger for creating the scenario
+	event_type   eventType   // events for creating the scenario
+	trigger_type triggerType // triggers
 }
 
 // to do subscriptions
@@ -381,8 +577,12 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
+			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", tt.npu, tt.name)
 			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
+
+			// running mulitple subscriptions while tc is executed
+			multiple_subscriptions(t, query)
 
 			pre_data, _ := get_data(t, path, query)
 
@@ -423,136 +623,13 @@ func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uin
 	}
 }
 
-func (args *testArgs) restartProcessBackground(t *testing.T) {
-	processes := []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}
-	// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
-
-	//patch for CLIviaSSH failing, else pattern to use is #
-	var acp string
-	if with_RPFO {
-		acp = ".*Last switch-over.*ago"
-	} else {
-		acp = ".*"
+func multiple_subscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
+	dut := ondatra.DUT(t, "dut")
+	for i := 1; i <= multiple_subscription; i++ {
+		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), query, time.Duration(multiple_subscription_runtime)*time.Minute)
 	}
-	for _, process := range processes {
-		ticker1 := time.NewTicker(3 * time.Second)
-		runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", process), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 4*time.Second)
-		time.Sleep(4 * time.Second)
-		ticker1.Stop()
-	}
-}
-
-func (args *testArgs) rpfo(t *testing.T) {
-
-	// reload the HW is rfpo count is 10 or more
-	if rpfo_count == 10 {
-		gnoiClient := args.dut.RawAPIs().GNOI(t)
-		rebootRequest := &gnps.RebootRequest{
-			Method: gnps.RebootMethod_COLD,
-			Force:  true,
-		}
-		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
-		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
-		if err != nil {
-			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
-		}
-		rpfo_count = 0
-		time.Sleep(time.Minute * 20)
-	}
-	// supervisor info
-	var supervisors []string
-	active_state := gnmi.OC().Component(active_rp).Name().State()
-	active := gnmi.Get(t, args.dut, active_state)
-	standby_state := gnmi.OC().Component(standby_rp).Name().State()
-	standby := gnmi.Get(t, args.dut, standby_state)
-	supervisors = append(supervisors, active, standby)
-
-	// find active and standby RP
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, args.dut, supervisors)
-	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-
-	// make sure standby RP is reachable
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, args.dut, switchoverReady.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, args.dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
-	}
-	gnoiClient, _ := args.dut.RawAPIs().BindingDUT().DialGNOI(args.ctx)
-	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
-	switchoverRequest := &gnps.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	var switchoverResponse *gnps.SwitchControlProcessorResponse
-	err := retryUntilTimeout(func() error {
-		switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-		return nil
-	}, 5, 1*time.Minute)
-
-	if err != nil {
-		fmt.Printf("RPFO failed: %v\n", err)
-	} else {
-		fmt.Println("RPFO succeeded!")
-	}
-	// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if useNameOnly {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, args.dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, args.dut, supervisors)
-	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-		t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-	}
-	if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-	}
-
-	t.Log("Validate OC Switchover time/reason.")
-	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-	if got, want := gnmi.Lookup(t, args.dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, args.dut, activeRP.LastSwitchoverTime().State()))
-	}
-
-	if got, want := gnmi.Lookup(t, args.dut, activeRP.LastSwitchoverReason().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-	} else {
-		lastSwitchoverReason := gnmi.Get(t, args.dut, activeRP.LastSwitchoverReason().State())
-		t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-	}
+	// sleeping while all the concurrent subscriptions are executed
+	// time.Sleep(time.Duration(multiple_subscription_runtime) * time.Minute)
 }
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
