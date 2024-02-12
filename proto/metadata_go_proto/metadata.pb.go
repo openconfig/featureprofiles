@@ -1592,8 +1592,8 @@ func (x *Metadata_Deviations) GetTtlCopyUnsupported() bool {
 func (x *Metadata_Deviations) GetGribiDecapMixedPlenUnsupported() bool {
 	if x != nil {
 		return x.GribiDecapMixedPlenUnsupported
-  }
-  return false
+  	}
+  	return false
 }
 
 func (x *Metadata_Deviations) GetSkipPbfWithDecapEncapVrf() bool {
