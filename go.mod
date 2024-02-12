@@ -1,6 +1,8 @@
 module github.com/openconfig/featureprofiles
 
-go 1.21
+go 1.21.3
+
+toolchain go1.21.7
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
@@ -31,6 +33,7 @@ require (
 	github.com/openconfig/kne v0.1.14
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.5.0
+	github.com/openconfig/ovgs v0.0.0-20240207220836-36b3e813bcbb
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.11.1

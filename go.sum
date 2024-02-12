@@ -1285,6 +1285,8 @@ github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
 github.com/openconfig/ondatra v0.5.0 h1:Fva5haO/NrBFQ/+5NQrgIdgm9fr77YggUWpUQbfA66g=
 github.com/openconfig/ondatra v0.5.0/go.mod h1:S0bcTPw3p4Ln8ptETUnqJuBh9bSIoQ9RtDOY0Lpt8dE=
+github.com/openconfig/ovgs v0.0.0-20240207220836-36b3e813bcbb h1:J5NRcrvloVZcWpyCgvmjJSEpH7qJS8aINKMAyTSWuUQ=
+github.com/openconfig/ovgs v0.0.0-20240207220836-36b3e813bcbb/go.mod h1:UZQ/IvdERJiGw+jCH3BgUuhJ2G4THqXFpOplqK11DkU=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
