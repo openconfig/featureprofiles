@@ -227,7 +227,7 @@ func juniperCLI() string {
 				from as-path match-as-path;
 				then reject;
 			}
-term term2 {
+			term term2 {
 				then accept;
 			}
 		}
@@ -415,25 +415,22 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 		if asWidth == 2 {
 			srcBgpPeer.SetAsNumberWidth(gosnappi.BgpV4PeerAsNumberWidth.TWO)
 		}
-		prefixArr1 := strings.Split(prefixV4[0], "/")
-		mask1, _ := strconv.Atoi(prefixArr1[1])
-		prefixArr2 := strings.Split(prefixV4[1], "/")
-		mask2, _ := strconv.Atoi(prefixArr2[1])
-		prefixArr3 := strings.Split(prefixV4[2], "/")
-		mask3, _ := strconv.Atoi(prefixArr3[1])
+		subnetAddr1, subnetLen1 := prefixAndLen(prefixV4[0])
+		subnetAddr2, subnetLen2 := prefixAndLen(prefixV4[1])
+		subnetAddr3, subnetLen3 := prefixAndLen(prefixV4[2])
 
 		network1 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti1")
 		network1.SetNextHopIpv4Address(ateSrc.IPv4).
 			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-		network1.Addresses().Add().SetAddress(prefixArr1[0]).SetPrefix(uint32(mask1)).SetCount(1)
+		network1.Addresses().Add().SetAddress(subnetAddr1).SetPrefix(subnetLen1).SetCount(1)
 		network1.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 4400, 3300})
 
 		network2 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti2")
 		network2.SetNextHopIpv4Address(ateSrc.IPv4).
 			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-		network2.Addresses().Add().SetAddress(prefixArr2[0]).SetPrefix(uint32(mask2)).SetCount(1)
+		network2.Addresses().Add().SetAddress(subnetAddr2).SetPrefix(subnetLen2).SetCount(1)
 		network2.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 7700})
 		network2.Communities().Add().SetAsNumber(200).SetAsCustom(1)
 
@@ -441,7 +438,7 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 		network3.SetNextHopIpv4Address(ateSrc.IPv4).
 			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-		network3.Addresses().Add().SetAddress(prefixArr3[0]).SetPrefix(uint32(mask3)).SetCount(1)
+		network3.Addresses().Add().SetAddress(subnetAddr3).SetPrefix(subnetLen3).SetCount(1)
 
 	} else {
 		srcBgpPeer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
@@ -558,4 +555,11 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 		neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 	}
 	return niProto
+}
+
+func prefixAndLen(prefix string) (string, uint32) {
+	subnetAddr := strings.Split(prefix, "/")[0]
+	len, _ := strconv.Atoi(strings.Split(prefix, "/")[1])
+	subnetLen := uint32(len)
+	return subnetAddr, subnetLen
 }
