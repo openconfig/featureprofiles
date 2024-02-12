@@ -253,6 +253,12 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 				triggerAction.rpfo(t, a.ctx)
 			}
 		}
+		if with_lc_reload {
+			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
+				// triggerAction.lc_reload(t)
+				tolerance = triggerAction.tolerance
+			}
+		}
 	}
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
