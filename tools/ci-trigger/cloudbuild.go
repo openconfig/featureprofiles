@@ -72,7 +72,7 @@ func (c *cloudBuild) submitBuild(objPath string) (string, string, error) {
 			Object: objPath,
 		},
 	}
-	build.ServiceAccount = gcpCloudBuildServiceAccount
+	build.ServiceAccount = "projects/" + gcpProjectID + "/serviceAccounts/" + gcpCloudBuildServiceAccount
 
 	resp, err := c.buildClient.Projects.Locations.Builds.Create("projects/"+gcpProjectID+"/locations/us-west1", build).Do()
 	if err != nil {
