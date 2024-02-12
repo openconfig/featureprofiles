@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -487,10 +486,6 @@ func main() {
 				suite[i].Tests[j].Posttests = append(suite[i].Tests[j].Posttests, suite[i].Posttests...)
 			}
 		}
-	}
-
-	if randomize {
-		rand.Seed(time.Now().UnixNano())
 	}
 
 	// sort by priority

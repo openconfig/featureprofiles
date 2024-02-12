@@ -16,6 +16,7 @@ package traceroute_packetout_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -28,18 +29,36 @@ import (
 )
 
 type PacketIO interface {
-	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, portID uint32, isIPv4 bool, ttl uint8, numPkts int) ([]*p4v1.PacketOut, error)
+	GetPacketOut(srcMAC, dstMAC net.HardwareAddr, isIPv4 bool, ttl uint8, numPkts int, metadata []*p4v1.PacketMetadata) ([]*p4v1.PacketOut, error)
 }
 
 type testArgs struct {
-	ctx      context.Context
-	leader   *p4rt_client.P4RTClient
-	dut      *ondatra.DUTDevice
-	ate      *ondatra.ATEDevice
-	top      gosnappi.Config
-	srcMAC   net.HardwareAddr
-	dstMAC   net.HardwareAddr
-	packetIO PacketIO
+	ctx         context.Context
+	client      *p4rt_client.P4RTClient
+	dut         *ondatra.DUTDevice
+	ate         *ondatra.ATEDevice
+	top         gosnappi.Config
+	srcMAC      net.HardwareAddr
+	dstMAC      net.HardwareAddr
+	useIpv4     bool
+	metadata    []*p4v1.PacketMetadata
+	trafficPort string
+	packetIO    PacketIO
+}
+
+func (t *testArgs) testName() string {
+	var egressPort, submitIngress, padding string
+	for _, m := range t.metadata {
+		switch m.MetadataId {
+		case 1:
+			egressPort = string(m.Value)
+		case 2:
+			submitIngress = string(m.Value)
+		case 3:
+			padding = string(m.Value)
+		}
+	}
+	return fmt.Sprintf("egressPort:%s,submitToIngress:%s,padding:%s,ipv4:%v", egressPort, submitIngress, padding, t.useIpv4)
 }
 
 // sendPackets sends out packets via PacketOut message in StreamChannel.
@@ -57,74 +76,68 @@ func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1.P
 	}
 }
 
-// testPacketOut sends out PacketOut with payload on p4rt leader or
-// follower client, then verify DUT interface statistics
+// testPacketOut sends out PacketOut with payload on p4rt client,
+// then verify DUT interface statistics
 func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
-	leader := args.leader
-	desc := "PacketOut from Primary Controller"
 	ttl := 2
-	//for ipv4
-	t.Run(desc+" ipv4 ", func(t *testing.T) {
-		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].ID()
-		t.Logf("Sending ipv4 pakcets with ttl %d", ttl)
-		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-		t.Logf("Initial number of packets: %d", counter0)
 
-		packetCounter := 100
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, true, uint8(ttl), packetCounter)
-		if err != nil {
-			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+	counter0p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", "port1", counter0p1)
+	counter0p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+	t.Logf("Initial number of packets on ATE port %s: %d", "port2", counter0p2)
+
+	packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, args.useIpv4, uint8(ttl), 100, args.metadata)
+	if err != nil {
+		t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+	}
+
+	packetCount := len(packets)
+	t.Logf("Sending %d ipv4 packets with ttl %d", packetCount, ttl)
+	sendPackets(t, args.client, packets)
+
+	// Wait for ate stats to be populated
+	time.Sleep(60 * time.Second)
+
+	// Check packet counters after packet out
+	counter1p1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", "port1", counter1p1)
+	counter1p2 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State())
+	t.Logf("Final number of packets on ATE port %s: %d", "port2", counter1p2)
+
+	// Verify InPkts stats to check P4RT stream
+	t.Logf("Received %v packets on ATE port %s", counter1p1-counter0p1, "port1")
+	t.Logf("Received %v packets on ATE port %s", counter1p2-counter0p2, "port2")
+
+	switch args.trafficPort {
+	case "port1":
+		// should receive all packets on port1
+		if !gotAllPackets(counter1p1, counter0p1, packetCount) {
+			t.Fatalf("Not all the packets are received on ATE port %s", "port1")
 		}
-		t.Logf("Sending packets now")
-
-		sendPackets(t, leader, packets)
-
-		// Wait for ate stats to be populated
-		time.Sleep(60 * time.Second)
-
-		// Check packet counters after packet out
-		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-		t.Logf("Final number of packets: %d", counter1)
-
-		// Verify InPkts stats to check P4RT stream
-		t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-
-		if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-			t.Fatalf("Not all the packets are received.")
+		// should receive no packets on port2
+		if gotAllPackets(counter1p2, counter0p2, packetCount) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
 		}
-	},
-	)
-	//for ipv6
-	t.Run(desc+" ipv6", func(t *testing.T) {
-		// Check initial packet counters
-		port := sortPorts(args.ate.Ports())[0].ID()
-
-		t.Logf("Sending ipv6 packets with ttl = %d", ttl)
-		counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-		t.Logf("Initial number of packets: %d", counter0)
-
-		packetCounter := 100
-		packets, err := args.packetIO.GetPacketOut(args.srcMAC, args.dstMAC, portId, false, uint8(ttl), packetCounter)
-		if err != nil {
-			t.Fatalf("GetPacketOut returned unexpected error: %v", err)
+	case "port2":
+		// should receive all packets on port2
+		if !gotAllPackets(counter1p2, counter0p2, packetCount) {
+			t.Fatalf("Not all the packets are received on ATE port %s", "port2")
 		}
-		t.Logf("Sending packets now")
-
-		sendPackets(t, leader, packets)
-
-		// Wait for ate stats to be populated
-		time.Sleep(60 * time.Second)
-
-		// Check packet counters after packet out
-		counter1 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port).Counters().InFrames().State())
-		t.Logf("Final number of packets: %d", counter1)
-
-		// Verify InPkts stats to check P4RT stream
-		t.Logf("Received %v packets on ATE port %s", counter1-counter0, port)
-		if counter1-counter0 < uint64(float64(packetCounter)*0.95) {
-			t.Fatalf("Not all the packets are received.")
+		// should receive no packets on port1
+		if gotAllPackets(counter1p1, counter0p1, packetCount) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
 		}
-	},
-	)
+	default:
+		// should not receive packets on any port
+		if gotAllPackets(counter1p1, counter0p1, packetCount) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port1")
+		}
+		if gotAllPackets(counter1p2, counter0p2, packetCount) {
+			t.Fatalf("Unexpected packets received on ATE port %s", "port2")
+		}
+	}
+}
+
+func gotAllPackets(counter1, counter0 uint64, expected int) bool {
+	return counter1-counter0 >= uint64(float64(expected)*0.95)
 }

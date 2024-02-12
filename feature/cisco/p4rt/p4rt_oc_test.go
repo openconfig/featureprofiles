@@ -31,7 +31,7 @@ func testNonExistingPortConfig(t *testing.T, args *testArgs) {
 	config := gnmi.OC().Interface(nonExistingPort).Id()
 	defer observer.RecordYgot(t, "GET", config)
 
-	if gotID := gnmi.GetConfig(t, args.dut, config.Config()); gotID != portID {
+	if gotID := gnmi.Get(t, args.dut, config.Config()); gotID != portID {
 		t.Fatalf("Interface port-id using GNMI Get on config: want %v, got %v", gotID, portID)
 	}
 
@@ -223,7 +223,7 @@ func testP4RTConfigurationDelete(t *testing.T, args *testArgs) {
 	defer observer.RecordYgot(t, "REPLACE", config)
 	gnmi.Replace(t, args.dut, config.Config(), 1)
 
-	if got := gnmi.GetConfig(t, args.dut, config.Config()); got != 1 {
+	if got := gnmi.Get(t, args.dut, config.Config()); got != 1 {
 		t.Fatalf("Interface port-id: want 1, got %v", got)
 	}
 
@@ -261,7 +261,7 @@ func testP4RTConfigurationUsingGetConfig(t *testing.T, args *testArgs) {
 	config := gnmi.OC().Component(npu0).IntegratedCircuit().NodeId()
 	defer observer.RecordYgot(t, "GET", config)
 
-	if got := gnmi.GetConfig(t, args.dut, config.Config()); got != deviceID {
+	if got := gnmi.Get(t, args.dut, config.Config()); got != deviceID {
 		t.Fatalf("Device IDs: want %v , got %v", deviceID, got)
 	}
 
@@ -270,7 +270,7 @@ func testP4RTConfigurationUsingGetConfig(t *testing.T, args *testArgs) {
 	gnmi.Replace(t, args.dut, config1.Config(), 1)
 
 	defer observer.RecordYgot(t, "GET", config1)
-	if got := gnmi.GetConfig(t, args.dut, config1.Config()); got != 1 {
+	if got := gnmi.Get(t, args.dut, config1.Config()); got != 1 {
 		t.Fatalf("Interface port-id: want 1, got %v", got)
 	}
 
@@ -279,7 +279,7 @@ func testP4RTConfigurationUsingGetConfig(t *testing.T, args *testArgs) {
 	gnmi.Replace(t, args.dut, config2.Config(), 2)
 
 	defer observer.RecordYgot(t, "GET", config2)
-	if got := gnmi.GetConfig(t, args.dut, config2.Config()); got != 2 {
+	if got := gnmi.Get(t, args.dut, config2.Config()); got != 2 {
 		t.Fatalf("Interface port-id: want 2, got %v", got)
 	}
 }
@@ -345,7 +345,7 @@ func testP4RTUprev(t *testing.T, args *testArgs) {
 		gnmi.Replace(t, args.dut, config.Config(), portID)
 
 		defer observer.RecordYgot(t, "GET", config)
-		if got := gnmi.GetConfig(t, args.dut, config.Config()); got != portID {
+		if got := gnmi.Get(t, args.dut, config.Config()); got != portID {
 			t.Fatalf("Interface port-id: want %v, got %v", portID, got)
 		}
 

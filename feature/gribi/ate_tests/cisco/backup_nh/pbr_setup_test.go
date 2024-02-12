@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -30,7 +31,8 @@ const (
 
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface("Bundle-Ether120.0")
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
@@ -54,21 +56,9 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
+	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
-
-	d := &oc.Root{}
-	data := d.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface("Bundle-Ether120.0")
-	data.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
-	data.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	gnmi.Replace(t, dut, pfpath.Config(), data)
-
-	//configure PBR on ingress port
-}
-
-// unconfigbasePBR, creates class map, policy and configures under source interface
-func unconfigbasePBR(t *testing.T, dut *ondatra.DUTDevice) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
-	gnmi.Delete(t, dut, pfpath.Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	gnmi.Delete(t, dut, pfpath.Policy(pbrName).Config())
-	gnmi.Delete(t, dut, pfpath.Config())
 }

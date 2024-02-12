@@ -104,6 +104,9 @@ for firex_id in firex_ids.split(','):
     uname = firex_id.split('-')[1]
     base_logs_dir = constants.base_logs_dir.replace('gob4', uname)
     logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
+    if not os.path.exists(logs_dir):
+	    logs_dir = logs_dir.replace("firex-logs-ott", "firex-logs-sjc")
+    
     test_id_map = _get_test_id_name_map(logs_dir)
     # properties = {}
     # if set_properties != None:

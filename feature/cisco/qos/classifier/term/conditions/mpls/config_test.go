@@ -40,7 +40,7 @@ func TestTrafficClassAtContainer(t *testing.T) {
 			})
 			// Get returns the first element -> 5
 			t.Run("Get container", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if diff := cmp.Diff(*configGot, *baseConfigClassifierTermConditionsMpls); diff != "" {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class: %v", diff)
 				}
@@ -83,7 +83,7 @@ func TestTrafficClassAtLeaf(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), input)
 			})
 			t.Run("Get leaf", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != input {
 					t.Errorf("Config /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class: got %v, want %v", configGot, input)
 				}

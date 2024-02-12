@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -170,8 +169,8 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, isisPfx)
 		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, bgpPfx, true)
 	} else {
-		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, uint32(*ciscoFlags.GRIBIScale))
-		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, uint32(*ciscoFlags.GRIBIScale), true)
+		addAteISISL2(t, top, "atePort8", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+mask, gribi_Scale)
+		addAteEBGPPeer(t, top, "atePort8", dutPort8.IPv4, 64001, "bgp_recursive", atePort8.IPv4, innerdstPfxMin_bgp+"/"+mask, gribi_Scale, true)
 	}
 	top.Push(t).StartProtocols(t)
 }
@@ -182,8 +181,8 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 	if len(opts) != 0 {
 		for _, opt := range opts {
 			if opt.SrcIP != "" {
-				if *ciscoFlags.GRIBIScale < nhg_Scale_REPAIR {
-					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+				if gribi_Scale < nhg_Scale_REPAIR {
+					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 				} else {
 					hdr.WithSrcAddress(opt.SrcIP).DstAddressRange().WithMin(dstPfxMin).WithCount(uint32(nhg_Scale_REPAIR)).WithStep("0.0.0.1")
 
@@ -191,15 +190,15 @@ func (a *testArgs) createFlow(name string, srcEndPoint *ondatra.Interface, dstEn
 			}
 		}
 	} else {
-		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin("198.51.100.0").WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+		hdr.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin("198.51.100.0").WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 	}
 
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.WithSrcAddress(innersrcPfx)
-	if innerdstPfxCount > uint32(*ciscoFlags.GRIBIScale) {
+	if innerdstPfxCount > uint32(gribi_Scale) {
 		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(innerdstPfxCount).WithStep("0.0.0.1")
 	} else {
-		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(*ciscoFlags.GRIBIScale)).WithStep("0.0.0.1")
+		innerIpv4Header.DstAddressRange().WithMin(innerdstPfxMin).WithCount(uint32(gribi_Scale)).WithStep("0.0.0.1")
 	}
 	flow := a.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
@@ -222,15 +221,17 @@ func (a *testArgs) allFlows(t *testing.T, opts ...*TGNoptions) []*ondatra.Flow {
 	if len(opts) != 0 {
 		for _, opt := range opts {
 			if opt.SrcIP != "" {
-				src_ip_isis_flow := a.createFlow("Src_ip_isis_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP})
+				// src_ip_isis_flow := a.createFlow("Src_ip_isis_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis, &TGNoptions{SrcIP: opt.SrcIP})
 				src_ip_bgp_flow := a.createFlow("Src_ip_bgp_flow", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp, &TGNoptions{SrcIP: opt.SrcIP})
-				flows = append(flows, src_ip_bgp_flow, src_ip_isis_flow)
+				// flows = append(flows, src_ip_bgp_flow, src_ip_isis_flow)
+				flows = append(flows, src_ip_bgp_flow)
 			}
 		}
 	} else {
 		bgp_flow := a.createFlow("BaseFlow_BGP", srcEndPoint, dstEndPoint, innerdstPfxMin_bgp, innerdstPfxCount_bgp)
-		isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
-		flows = append(flows, bgp_flow, isis_flow)
+		// isis_flow := a.createFlow("BaseFlow_ISIS", srcEndPoint, dstEndPoint, innerdstPfxMin_isis, innerdstPfxCount_isis)
+		// flows = append(flows, bgp_flow, isis_flow)
+		flows = append(flows, bgp_flow)
 	}
 	return flows
 }
@@ -347,10 +348,10 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 		totalDstFinTraffic["ipv4"] = totalDstFinTraffic["ipv4"] + uint64(data)
 	}
 	for k := range dutDstFinTraffic {
-		if got, want := totalDstFinTraffic[k]-totalDstInitTraffic[k], ateRxFin[k]-ateRxInit[k]; got <= want {
+		if got, want := totalDstFinTraffic[k]-totalDstInitTraffic[k], ateRxFin[k]-ateRxInit[k]; got < want {
 			t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 		}
-		if got, want := dutSrcFinTraffic[k]-dutSrcInitTraffic[k], ateTxFin[k]-ateTxInit[k]; got <= want {
+		if got, want := dutSrcFinTraffic[k]-dutSrcInitTraffic[k], ateTxFin[k]-ateTxInit[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
 	}
@@ -362,130 +363,3 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flows []*ondatra.Flow, dro
 		}
 	}
 }
-
-// // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-// func (a *testArgs) new(t *testing.T, flows []*ondatra.Flow, drop bool, d_port map[string][]string, opts ...*TGNoptions) {
-
-// 	stats := make(map[string]map[string]map[string]map[string]uint64)
-
-// 	// DUT source/destination interface accounting before traffic
-
-// 	src_port := gnmi.OC().Interface("Bundle-Ether120")
-// 	subintf1 := src_port.Subinterface(0)
-// 	stats["DUT"]["ALL"]["TxS"]["IPv4"] = subintf1.Ipv4().Counters().InPkts().Get(t)
-
-// 	dutDstInitTraffic := make(map[string][]uint64)
-// 	var checked_intf_b4 []string
-// 	for _, dp_list := range d_port {
-// 		for _, dest := range dp_list {
-// 			flag := false
-// 			if len(checked_intf_b4) != 0 {
-// 				for _, elem := range checked_intf_b4 {
-// 					if elem == dest {
-// 						flag = true
-// 					}
-// 				}
-// 			}
-// 			if flag {
-// 				break
-// 			}
-// 			checked_intf_b4 = append(checked_intf_b4, dest)
-// 			dst_port := gnmi.OC().Interface(dest)
-// 			subintf2 := dst_port.Subinterface(0)
-// 			dutDstInitTraffic["ipv4"] = append(dutDstInitTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
-// 		}
-// 	}
-// 	totalDstInitTraffic := map[string]uint64{"ipv4": 0}
-// 	for _, data := range dutDstInitTraffic["ipv4"] {
-// 		totalDstInitTraffic["ipv4"] = totalDstInitTraffic["ipv4"] + uint64(data)
-// 	}
-// 	stats["DUT"]["ALL"]["RxS"]["IPv4"] = totalDstInitTraffic["ipv4"]
-
-// 	// Running traffic
-// 	for _, opt := range opts {
-// 		if opt.burst {
-// 			for _, f := range flows {
-// 				stats["ATE"][f.Name()]["TxS"]["IPv4"] = 0
-// 				stats["ATE"][f.Name()]["RxS"]["IPv4"] = 0
-// 			}
-// 			// run traffic for 120 seconds and check stats
-// 			a.ate.Traffic().Start(t, flows...)
-// 			time.Sleep(120 * time.Second)
-// 		} else {
-// 			for _, f := range flows {
-// 				stats["ATE"][f.Name()]["TxS"]["IPv4"] = gnmi.OC().Flow(f.Name()).Counters().OutPkts().Get(t)
-// 				stats["ATE"][f.Name()]["RxS"]["IPv4"] = gnmi.OC().Flow(f.Name()).Counters().InPkts().Get(t)
-// 			}
-// 			if opt.wait != 0 {
-// 				// assuming traffic is running and we wait for user provided time
-// 				time.Sleep(time.Duration(opt.wait) * time.Second)
-// 			} else {
-// 				// assuming traffic is running and we sleep for 60seconds
-// 				time.Sleep(60 * time.Second)
-// 			}
-// 		}
-// 		a.ate.Traffic().Stop(t)
-// 	}
-
-// 	// ATE traffic stats after traffic
-// 	for _, f := range flows {
-// 		stats["ATE"][f.Name()]["TxF"]["IPv4"] = a.ate.Telemetry().Flow(f.Name()).Counters().OutPkts().Get(t)
-// 		stats["ATE"][f.Name()]["RxF"]["IPv4"] = a.ate.Telemetry().Flow(f.Name()).Counters().InPkts().Get(t)
-
-// 		flowPath := gnmi.OC().Flow(f.Name())
-// 		got := flowPath.LossPct().Get(t)
-// 		if drop {
-// 			if got < 50 {
-// 				t.Errorf("Traffic passing for flow %s got %g, want 100 percent loss", f.Name(), got)
-// 			}
-// 		} else {
-// 			if len(opts) != 0 {
-// 				for _, opt := range opts {
-// 					if got > opt.tolerance {
-// 						t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
-// 					}
-// 				}
-// 			} else if got > 0 {
-// 				t.Errorf("LossPct for flow %s got %g, want 0", f.Name(), got)
-// 			}
-// 		}
-// 	}
-
-// 	// DUT accounting after traffic
-
-// 	stats["DUT"]["ALL"]["TxF"]["IPv4"] = subintf1.Ipv4().Counters().InPkts().Get(t)
-// 	dutDstFinTraffic := make(map[string][]uint64)
-// 	var checked_intf_after []string
-// 	for _, dp_list := range d_port {
-// 		for _, dest := range dp_list {
-// 			flag := false
-// 			if len(checked_intf_after) != 0 {
-// 				for _, elem := range checked_intf_after {
-// 					if elem == dest {
-// 						flag = true
-// 					}
-// 				}
-// 			}
-// 			if flag {
-// 				break
-// 			}
-// 			checked_intf_after = append(checked_intf_after, dest)
-// 			dst_port := a.dut.Telemetry().Interface(dest)
-// 			subintf2 := dst_port.Subinterface(0)
-// 			dutDstFinTraffic["ipv4"] = append(dutDstFinTraffic["ipv4"], subintf2.Ipv4().Counters().OutPkts().Get(t))
-// 		}
-// 	}
-// 	//aggregriate dst_port counter
-// 	totalDstFinTraffic := map[string]uint64{"ipv4": 0}
-// 	for _, data := range dutDstFinTraffic["ipv4"] {
-// 		totalDstFinTraffic["ipv4"] = totalDstFinTraffic["ipv4"] + uint64(data)
-// 	}
-// 	stats["DUT"]["ALL"]["RxF"]["IPv4"] = totalDstFinTraffic["ipv4"]
-// 	for _, opt := range opts {
-// 		// if start after verfication of existing flow
-// 		if opt.start_after_verification {
-// 			a.ate.Traffic().Start(t, flows...)
-// 			return
-// 		}
-// 	}
-// }

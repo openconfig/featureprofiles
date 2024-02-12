@@ -61,11 +61,17 @@ config_path {
 config_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address"
 }
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-port"
+}
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-port"
 }
 telemetry_path {
   path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/established-transitions"

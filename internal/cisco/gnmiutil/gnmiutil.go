@@ -661,3 +661,26 @@ func extractRequestOpts(customData map[string]interface{}) (*requestOpts, error)
 	opts.md = metadata.New(md)
 	return opts, nil
 }
+
+// EmitJSONFromGoStruct takes an input GoStruct and serializes it to a JSON string
+// this is an abstraction for test conciseness, based on ygot.EmitJSON function
+func EmitJSONFromGoStruct(t *testing.T, gostruct ygot.GoStruct) string {
+	t.Helper()
+	if gostruct == nil || util.IsValueNil(gostruct) {
+		return ""
+	}
+	json, err := ygot.EmitJSON(gostruct, &ygot.EmitJSONConfig{
+		Format: ygot.RFC7951,
+		Indent: "  ",
+		RFC7951Config: &ygot.RFC7951JSONConfig{
+			AppendModuleName: true,
+		},
+	})
+
+	if err != nil {
+		t.Logf("Failed to emit JSON from default config struct: %v", err)
+		return ""
+	}
+
+	return json
+}

@@ -1,4 +1,4 @@
-package basetest
+package bgp_test
 
 import (
 	"testing"

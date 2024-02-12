@@ -1,0 +1,47 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "ef804c64-84dd-432d-ab38-630e9c82b42d"
+plan_id: "gNMI-1.18"
+description: "gNMI subscribe with sample mode for backplane capacity counters"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+    backplane_facing_capacity_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
+    missing_value_for_defaults: true
+    backplane_facing_capacity_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    missing_value_for_defaults: true
+  }
+}
+

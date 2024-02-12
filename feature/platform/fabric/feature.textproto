@@ -1,0 +1,51 @@
+id {
+  name: "platform_fabric"
+  version: 1
+}
+
+# Classifiers
+config_path {
+  path: "/components/component/fabric/config/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/fabric/state/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/fabric/state/power-admin-state"
+}
+telemetry_path {
+  path: "/components/component/state/description"
+}
+telemetry_path {
+  path: "/components/component/state/hardware-version"
+}
+telemetry_path {
+  path: "/components/component/state/id"
+}
+telemetry_path {
+  path: "/components/component/state/mfg-name"
+}
+telemetry_path {
+  path: "/components/component/state/name"
+}
+telemetry_path {
+  path: "/components/component/state/oper-status"
+}
+telemetry_path {
+  path: "/components/component/state/parent"
+}
+telemetry_path {
+  path: "/components/component/state/part-no"
+}
+telemetry_path {
+  path: "/components/component/state/serial-no"
+}
+telemetry_path {
+  path: "/components/component/state/type"
+}
+telemetry_path {
+  path: "/components/component/state/location"
+}
+telemetry_path {
+  path: "/components/component/state/last-reboot-time"
+}

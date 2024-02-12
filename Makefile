@@ -42,3 +42,18 @@ proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
 	protoc -I='protobuf-import' --proto_path=proto --go_out=./ --go_opt=Mmetadata.proto=proto/metadata_go_proto metadata.proto
 	goimports -w proto/metadata_go_proto/metadata.pb.go
+
+proto/ocpaths_go_proto/ocpaths.pb.go: proto/ocpaths.proto
+	mkdir -p proto/ocpaths_go_proto
+	protoc --proto_path=proto --go_out=./ --go_opt=Mocpaths.proto=proto/ocpaths_go_proto ocpaths.proto
+	goimports -w proto/ocpaths_go_proto/ocpaths.pb.go
+
+proto/ocrpcs_go_proto/ocrpcs.pb.go: proto/ocrpcs.proto
+	mkdir -p proto/ocrpcs_go_proto
+	protoc --proto_path=proto --go_out=./ --go_opt=Mocrpcs.proto=proto/ocrpcs_go_proto ocrpcs.proto
+	goimports -w proto/ocrpcs_go_proto/ocrpcs.pb.go
+
+proto/nosimage_go_proto/nosimage.pb.go: proto/nosimage.proto
+	mkdir -p proto/nosimage_go_proto
+	protoc -I="${GOPATH}/src" --proto_path=proto --go_out=./proto/nosimage_go_proto --go_opt=paths=source_relative --go_opt=Mnosimage.proto=proto/nosimage_go_proto --go_opt=Mgithub.com/openconfig/featureprofiles/proto/ocpaths.proto=github.com/openconfig/featureprofiles/proto/ocpaths_go_proto --go_opt=Mgithub.com/openconfig/featureprofiles/proto/ocrpcs.proto=github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto nosimage.proto
+	goimports -w proto/nosimage_go_proto/nosimage.pb.go

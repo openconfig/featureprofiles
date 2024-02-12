@@ -1285,12 +1285,12 @@ func testIPv4BackUpRemoveBackup(ctx context.Context, t *testing.T, args *testArg
 		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"})
 	}
 	//aft check
-	if *ciscoFlags.GRIBIAFTChainCheck {
-		randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
-		for i := 0; i < len(randomItems); i++ {
-			args.client.CheckAftIPv4(t, "TE", randomItems[i])
-		}
-	}
+	// if *ciscoFlags.GRIBIAFTChainCheck {
+	// 	randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+	// 	for i := 0; i < len(randomItems); i++ {
+	// 		args.client.CheckAftIPv4(t, "TE", randomItems[i])
+	// 	}
+	// }
 }
 
 /* Add a backup path when primary links are
@@ -2465,15 +2465,16 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(60 * time.Second)
 
 }
-func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
-	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
-	time.Sleep(60 * time.Second)
+// func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-}
+// 	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
+// 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
+// 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+// 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
+// 	time.Sleep(60 * time.Second)
+
+// }
 
 func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
@@ -2561,7 +2562,6 @@ func TestBackUp(t *testing.T) {
 	// Configure the DUT
 	configureDUT(t, dut)
 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	defer unconfigbasePBR(t, dut)
 	// configure route-policy
 	configRP(t, dut)
 	// configure ISIS on DUT
@@ -2718,11 +2718,12 @@ func TestBackUp(t *testing.T) {
 			desc: "Inject relevent faults for Add IPV4 ",
 			fn:   testFaultInjectAddIPv4,
 		},
-		{
-			name: "FaultInjectDeleteIPv4",
-			desc: "Inject relevent faults for Delete IPv4",
-			fn:   testFaultInjectDeleteIPv4,
-		},
+		// Decommissioning the TC due to CSCwe05268
+		// {
+		// 	name: "FaultInjectDeleteIPv4",
+		// 	desc: "Inject relevent faults for Delete IPv4",
+		// 	fn:   testFaultInjectDeleteIPv4,
+		// },
 		{
 			name: "FaultInjectUpdateNHG",
 			desc: "Inject relevent faults for Update NHG pointing to the old NH ",

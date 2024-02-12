@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 var (
@@ -156,14 +156,29 @@ func TestDeleteInterface(t *testing.T) {
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
+
+		for _, iname := range scope.interfaces {
+			iface := config.GetInterface(iname)
+			if iface == nil {
+				config.Interface = nil
+
+			}
+		}
+
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterDelete", func(t *testing.T) {
 			if v := gnmi.Lookup(t, dut, q1); v.IsPresent() {
-				t.Errorf("State got unwanted %v", v)
+				value, _ := v.Val()
+				if value != "" {
+					t.Errorf("State got unwanted %v", v)
+				}
 			}
 			if v := gnmi.Lookup(t, dut, q2); v.IsPresent() {
-				t.Errorf("State got unwanted %v", v)
+				value, _ := v.Val()
+				if value != "" {
+					t.Errorf("State got unwanted %v", v)
+				}
 			}
 		})
 	})
@@ -432,6 +447,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 func TestStaticProtocol(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.StaticRouteNextHopInterfaceRefUnsupported(dut) {
+		t.Skip()
+	}
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	staticName := deviations.StaticProtocolName(dut)
 
@@ -501,12 +519,32 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
 			v1 := gnmi.Lookup(t, dut, q1)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q2)
+				if len(val) > 0 {
+					v1 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v1.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v1, p1.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
 			v2 := gnmi.Lookup(t, dut, q2)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q3)
+				if len(val) > 0 {
+					v2 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v2.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v2, p2.Name())
 			} else {
@@ -528,12 +566,32 @@ func TestStaticProtocol(t *testing.T) {
 			verifyInterface(t, dut, p2.Name(), &ip2)
 
 			v1 := gnmi.Lookup(t, dut, q1)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q2 := sp.Static(prefix1).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q2)
+				if len(val) > 0 {
+					v1 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v1.Val(); !ok || got != p2.Name() {
 				t.Errorf("State got %v, want %v", v1, p2.Name())
 			} else {
 				t.Logf("Verified %v", v1)
 			}
 			v2 := gnmi.Lookup(t, dut, q2)
+			if deviations.SkipStaticNexthopCheck(dut) {
+
+				q3 := sp.Static(prefix2).NextHopAny().InterfaceRef().Interface().State()
+				val := gnmi.LookupAll(t, dut, q3)
+				if len(val) > 0 {
+					v2 = val[0]
+				} else {
+					t.Fatalf("Did not receive output for static nexthop lookup")
+				}
+			}
 			if got, ok := v2.Val(); !ok || got != p1.Name() {
 				t.Errorf("State got %v, want %v", v2, p1.Name())
 			} else {
@@ -578,7 +636,13 @@ func nextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
 		agg := numRE.ReplaceAllStringFunc(firstAgg, func(_ string) string {
 			return strconv.Itoa(i)
 		})
-		aggs = append(aggs, agg)
+		//some aggregate interface after firstAgg may already be present in the system.
+		_, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(agg).Name().State()).Val()
+		if !present {
+			aggs = append(aggs, agg)
+		} else {
+			n++
+		}
 	}
 	return aggs
 }
@@ -644,6 +708,8 @@ func attachInterface(ni *oc.NetworkInstance, name string, sub int) string {
 	id := name // Possibly vendor specific?  May have to use sub.
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
+	niface.Subinterface = ygot.Uint32(uint32(sub))
+	id = fmt.Sprintf("%s.%d", id, sub)
 	return id
 }
 
@@ -743,7 +809,13 @@ func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			}
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
-			e := gnmi.Get(t, dev, gnmi.OC().Interface(iname).Ethernet().State())
+			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
+			breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
+			e := intf.GetEthernet()
+			// Set port speed to unknown for non breakout interfaces
+			if breakout.GetGroup(1) == nil && e != nil {
+				e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
+			}
 			ygot.PruneConfigFalse(oc.SchemaTree["Interface_Ethernet"], e)
 			if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
 				iface.Ethernet = e
@@ -889,15 +961,66 @@ var (
 )
 
 func init() {
-	var err error
-	interfacesQuery, err = schemaless.NewConfig[*Interfaces]("/interfaces", "openconfig")
+	// TODO(wenovus): Remove this workaround using ygnmi's Map() API once
+	// SetBatch is fixed for Map() API.
+	interfacesQuery = ygnmi.NewConfigQuery[*Interfaces](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/interfaces"),
+		func(vgs ygot.ValidatedGoStruct) (*Interfaces, bool) {
+			return new(Interfaces), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+	networkInstancesQuery = ygnmi.NewConfigQuery[*NetworkInstances](
+		"",
+		false,
+		true,
+		true,
+		false,
+		false,
+		false,
+		createPS("/network-instances"),
+		func(vgs ygot.ValidatedGoStruct) (*NetworkInstances, bool) {
+			return new(NetworkInstances), true
+		},
+		func() ygot.ValidatedGoStruct {
+			return nil
+		},
+		func() *ytypes.Schema { return nil },
+		nil,
+		nil,
+	)
+}
+
+func createPS(path string) ygnmi.PathStruct {
+	root := ygnmi.NewDeviceRootBase()
+	root.PutCustomData(ygnmi.OriginOverride, "openconfig")
+
+	var ps ygnmi.PathStruct = root
+	protoPath, err := ygot.StringToStructuredPath(path)
 	if err != nil {
 		panic(err)
 	}
-	networkInstancesQuery, err = schemaless.NewConfig[*NetworkInstances]("/network-instances", "openconfig")
-	if err != nil {
-		panic(err)
+	for _, elem := range protoPath.Elem {
+		keys := map[string]interface{}{}
+		for key, val := range elem.Key {
+			keys[key] = val
+		}
+		ps = ygnmi.NewNodePath([]string{elem.Name}, keys, ps)
 	}
+
+	return ps
 }
 
 type Interfaces struct {

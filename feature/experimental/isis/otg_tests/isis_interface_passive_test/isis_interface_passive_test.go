@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -43,11 +43,11 @@ const (
 )
 
 // configureISIS configures isis configs on ts.DUT.
-func configureISIS(t *testing.T, ts *session.TestSession) {
+func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	d := ts.DUTConf
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	prot.Enabled = ygot.Bool(true)
 
 	isis := prot.GetOrCreateIsis()
@@ -101,7 +101,7 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 }
 
 // configureOTG configures the interfaces and isis protocol on ATE.
-func configureOTG(t *testing.T, ts *session.TestSession) {
+func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	ts.ATEIntf1.Isis().RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
 	ts.ATEIntf1.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
@@ -113,14 +113,14 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 
 // TestIsisInterfacePassive verifies passive isis interface.
 func TestIsisInterfacePassive(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 
 	// Configure isis on dut.
 	configureISIS(t, ts)
 
 	configureOTG(t, ts)
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", session.ProtocolPath(ts.DUT).Config(), pcl)
+	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
 
@@ -129,7 +129,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 		t.Fatalf("Adjacency state invalid: %v", err)
 	}
 
-	statePath := session.ISISPath(ts.DUT)
+	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
@@ -183,7 +183,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Expected neighbor system id not found, got %s, want %s", got, ateSysID)
 			}
 			// Checking isis area address.
-			want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
+			want := []string{isissession.ATEAreaAddress, isissession.DUTAreaAddress}
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
@@ -204,8 +204,8 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_2)
 			}
 			// Checking neighbor ipv4 address.
-			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != session.ATEISISAttrs.IPv4 {
-				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, session.ATEISISAttrs.IPv4)
+			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != isissession.ATEISISAttrs.IPv4 {
+				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, isissession.ATEISISAttrs.IPv4)
 			}
 			// Checking isis neighbor extended circuit id.
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborExtendedCircuitId().State()); got == 0 {

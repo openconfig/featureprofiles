@@ -1,0 +1,33 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "1d21e3cf-25c0-4e44-8988-582188e37452"
+plan_id:  "RT-7"
+description:  "BGP default policies"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    isis_level_enabled:  true
+    skip_non_bgp_route_export_check:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    interface_enabled:  true
+  }
+}

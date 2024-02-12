@@ -193,7 +193,6 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	// If randomise is specified, we go and do the operations in a random order.
 	// In this case, the caller MUST
 	if randomise {
-		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
 	}
 
@@ -243,6 +242,37 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceN
 		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
 		copiedSubInterfaces[interfaceName] = &oc.Interface_Subinterface{}
 		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateIpv4()
+		for _, ipval := range a.Address {
+			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
+			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
+			ipv4addr.PrefixLength = ygot.Uint8(ipval.GetPrefixLength())
+		}
+
+	}
+	return copiedSubInterfaces
+}
+
+// GetInterface returns subinterface
+func GetInterface(interfaceName string, ipv4 string, prefixlen uint8, index uint32) *oc.Interface {
+	i := &oc.Interface{Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true),
+		Name: ygot.String(interfaceName)}
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return i
+}
+
+// GetCopyOfIpv4Interfaces returns subinterface ipv4 address
+func GetCopyOfIpv4Interfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*oc.Interface {
+	copiedSubInterfaces := make(map[string]*oc.Interface)
+	for _, interfaceName := range interfaceNames {
+		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
+		copiedSubInterfaces[interfaceName] = &oc.Interface{}
+		copiedSubInterfaces[interfaceName].Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		copiedSubInterfaces[interfaceName].Enabled = ygot.Bool(true)
+		copiedSubInterfaces[interfaceName].Name = ygot.String(interfaceName)
+		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateSubinterface(index).GetOrCreateIpv4()
 		for _, ipval := range a.Address {
 			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
 			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
@@ -375,9 +405,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		if activate {
 			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim activate string %v", fimActivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimActivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimActivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
@@ -389,9 +419,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		} else {
 			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim deactivate string %v", fimDeactivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimDeactivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimDeactivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)

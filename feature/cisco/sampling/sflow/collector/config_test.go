@@ -36,7 +36,7 @@ func TestNetworkInstanceAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.NetworkInstance != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
@@ -83,7 +83,7 @@ func TestNetworkInstanceAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
@@ -128,7 +128,7 @@ func TestPortAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Port != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/port: got %v, want %v", configGot, input)
 					}
@@ -169,7 +169,7 @@ func TestAddressAtContainer(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Address != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/address: got %v, want %v", configGot, input)
 					}
@@ -219,7 +219,7 @@ func TestSourceAddressAtLeaf(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/source-address: got %v, want %v", configGot, input)
 					}
@@ -275,7 +275,7 @@ func TestSourceAddressAtContainer(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SourceAddress != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/source-address: got %v, want %v", configGot, input)
 					}

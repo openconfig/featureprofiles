@@ -57,7 +57,7 @@ func TestForwardingAction(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.ForwardingAction != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action: got %v, want %v", configGot, input)
 					}
@@ -99,7 +99,7 @@ func TestLogAction(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.LogAction != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/log-action: got %v, want %v", configGot, input)
 					}

@@ -53,7 +53,7 @@ func TestType(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.Type != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/config/type: got %v, want %v", configGot, input)
 					}
@@ -101,7 +101,7 @@ func TestName(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Name != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/config/name: got %v, want %v", configGot, input)
 					}
@@ -150,7 +150,7 @@ func TestDescription(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Description != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/config/description: got %v, want %v", configGot, input)
 					}

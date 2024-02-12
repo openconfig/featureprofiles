@@ -143,6 +143,25 @@ func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
 	}
 	defer scpClient.Close()
 
+	ticker := time.NewTicker(1 * time.Minute)
+	tickerQuit := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				t.Logf("Copying image...")
+			case <-tickerQuit:
+				return
+			}
+		}
+	}()
+
+	defer func() {
+		ticker.Stop()
+		tickerQuit <- true
+	}()
+
 	if err := scpClient.CopyFileToRemote(imagePath, imageDestination, &scp.FileTransferOption{
 		Timeout: imgCopyTimeout,
 	}); err != nil {
@@ -215,7 +234,8 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	return sshClient.SendCommand(ctx, cmd)
+	out, err := sshClient.RunCommand(ctx, cmd)
+	return out.Output(), err
 }
 
 func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {

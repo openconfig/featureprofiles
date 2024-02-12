@@ -3,6 +3,7 @@ package basetest
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,6 +87,12 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
+		showresp := dut.Model()
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
@@ -98,7 +105,7 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 
 	})
 
@@ -117,6 +124,12 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("GRPC Server Port Update Test", func(t *testing.T) {
+		showresp := dut.Model()
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		path := gnmi.OC().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), 57777)
@@ -124,6 +137,12 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("GRPC Server Port Replace Test", func(t *testing.T) {
+		showresp := dut.Model()
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		path := gnmi.OC().System().GrpcServer("DEFAULT").Port()
 		defer observer.RecordYgot(t, "REPLACE", path)
 		gnmi.Replace(t, dut, path.Config(), 57777)
@@ -159,9 +178,6 @@ func TestIanaPorts(t *testing.T) {
 
 	})
 
-	//set non-default name
-	config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name TEST\n commit \n", 10*time.Second)
-	defer config.TextWithSSH(context.Background(), t, dut, "configure \n  no grpc name TEST\n commit \n", 10*time.Second)
 	t.Run("GRPC Name Update Test", func(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("TEST").Name()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -177,6 +193,12 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Assign a Non-Default GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
+		showresp := dut.Model()
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		min := 57344
 		max := 57399
 		value1 := rand.Intn(max-min) + min
@@ -197,10 +219,16 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 	})
 
 	t.Run("Rollback to IANA Default Ports", func(t *testing.T) {
+		showresp := dut.Model()
+		t.Logf(showresp)
+		if strings.Contains(showresp, "VXR") {
+			t.Logf("Skipping since platfrom is VXR")
+			t.Skip()
+		}
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n no port \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gnmi \n no port \n commit \n", 10*time.Second)
 		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc \n gribi \n no port \n commit \n", 10*time.Second)
@@ -213,6 +241,6 @@ func TestIanaPorts(t *testing.T) {
 			t.Errorf("Unexpected value for port number: %v", portNum)
 		}
 		configs := gnmi.OC().System()
-		gnmi.GetConfig(t, dut, configs.Config())
+		gnmi.Get(t, dut, configs.Config())
 	})
 }
