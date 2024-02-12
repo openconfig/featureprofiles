@@ -751,6 +751,11 @@ func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
 
+// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
+func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
+}
+
 // TTLCopyUnsupported returns true for devices which does not support TTL copy.
 func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
@@ -760,9 +765,4 @@ func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 // programming with mixed prefix length.
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
-}
-
-// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
 }
