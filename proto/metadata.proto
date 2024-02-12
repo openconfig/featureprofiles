@@ -410,7 +410,7 @@ message Metadata {
     bool gribi_decap_mixed_plen_unsupported = 142;
     //Skip tests with decap encap vrf as PBF action 
     // Nokia: partnerissuetracker.corp.google.com/issues/323251581
-    bool skip_pbf_with_decap_encap_vrf = 141;
+    bool skip_pbf_with_decap_encap_vrf = 143;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
