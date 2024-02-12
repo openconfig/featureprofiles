@@ -440,6 +440,18 @@ IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
   {NH#102, DEFAULT VRF, weight:1},
   backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
 }
+
+IPv6Entry {2001:db8::138:0:11:0/126 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:1},
+  {NH#102, DEFAULT VRF, weight:3},
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
+}
+IPv6Entry {2001:db8::138:0:11:0/126  (ENCAP_TE_VRF_B)} -> NHG#102 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:3},
+  {NH#102, DEFAULT VRF, weight:1},
+  backup_next_hop_group: 200 // in case specific vendor implementation or bugs pruned the NHs.
+}
+
 NH#101 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
@@ -586,7 +598,7 @@ The DUT should be reset to the baseline after each of the following tests.
 
 6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are decapped and forwarded correctly.
 
-7.  Repeat the test with packets with a destination address that does not match the decap entry, and verify that such packets are not decapped.
+7.  Repeat the test with packets with a destination address 203.0.113.1/32 that does not match the decap entry, and verify that such packets are not decapped.
 
 #### Test-2, match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT
 
@@ -671,7 +683,7 @@ Support for decap actions with mixed prefixes installed through gRIBI
 
 4.  Verify that the packets have their outer v4 header stripped, and are forwarded according to the route in the DEFAULT VRF that matches the inner IP address.
 
-5.  Repeat the test with packets with a destination address that does not match the decap route, and verify that such packets are not decapped.
+5.  Repeat the test with packets with a destination address 203.0.113.1/32 that does not match the decap route, and verify that such packets are not decapped.
 
 #### Test-4: Tunneled traffic with no decap
 
