@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra/gnmi"
@@ -30,6 +31,8 @@ import (
 // LogFlowMetrics displays the otg flow statistics.
 func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
+	// This short delay before printing will ensure that all the packets will be counted during the polling
+	time.Sleep(1 * time.Second)
 	var out strings.Builder
 	out.WriteString("\nOTG Flow Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 80))
@@ -51,6 +54,8 @@ func LogFlowMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 // LogPortMetrics displays otg port stats.
 func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
+	// This short delay before printing will ensure that all the packets will be counted during the polling
+	time.Sleep(1 * time.Second)
 	var link string
 	var out strings.Builder
 	out.WriteString("\nOTG Port Metrics\n")
@@ -84,6 +89,7 @@ func LogPortMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 // LogLAGMetrics is displaying otg lag stats.
 func LogLAGMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 	t.Helper()
+	time.Sleep(1 * time.Second)
 	var out strings.Builder
 	out.WriteString("\nOTG LAG Metrics\n")
 	fmt.Fprintln(&out, strings.Repeat("-", 120))
@@ -138,6 +144,81 @@ func LogLACPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
 				lag.Name(), lagPort.PortName(), synchronization, collecting, distributing, systemID, partnerID,
 			))
 
+		}
+	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n\n")
+	t.Log(out.String())
+}
+
+// LogLLDPMetrics is displaying otg lldp stats.
+func LogLLDPMetrics(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	time.Sleep(1 * time.Second)
+	var out strings.Builder
+	out.WriteString("\nOTG LLDP Metrics\n")
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n")
+	fmt.Fprintf(&out,
+		"%-15s%-15s%-15s%-18s%-20s%-18s%-18s\n",
+		"Name",
+		"Frames Tx",
+		"Frames Rx",
+		"Frames Error Rx",
+		"Frames Discard",
+		"Tlvs Discard",
+		"Tlvs Unknown")
+
+	for _, lldp := range c.Lldp().Items() {
+		lldpMetric := gnmi.Get(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).Counters().State())
+		framesTx := lldpMetric.GetFrameOut()
+		framesRx := lldpMetric.GetFrameIn()
+		framesErrorRx := lldpMetric.GetFrameErrorIn()
+		framesDiscard := lldpMetric.GetFrameDiscard()
+		tlvsDiscard := lldpMetric.GetTlvDiscard()
+		tlvsUnknown := lldpMetric.GetTlvUnknown()
+		out.WriteString(fmt.Sprintf(
+			"%-15v%-15v%-15v%-18v%-20v%-18v%-18v\n",
+			lldp.Name(), framesTx, framesRx, framesErrorRx, framesDiscard, tlvsDiscard, tlvsUnknown,
+		))
+	}
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n\n")
+	t.Log(out.String())
+}
+
+// LogLLDPNeighborStates is displaying otg lldp neighbor states.
+func LogLLDPNeighborStates(t testing.TB, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	var out strings.Builder
+	out.WriteString("\nOTG LLDP Neighbor States\n")
+	fmt.Fprintln(&out, strings.Repeat("-", 120))
+	out.WriteString("\n")
+	fmt.Fprintf(&out,
+		"%-15s%-18s%-18s%-18s%-20s%-20s\n",
+		"LLDP Name",
+		"System Name",
+		"Port Id",
+		"Port Id Type",
+		"Chassis Id",
+		"Chassis Id Type")
+
+	for _, lldp := range c.Lldp().Items() {
+		lldpNeighborStates := gnmi.LookupAll(t, otg, gnmi.OTG().LldpInterface(lldp.Name()).LldpNeighborDatabase().LldpNeighborAny().State())
+		for _, lldpNeighborState := range lldpNeighborStates {
+			v, isPresent := lldpNeighborState.Val()
+			if isPresent {
+				systemName := v.GetSystemName()
+				portID := v.GetPortId()
+				portIDType := v.GetPortIdType()
+				chassisID := v.GetChassisId()
+				chassisIDType := v.GetChassisIdType()
+				out.WriteString(fmt.Sprintf(
+					"%-15s%-18s%-18s%-18s%-20s%-20s\n",
+					lldp.Name(), systemName, portID, portIDType, chassisID, chassisIDType,
+				))
+
+			}
 		}
 	}
 	fmt.Fprintln(&out, strings.Repeat("-", 120))

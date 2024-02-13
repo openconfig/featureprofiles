@@ -17,7 +17,7 @@ between 2 DUTs.
         *   Time exists.
         *   Generator:
             *   MinMtu >= 64,
-            *   MaxMtu >= 9000,
+            *   MaxMtu >= 8184,
             *   MaxBps >= 4e11,
             *   MaxPps >= 5e8,
             *   MinSetupDuration > 0
@@ -47,7 +47,7 @@ between 2 DUTs.
             PacketGeneratorConfiguration.
     *   Set the following parameters for link qualification service usage:
         *   PacketRate: Packet per second rate to use for this test.
-        *   PacketSize: Size of packets to inject. The value is 9000 bytes.
+        *   PacketSize: Size of packets to inject. The value is 8184 bytes.
     *   RPCSyncedTiming:
         *   SetupDuration: The requested setup time for the endpoint.
         *   PreSyncDuration: Minimum_wait_before_preparation_seconds. Within
@@ -61,6 +61,7 @@ between 2 DUTs.
             its teardown.
         *   TeardownDuration: The amount time required to bring the interface
             back to pre-test state.
+    *       Verify generator interface oper-state is 'TESTING'
 *   Set another device as the FAR_END (reflector) device for Packet Based Link
     Qual.
     *   Issue gnoi.LinkQualification Create RPC to the device and provide
@@ -71,6 +72,7 @@ between 2 DUTs.
         *   EndpointType: Qualification_end set as FAR_END.
         *   RPCSyncedTiming:
             *   Reflector timers should be same as the ones on the generator.
+        *   Verify reflector interface oper-state is 'TESTING'
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.
@@ -79,8 +81,7 @@ between 2 DUTs.
         *   Ensure that the num_corrupt_packets and num_packets_dropped_by_mmu
             are 0
         *   Ensure that RPC status code is 0 for succuss.
-        *   GetQualificationRateBytesPerSecond matches
-            GetExpectedRateBytesPerSecond in the result.
+        *   Packets sent count matches with packets received.
 
 ## Telemetry Parameter Coverage
 

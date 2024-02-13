@@ -1,0 +1,91 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+id {
+  name: "aft"
+  version: 1
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ethernet/mac-entry/state/next-hop-group"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/packets-forwarded"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/counters/octets-forwarded"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/index"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/ip-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/mac-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/origin-protocol"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/state/encapsulate-header"
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface"
+}
+
+feature_profile_dependency {
+  name: "networkinstance"
+  version: 1
+}

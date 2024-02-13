@@ -1,0 +1,175 @@
+name: "cisco-xrd-dutate-lag"
+nodes: {
+    name: "dut"
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        image: "xrd:latest"
+        file: "config.cfg"
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "GigabitEthernet0/0/0/1"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            name: "GigabitEthernet0/0/0/2"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            name: "GigabitEthernet0/0/0/3"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            name: "GigabitEthernet0/0/0/4"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            name: "GigabitEthernet0/0/0/5"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            name: "GigabitEthernet0/0/0/6"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            name: "GigabitEthernet0/0/0/7"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+	value: {
+            name: "GigabitEthernet0/0/0/8"
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+    interfaces: {
+        key: "eth1"
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth3"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth4"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth7"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth8"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+            group: "lag"
+        }
+    }
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth2"
+    z_node: "otg"
+    z_int: "eth2"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth3"
+    z_node: "otg"
+    z_int: "eth3"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth4"
+    z_node: "otg"
+    z_int: "eth4"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth5"
+    z_node: "otg"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth6"
+    z_node: "otg"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth7"
+    z_node: "otg"
+    z_int: "eth7"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth8"
+    z_node: "otg"
+    z_int: "eth8"
+}
+links: {
+    a_node: "dut"
+    a_int: "eth9"
+    z_node: "otg"
+    z_int: "eth9"
+}

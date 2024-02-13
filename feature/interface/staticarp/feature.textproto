@@ -31,6 +31,9 @@ telemetry_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length"
 }
 config_path {
+    path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/ip"
+}
+config_path {
   path: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/config/ip"
 }
 telemetry_path {

@@ -1,0 +1,44 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e50991a4-bb40-4162-8a86-717e68e10680"
+plan_id: "gNMI-1.15"
+description: "Set Requests"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    skip_static_nexthop_check: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    static_route_next_hop_interface_ref_unsupported: true
+    static_protocol_name: "static"
+    interface_enabled: true
+  }
+}

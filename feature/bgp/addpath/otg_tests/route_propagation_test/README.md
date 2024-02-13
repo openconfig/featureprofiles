@@ -6,10 +6,11 @@ BGP Route Propagation
 
 ## Procedure
 
-Establish BGP sessions between:
+Establish eBGP sessions between:
 
 *   ATE port-1 and DUT port-1
 *   ATE port-2 and DUT port-2
+*   Configure Route-policy under BGP peer-group address-family
 
 For IPv4 and IPv6:
 

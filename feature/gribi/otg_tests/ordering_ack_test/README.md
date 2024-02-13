@@ -31,8 +31,6 @@ Ensure that acknowledgements are sent as is expected by gRIBI controller.
         *   An AFT entry deleting `IPv4Entry 203.0.113.0/24`.
         *   An AFT entry adding `IPv4Entry 203.0.113.0/24`.
 
-If the device supports it, repeat this test with gRIBI client persistence mode
-`DELETE` without flushing entries between cases.
 
 ## Config Parameter coverage
 

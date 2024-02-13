@@ -1,0 +1,19 @@
+[req]
+default_bits = 2048
+distinguished_name = dn
+prompt             = no
+req_extensions = req_ext
+
+[dn]
+C="AQ"
+ST="NZ"
+L="NZ"
+O="OpenconfigFeatureProfiles"
+CN="{bb1d2545-1e93-49a6-8d0c-761d92011fde}"
+
+[req_ext]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.0 = role001.pop55.net.example.com
+URI.1 = spiffe://teamname.groupname.location.place.example.com/role/groupname-group

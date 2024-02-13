@@ -1,0 +1,38 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "139f3ee1-d0d0-45cf-8c92-4957c868d30a"
+plan_id: "TE-11.2"
+description: "Backup NHG: Multiple NH"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    skip_pbf_with_decap_encap_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    interface_config_vrf_before_address: true
+    backup_nhg_requires_vrf_with_decap: true
+  }
+}

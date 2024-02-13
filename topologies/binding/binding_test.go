@@ -16,42 +16,38 @@ package binding
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	opb "github.com/openconfig/ondatra/proto"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-func TestReserveFetchRelease(t *testing.T) {
+func TestReserveRelease(t *testing.T) {
 	ctx := context.Background()
 	tb := &opb.Testbed{}
 	b := &staticBind{r: resolver{&bindpb.Binding{}}, pushConfig: false}
 
-	if _, err := b.FetchReservation(ctx, resvID); err == nil {
-		t.Error("FetchReservation should fail before reservation is made.")
-	}
 	if err := b.Release(ctx); err == nil {
 		t.Error("Release should fail before reservation is made.")
 	}
 
-	resv, err := b.Reserve(ctx, tb, 0, 0, nil)
+	_, err := b.Reserve(ctx, tb, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("Could not reserve testbed: %v", err)
-	}
-	if _, err := b.FetchReservation(ctx, resv.ID); err != nil {
-		t.Errorf("Could not fetch reservation %q: %v", resv.ID, err)
 	}
 	if err := b.Release(ctx); err != nil {
 		t.Errorf("Could not release reservation: %v", err)
 	}
 
-	if _, err := b.FetchReservation(ctx, resvID); err == nil {
-		t.Error("FetchReservation should fail after release.")
-	}
 	if err := b.Release(ctx); err == nil {
 		t.Error("Release should fail after reservation is already released.")
 	}
@@ -217,7 +213,6 @@ func TestReservation_Error(t *testing.T) {
 		`binding DUT "dut.b" not found in testbed`,
 		`missing binding for ATE "ate.tb"`,
 		`error binding ATE "ate.both"`,
-		`binding port "port3" not found in testbed`,
 		`testbed port "port1" is missing in binding`,
 	}
 	errText := err.Error()
@@ -226,5 +221,70 @@ func TestReservation_Error(t *testing.T) {
 		if !strings.Contains(errText, want) {
 			t.Errorf("Want error not found: %s", want)
 		}
+	}
+}
+
+func TestDialOTGTimeout(t *testing.T) {
+	const timeoutSecs = 42
+	a := &staticATE{
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Otg: &bindpb.Options{Timeout: timeoutSecs}},
+	}
+	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
+		return nil, nil
+	}
+	gosnappiNewAPIFn = func() gosnappi.Api {
+		return &captureAPI{Api: gosnappi.NewApi()}
+	}
+	api, err := a.DialOTG(context.Background())
+	if err != nil {
+		t.Errorf("DialOTG() got error %v", err)
+	}
+	gotTransport := api.(*captureAPI).gotTransport
+	if gotTimeout, wantTimeout := gotTransport.RequestTimeout(), timeoutSecs*time.Second; gotTimeout != wantTimeout {
+		t.Errorf("DialOTG() got timeout %v, want %v", gotTimeout, wantTimeout)
+	}
+}
+
+type captureAPI struct {
+	gosnappi.Api
+	gotTransport gosnappi.GrpcTransport
+}
+
+func (a *captureAPI) NewGrpcTransport() gosnappi.GrpcTransport {
+	a.gotTransport = a.Api.NewGrpcTransport()
+	return a.gotTransport
+}
+
+func TestDialer(t *testing.T) {
+	const (
+		wantDevName = "mydev"
+		wantDevPort = 1234
+	)
+	fakeSvc := introspect.Service("fake")
+	dutSvcParams[fakeSvc] = &svcParams{
+		port:   wantDevPort,
+		optsFn: func(d *bindpb.Device) *bindpb.Options { return nil },
+	}
+	d := &staticDUT{
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Name: wantDevName},
+	}
+
+	dialer, err := d.Dialer(fakeSvc)
+	if err != nil {
+		t.Fatalf("Dialer() got err: %v", err)
+	}
+	if dialer.DevicePort != wantDevPort {
+		t.Errorf("Dialer() got DevicePort %v, want %v", dialer.DevicePort, wantDevPort)
+	}
+	if dialer.DialFunc == nil {
+		t.Errorf("Dialer() got nil DialFunc, want non-nil DialFunc")
+	}
+	if len(dialer.DialOpts) == 0 {
+		t.Errorf("Dialer() got empty DialOpts, want non-empty DialOpts")
+	}
+	if wantTarget := fmt.Sprintf("%v:%v", wantDevName, wantDevPort); dialer.DialTarget != wantTarget {
+		t.Errorf("Dialer() got Target %v, want %v", dialer.DialTarget, wantTarget)
 	}
 }

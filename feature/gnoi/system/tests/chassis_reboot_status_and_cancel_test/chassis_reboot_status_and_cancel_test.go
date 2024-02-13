@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 
 func TestRebootStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	cases := []struct {
 		desc          string
@@ -88,17 +88,8 @@ func TestRebootStatus(t *testing.T) {
 	}
 
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-		if len(controllerCards) == 0 {
-			t.Fatal("No controller card components found in DUT.")
-		}
-		// the test reboots the chasis, so any subcomponent should be ok to check the status
-		statusReq = &spb.RebootStatusRequest{
-			Subcomponents: []*tpb.Path{
-				components.GetSubcomponentPath(controllerCards[0]),
-			},
-		}
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
+		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -145,7 +136,7 @@ func TestRebootStatus(t *testing.T) {
 
 func TestCancelReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	rebootRequest := &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
@@ -169,17 +160,8 @@ func TestCancelReboot(t *testing.T) {
 		t.Fatalf("Failed to request reboot with unexpected err: %v", err)
 	}
 	statusReq := &spb.RebootStatusRequest{Subcomponents: []*tpb.Path{}}
-	if !*deviations.GNOIStatusWithEmptySubcomponent {
-		controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-		if len(controllerCards) == 0 {
-			t.Fatal("No controller card components found in DUT.")
-		}
-		// the test reboots the chasis, so any subcomponent should be ok to check the status
-		statusReq = &spb.RebootStatusRequest{
-			Subcomponents: []*tpb.Path{
-				components.GetSubcomponentPath(controllerCards[0]),
-			},
-		}
+	if !deviations.GNOIStatusWithEmptySubcomponent(dut) {
+		statusReq.Subcomponents = append(statusReq.Subcomponents, getSubCompPath(t, dut))
 	}
 	rebootStatus, err := gnoiClient.System().RebootStatus(context.Background(), statusReq)
 	t.Logf("DUT rebootStatus: %v, err: %v", rebootStatus, err)
@@ -205,4 +187,18 @@ func TestCancelReboot(t *testing.T) {
 	if rebootStatus.GetActive() {
 		t.Errorf("rebootStatus.GetActive(): got %v, want false", rebootStatus.GetActive())
 	}
+}
+
+func getSubCompPath(t *testing.T, dut *ondatra.DUTDevice) *tpb.Path {
+	t.Helper()
+	controllerCards := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	if len(controllerCards) == 0 {
+		t.Fatal("No controller card components found in DUT.")
+	}
+	activeRP := controllerCards[0]
+	if len(controllerCards) == 2 {
+		_, activeRP = components.FindStandbyRP(t, dut, controllerCards)
+	}
+	useNameOnly := deviations.GNOISubcomponentPath(dut)
+	return components.GetSubcomponentPath(activeRP, useNameOnly)
 }

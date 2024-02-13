@@ -96,16 +96,16 @@ const (
 )
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -120,34 +120,42 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 
 }
 
 // configureATE configures port1, port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").
-		SetPortName(i1.Name()).SetMac(atePort1.MAC)
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	eth1.Connection().SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").
-		SetPortName(i2.Name()).SetMac(atePort2.MAC)
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	eth2.Connection().SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }
@@ -170,19 +178,19 @@ type testArgs struct {
 }
 
 // helperAddEntry configures a sequence of adding the NH, NHG and IPv4Entry by a client.
-func helperAddEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClient, nextHop string, ipPrefix string) {
+func helperAddEntry(ctx context.Context, dut *ondatra.DUTDevice, t *testing.T, client *fluent.GRIBIClient, nextHop string, ipPrefix string) {
 	t.Helper()
 	client.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(nhIndex).
 			WithIPAddress(nextHop),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(ipPrefix).
 			WithNextHopGroup(nhgIndex),
 	)
@@ -199,7 +207,7 @@ func helperAddEntry(ctx context.Context, t *testing.T, client *fluent.GRIBIClien
 func configureIPv4ViaClientB(t *testing.T, args *testArgs) {
 	for _, cidr := range ateDstNetCIDR {
 		t.Logf("Adding an IPv4Entry for %s pointing to ATE port-2 via clientB.", cidr)
-		helperAddEntry(args.ctx, t, args.clientB, atePort2.IPv4, cidr)
+		helperAddEntry(args.ctx, args.dut, t, args.clientB, atePort2.IPv4, cidr)
 
 		// Verify the entry is not installed due to client B having lower election ID.
 		chk.HasResult(t, args.clientB.Results(t),
@@ -222,13 +230,13 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 	// once gribi/gribigo in google3 is updated.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(nhIndex).
 			WithIPAddress(atePort2.IPv4))
 
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).
 			AddNextHop(nhIndex, 1))
 
@@ -236,7 +244,7 @@ func configureIPv4ViaClientAInstalled(t *testing.T, args *testArgs) {
 		args.clientA.Modify().AddEntry(t,
 			fluent.IPv4Entry().
 				WithPrefix(ateDstNetCIDR[ip]).
-				WithNetworkInstance(*deviations.DefaultNetworkInstance).
+				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 				WithNextHopGroup(nhgIndex))
 	}
 
@@ -307,8 +315,8 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Verify the above entries are active through AFT Telemetry.
 	for ip := range ateDstNetCIDR {
-		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -324,17 +332,21 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// and ensure that only entries for 198.51.100.0/26, 198.51.100.64/26, 198.51.100.128/26
 	// are returned, with no entry returned for 198.51.100.192/64.
 	dc := gnmi.OC()
-	ni := dc.NetworkInstance(*deviations.DefaultNetworkInstance).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(staticCIDR),
-	}
-	static.GetOrCreateNextHop("AUTO_0").NextHop = oc.UnionString(atePort2.IPv4)
-	gnmi.Replace(t, args.dut, ni.Static(staticCIDR).Config(), static)
+	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
+
+	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
+
+	ni := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(args.dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut))
+	staticRoute := static.GetOrCreateStatic(staticCIDR)
+	nextHop := staticRoute.GetOrCreateNextHop("0")
+	nextHop.NextHop = oc.UnionString(atePort2.IPv4)
+	gnmi.Update(t, args.dut, niProto.Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
-		ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-		if got, want := gnmi.Get(t, args.dut, ipv4Path.Prefix().State()), ateDstNetCIDR[ip]; got != want {
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		if got, want := gnmi.Get(t, args.dut, ipv4Path.State()).GetPrefix(), ateDstNetCIDR[ip]; got != want {
 			t.Errorf("ipv4-entry/state/prefix got %s, want %s", got, want)
 		}
 	}
@@ -344,15 +356,15 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	// that the entry for 203.0.113.0/24 is not returned.
 	args.clientA.Modify().AddEntry(t,
 		fluent.NextHopEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(1000+nhIndex).
 			WithIPAddress(unresolvedNextHop),
 		fluent.NextHopGroupEntry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(1000+nhgIndex).
 			AddNextHop(1000+nhIndex, 1),
 		fluent.IPv4Entry().
-			WithNetworkInstance(*deviations.DefaultNetworkInstance).
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithPrefix(ipv4Prefix).
 			WithNextHopGroup(1000+nhgIndex),
 	)
@@ -369,7 +381,7 @@ func TestElectionID(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the DUT
 	configureDUT(t, dut)

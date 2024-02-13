@@ -72,11 +72,8 @@ config_path {
 telemetry_path {
   path: "/lacp/interfaces/interface/state/system-id-mac"
 }
-config_path {
-  path: "/lacp/interfaces/interface/config/system-priority"
-}
 telemetry_path {
-  path: "/lacp/interfaces/interface/state/system-priority"
+  path: "/lacp/interfaces/interface/members/member/state/counters/lacp-unknown-errors"
 }
 
 # LACP telemetry-only

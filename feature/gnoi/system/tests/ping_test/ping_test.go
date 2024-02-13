@@ -19,6 +19,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -42,7 +43,7 @@ const (
 	minimumMinTime           = 1
 	minimumAvgTime           = 1
 	minimumMaxTime           = 1
-	//StdDeviation would be 0 if we only send 1 ping.
+	// StdDeviation would be 0 if we only send 1 ping.
 	minimumStdDev = 1
 )
 
@@ -73,7 +74,7 @@ func TestMain(m *testing.M) {
 //     - std_dev: Standard deviation in round trip time.
 //
 // Topology:
-//   dut:port1 <--> ate:port1
+//   dut
 //
 // Test notes:
 //  - Only the destination fields is required.
@@ -110,7 +111,9 @@ func TestGNOIPing(t *testing.T) {
 	if len(ipv6Addrs) == 0 {
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
-
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, lbIntf, deviations.DefaultNetworkInstance(dut), 0)
+	}
 	commonExpectedIPv4Reply := &spb.PingResponse{
 		Source:   ipv4Addrs[0].GetIp(),
 		Time:     minimumPingTime,
@@ -175,6 +178,7 @@ func TestGNOIPing(t *testing.T) {
 			Destination: ipv4Addrs[0].GetIp(),
 			Source:      ipv4Addrs[0].GetIp(),
 			L3Protocol:  tpb.L3Protocol_IPV4,
+			Count:       10,
 		},
 		expectedReply: commonExpectedIPv4Reply,
 		expectedStats: commonExpectedReplyStats,
@@ -399,7 +403,7 @@ func TestGNOIPing(t *testing.T) {
 		expectedStats: commonExpectedReplyStats,
 	}}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Sent ping request: %v\n\n", tc.pingRequest)
@@ -466,7 +470,7 @@ func TestGNOIPing(t *testing.T) {
 				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.MaxTime, tc.expectedStats.MaxTime)
 			}
 			if summary.StdDev < tc.expectedStats.StdDev && !StdDevZero {
-				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
+				t.Errorf("Ping Standard Deviation: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
 			}
 		})
 	}

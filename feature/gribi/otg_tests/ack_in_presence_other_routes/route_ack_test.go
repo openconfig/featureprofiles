@@ -105,16 +105,16 @@ var gatewayMap = map[attrs.Attributes]attrs.Attributes{
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	s4a := s4.GetOrCreateAddress(a.IPv4)
@@ -129,55 +129,55 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1))
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), *deviations.DefaultNetworkInstance, 0)
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p2 := dut.Port(t, "port2")
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2))
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), *deviations.DefaultNetworkInstance, 0)
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	p3 := dut.Port(t, "port3")
 	i3 := &oc.Interface{Name: ygot.String(p3.Name())}
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(i3, &dutPort3))
-	if *deviations.ExplicitInterfaceInDefaultVRF {
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), *deviations.DefaultNetworkInstance, 0)
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(i3, &dutPort3, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
 	}
 
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(atePort1.Name)
 	i1 := top.Devices().Add().SetName(atePort1.Name)
-	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetPortName(i1.Name()).SetMac(atePort1.MAC)
-	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(int32(atePort1.IPv4Len))
+	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	eth1.Connection().SetPortName(i1.Name())
+	eth1.Ipv4Addresses().Add().SetName(i1.Name() + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(atePort2.Name)
 	i2 := top.Devices().Add().SetName(atePort2.Name)
-	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetPortName(i2.Name()).SetMac(atePort2.MAC)
-	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(int32(atePort2.IPv4Len))
+	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
+	eth2.Connection().SetPortName(i2.Name())
+	eth2.Ipv4Addresses().Add().SetName(i2.Name() + ".IPv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 
 	top.Ports().Add().SetName(atePort3.Name)
 	i3 := top.Devices().Add().SetName(atePort3.Name)
-	eth3 := i3.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetPortName(i3.Name()).SetMac(atePort3.MAC)
-	eth3.Ipv4Addresses().Add().SetName(i3.Name() + ".IPv4").SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(int32(atePort3.IPv4Len))
+	eth3 := i3.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
+	eth3.Connection().SetPortName(i3.Name())
+	eth3.Ipv4Addresses().Add().SetName(i3.Name() + ".IPv4").SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(uint32(atePort3.IPv4Len))
 	return top
-}
-
-// Waits for an ARP entry to be present for ATE Port1
-func waitOTGARPEntry(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
 }
 
 // testTraffic generates traffic flow from source network to
@@ -186,7 +186,7 @@ func waitOTGARPEntry(t *testing.T) {
 func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcEndPoint, dstEndPoint attrs.Attributes) {
 	otg := ate.OTG()
 	gwIp := gatewayMap[srcEndPoint].IPv4
-	waitOTGARPEntry(t)
+	otgutils.WaitForARP(t, otg, top, "IPv4")
 	dstMac := gnmi.Get(t, otg, gnmi.OTG().Interface(srcEndPoint.Name+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
 	top.Flows().Clear().Items()
 	flowipv4 := top.Flows().Add().SetName("Flow")
@@ -194,10 +194,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	flowipv4.TxRx().Port().
 		SetTxName(srcEndPoint.Name).
 		SetRxName(dstEndPoint.Name)
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEndPoint.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	srcIpv4 := srcEndPoint.IPv4
 	v4.Src().SetValue(srcIpv4)
@@ -211,8 +211,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otg.StopTraffic(t)
 
 	otgutils.LogFlowMetrics(t, otg, top)
-	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State())
-	rxPkts := gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State())
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow("Flow").Counters().InPkts().State()))
 	if got := (txPkts - rxPkts) * 100 / txPkts; got > 0 {
 		t.Errorf("LossPct for flow %s got %v, want 0", flowipv4.Name(), got)
 	}
@@ -230,20 +230,17 @@ type testArgs struct {
 // Configure network instance
 func configureNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	dutConfPath := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance)
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
 // configStaticRoute configures a static route.
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string) {
-	ni1 := gnmi.GetConfig(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Config())
-	static := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName)
-	static.Enabled = ygot.Bool(true)
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("nhg1")
+	nh := sr.GetOrCreateNextHop("0")
 	nh.NextHop = oc.UnionString(nexthop)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, *deviations.StaticProtocolName).Config(), static)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
 // routeAck configures a IPv4 entry through clientA. Ensure that the entry via ClientA
@@ -252,15 +249,15 @@ func routeAck(ctx context.Context, t *testing.T, args *testArgs) {
 	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-3 via gRIBI-A,
 	// ensure that the entry is active through AFT telemetry
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-3 via gRIBI-A", ateDstNetCIDR)
-	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, *deviations.DefaultNetworkInstance, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, *deviations.DefaultNetworkInstance, "", fluent.InstalledInRIB)
+	args.clientA.AddNH(t, nhIndex, atePort3.IPv4, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInRIB)
+	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, deviations.DefaultNetworkInstance(args.dut), "", fluent.InstalledInRIB)
 
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		pre, present := val.Val()
-		return present && pre == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	}
@@ -290,10 +287,10 @@ func TestRouteAck(t *testing.T) {
 	t.Logf("Configure the DUT with static route 203.0.113.0/24...")
 	configStaticRoute(t, dut, ateDstNetCIDR, staticNH)
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(*deviations.DefaultNetworkInstance).Afts().Ipv4Entry(ateDstNetCIDR)
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.Prefix().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		pre, present := val.Val()
-		return present && pre == ateDstNetCIDR
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		return present && ipv4Entry.GetPrefix() == ateDstNetCIDR
 	}).Await(t); !ok {
 		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateDstNetCIDR)
 	} else {

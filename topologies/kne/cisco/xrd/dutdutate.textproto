@@ -1,0 +1,56 @@
+name: "cisco-xrd-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        image: "xrd:latest"
+        file: "config.cfg"
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "GigabitEthernet0/0/0/0"
+        }
+    }
+    interfaces: {
+        key: "eth2"
+        value: {
+            name: "GigabitEthernet0/0/0/1"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: CISCO
+    model: "xrd"
+    os: "ios-xr"
+    config: {
+        image: "xrd:latest"
+        file: "config.cfg"
+    }
+    interfaces: {
+        key: "eth1"
+        value: {
+            name: "GigabitEthernet0/0/0/0"
+        }
+    }
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth2"
+    z_node: "dut2"
+    z_int: "eth1"
+}

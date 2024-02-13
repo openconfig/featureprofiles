@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -88,7 +89,7 @@ type Client struct {
 }
 
 // Fluent resturns the fluent client that can be used to directly call the gribi fluent APIs
-func (c *Client) Fluent(t testing.TB) *fluent.GRIBIClient {
+func (c *Client) Fluent(_ testing.TB) *fluent.GRIBIClient {
 	return c.fluentC
 }
 
@@ -98,13 +99,23 @@ type NHGOptions struct {
 	BackupNHG uint64
 }
 
+// NHOptions are optional parameters to a GRIBI next-hop.
+type NHOptions struct {
+	Src          string
+	Dest         string
+	VrfName      string
+	Mac          string
+	Interface    string
+	SubInterface uint64
+}
+
 // Start function start establish a client connection with the gribi server.
 // By default the client is not the leader and for that function BecomeLeader
 // needs to be called.
 func (c *Client) Start(t testing.TB) error {
 	t.Helper()
 	t.Logf("Starting GRIBI connection for dut: %s", c.DUT.Name())
-	gribiC := c.DUT.RawAPIs().GRIBI().Default(t)
+	gribiC := c.DUT.RawAPIs().GRIBI(t)
 	c.fluentC = fluent.NewClient()
 	c.electionID = Uint128{Low: 1, High: 0}
 
@@ -167,6 +178,75 @@ func (c *Client) ElectionID() Uint128 {
 // in a given network instance.
 func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) {
 	t.Helper()
+	nhg, opResult := NHGEntry(nhgIndex, nhWeights, instance, expectedResult, opts...)
+	c.AddEntries(t, []fluent.GRIBIEntry{nhg}, []*client.OpResult{opResult})
+}
+
+// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
+func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) {
+	t.Helper()
+	nh, opResult := NHEntry(nhIndex, address, instance, expectedResult, opts...)
+	c.AddEntries(t, []fluent.GRIBIEntry{nh}, []*client.OpResult{opResult})
+}
+
+// NHEntry returns a fluent NextHopEntry that can be programmed and the
+// gribigo client OpResult to expect.
+func NHEntry(nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHOptions) (fluent.GRIBIEntry, *client.OpResult) {
+	nh := fluent.NextHopEntry().
+		WithNetworkInstance(instance).
+		WithIndex(nhIndex)
+	switch address {
+	case "Decap":
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "DecapEncap":
+		nh = nh.WithDecapsulateHeader(fluent.IPinIP).
+			WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithIPinIP(opt.Src, opt.Dest).
+				WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "Encap":
+		nh = nh.WithEncapsulateHeader(fluent.IPinIP)
+		for _, opt := range opts {
+			nh = nh.WithIPinIP(opt.Src, opt.Dest).
+				WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "VRFOnly":
+		for _, opt := range opts {
+			nh = nh.WithNextHopNetworkInstance(opt.VrfName)
+		}
+	case "MACwithInterface":
+		for _, opt := range opts {
+			if opt.SubInterface != 0 {
+				nh = nh.WithSubinterfaceRef(opt.Interface, opt.SubInterface).
+					WithMacAddress(opt.Mac)
+			} else {
+				nh = nh.WithInterfaceRef(opt.Interface).WithMacAddress(opt.Mac)
+			}
+			if opt.Dest != "" {
+				nh = nh.WithIPAddress(opt.Dest)
+			}
+		}
+	case "MACwithIp":
+		for _, opt := range opts {
+			nh = nh.WithIPAddress(opt.Dest).WithMacAddress(opt.Mac)
+		}
+	default:
+		nh = nh.WithIPAddress(address)
+	}
+	return nh, fluent.OperationResult().
+		WithNextHopOperation(nhIndex).
+		WithOperationType(constants.Add).
+		WithProgrammingResult(expectedResult).
+		AsResult()
+}
+
+// NHGEntry returns a fluent NextHopGroupEntry that can be programmed and the
+// gribigo client OpResult to expect.
+func NHGEntry(nhgIndex uint64, nhWeights map[uint64]uint64, instance string, expectedResult fluent.ProgrammingResult, opts ...*NHGOptions) (fluent.GRIBIEntry, *client.OpResult) {
 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(instance).WithID(nhgIndex)
 	for nhIndex, weight := range nhWeights {
 		nhg.AddNextHop(nhIndex, weight)
@@ -176,39 +256,26 @@ func (c *Client) AddNHG(t testing.TB, nhgIndex uint64, nhWeights map[uint64]uint
 			nhg.WithBackupNHG(opt.BackupNHG)
 		}
 	}
-	c.fluentC.Modify().AddEntry(t, nhg)
+	return nhg, fluent.OperationResult().
+		WithNextHopGroupOperation(nhgIndex).
+		WithOperationType(constants.Add).
+		WithProgrammingResult(expectedResult).
+		AsResult()
+}
+
+// AddEntries adds the input gRIBI entries and checks the success of the input OperationResults.
+func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
+	t.Helper()
+	c.fluentC.Modify().AddEntry(t, entries...)
 	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
 		t.Fatalf("Error waiting to add NHG: %v", err)
 	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopGroupOperation(nhgIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
-}
-
-// AddNH adds a NextHopEntry with a given index to an address within a given network instance.
-func (c *Client) AddNH(t testing.TB, nhIndex uint64, address, instance string, expectedResult fluent.ProgrammingResult) {
-	t.Helper()
-	c.fluentC.Modify().AddEntry(t,
-		fluent.NextHopEntry().
-			WithNetworkInstance(instance).
-			WithIndex(nhIndex).
-			WithIPAddress(address))
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
-		t.Fatalf("Error waiting to add NH: %v", err)
+	for _, result := range expectedResults {
+		chk.HasResult(t, c.fluentC.Results(t),
+			result,
+			chk.IgnoreOperationID(),
+		)
 	}
-	chk.HasResult(t, c.fluentC.Results(t),
-		fluent.OperationResult().
-			WithNextHopOperation(nhIndex).
-			WithOperationType(constants.Add).
-			WithProgrammingResult(expectedResult).
-			AsResult(),
-		chk.IgnoreOperationID(),
-	)
 }
 
 // AddIPv4 adds an IPv4Entry mapping a prefix to a given next hop group index within a given network instance.
@@ -234,6 +301,29 @@ func (c *Client) AddIPv4(t testing.TB, prefix string, nhgIndex uint64, instance,
 	)
 }
 
+// AddIPv6 adds an IPv6Entry mapping a prefix to a given next hop group index within a given network instance.
+func (c *Client) AddIPv6(t testing.TB, prefix string, nhgIndex uint64, instance, nhgInstance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).
+		WithNetworkInstance(instance).
+		WithNextHopGroup(nhgIndex)
+	if nhgInstance != "" && nhgInstance != instance {
+		ipv6Entry.WithNextHopGroupNetworkInstance(nhgInstance)
+	}
+	c.fluentC.Modify().AddEntry(t, ipv6Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to add IPv6: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(prefix).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
 // DeleteIPv4 deletes an IPv4Entry within a network instance, given the route's prefix
 func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
 	t.Helper()
@@ -245,6 +335,24 @@ func (c *Client) DeleteIPv4(t testing.TB, prefix string, instance string, expect
 	chk.HasResult(t, c.fluentC.Results(t),
 		fluent.OperationResult().
 			WithIPv4Operation(prefix).
+			WithOperationType(constants.Delete).
+			WithProgrammingResult(expectedResult).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+// DeleteIPv6 deletes an IPv6Entry within a network instance, given the route's prefix
+func (c *Client) DeleteIPv6(t testing.TB, prefix string, instance string, expectedResult fluent.ProgrammingResult) {
+	t.Helper()
+	ipv6Entry := fluent.IPv6Entry().WithPrefix(prefix).WithNetworkInstance(instance)
+	c.fluentC.Modify().DeleteEntry(t, ipv6Entry)
+	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+		t.Fatalf("Error waiting to delete IPv6: %v", err)
+	}
+	chk.HasResult(t, c.fluentC.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(prefix).
 			WithOperationType(constants.Delete).
 			WithProgrammingResult(expectedResult).
 			AsResult(),

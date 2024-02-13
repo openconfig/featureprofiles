@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra/binding"
 )
 
@@ -115,29 +116,38 @@ func TestTopology(t *testing.T) {
 }
 
 func TestProperties(t *testing.T) {
-	TestPlanID = "UnitTest-1.1"
+	const (
+		wantUUID        = "TestProperties123"
+		wantPlanID      = "TestProperties"
+		wantDescription = "TestProperties unit test"
+	)
+
+	metadataGetFn = func() *mpb.Metadata {
+		return &mpb.Metadata{Uuid: wantUUID, PlanId: wantPlanID, Description: wantDescription}
+	}
+
 	*knownIssueURL = "https://example.com"
 
 	got := Properties(context.Background(), &binding.Reservation{})
 	t.Log(got)
 
-	if got, want := got["test.plan_id"], TestPlanID; got != want {
-		t.Errorf("Property test.plan_id got %q, want %q", got, want)
-	}
-	if got, want := got["known_issue_url"], *knownIssueURL; got != want {
-		t.Errorf("Property known_issue_url got %q, want %q", got, want)
+	for wantk, wantv := range map[string]string{
+		"test.uuid":        wantUUID,
+		"test.plan_id":     wantPlanID,
+		"test.description": wantDescription,
+		"known_issue_url":  *knownIssueURL,
+	} {
+		if gotv := got[wantk]; gotv != wantv {
+			t.Errorf("Property %s got %q, want %q", wantk, gotv, wantv)
+		}
 	}
 
-	wantKeys := []string{
+	for _, wantk := range []string{
 		"test.path",
-		"test.plan_id",
 		"topology",
-		"known_issue_url",
-	}
-
-	for _, k := range wantKeys {
-		if _, ok := got[k]; !ok {
-			t.Errorf("Missing key from Properties: %s", k)
+	} {
+		if _, ok := got[wantk]; !ok {
+			t.Errorf("Missing key from Properties: %s", wantk)
 		}
 	}
 }

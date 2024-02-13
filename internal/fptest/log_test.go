@@ -31,7 +31,7 @@ func TestSanitizeFilename(t *testing.T) {
 }
 
 func TestWriteOutput(t *testing.T) {
-	if err := WriteOutput("TestWriteOutput", ".json", "{}"); err != nil {
+	if _, err := WriteOutput("TestWriteOutput", ".json", "{}"); err != nil {
 		t.Errorf("writeOutput got error: %v", err)
 	}
 }

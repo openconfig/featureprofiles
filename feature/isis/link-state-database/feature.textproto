@@ -1,0 +1,156 @@
+id {
+  name: "isis_link-state-database"
+  version: 1
+}
+
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/ipv4-source-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/ipv6-source-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/algorithm"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/state/metric"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/adjacency-sids/adjacency-sid/state/weight"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/available-bandwidth/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/extended-admin-group/state/extended-admin-group"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/neighbor-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/lan-adjacency-sids/lan-adjacency-sid/state/weight"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/link-attributes/state/local-protection"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/max-link-bandwidth/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/max-reservable-link-bandwidth/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/residual-bandwidth/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/unreserved-bandwidth/setup-priority/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-is-reachability/neighbors/neighbor/instances/instance/subtlvs/subtlv/utilized-bandwidth/state/bandwidth"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-interface-addresses/state/address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/ipv4-interface-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/ipv4-neighbor-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/psn-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/srlg-value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-srlgs/ipv4-srlg/state/system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-te-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-interface-addresses/state/address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/algorithm"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/subtlvs/subtlv/prefix-sids/prefix-sid/state/value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/ipv6-interface-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/ipv6-neighbor-address"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/psn-number"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/srlg-value"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-srlgs/ipv6-srlg/state/system-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-te-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/mt-ipv6-reachability/prefixes/prefix/subtlvs/subtlv/ipv4-source-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/mt-ipv6-reachability/prefixes/prefix/subtlvs/subtlv/ipv6-source-router-id/state/router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/router-capabilities/capability/subtlvs/subtlv/segment-routing-capability/state/flags"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/router-capabilities/capability/subtlvs/subtlv/segment-routing-capability/srgb-descriptors/srgb-descriptor/state/label"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/router-capabilities/capability/subtlvs/subtlv/segment-routing-capability/srgb-descriptors/srgb-descriptor/state/range"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/flags"	
+}
+
+feature_profile_dependency {
+  name: "isis"
+  version: 1
+}
+
+feature_profile_dependency {
+  name: "networkinstance"
+  version: 1
+}

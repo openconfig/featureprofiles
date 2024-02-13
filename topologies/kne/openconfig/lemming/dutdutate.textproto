@@ -1,0 +1,28 @@
+name: "openconfig-lemming-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: OPENCONFIG
+    model: "LEMMING"
+}
+nodes: {
+    name: "dut2"
+    vendor: OPENCONFIG
+    model: "LEMMING"
+}
+nodes: {
+    name: "otg"
+    vendor: KEYSIGHT
+    version: "0.0.1-9999" # Please update this with the local version from ixiatg-configmap.yaml
+}
+links: {
+    a_node: "otg"
+    a_int: "eth1"
+    z_node: "dut"
+    z_int: "eth1"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth2"
+    z_node: "dut2"
+    z_int: "eth1"
+}

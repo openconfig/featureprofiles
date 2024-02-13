@@ -131,22 +131,22 @@ type testCase struct {
 	l3header string
 }
 
-func (*testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
+func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
 	i.Description = ygot.String(a.Desc)
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
 	s := i.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) && !deviations.IPv4MissingEnabled(tc.dut) {
 		s4.Enabled = ygot.Bool(true)
 	}
 	a4 := s4.GetOrCreateAddress(a.IPv4)
 	a4.PrefixLength = ygot.Uint8(plen4)
 
 	s6 := s.GetOrCreateIpv6()
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
 	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(plen6)
@@ -162,7 +162,7 @@ func (tc *testCase) configDstAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 func (tc *testCase) configDstMemberDUT(i *oc.Interface, p *ondatra.Port) {
 	i.Description = ygot.String(p.String())
 	i.Type = ethernetCsmacd
-	if *deviations.InterfaceEnabled {
+	if deviations.InterfaceEnabled(tc.dut) {
 		i.Enabled = ygot.Bool(true)
 	}
 
@@ -190,7 +190,7 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
 		i.Type = ethernetCsmacd
 
-		if *deviations.InterfaceEnabled {
+		if deviations.InterfaceEnabled(tc.dut) {
 			i.Enabled = ygot.Bool(true)
 		}
 	}
@@ -241,43 +241,45 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 
 	if tc.lagType == oc.IfAggregate_AggregationType_LACP {
 		t.Logf("Waiting LAG DUT ports to start collecting and distributing")
-		for _, dp := range tc.dutPorts[1:] {
-			_, ok := gnmi.WatchAll(t, tc.dut, gnmi.OC().Lacp().InterfaceAny().Member(dp.Name()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				col, present := val.Val()
-				return present && col
-			}).Await(t)
-			if !ok {
-				t.Fatalf("DUT LAG port %v is not collecting", dp)
+		watchD := gnmi.WatchAll[*oc.Lacp_Interface](t, tc.dut, gnmi.OC().Lacp().InterfaceAny().State(), time.Minute, func(val *ygnmi.Value[*oc.Lacp_Interface]) bool {
+			col, present := val.Val()
+			if !present || col == nil {
+				return false
 			}
-			_, ok = gnmi.WatchAll(t, tc.dut, gnmi.OC().Lacp().InterfaceAny().Member(dp.Name()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				dist, present := val.Val()
-				return present && dist
-			}).Await(t)
-			if !ok {
-				t.Fatalf("DUT LAG port %v is not distributing", dp)
+			for _, dp := range tc.dutPorts[1:] {
+				m := col.GetMember(dp.Name())
+				if !m.GetCollecting() || !m.GetDistributing() {
+					return false
+				}
 			}
+			return true
+		})
+		if _, ok := watchD.Await(t); !ok {
+			t.Fatalf("DUT LAG is not ready to collect and distribute")
 		}
+
 		t.Logf("Waiting LAG OTG ports to start collecting and distributing")
-		for _, p := range tc.atePorts[1:] {
-			_, ok := gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				col, present := val.Val()
-				return present && col
-			}).Await(t)
-			if !ok {
-				t.Fatalf("OTG LAG port %v is not collecting", p)
+		watchO := gnmi.Watch[*otgtelemetry.Lacp](t, tc.ate.OTG(), gnmi.OTG().Lacp().State(), 2*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Lacp]) bool {
+			col, present := val.Val()
+			if !present || col == nil {
+				return false
 			}
-			_, ok = gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				dist, present := val.Val()
-				return present && dist
-			}).Await(t)
-			if !ok {
-				t.Fatalf("OTG LAG port %v is not distributing", p)
+			for _, ap := range tc.atePorts[1:] {
+				m := col.GetLagMember(ap.ID())
+				if !m.GetCollecting() || !m.GetDistributing() {
+					return false
+				}
 			}
+			return true
+		})
+		if _, ok := watchO.Await(t); !ok {
+			t.Fatalf("OTG LAG is not ready to collect and distribute")
 		}
+
 		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
-	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -288,7 +290,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	d := gnmi.OC()
 
-	if *deviations.AggregateAtomicUpdate {
+	if deviations.AggregateAtomicUpdate(tc.dut) {
 		tc.clearAggregateMembers(t)
 		tc.setupAggregateAtomically(t)
 	}
@@ -318,7 +320,10 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	srciPath := d.Interface(srcp.Name())
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
-
+	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+		fptest.AssignToNetworkInstance(t, tc.dut, srcp.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
+		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
+	}
 	for _, port := range tc.dutPorts[1:] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		tc.configDstMemberDUT(i, port)
@@ -326,7 +331,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
-
+	if deviations.ExplicitPortSpeed(tc.dut) {
+		for _, port := range tc.dutPorts {
+			fptest.SetPortSpeed(t, port)
+		}
+	}
 }
 
 // incrementMAC uses a mac string and increments it by the given i
@@ -347,10 +356,18 @@ func incrementMAC(mac string, i int) (string, error) {
 }
 
 // generates a list of random tcp ports values
-func generateRandomPortList(count int) []int32 {
-	a := make([]int32, count)
+func generateRandomPortList(count uint) []uint32 {
+	a := make([]uint32, count)
 	for index := range a {
-		a[index] = int32(rand.Intn(65536-1) + 1)
+		a[index] = uint32(rand.Intn(65536-1) + 1)
+	}
+	return a
+}
+
+func generateRandomFlowLabelList(count int) []uint32 {
+	a := make([]uint32, count)
+	for index := range a {
+		a[index] = uint32(rand.Intn(1048575-1) + 1)
 	}
 	return a
 }
@@ -363,10 +380,10 @@ func (tc *testCase) configureATE(t *testing.T) {
 	p0 := tc.atePorts[0]
 	tc.top.Ports().Add().SetName(p0.ID())
 	d0 := tc.top.Devices().Add().SetName(ateSrc.Name)
-	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetPortName(p0.ID()).SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice("port_name").SetPortName(p0.ID())
-	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
-	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
+	srcEth.Connection().SetPortName(p0.ID())
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	agg := tc.top.Lags().Add().SetName("LAG")
 	for i, p := range tc.atePorts[1:] {
@@ -379,15 +396,30 @@ func (tc *testCase) configureATE(t *testing.T) {
 		lagPort.SetPortName(port.Name()).
 			Ethernet().SetMac(newMac).
 			SetName("LAGRx-" + strconv.Itoa(i))
-		lagPort.Lacp().SetActorPortNumber(int32(i + 1)).SetActorPortPriority(1).SetActorActivity("active")
+		lagPort.Lacp().SetActorPortNumber(uint32(i + 1)).SetActorPortPriority(1).SetActorActivity("active")
 	}
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
-	dstDev := tc.top.Devices().Add().SetName(agg.Name())
-	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetPortName(agg.Name()).SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice("lag_name").SetLagName(agg.Name())
-	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
-	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	p100gbasefr := []string{}
+	for _, p := range tc.atePorts {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			p100gbasefr = append(p100gbasefr, p.ID())
+		}
+	}
+
+	if len(p100gbasefr) > 0 {
+		l1Settings := tc.top.Layer1().Add().SetName("L1").SetPortNames(p100gbasefr)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
+
+	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
+	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
+	dstEth.Connection().SetLagName(agg.Name())
+	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
+	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
@@ -472,6 +504,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	flow.Size().SetFixed(128)
 	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
 
+	ipType := "IPv4"
 	if l3header == "ipv4" {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
@@ -490,6 +523,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
+		ipType = "IPv6"
 	}
 	if l3header == "ipv6inipv4" {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
@@ -498,12 +532,25 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		v4.Dst().SetValue(ateDst.IPv4)
 		flow.Packet().Add().Ipv6()
 	}
+	if l3header == "ipv6flowlabel" {
+		if deviations.ATEIPv6FlowLabelUnsupported(tc.ate) {
+			t.Skip("IPv6 flow label unsupported")
+		}
+		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
+		v6 := flow.Packet().Add().Ipv6()
+		v6.FlowLabel().SetValues(generateRandomFlowLabelList(250000))
+		v6.Src().SetValue(ateSrc.IPv6)
+		v6.Dst().SetValue(ateDst.IPv6)
+		ipType = "IPv6"
+	}
 
 	tcp := flow.Packet().Add().Tcp()
 	tcp.SrcPort().SetValues(generateRandomPortList(65534))
 	tcp.DstPort().SetValues(generateRandomPortList(65534))
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
+
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, ipType)
 
 	tc.verifyLAG(t)
 
@@ -524,7 +571,6 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	}
 	afterTrafficCounters := tc.getCounters(t, "after")
 	tc.verifyCounterDiff(t, beforeTrafficCounters, afterTrafficCounters)
-
 }
 
 func (tc *testCase) getCounters(t *testing.T, when string) map[string]*oc.Interface_Counters {
@@ -561,7 +607,7 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 func TestBalancing(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	aggID := netutil.NextBundleInterface(t, dut)
+	aggID := netutil.NextAggregateInterface(t, dut)
 
 	tests := []testCase{
 		{
@@ -580,25 +626,24 @@ func TestBalancing(t *testing.T) {
 			desc:     "IPV6inIPV4",
 			l3header: "ipv6inipv4",
 		},
-		// TODO: flowHeader support is not available on OTG
-		// {
-		// 	desc:     "IPV6 FlowLabel",
-		// 	l3header: []ondatra.Header{flowHeader},
-		// },
+		{
+			desc:     "IPV6 FlowLabel",
+			l3header: "ipv6flowlabel",
+		},
 	}
 	tc := &testCase{
 		dut:     dut,
 		ate:     ate,
 		lagType: lagTypeLACP,
-		top:     ate.OTG().NewConfig(t),
+		top:     gosnappi.NewConfig(),
 
 		dutPorts: sortPorts(dut.Ports()),
 		atePorts: sortPorts(ate.Ports()),
 		aggID:    aggID,
 	}
+	tc.configureATE(t)
 	tc.configureDUT(t)
 	t.Run("verifyDUT", tc.verifyDUT)
-	tc.configureATE(t)
 
 	for _, tf := range tests {
 		t.Run(tf.desc, func(t *testing.T) {

@@ -24,6 +24,7 @@ list_tests() {
       */ate_tests/*) feature="${path%%/ate_tests/*}";;
       */otg_tests/*) feature="${path%%/otg_tests/*}";;
       */tests/*) feature="${path%%/tests/*}";;
+      */kne_tests/*) feature="${path%%/kne_tests/*}";;
       *)
         echo "$(red WARNING:)" "not a valid test path: $line" >&2
         feature="${path}"
@@ -34,7 +35,7 @@ list_tests() {
 
     echo "\"${feature}\",\"${id}\",\"${desc}\",\"${path}\""
   done < <(
-    find -L feature testing/feature -name \*.md -exec egrep '^# [A-Za-z]+-[0-9]+\.[0-9]+:' \{} \+
+    find -L feature -name \*.md -exec egrep '^# [A-Za-z0-9]+-[0-9]+\.[0-9]+:' \{} \+
   )
 }
 

@@ -1,8 +1,7 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides 4 links between a DUT and an ATE connected
-# pairwise.
+# This testbed provides a DUT and ATE with 4 links between them.
 
 duts {
   id: "dut"

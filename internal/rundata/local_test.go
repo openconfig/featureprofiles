@@ -15,13 +15,14 @@
 package rundata
 
 import (
-	"flag"
 	"fmt"
 	"os/exec"
 	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
+
+	"flag"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	gitv5 "github.com/go-git/go-git/v5"

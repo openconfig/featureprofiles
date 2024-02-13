@@ -15,17 +15,30 @@
 package fptest
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
+// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+func ConfigureDefaultNetworkInstance(t testing.TB, d *ondatra.DUTDevice) {
+	defNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
+	gnmi.Update(t, d, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(d)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+}
+
 // AssignToNetworkInstance attaches a subinterface to a network instance.
-func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	t.Helper()
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
 	}
@@ -40,5 +53,52 @@ func AssignToNetworkInstance(t *testing.T, d *ondatra.DUTDevice, i string, ni st
 	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	}
+}
+
+// EnableGRIBIUnderNetworkInstance enables GRIBI protocol under network instance.
+func EnableGRIBIUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
+	t.Helper()
+	if ni == "" {
+		t.Fatalf("Network instance not provided for gRIBI protocol definition")
+	}
+
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{
+					Elem: []*gpb.PathElem{
+						{
+							Name: "network-instance",
+							Key:  map[string]string{"name": ni},
+						},
+						{
+							Name: "protocols",
+						},
+						{
+							Name: "gribi",
+						},
+						{
+							Name: "admin-state",
+						},
+					},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_JsonIetfVal{
+						JsonIetfVal: []byte(`"enable"`),
+					},
+				},
+			}},
+		}
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
+		}
+	default:
+		t.Fatalf("Vendor %s does not support 'deviation_explicit_gribi_under_network_instance'", d.Vendor())
 	}
 }

@@ -20,14 +20,19 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+)
+
+const (
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
 // FindComponentsByType finds the list of components based on hardware type.
@@ -52,6 +57,27 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 	return s
 }
 
+// FindSWComponentsByType finds the list of SW components based on a type.
+func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT) []string {
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	var s []string
+	for _, c := range components {
+		if c.GetType() == nil {
+			continue
+		}
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT:
+			if v == cType {
+				s = append(s, c.GetName())
+			}
+		default:
+			// no-op for non-software components.
+		}
+	}
+	return s
+}
+
 // FindMatchingStrings filters out the components list based on regex pattern.
 func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	var s []string
@@ -63,9 +89,10 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 	return s
 }
 
-// GetSubcomponentPath creates a gNMI path based on the componnent name.
-func GetSubcomponentPath(name string) *tpb.Path {
-	if *deviations.GNOISubcomponentPath {
+// GetSubcomponentPath creates a gNMI path based on the component name.
+// If useNameOnly is true, returns a path to the specified name instead of a full subcomponent path.
+func GetSubcomponentPath(name string, useNameOnly bool) *tpb.Path {
+	if useNameOnly {
 		return &tpb.Path{
 			Elem: []*tpb.PathElem{{Name: name}},
 		}
@@ -87,7 +114,7 @@ type Y struct {
 
 // New creates a new ygnmi based helper from a *ondatra.DUTDevice.
 func New(t testing.TB, dut *ondatra.DUTDevice) Y {
-	gnmic := dut.RawAPIs().GNMI().Default(t)
+	gnmic := dut.RawAPIs().GNMI(t)
 	yc, err := ygnmi.NewClient(gnmic)
 	if err != nil {
 		t.Fatalf("Could not create ygnmi.Client: %v", err)
@@ -119,4 +146,32 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 		return nil, fmt.Errorf("none of the %d components match %v", len(values), want)
 	}
 	return names, nil
+}
+
+// FindStandbyRP gets a list of two components and finds out the active and standby rp.
+func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeRP, standbyRP string
+	for _, supervisor := range supervisors {
+		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watch.Await(t); !ok {
+			t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		}
+		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
+		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
+		if role == standbyController {
+			standbyRP = supervisor
+		} else if role == activeController {
+			activeRP = supervisor
+		} else {
+			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
+		}
+	}
+	if standbyRP == "" || activeRP == "" {
+		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+
+	return standbyRP, activeRP
 }
