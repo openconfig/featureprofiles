@@ -192,8 +192,8 @@ func TestReservation_Error(t *testing.T) {
 			Id:   "ate.both",
 			Name: "ate.name",
 			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
-				Id:   "port2",
-				Name: "1/2",
+				Id:   "port1",
+				Name: "1/1",
 			}, {
 				Id:   "port3",
 				Name: "1/3",
@@ -211,7 +211,7 @@ func TestReservation_Error(t *testing.T) {
 		`missing binding for DUT "dut.tb"`,
 		`missing binding for port "port1" on "dut.both"`,
 		`missing binding for ATE "ate.tb"`,
-		`missing binding for port "port1" on "ate.both"`,
+		`missing binding for port "port2" on "ate.both"`,
 	}
 	errText := err.Error()
 
