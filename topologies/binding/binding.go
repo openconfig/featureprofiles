@@ -142,7 +142,7 @@ func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known DUT service %v", svc)
 	}
 	bopts := d.r.grpc(d.dev, params)
-	return makeDialer(d.Name(), params, bopts)
+	return makeDialer(params, bopts)
 }
 
 func (d *staticDUT) reset(ctx context.Context) error {
@@ -239,7 +239,7 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
-	return makeDialer(a.Name(), params, bopts)
+	return makeDialer(params, bopts)
 }
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
@@ -564,7 +564,7 @@ func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 	return opts, nil
 }
 
-func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
+func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
 	opts, err := dialOpts(bopts)
 	if err != nil {
 		return nil, err
@@ -577,9 +577,9 @@ func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introsp
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, bopts.Target, opts...)
+			return grpcDialContextFn(ctx, target, opts...)
 		},
-		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
+		DialTarget: bopts.Target,
 		DialOpts:   opts,
 	}, nil
 }
