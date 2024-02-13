@@ -152,6 +152,19 @@ func (params sshHostParams) createClientConfig() (ssh.ClientConfig, error) {
 	return config, nil
 }
 
+func createSSHClientWithCmd(hostIP string, port int, hostCert string, pvtKey string, accountName string) (string, error) {
+	var cmd *exec.Cmd
+	cmd = exec.Command("ssh", "-tt", "-o", "StrictHostKeyChecking=no", "-o", fmt.Sprintf("CertificateFile=%s", hostCert),
+		"-i", pvtKey, fmt.Sprintf("%s@%s", accountName, hostIP), "-p", fmt.Sprintf("%d", port), fmt.Sprintf("show ssh | inc %s", accountName))
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("Error starting SSH command: %s\n", err)
+		return "", err
+	}
+	return string(out), nil
+}
+
 func createSSHClientAndVerify(hostIP string, port int, cC clientConfig, authType string, hostCert *string) error {
 	config, err := cC.createClientConfig()
 	if err != nil {
@@ -204,7 +217,6 @@ func createSSHClientAndVerify(hostIP string, port int, cC clientConfig, authType
 }
 
 func genereatePvtPublicKeyPairs(filePath string, encryptionType string, bytesForEncrypt *string) error {
-
 	var cmd *exec.Cmd
 	if bytesForEncrypt != nil {
 		cmd = exec.Command("ssh-keygen", "-t", encryptionType, "-b", *bytesForEncrypt, "-f", filePath, "-N", "")
@@ -216,6 +228,21 @@ func genereatePvtPublicKeyPairs(filePath string, encryptionType string, bytesFor
 		return err
 	}
 	log.Infof("Generated public/private %v keypair and saved as %v", encryptionType, filePath)
+	return nil
+}
+
+func generateKeyPairsUsingHiba(filePath string, hibaPath string, bytesForEncrypt string, userName *string) error {
+	var cmd *exec.Cmd
+	if userName != nil {
+		cmd = exec.Command(hibaPath, "-c", "-d", filePath, "-b", bytesForEncrypt, "-u", "-I", *userName, "--", "-N", "")
+	} else {
+		cmd = exec.Command(hibaPath, "-c", "-d", filePath, "-b", bytesForEncrypt, "--", "-N", "")
+	}
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	log.Infof("Generated public/private rsa keypair and saved as %v", filePath)
 	return nil
 }
 
@@ -491,6 +518,27 @@ func rotateHostParametersRequestForServerKeys(stream credz.Credentialz_RotateHos
 	}
 
 	fmt.Println("Server public keys Request done")
+}
+
+func rotateHostParametersRequestForprincipalCheck(stream credz.Credentialz_RotateHostParametersClient, pcreq credz.AuthorizedPrincipalCheckRequest) {
+	log.Info("Credentialz: Authorized Principal check request")
+
+	err := stream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_AuthorizedPrincipalCheck{AuthorizedPrincipalCheck: &pcreq}})
+	if err != nil {
+		log.Exit("Credz:  Stream send returned error: " + err.Error())
+		return
+	}
+
+	gotRes, err := stream.Recv()
+	if err != nil {
+		log.Exit("Credz:  Stream receive returned error: " + err.Error())
+	}
+	aares := gotRes.GetAuthorizedPrincipalCheck()
+	if aares == nil {
+		log.Exit("Authorized pricipal check response is nil")
+	}
+
+	fmt.Println("Authorized principal check Request done")
 }
 
 func getIpAndPortFromBindingFile() (string, int, error) {
@@ -772,7 +820,6 @@ func TestCredentialz_3(t *testing.T) {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
 			clientCertPath := clientKeyNames[i] + "-cert.pub"
-			// _, user := filepath.Split(clientKeyNames[i])
 
 			clientPvtKey, err := os.ReadFile(clientKeyNames[i])
 			if err != nil {
@@ -806,7 +853,6 @@ func TestCredentialz_3(t *testing.T) {
 		for i := 0; i < len(clientKeyNames); i++ {
 			clientCertPath := clientKeyNames[i] + "-cert.pub"
 			hostCertPath := hostKeyNames[i] + "-cert.pub"
-			// _, user := filepath.Split(clientKeyNames[i])
 
 			clientPvtKey, err := os.ReadFile(clientKeyNames[i])
 			if err != nil {
@@ -841,7 +887,6 @@ func TestCredentialz_3(t *testing.T) {
 		}
 
 	})
-
 }
 
 func TestCredentialz_4(t *testing.T) {
@@ -944,4 +989,256 @@ func TestCredentialz_4(t *testing.T) {
 			log.Infof("Error occurred while attempting to establish SSH connection as expected after removing authorized keys from the user.")
 		}
 	})
+}
+
+func createFileAndWriteData(filePath string, fileName string, data string) error {
+	err := os.MkdirAll(filePath, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	hostPubKeyFilePath := fmt.Sprintf("%s/%s", filePath, fileName)
+	hostPubKeyFile, err := os.Create(hostPubKeyFilePath)
+	if err != nil {
+		return err
+	}
+	defer hostPubKeyFile.Close()
+	_, err = hostPubKeyFile.WriteString(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createAnIdentityFileWithServerName(hibaPath string, filePath string, idKeyPairs []string) error {
+	var cmd *exec.Cmd
+	arguments := append([]string{"-i", "-f", filePath}, idKeyPairs...)
+	cmd = exec.Command(hibaPath, arguments...)
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	log.Infof("Generated identity file with server name and save as %v", filePath)
+	return nil
+}
+
+func createGrantFileWithClientName(hibaPath string, filePath string, idKeyPairs []string) error {
+	var cmd *exec.Cmd
+	arguments := append([]string{"-f", filePath}, idKeyPairs...)
+	cmd = exec.Command(hibaPath, arguments...)
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	log.Infof("Generated grants file with client name and save as %v", filePath)
+	return nil
+}
+
+func generateHostCertByAttachingIdentities(hibaPath string, filePath string, hostName string, identityFileName, validity string) error {
+	var cmd *exec.Cmd
+	cmd = exec.Command(hibaPath, "-s", "-d", filePath, "-h", "-I", hostName, "-H", identityFileName, "--", "-P", "", "-V", validity)
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	hostCert := fmt.Sprintf("%s/hosts/%s-cert.pub", filePath, hostName)
+	output, err := exec.Command("ssh-keygen", "-Lf", hostCert).CombinedOutput()
+	if err != nil {
+		return err
+	}
+	log.Infof("Generated host certificate by attaching identities file")
+	log.Infof(string(output))
+	return nil
+}
+
+func makeUserEligleForGrants(hibaPath string, filePath string, usrName string, clientName string) error {
+	var cmd *exec.Cmd
+	cmd = exec.Command(hibaPath, "-d", filePath, "-p", "-I", usrName, "-H", clientName)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+	log.Infof(string(out))
+	log.Infof("%s user is now eligible for grants", usrName)
+	return nil
+}
+
+func generateClientCertByAttachingGrants(hibaPath string, filePath string, usrName string, grantFileName, validity string) error {
+	var cmd *exec.Cmd
+	cmd = exec.Command(hibaPath, "-s", "-d", filePath, "-u", "-I", usrName, "-H", grantFileName, "--", "-P", "", "-V", validity)
+
+	out, err := cmd.CombinedOutput()
+	log.Infof(string(out))
+	if err != nil {
+		return err
+	}
+	clientCert := fmt.Sprintf("%s/users/%s-cert.pub", filePath, usrName)
+	output, err := exec.Command("ssh-keygen", "-Lf", clientCert).CombinedOutput()
+	if err != nil {
+		return err
+	}
+	log.Infof("Generated client certificate by attaching grants file")
+	log.Infof(string(output))
+	return nil
+}
+
+func TestCredentialz_5(t *testing.T) {
+	filePath := "hiba"
+	accountName := "CERT"
+	hostName := "host"
+	usersFilePath := fmt.Sprintf("%s/users", filePath)
+	hostFilesPath := fmt.Sprintf("%s/hosts", filePath)
+	hibaCaPath := "/ws/anidamod-bgl/gNSI_B4/HIBA/hiba/hiba-ca.sh"
+	hibaGenPath := "/ws/anidamod-bgl/gNSI_B4/HIBA/hiba/hiba-gen"
+	identityFilePath := fmt.Sprintf("%s/policy/identities", filePath)
+	identityFileName := "server"
+	identityFile := fmt.Sprintf("%s/%s", identityFilePath, identityFileName)
+	grantsFilePath := fmt.Sprintf("%s/policy/grants", filePath)
+	grantsFileName := "client"
+	grantsFile := fmt.Sprintf("%s/%s", grantsFilePath, grantsFileName)
+
+	idKeyPairs := []string{"domain", "net.google.com", "feature", "credz"}
+
+	tartgetIP, tartgetPort, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+		return
+	}
+
+	var users []*oc.System_Aaa_Authentication_User
+	users = append(users, &oc.System_Aaa_Authentication_User{
+		Username: &accountName,
+		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+	})
+
+	dut := ondatra.DUT(t, "dut")
+	createUsersOnDevice(t, dut, users)
+
+	gnsiC := dut.RawAPIs().GNSI(t)
+
+	mkdirErr := os.Mkdir(filePath, 0755)
+	defer os.RemoveAll(filePath)
+	if mkdirErr != nil {
+		t.Fatalf("Error creating directory: %v", mkdirErr)
+		return
+	}
+
+	err = generateKeyPairsUsingHiba(filePath, hibaCaPath, "2048", nil)
+	if err != nil {
+		log.Exit("Error in generating CA key pairs using HIBA:", err.Error())
+	}
+
+	err = os.MkdirAll(usersFilePath, os.ModePerm)
+	if err != nil {
+		log.Exit("Error creating identity file directory: ", err.Error())
+	}
+	err = generateKeyPairsUsingHiba(filePath, hibaCaPath, "2048", &accountName)
+	if err != nil {
+		log.Exit("Error in generating client key pairs using HIBA:", err.Error())
+	}
+
+	res, err := gnsiC.Credentialz().GetPublicKeys(context.Background(), &credz.GetPublicKeysRequest{})
+	if err != nil {
+		log.Exit("Failed to get public keys = ", err)
+	}
+	var hostPubKey string
+	for _, pubkey := range res.PublicKeys {
+		if pubkey.KeyType == credz.KeyType_KEY_TYPE_RSA_2048 {
+			hostPubKey = string(pubkey.PublicKey)
+		}
+	}
+
+	err = createFileAndWriteData(hostFilesPath, fmt.Sprintf("%s.pub", hostName), hostPubKey)
+	if err != nil {
+		log.Exit("Error in creating host pubkey file: ", err.Error())
+	}
+
+	err = os.MkdirAll(identityFilePath, os.ModePerm)
+	if err != nil {
+		log.Exit("Error creating identity file directory: ", err.Error())
+	}
+
+	err = createAnIdentityFileWithServerName(hibaGenPath, identityFile, idKeyPairs)
+	if err != nil {
+		log.Exit("Error creating identity file with server name: ", err.Error())
+	}
+	err = generateHostCertByAttachingIdentities(hibaCaPath, filePath, hostName, identityFileName, "+10d")
+	if err != nil {
+		log.Exit("Error generating host certificate file by attaching identities: ", err.Error())
+	}
+	hostCert, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", hostFilesPath, hostName))
+	if err != nil {
+		log.Exit("Error in reading host certificate file: ", err.Error())
+	}
+
+	var skreq credz.ServerKeysRequest
+
+	skreq = credz.ServerKeysRequest{
+		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{
+			&credz.ServerKeysRequest_AuthenticationArtifacts{Certificate: hostCert}},
+		Version:   "1.1",
+		CreatedOn: 123,
+	}
+
+	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
+	rotateHostParametersRequestForServerKeys(hostParamStream, skreq)
+	finalizeHostRequest(hostParamStream)
+	time.Sleep(2 * time.Second)
+
+	caPubkey, err := os.ReadFile(fmt.Sprintf("%s/ca.pub", filePath))
+	if err != nil {
+		log.Exit("Error in reading ca Pubkey file: ", err.Error())
+	}
+	caPubkeyReq := credz.CaPublicKeyRequest{
+		SshCaPublicKeys: []*credz.PublicKey{&credz.PublicKey{PublicKey: caPubkey, KeyType: credz.KeyType_KEY_TYPE_RSA_2048}},
+		Version:         "1.1",
+		CreatedOn:       123}
+
+	rotateHostParametersRequestForSshCAPubKey(hostParamStream, caPubkeyReq)
+	finalizeHostRequest(hostParamStream)
+
+	err = createGrantFileWithClientName(hibaGenPath, grantsFile, idKeyPairs)
+	if err != nil {
+		log.Exit("Error creating grants file with client name: ", err.Error())
+	}
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		log.Exit("Error:", err)
+	}
+	err = makeUserEligleForGrants(hibaCaPath, fmt.Sprintf("%s/%s", currentDir, filePath), accountName, grantsFileName)
+	if err != nil {
+		log.Exit("Error in giving grants to client: ", err.Error())
+	}
+
+	err = generateClientCertByAttachingGrants(hibaCaPath, filePath, accountName, grantsFileName, "+10d")
+	if err != nil {
+		log.Exit("Error generating client certificate file by attaching grants: ", err.Error())
+	}
+
+	pcreq := credz.AuthorizedPrincipalCheckRequest{
+		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(1),
+	}
+	rotateHostParametersRequestForprincipalCheck(hostParamStream, pcreq)
+	finalizeHostRequest(hostParamStream)
+	time.Sleep(2 * time.Second)
+
+	out, err := createSSHClientWithCmd(tartgetIP, tartgetPort, fmt.Sprintf("%s/%s-cert.pub", usersFilePath, accountName),
+		fmt.Sprintf("%s/%s", usersFilePath, accountName), accountName)
+	if err != nil {
+		log.Exit("Error in establishing ssh connection: ", err.Error())
+	}
+	log.Infof(out)
+	if strings.Contains(out, "rsa-cert") {
+		log.Infof("Authentication type of user(%s) is rsa-cert as expected", accountName)
+	} else {
+		log.Exit(fmt.Sprintf("Authentication type of user(%s) is not rsa-cert", accountName))
+	}
 }
