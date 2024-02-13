@@ -1,8 +1,10 @@
 from firexapp.engine.celery import app
 from celery.utils.log import get_task_logger
+from celery.utils.log import get_task_logger
 from microservices.workspace_tasks import Warn
 from firexapp.common import silent_mkdir
 from firexapp.firex_subprocess import check_output
+from firexkit.task import FireXTask
 from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
@@ -477,7 +479,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
@@ -556,22 +558,43 @@ def RunGoTest(self, ws, testsuite_id, test_log_directory_path, xunit_results_fil
     finally:
         # if self.console_output_file and Path(self.console_output_file).is_file():
         #     shutil.copyfile(self.console_output_file, json_results_file)
-        
+        logger.debug("After running script")
         suite = _get_testsuite_from_xml(xml_results_file)
+        logger.info(f"suite: {suite}")
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
+            logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}, collect_debug_files [{collect_debug_files}], suite.attrib['failures'] = [{suite.attrib['failures']}]")
             if collect_debug_files and suite.attrib['failures'] != '0':
-                self.enqueue_child(CollectDebugFiles.s(
+                logger.info(f"there were no failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
                     ws=ws,
                     internal_fp_repo_dir=internal_fp_repo_dir, 
                     reserved_testbed=reserved_testbed, 
                     test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp
+                    timestamp=start_timestamp,
+                    core=False,
+                    xunit_results_filepath=xunit_results_filepath
                 ))
-        elif test_ignore_aborted or test_skip:
-            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
+                logger.info(res)
+            else:
+                logger.info(f"there were failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
+                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
+                    ws=ws,
+                    internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, 
+                    test_log_directory_path=test_log_directory_path,
+                    timestamp=start_timestamp,
+                    core=True,
+                    xunit_results_filepath=xunit_results_filepath
+                ))
+                logger.info(res)
 
+        elif test_ignore_aborted or test_skip:
+            logger.debug("elif in ")
+            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
+        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
+       
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -935,7 +958,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp):
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath) -> str:
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -943,22 +966,93 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
-    collect_debug_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/debug ' \
-            f'-timeout 60m ' \
-            f'-args ' \
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {tmp_binding_file} ' \
-            f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp {str(timestamp)}'
+    # create a directory here to send all logs as firex has a line limit
+    if core:
+        collect_core_files = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)} ' \
+                f'-core=true ' \
+                f'-v 5'
+    else:
+        collect_debug_cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/debug ' \
+                f'-timeout 60m ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-outDir {test_log_directory_path}/debug_files ' \
+                f'-timestamp {str(timestamp)} ' \
+                f'-core=false ' \
+                f'-v 5'
+
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+        if core:
+            check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
+        else:
+            check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...') 
     finally:
+        # collect core files if any
+        if core:
+            res = self.enqueue_child_and_get_results(CollectCoreFiles.s(
+                test_log_directory_path=test_log_directory_path,
+                xunit_results_filepath=xunit_results_filepath
+            ))
+            logger.info(res)
         os.remove(tmp_binding_file)
+        return "CollectDebugFiles completed successfully"
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
+    try:
+        logger.print(f'xunit_results_filepath: {xunit_results_filepath}')
+        logger.print(f'test_log_directory_path: {test_log_directory_path}')
+        arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
+        r = re.compile(r'core\b',re.IGNORECASE)
+        corefileslist = list(filter(lambda x: r.search(str(x)),arr))
+        logger.print(f'Array of core files if any {corefileslist}')
+        
+        try:
+            if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
+                logger.warn(f'file exists and its not empty')
+                tree = ET.parse(xunit_results_filepath)
+                testsuite = tree.find("testsuite")
+                prop = testsuite[0] 
+                if len(corefileslist) == 0:
+                    nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
+                    nsub.set("value","no corefile(s) found")
+                else:
+                    for file in corefileslist:
+                        nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
+                        nsub.set("value",file)
+                    logger.print(f"setting corefile failure {str(len(corefileslist))}")
+                    fe = ET.SubElement(testsuite, "testcase",attrib = {'classname': "",'name':"CoreFileCheck", "time":"1"})
+                    ET.SubElement(fe,"failure",attrib={"message":"Failed"}).text = "Core files were found"
+                    tree.write(xunit_results_filepath,encoding="utf-8")
+                return "CollectCoreFiles exited"
+            else:
+                if os.path.exists(xunit_results_filepath) == True:
+                    logger.warn("File exists but its empty")
+                    return "CollectCoreFiles exited"
+                else:
+                    logger.error("File does not exists")
+                    return "CollectCoreFiles exited"
+        except Exception as error:
+            logger.error(f"XML find was not able to find './testsuite/properties/ with the error: {error}'")
+            return "CollectCoreFiles exited with exception"
+    except Exception as error:
+        logger.warning(f'Failed to collect testbed information. Ignoring... with error: {error}') 
+        return "CollectCoreFiles exited with exception"
+
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -1025,6 +1119,8 @@ def ReleaseIxiaPorts(self, ws, binding_file):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, reserved_testbed):
+    # TODO: delete this line
+    logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'

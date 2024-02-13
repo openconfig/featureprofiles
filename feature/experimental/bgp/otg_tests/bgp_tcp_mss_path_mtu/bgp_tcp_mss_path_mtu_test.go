@@ -213,7 +213,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
@@ -247,7 +247,7 @@ func configOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC).SetMtu(uint32(mtu5040B))
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dut1Port1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")

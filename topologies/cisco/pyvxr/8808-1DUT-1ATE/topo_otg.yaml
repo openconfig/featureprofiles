@@ -5,6 +5,7 @@ simulation:
   sim_flags: 
     - "-k ConfigEnableNgdp=true"
   slurm_flags: 
+    cluster: ott-slurm-m1
     hours: 72
     pending_timeout: 30
 devices: 
@@ -17,6 +18,9 @@ devices:
     linux_password: "cisco123"
     linux_prompt: 'vxr@vxr-vm:~\$'
     xr_port_redir: [22, 35000, 31001, 31002, 31003]  
+    data_ports: ["eth[1..4]"]
+    cli_commands: |
+      curl --data-raw '{"license-address": "10.85.70.247" }' http://localhost:35000/license 
   dut: 
     cvac: $BASE_CONF_PATH
     dual_rp: true

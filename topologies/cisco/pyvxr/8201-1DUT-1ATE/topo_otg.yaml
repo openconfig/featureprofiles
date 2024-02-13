@@ -5,6 +5,7 @@ simulation:
   slurm_flags:
     hours: 72
     pending_timeout: 30
+    cluster: ott-slurm-m1
 devices:
   dut:
     cvac: $BASE_CONF_PATH
@@ -22,7 +23,10 @@ devices:
     linux_username: vxr
     linux_password: "cisco123"
     linux_prompt: 'vxr@vxr-vm:~\$'
-    xr_port_redir: [22, 35000, 31001, 31002, 31003]  
+    xr_port_redir: [22, 35000, 31001, 31002, 31003]
+    data_ports: ["eth[1..4]"]
+    cli_commands: |
+      curl --data-raw '{"license-address": "10.85.70.247" }' http://localhost:35000/license 
 connections:
   hubs:
     DUT_T1_1:

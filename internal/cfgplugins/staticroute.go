@@ -28,7 +28,7 @@ import (
 type StaticRouteCfg struct {
 	NetworkInstance string
 	Prefix          string
-	NextHops        map[string]string
+	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
@@ -49,7 +49,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
 		nh := s.GetOrCreateNextHop(k)
-		nh.NextHop = oc.UnionString(v)
+		nh.NextHop = v
 	}
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)

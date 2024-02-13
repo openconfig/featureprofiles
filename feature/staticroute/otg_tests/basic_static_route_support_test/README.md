@@ -126,6 +126,27 @@
 
 ### RT-1.26.7
 
+#### Test to validate static route with DROP next-hop
+
+*   Configure IPv4 static routes:
+    *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
+        destination `ipv4-network 203.0.113.0/24` with the next hop set to DROP
+        local-defined next hop
+*   Validate the route is configured and reported correctly
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix
+*   Configure IPv6 static routes:
+    *   Configure one IPv6 static route i.e. ipv6-route-a on the DUT for
+        destination `ipv6-network 2001:db8:128:128::/64` with the next hop set
+        to DROP local-defined next hop
+*   Validate the route is configured and reported correctly
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix
+*   Initiate traffic from ATE port-3 towards destination `ipv4-network
+    203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
+*   Validate that traffic is dropped on DUT and not received on port-1 and
+    port-2
+
+### RT-1.26.8
+
 #### Test to validate disabling of recursive next-hop resolution
 
 *   Configure ipv4 and ipv6 ISIS between ATE port-1 <-> DUT port-1 and ATE
