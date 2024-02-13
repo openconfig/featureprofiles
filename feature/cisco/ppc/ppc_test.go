@@ -79,24 +79,35 @@ func runBackgroundMonitor(t *testing.T) {
 	t.Logf("check CPU/memory in the background")
 	dut := ondatra.DUT(t, "dut")
 	deviceName := dut.Name()
+	processes := []string{"emsd", "dbwriter", "dblistener"}
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	var pID []uint64
+	for _, process := range processes {
+		for _, proc := range pList {
+			if proc.GetName() == process {
+				pID = append(pID, proc.GetPid())
+				t.Logf("Pid of daemon '%s' is '%d'", process, pID)
+			}
+		}
+	}
+
 	go func() {
 		for {
-			query := gnmi.OC().System().ProcessAny().State()
-
-			timestamp := time.Now().Round(time.Second)
-			results := gnmi.GetAll(t, dut, query)
-			for _, result := range results {
+			for _, process := range pID {
+				query := gnmi.OC().System().Process(process).State()
+				timestamp := time.Now().Round(time.Second)
+				result := gnmi.Get(t, dut, query)
 				processName := result.GetName()
 				t.Run(processName, func(t *testing.T) {
 					if *result.CpuUtilization > 80 {
-						t.Logf("%s %s CPU Process utilization high for process %-40s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
+						t.Logf("%s %s CPU Process utilization high for process %-10s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
 					} else {
-						t.Logf("%s %s INFO: CPU process %-40s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
+						t.Logf("%s %s INFO: CPU process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
 					}
 					if result.MemoryUtilization != nil {
-						t.Logf("%s %s Memory high for process: %-40s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
+						t.Logf("%s %s Memory high for process: %-10s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
 					} else {
-						t.Logf("%s %s INFO:  Memory Process %-40s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
+						t.Logf("%s %s INFO:  Memory Process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
 					}
 				})
 			}
