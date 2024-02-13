@@ -51,6 +51,9 @@ const (
 
 	// gcpPhysicalTestTopic is the name of the pubsub topic in gcpProjectID for launching physical tests.
 	gcpPhysicalTestTopic = "featureprofiles-physical-tests"
+
+	// gcpCloudBuildServiceAccount is the service account used by all Cloud Build jobs launched for KNE tests.
+	gcpCloudBuildServiceAccount = "fp-kne-cloudbuild@disco-idea-817.iam.gserviceaccount.com"
 )
 
 // authorizedTeams is the list of GitHub organization teams authorized to launch Cloud Build jobs.
