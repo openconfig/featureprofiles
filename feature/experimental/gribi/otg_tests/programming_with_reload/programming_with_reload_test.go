@@ -477,7 +477,11 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 	// check the interfaces are up following reload
 	for port, _ := range dutPorts {
 		p := args.dut.Port(t, port)
-		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		}); errMsg != nil {
+			gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+		}
 	}
 }
 
