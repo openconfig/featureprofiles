@@ -153,8 +153,7 @@ func (params sshHostParams) createClientConfig() (ssh.ClientConfig, error) {
 }
 
 func createSSHClientWithCmd(hostIP string, port int, hostCert string, pvtKey string, accountName string) (string, error) {
-	var cmd *exec.Cmd
-	cmd = exec.Command("ssh", "-tt", "-o", "StrictHostKeyChecking=no", "-o", fmt.Sprintf("CertificateFile=%s", hostCert),
+	cmd := exec.Command("ssh", "-tt", "-o", "StrictHostKeyChecking=no", "-o", fmt.Sprintf("CertificateFile=%s", hostCert),
 		"-i", pvtKey, fmt.Sprintf("%s@%s", accountName, hostIP), "-p", fmt.Sprintf("%d", port), fmt.Sprintf("show ssh | inc %s", accountName))
 
 	out, err := cmd.CombinedOutput()
@@ -1036,8 +1035,7 @@ func createGrantFileWithClientName(hibaPath string, filePath string, idKeyPairs 
 }
 
 func generateHostCertByAttachingIdentities(hibaPath string, filePath string, hostName string, identityFileName, validity string) error {
-	var cmd *exec.Cmd
-	cmd = exec.Command(hibaPath, "-s", "-d", filePath, "-h", "-I", hostName, "-H", identityFileName, "--", "-P", "", "-V", validity)
+	cmd := exec.Command(hibaPath, "-s", "-d", filePath, "-h", "-I", hostName, "-H", identityFileName, "--", "-P", "", "-V", validity)
 
 	err := cmd.Run()
 	if err != nil {
@@ -1054,8 +1052,7 @@ func generateHostCertByAttachingIdentities(hibaPath string, filePath string, hos
 }
 
 func makeUserEligleForGrants(hibaPath string, filePath string, usrName string, clientName string) error {
-	var cmd *exec.Cmd
-	cmd = exec.Command(hibaPath, "-d", filePath, "-p", "-I", usrName, "-H", clientName)
+	cmd := exec.Command(hibaPath, "-d", filePath, "-p", "-I", usrName, "-H", clientName)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1067,8 +1064,7 @@ func makeUserEligleForGrants(hibaPath string, filePath string, usrName string, c
 }
 
 func generateClientCertByAttachingGrants(hibaPath string, filePath string, usrName string, grantFileName, validity string) error {
-	var cmd *exec.Cmd
-	cmd = exec.Command(hibaPath, "-s", "-d", filePath, "-u", "-I", usrName, "-H", grantFileName, "--", "-P", "", "-V", validity)
+	cmd := exec.Command(hibaPath, "-s", "-d", filePath, "-u", "-I", usrName, "-H", grantFileName, "--", "-P", "", "-V", validity)
 
 	out, err := cmd.CombinedOutput()
 	log.Infof(string(out))
@@ -1174,9 +1170,7 @@ func TestCredentialz_5(t *testing.T) {
 		log.Exit("Error in reading host certificate file: ", err.Error())
 	}
 
-	var skreq credz.ServerKeysRequest
-
-	skreq = credz.ServerKeysRequest{
+	skreq := credz.ServerKeysRequest{
 		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{
 			{Certificate: hostCert}},
 		Version:   "1.1",
