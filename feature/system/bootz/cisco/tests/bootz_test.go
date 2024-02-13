@@ -39,40 +39,26 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ytypes"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"google.golang.org/protobuf/encoding/prototext"
 
 	ov "github.com/openconfig/bootz/common/ownership_voucher"
 	dhcpLease "github.com/openconfig/bootz/dhcp/plugins/slease"
 	bootzSever "github.com/openconfig/bootz/server"
 	bootzem "github.com/openconfig/bootz/server/entitymanager"
 
-	log "github.com/golang/glog"
 	bpb "github.com/openconfig/bootz/proto/bootz"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 var (
-	dhcpIntf        = flag.String("dhcp-intf", "ens224", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "5.38.4.124:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "5.38.4.124:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-	imagesDir       = flag.String("img_dir", "/var/www/html/", "Directory where the images will be located.")
-	imageVersion    = flag.String("img_ver", "24.2.1.18I", "Version of the image to be loaded using bootz")
-	dhcpIP          = flag.String("dhcp_ip", "5.38.9.29/16", "IP address in CIDR format that dhcp server will assign to the dut.")
-	dhcpGateway     = flag.String("dhcp_gateway", "5.38.0.1", "Gateway IP that dhcp server will assign to DUT.")
+	dhcpIntf        = flag.String("dhcp-intf", "", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
 )
-
-// var (
-// 	dhcpIntf        = flag.String("dhcp-intf", "ens224", "Interface that will be used by dhcp server to listen for dhcp requests")
-// 	bootzAddr       = flag.String("bootz_addr", "[5::20c:29ff:fe5c:2de6]:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-// 	imageServerAddr = flag.String("img_serv_addr", "[5::20c:29ff:fe5c:2de6]:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-// 	imagesDir       = flag.String("img_dir", "/var/www/html/", "Directory where the images will be located.")
-// 	imageVersion    = flag.String("img_ver", "24.2.1.14I", "Version of the image to be loaded using bootz")
-// 	dhcpIP          = flag.String("dhcp_ip", "5::20c:29ff:fe5c:2de9/64", "IP address in CIDR format that dhcp server will assign to the dut.")
-// 	dhcpGateway     = flag.String("dhcp_gateway", "5::1", "Gateway IP that dhcp server will assign to DUT.")
-// )
 
 var (
 	controlcardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
@@ -497,104 +483,6 @@ func awaitOCBootzStatus(t *testing.T, dut *ondatra.DUTDevice, timeout time.Durat
 	}
 }
 
-func unionreplace(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	var jsonietfVal []byte
-	occliConfig, err := os.ReadFile("vrf.txt")
-	if err != nil {
-		panic(fmt.Sprintf("Cannot load base config: %v", err))
-	}
-	req := &gpb.SetRequest{}
-	prototext.Unmarshal(occliConfig, req)
-	replaceContents := req.Replace
-	for _, path := range replaceContents {
-		jsonietfVal = path.Val.GetJsonIetfVal()
-	}
-
-	ocRoot := &oc.Root{}
-	opts := []ytypes.UnmarshalOpt{
-		&ytypes.PreferShadowPath{},
-	}
-	if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-		panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
-	}
-	gnmiC := dut.RawAPIs().GNMI(t)
-	inGetRequest := &gpb.GetRequest{
-		Prefix: &gpb.Path{
-			Origin: "cli",
-		},
-		Path: []*gpb.Path{
-			{
-				Elem: []*gpb.PathElem{{
-					Name: "sh run",
-				}},
-			},
-		},
-		Encoding: gpb.Encoding_ASCII,
-	}
-
-	gotRes, err := gnmiC.Get(context.Background(), inGetRequest)
-	cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
-	var foundHostname bool
-	var baseConfiguration string
-	lines := strings.Split(cliJson, "\n")
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		// Check for the start of target section (after finding "hostname")
-		if strings.HasPrefix(trimmedLine, "hostname") {
-			foundHostname = true
-			baseConfiguration += trimmedLine + "\n"
-		}
-
-		// Append lines after finding "hostname"
-		if foundHostname {
-			baseConfiguration += line + "\n"
-		}
-	}
-	var finalBase string
-	lines = strings.Split(baseConfiguration, "\n")
-	for _, line := range lines {
-		// Replace "hostname SF-1" with "hostname BOOT"
-		if strings.HasPrefix(strings.TrimSpace(line), "hostname") {
-			line = strings.Replace(line, "hostname SF-1", "hostname BOOT", 1)
-		}
-
-		// Append the modified or unmodified line to baseConfiguration
-		finalBase += line + "\n"
-	}
-	fmt.Printf("BEFORE REPLACE HOSTNAME %v", finalBase)
-	nyconfig := []*gpb.Update{{
-		Path: &gpb.Path{
-			Origin: "cisco_cli",
-			Elem:   []*gpb.PathElem{},
-		},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_AsciiVal{
-				AsciiVal: finalBase,
-			},
-		},
-	}}
-	occonfig := []*gpb.Update{{
-		Path: &gpb.Path{
-			Origin: "openconfig",
-			Elem:   []*gpb.PathElem{},
-		},
-		Val: &gpb.TypedValue{
-			Value: &gpb.TypedValue_JsonIetfVal{
-				JsonIetfVal: jsonietfVal,
-			},
-		},
-	}}
-
-	setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{occonfig[0], nyconfig[0]}}
-	log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReq))
-	_, err = gnmiC.Set(context.Background(), setReq)
-	if err != nil {
-		t.Errorf("Error while set union replace with oc+ny combination %v", err)
-	}
-}
-
 // ### bootz-1: Validate minimum necessary bootz configuration
 func TestBootz1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -689,7 +577,7 @@ func TestBootz1(t *testing.T) {
 		if dutPreTestVersion != dutPostTestVersion {
 			t.Fatalf("DUT software versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
 		}
-		unionreplace(t)
+
 	})
 }
 

@@ -46,25 +46,14 @@ import (
 	bpb "github.com/openconfig/bootz/proto/bootz"
 )
 
-// var (
-//
-//	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
-//	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specified and be reachable from the router.")
-//	imageServerAddr = flag.String("img_srv_addr", "", "The ip:port to start the Image server. Ip must be specified and be reachable from the router.")
-//	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
-//	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
-//	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
-//	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
-//
-// )
 var (
-	dhcpIntf        = flag.String("dhcp-intf", "ens224", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "5.38.4.124:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "5.38.4.124:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-	imagesDir       = flag.String("img_dir", "/var/www/html/", "Directory where the images will be located.")
-	imageVersion    = flag.String("img_ver", "24.2.1.17I", "Version of the image to be loaded using bootz")
-	dhcpIP          = flag.String("dhcp_ip", "5.38.9.29/16", "IP address in CIDR format that dhcp server will assign to the dut.")
-	dhcpGateway     = flag.String("dhcp_gateway", "5.38.0.1", "Gateway IP that dhcp server will assign to DUT.")
+	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specified and be reachable from the router.")
+	imageServerAddr = flag.String("img_srv_addr", "", "The ip:port to start the Image server. Ip must be specified and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
 )
 
 var (

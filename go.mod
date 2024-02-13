@@ -20,7 +20,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/ogier/pflag v0.0.1
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
-	github.com/openconfig/bootz v0.2.0
+	github.com/openconfig/bootz v0.0.0-20231122070437-76c05eacc3eb
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnoi v0.3.0
