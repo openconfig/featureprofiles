@@ -82,7 +82,6 @@ func runBackgroundMonitor(t *testing.T) {
 	go func() {
 		for {
 			query := gnmi.OC().System().ProcessAny().State()
-			const description = "System CPU Process"
 
 			timestamp := time.Now().Round(time.Second)
 			results := gnmi.GetAll(t, dut, query)
