@@ -473,6 +473,12 @@ func (args *testArgs) reloadChassis(t *testing.T) {
 	if err_msg != nil {
 		t.Fatalf("Failure: %d", err_msg)
 	}
+
+	// check the interfaces are up following reload
+	for port, _ := range dutPorts {
+		p := args.dut.Port(t, port)
+		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	}
 }
 
 // gribi reconnect following reload
