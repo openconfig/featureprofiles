@@ -1178,7 +1178,7 @@ func TestCredentialz_5(t *testing.T) {
 
 	skreq = credz.ServerKeysRequest{
 		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{
-			&credz.ServerKeysRequest_AuthenticationArtifacts{Certificate: hostCert}},
+			{Certificate: hostCert}},
 		Version:   "1.1",
 		CreatedOn: 123,
 	}
@@ -1197,7 +1197,7 @@ func TestCredentialz_5(t *testing.T) {
 		log.Exit("Error in reading ca Pubkey file: ", err.Error())
 	}
 	caPubkeyReq := credz.CaPublicKeyRequest{
-		SshCaPublicKeys: []*credz.PublicKey{&credz.PublicKey{PublicKey: caPubkey, KeyType: credz.KeyType_KEY_TYPE_RSA_2048}},
+		SshCaPublicKeys: []*credz.PublicKey{{PublicKey: caPubkey, KeyType: credz.KeyType_KEY_TYPE_RSA_2048}},
 		Version:         "1.1",
 		CreatedOn:       123}
 
