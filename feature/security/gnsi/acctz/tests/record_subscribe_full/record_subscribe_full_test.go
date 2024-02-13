@@ -3,6 +3,7 @@ package record_subscribe_full_test
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/binding/introspect"
+	ondatragnmi "github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gnmi/proto/gnmi"
@@ -33,8 +38,8 @@ import (
 )
 
 const (
-	successUsername      = "admin"
-	successPassword      = "NokiaSrl1!"
+	successUsername      = "acctztestuser"
+	successPassword      = "verysecurepassword"
 	failUsername         = "bilbo"
 	failPassword         = "baggins"
 	command              = "show version"
@@ -68,6 +73,99 @@ type recordRequestResult struct {
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		roleData, err := json.Marshal([]any{
+			map[string]any{
+				"services": []string{"cli", "gnmi", "gnoi", "gribi", "p4rt"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		successUserData, err := json.Marshal([]any{
+			map[string]any{
+				"password": successPassword,
+				"role":     []string{role},
+			},
+		})
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		SetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Replace: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "aaa"},
+							{Name: "authorization"},
+							{Name: "role", Key: map[string]string{"rolename": role}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: roleData,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "aaa"},
+							{Name: "authentication"},
+							{Name: "user", Key: map[string]string{"username": successUsername}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: successUserData,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "system"},
+							{Name: "aaa"},
+							{Name: "authentication"},
+							{Name: "user", Key: map[string]string{"username": failUsername}},
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring User: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
+	}
+}
+
+func setupUsers(t *testing.T, dut *ondatra.DUTDevice) {
+	auth := &oc.System_Aaa_Authentication{}
+	auth.GetOrCreateUser(successUsername)
+	auth.GetOrCreateUser(failUsername)
+
+	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+
+	if deviations.SetNativeUser(dut) {
+		// probably all vendors need to handle this since the user should have a role attached to
+		// it allowing us to login via ssh/console/whatever
+		createNativeRole(t, dut, "acctz-fp-test")
+	}
 }
 
 func dialGRPC(t *testing.T, addr string, port uint32) (*grpc.ClientConn, net.Addr) {
@@ -650,6 +748,8 @@ func getServicePort(t *testing.T, dut *ondatra.DUTDevice, service introspect.Ser
 func TestAccountzRecordSubscribeFull(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	setupUsers(t, dut)
+
 	// https://github.com/openconfig/featureprofiles/issues/2637
 	// basically, just waiting to see what the "best"/"preferred" way is to get the v4/v6 of the
 	// dut -- for now we have this little hacky work around for v4 and we'll roll with that
@@ -664,12 +764,12 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 	// put enough time between the test starting a nd any prior events so we can easily know where
 	// our records start
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	startTime := time.Now()
 
 	// need to make requests from v4 and v6 to each g*** service (gnmi/gnoi/gnsi/gribi/p4rt)
-	// for each service type make a success call and a fail call (like diff users i guess)
+	// for each service type make a success call and a fail call
 	for _, addrType := range []string{"ipv4", "ipv6"} {
 		addr := v4addr
 
@@ -698,7 +798,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	}
 
 	// quick sleep to ensure all the records have been processed/ready for us
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// get gnsi record subscribe client
 	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
