@@ -75,35 +75,36 @@ func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
 
 }
 
-// func (args *testArgs) runBackgroundMonitor(t *testing.T) {
-// 	go func() {
-// 		ticker := time.NewTicker(5 * time.Second) // Adjust the interval as needed
+func runBackgroundMonitor(t *testing.T) {
+	t.Logf("check CPU/memory in the background")
+	dut := ondatra.DUT(t, "dut")
+	deviceName := dut.Name()
+	go func() {
+		for {
+			query := gnmi.OC().System().ProcessAny().State()
 
-// 		for {
-// gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
-// gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
-
-// 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
-// 			gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
-// 			select {
-// 			case <-ticker.C:
-// 				// Make gRPC call to get system information
-// 				response, err := client.GetSystemInfo(context.Background(), &pb.SystemInfoRequest{})
-// 				if err != nil {
-// 					log.Printf("Error getting system info: %v", err)
-// 					return
-// 				}
-
-// 				log.Printf("Memory Usage: %v, CPU Usage: %v", response.MemoryUsage, response.CPUUsage)
-// 				// Add more logging or processing based on the system information
-
-// 			case <-time.After(30 * time.Second): // Adjust the duration for the overall background run
-// 				log.Println("Background monitor finished.")
-// 				return
-// 			}
-// 		}
-// 	}()
-// }
+			timestamp := time.Now().Round(time.Second)
+			results := gnmi.GetAll(t, dut, query)
+			for _, result := range results {
+				processName := result.GetName()
+				t.Run(processName, func(t *testing.T) {
+					if *result.CpuUtilization > 80 {
+						t.Logf("%s %s CPU Process utilization high for process %-40s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
+					} else {
+						t.Logf("%s %s INFO: CPU process %-40s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUtilization())
+					}
+					if result.MemoryUtilization != nil {
+						t.Logf("%s %s Memory high for process: %-40s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
+					} else {
+						t.Logf("%s %s INFO:  Memory Process %-40s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUtilization())
+					}
+				})
+			}
+			// sleep for 30 seconds before checking cpu/memory again
+			time.Sleep(30 * time.Second)
+		}
+	}()
+}
 
 type triggerType interface {
 }
@@ -657,6 +658,9 @@ func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration
 func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
+	// starting cpu/memory check for all the processes in the background
+	runBackgroundMonitor(t)
+
 	dut := ondatra.DUT(t, "dut")
 
 	//Determine if its fixed or distributed chassis
@@ -698,10 +702,6 @@ func TestOC_PPC(t *testing.T) {
 		top: top,
 		ctx: ctx,
 	}
-
-	// goroutine to check cpu/memory in the background, need to work on it
-	// t.Logf("check CPU/memory in the background")
-	// args.runBackgroundMonitor(t)
 
 	t.Run("Test drop block", func(t *testing.T) {
 		args.testOC_drop_block(t)
