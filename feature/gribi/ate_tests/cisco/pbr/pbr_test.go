@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
@@ -41,6 +42,8 @@ const (
 var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
