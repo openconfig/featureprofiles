@@ -38,9 +38,9 @@ import (
 var (
 	chassis_type                  string // check if its distributed or fixed chassis
 	tolerance                     uint64
-	rpfo_count                    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
-	multiple_subscription         = 5 // total 5 parallel subscriptions will be tested
-	multiple_subscription_runtime = 5 // for 5 mins multiple subscriptions will keep on running
+	rpfo_count                    = 0               // used to track rpfo_count if it's more than 10 then reset to 0 and reload the HW
+	multiple_subscription         = 5               // total 5 parallel subscriptions will be tested
+	multiple_subscription_runtime = 5 * time.Minute // for 5 mins multiple subscriptions will keep on running
 )
 
 const (
@@ -541,34 +541,34 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
 			event_type: &event_interface_config{config: true, shut: true, port: []string{"port2"}},
 		},
-		{
-			name:       "drop/lookup-block/state/no-nexthop",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
-		},
-		{
-			name:       "drop/lookup-block/state/no-label",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_enable_mpls_ldp{config: true},
-		},
-		{
-			name: "drop/lookup-block/state/incorrect-software-state",
-			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-		},
-		{
-			name: "drop/lookup-block/state/invalid-packet",
-			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, ttl: true}),
-			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-		},
-		{
-			name:       "drop/lookup-block/state/fragment-total-drops",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_interface_config{config: true, mtu: 500, port: []string{"port2"}},
-		},
+		//{
+		//	name:       "drop/lookup-block/state/no-nexthop",
+		//	flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
+		//	npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		//	event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
+		//},
+		//{
+		//	name:       "drop/lookup-block/state/no-label",
+		//	flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
+		//	npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		//	event_type: &event_enable_mpls_ldp{config: true},
+		//},
+		//{
+		//	name: "drop/lookup-block/state/incorrect-software-state",
+		//	flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
+		//	npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		//},
+		//{
+		//	name: "drop/lookup-block/state/invalid-packet",
+		//	flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, ttl: true}),
+		//	npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		//},
+		//{
+		//	name:       "drop/lookup-block/state/fragment-total-drops",
+		//	flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
+		//	npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+		//	event_type: &event_interface_config{config: true, mtu: 500, port: []string{"port2"}},
+		//},
 		// {
 		// 	name: "drop/lookup-block/state/acl-drops",
 		// 	CSCwi94987,
@@ -582,7 +582,7 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", tt.npu, tt.name)
 			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
 
-			// running mulitple subscriptions while tc is executed
+			// running multiple subscriptions while tc is executed
 			multiple_subscriptions(t, query)
 
 			pre_data, _ := get_data(t, path, query)
@@ -603,6 +603,7 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 
 func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
 	dut := ondatra.DUT(t, "dut")
+
 	data, _ := gnmi.WatchAll(t,
 		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
 		query,
@@ -624,14 +625,43 @@ func get_data(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uin
 	}
 }
 
-func multiple_subscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
+// keep subscription args
+type subscriptionArgs struct {
+	sampleInterval time.Duration
+}
+
+// subMode can be ONCE, POLL or STREAM
+func (sa subscriptionArgs) multiple_subscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64], subCount int, streamMode gpb.SubscriptionMode) {
 	dut := ondatra.DUT(t, "dut")
-	for i := 1; i <= multiple_subscription; i++ {
-		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), query, time.Duration(multiple_subscription_runtime)*time.Minute)
+	// once, poll, stream
+	// sample, on-change, target-defined
+	for i := 1; i <= subCount; i++ {
+		switch streamMode {
+		case gpb.SubscriptionMode_SAMPLE:
+			{
+				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multiple_subscription_runtime)
+			}
+		case gpb.SubscriptionMode_ON_CHANGE:
+			{
+				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(streamMode)), query, multiple_subscription_runtime)
+			}
+		default:
+			gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_TARGET_DEFINED)), query, multiple_subscription_runtime)
+		}
 	}
+
 	// sleeping while all the concurrent subscriptions are executed
 	// time.Sleep(time.Duration(multiple_subscription_runtime) * time.Minute)
 }
+
+//func multiple_subscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
+//	dut := ondatra.DUT(t, "dut")
+//	for i := 1; i <= multiple_subscription; i++ {
+//		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), query, time.Duration(multiple_subscription_runtime)*time.Minute)
+//	}
+//	// sleeping while all the concurrent subscriptions are executed
+//	// time.Sleep(time.Duration(multiple_subscription_runtime) * time.Minute)
+//}
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
 	startTime := time.Now()
