@@ -23,7 +23,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -276,31 +275,8 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
-// allerrors implements the error interface and will accumulate and
-// report all errors.
-type allerrors []error
-
-var _ = error(allerrors{})
-
-func (errs allerrors) Error() string {
-	// Shortcut for no error or a single error.
-	switch len(errs) {
-	case 0:
-		return ""
-	case 1:
-		return errs[0].Error()
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%d errors occurred:", len(errs))
-	for _, err := range errs {
-		// Replace indentation for proper nesting.
-		fmt.Fprintf(&b, "\n  * %s", strings.ReplaceAll(err.Error(), "\n", "\n    "))
-	}
-	return b.String()
-}
-
 func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
-	var errs allerrors
+	var errs []error
 
 	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
@@ -352,15 +328,13 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		}
 	}
 
-	if errs != nil {
-		return nil, errs
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
-
-	resv := &binding.Reservation{
+	return &binding.Reservation{
 		DUTs: duts,
 		ATEs: ates,
-	}
-	return resv, nil
+	}, nil
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
@@ -400,8 +374,6 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
 }
 
 func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {
-	var errs allerrors
-
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
 		portmap[tport.Id] = &binding.Port{
@@ -427,14 +399,16 @@ func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port,
 			}
 		}
 	}
+
+	var errs []error
 	for id, p := range portmap {
 		if p.Name == "" {
 			errs = append(errs, fmt.Errorf("testbed port %q is missing in binding", id))
 		}
 	}
 
-	if errs != nil {
-		return nil, errs
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
 	return portmap, nil
 }
