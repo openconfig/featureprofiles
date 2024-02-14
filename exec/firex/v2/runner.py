@@ -1090,7 +1090,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         dut_username = dut.get('options', {}).get('username', glob_username)
         dut_password = dut.get('options', {}).get('password', glob_password)
         dut['config'] = {
-            'gnmi_set_file': reserved_testbed['ondatra_baseconf_path'][dut_id]
+            'gnmi_set_file': [reserved_testbed['ondatra_baseconf_path'][dut_id]]
         }
         
         for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
