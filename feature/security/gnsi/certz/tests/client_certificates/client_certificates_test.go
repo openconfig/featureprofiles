@@ -38,8 +38,8 @@ const (
 var (
 	testProfile = "gNxI"
 	serverAddr  string
-	username = "certzuser"
-	password = "certzpasswd"
+	username    = "certzuser"
+	password    = "certzpasswd"
 )
 
 // createUser function to add an user in admin role.
