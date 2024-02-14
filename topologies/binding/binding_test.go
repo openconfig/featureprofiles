@@ -191,7 +191,7 @@ func TestReservation_Error(t *testing.T) {
 		Ates: []*bindpb.Device{{
 			Id:   "ate.both",
 			Name: "ate.name",
-			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
+			Ports: []*bindpb.Port{{ // port2 missing, port3 extra
 				Id:   "port1",
 				Name: "1/1",
 			}, {
