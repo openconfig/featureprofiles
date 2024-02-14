@@ -749,15 +749,17 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             }
                 
         reserved_testbed['cli_conf'] = {}
+        reserved_testbed['ondatra_baseconf_path'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
-            extra_conf = []
         
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
+            extra_conf = []
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
             if mgmt_vrf:
                 extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
@@ -772,7 +774,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                     lines.append(l)
                 reserved_testbed['cli_conf'][dut] = lines
             
-            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], ondatra_baseconf_path, extra_conf)
+            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], ondatra_baseconf_path)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
@@ -1047,15 +1049,21 @@ def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
-    parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
-        f'{" ".join(reserved_testbed["baseconf"].values())}'
-    logger.print(f'Executing confparser cmd {parser_cmd}')
-    logger.print(
-        check_output(parser_cmd, cwd=internal_fp_repo_dir)
-    )
+    # parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
+    #     f'{" ".join(reserved_testbed["baseconf"].values())}'
+    # logger.print(f'Executing confparser cmd {parser_cmd}')
+    # logger.print(
+    #     check_output(parser_cmd, cwd=internal_fp_repo_dir)
+    # )
     
-    for dut in reserved_testbed['baseconf']:
-        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], reserved_testbed['conf_file'][dut])
+    
+    
+    for dut, baseconf in reserved_testbed['ondatra_baseconf_path']:
+        reserved_testbed['cli_conf'][dut].extend([
+            'grpc tls_mutual',
+            'grpc certificate-authentication'
+        ])
+        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
 
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
@@ -1080,7 +1088,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         dut_username = dut.get('options', {}).get('username', glob_username)
         dut_password = dut.get('options', {}).get('password', glob_password)
         dut['config'] = {
-            'gnmi_set_file': reserved_testbed['conf_file'][dut_id]
+            'gnmi_set_file': reserved_testbed['ondatra_baseconf_path'][dut_id]
         }
         
         for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
