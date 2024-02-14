@@ -276,55 +276,46 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 }
 
 func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
+	bduts := make(map[string]*bindpb.Device)
+	for _, bdut := range r.Duts {
+		bduts[bdut.Id] = bdut
+	}
+	bates := make(map[string]*bindpb.Device)
+	for _, bate := range r.Ates {
+		bates[bate.Id] = bate
+	}
+
 	var errs []error
 
 	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
-		bdut := r.dutByID(tdut.Id)
-		if bdut == nil {
+		bdut, ok := bduts[tdut.Id]
+		if !ok {
 			errs = append(errs, fmt.Errorf("missing binding for DUT %q", tdut.Id))
 			continue
 		}
-		d, err := dims(tdut, bdut)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error binding DUT %q: %w", tdut.Id, err))
-			duts[tdut.Id] = nil // mark it "found"
-			continue
-		}
+		d, dimErrs := dims(tdut, bdut)
+		errs = append(errs, dimErrs...)
 		duts[tdut.Id] = &staticDUT{
 			AbstractDUT: &binding.AbstractDUT{Dims: d},
 			r:           r,
 			dev:         bdut,
 		}
 	}
-	for _, bdut := range r.Duts {
-		if _, ok := duts[bdut.Id]; !ok {
-			errs = append(errs, fmt.Errorf("binding DUT %q not found in testbed", bdut.Id))
-		}
-	}
 
 	ates := make(map[string]binding.ATE)
 	for _, tate := range tb.Ates {
-		bate := r.ateByID(tate.Id)
-		if bate == nil {
+		bate, ok := bates[tate.Id]
+		if !ok {
 			errs = append(errs, fmt.Errorf("missing binding for ATE %q", tate.Id))
 			continue
 		}
-		d, err := dims(tate, bate)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error binding ATE %q: %w", tate.Id, err))
-			ates[tate.Id] = nil // mark it "found"
-			continue
-		}
+		d, dimErrs := dims(tate, bate)
+		errs = append(errs, dimErrs...)
 		ates[tate.Id] = &staticATE{
 			AbstractATE: &binding.AbstractATE{Dims: d},
 			r:           r,
 			dev:         bate,
-		}
-	}
-	for _, bate := range r.Ates {
-		if _, ok := ates[bate.Id]; !ok {
-			errs = append(errs, fmt.Errorf("binding ATE %q not found in testbed", bate.Id))
 		}
 	}
 
@@ -337,80 +328,81 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	}, nil
 }
 
-func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
-	portmap, err := ports(td.Ports, bd.Ports)
-	if err != nil {
-		return nil, err
+func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
+	var errs []error
+
+	// Check that the bound device matches the testbed device.
+	// TODO(greg-dennis): Stop copying the testbed device dimensions into the bound dimensions.
+	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED && bd.Vendor != tdVendor {
+		if bd.Vendor == opb.Device_VENDOR_UNSPECIFIED {
+			bd.Vendor = tdVendor
+		} else {
+			errs = append(errs, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", bd.Vendor, tdVendor))
+		}
 	}
-	dims := &binding.Dims{
+	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" && bd.HardwareModel != tdHardwareModel {
+		if bd.HardwareModel == "" {
+			bd.HardwareModel = td.GetHardwareModel()
+		} else {
+			errs = append(errs, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", bd.HardwareModel, tdHardwareModel))
+		}
+	}
+	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" && bd.SoftwareVersion != tdSoftwareVersion {
+		if bd.SoftwareVersion == "" {
+			bd.SoftwareVersion = td.GetSoftwareVersion()
+		} else {
+			errs = append(errs, fmt.Errorf("binding software version %v and testbed software version %v do not match", bd.SoftwareVersion, tdSoftwareVersion))
+		}
+	}
+
+	portmap, portErrs := ports(td.Ports, bd)
+	errs = append(errs, portErrs...)
+
+	return &binding.Dims{
 		Name:            bd.Name,
 		Vendor:          bd.GetVendor(),
 		HardwareModel:   bd.GetHardwareModel(),
 		SoftwareVersion: bd.GetSoftwareVersion(),
 		Ports:           portmap,
-	}
-	// Populate empty binding dimensions with testbed dimensions.
-	// TODO(prinikasn): Remove testbed override once all vendors are using binding dimensions exclusively.
-	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED {
-		if dims.Vendor != opb.Device_VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
-			return nil, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", dims.Vendor, tdVendor)
-		}
-		dims.Vendor = tdVendor
-	}
-	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" {
-		if dims.HardwareModel != "" && dims.HardwareModel != tdHardwareModel {
-			return nil, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", dims.HardwareModel, tdHardwareModel)
-		}
-		dims.HardwareModel = tdHardwareModel
-	}
-	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" {
-		if dims.SoftwareVersion != "" && dims.SoftwareVersion != tdSoftwareVersion {
-			return nil, fmt.Errorf("binding software version %v and testbed software version %v do not match", dims.SoftwareVersion, tdSoftwareVersion)
-		}
-		dims.SoftwareVersion = tdSoftwareVersion
-	}
-
-	return dims, nil
+	}, errs
 }
 
-func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {
-	portmap := make(map[string]*binding.Port)
-	for _, tport := range tports {
-		portmap[tport.Id] = &binding.Port{
-			Speed: tport.Speed,
-		}
-	}
-	for _, bport := range bports {
-		if p, ok := portmap[bport.Id]; ok {
-			p.Name = bport.Name
-			// If port speed is empty populate from testbed ports.
-			if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
-				if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
-					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
-				}
-				p.Speed = bport.Speed
-			}
-			// Populate the PMD type if configured.
-			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
-				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
-					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
-				}
-				p.PMD = bport.Pmd
-			}
-		}
+func ports(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+	bports := make(map[string]*bindpb.Port)
+	for _, bport := range bd.Ports {
+		bports[bport.Id] = bport
 	}
 
 	var errs []error
-	for id, p := range portmap {
-		if p.Name == "" {
-			errs = append(errs, fmt.Errorf("testbed port %q is missing in binding", id))
+	portmap := make(map[string]*binding.Port)
+	for _, tport := range tports {
+		bport, ok := bports[tport.Id]
+		if !ok {
+			errs = append(errs, fmt.Errorf("missing binding for port %q on %q", tport.Id, bd.Id))
+			continue
+		}
+		// TODO(greg-dennis): Stop copying the testbed port dimensions into the bound dimensions.
+		if tport.Speed != opb.Port_SPEED_UNSPECIFIED && tport.Speed != bport.Speed {
+			if bport.Speed == opb.Port_SPEED_UNSPECIFIED {
+				bport.Speed = tport.Speed
+			} else {
+				errs = append(errs, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, tport.Speed))
+			}
+		}
+		if tport.GetPmd() != opb.Port_PMD_UNSPECIFIED && tport.GetPmd() != bport.Pmd {
+			if bport.Pmd == opb.Port_PMD_UNSPECIFIED {
+				bport.Pmd = tport.GetPmd()
+			} else {
+				errs = append(errs, fmt.Errorf("binding port PMD %v and testbed port PMD %v do not match", bport.Pmd, tport.GetPmd()))
+			}
+		}
+		portmap[tport.Id] = &binding.Port{
+			Name:  bport.Name,
+			PMD:   bport.Pmd,
+			Speed: bport.Speed,
 		}
 	}
-
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
-	}
-	return portmap, nil
+	return portmap, errs
 }
 
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
