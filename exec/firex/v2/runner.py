@@ -1107,9 +1107,9 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                     'username': username,
                     'password': password,
                     'mutual_tls': True,
-                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert'),
-                    'cert_file': os.path.join(certs_dir, dut_id, f'{username}.cert.pem'),
-                    'key_file': os.path.join(certs_dir, dut_id, f'{username}.key.pem')
+                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert.pem'),
+                    'cert_file': os.path.join(certs_dir, dut_id, f'ems.cert.pem'),
+                    'key_file': os.path.join(certs_dir, dut_id, f'ems.key.pem')
                 }
         
         for s in ['ssh']:
