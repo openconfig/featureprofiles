@@ -1058,7 +1058,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     
     
     
-    for dut, baseconf in reserved_testbed['ondatra_baseconf_path']:
+    for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
         reserved_testbed['cli_conf'][dut].extend([
             'grpc tls_mutual',
             'grpc certificate-authentication'
