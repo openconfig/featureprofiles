@@ -53,6 +53,7 @@ whitelist_arguments([
     'test_fail_skipped',
     'test_show_skipped',
     'test_repo_url',
+    'sim_use_mtls'
 ])
 
 def _get_go_root_path(ws=None):
