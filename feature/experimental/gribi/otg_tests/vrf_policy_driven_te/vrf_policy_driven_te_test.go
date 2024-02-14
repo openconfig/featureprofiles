@@ -955,7 +955,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(65).AddNextHop(65, 1),
 		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfA).
-			WithPrefix("0::0/0").WithNextHopGroup(65).
+			WithPrefix("::/0").WithNextHopGroup(65).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -967,7 +967,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithIPv6Operation("0::0/0").WithOperationType(constants.Add).
+		fluent.OperationResult().WithIPv6Operation("::/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
@@ -987,7 +987,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(66).AddNextHop(66, 1),
 		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfB).
-			WithPrefix("0::0/0").WithNextHopGroup(66).
+			WithPrefix("::/0").WithNextHopGroup(66).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 
@@ -1000,7 +1000,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 	chk.HasResult(t, args.client.Results(t),
-		fluent.OperationResult().WithIPv6Operation("0::0/0").WithOperationType(constants.Add).
+		fluent.OperationResult().WithIPv6Operation("::/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
