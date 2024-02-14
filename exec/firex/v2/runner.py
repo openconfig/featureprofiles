@@ -215,14 +215,10 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
-def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
-    with open(cli_file, 'r') as cli:
-        lines = []
-        for l in cli.read().splitlines():
-            if l.strip() == 'end':
-                lines.extend(extra_conf)
-            lines.append(l)
-        gnmi_set = _gnmi_set_file_template(lines)
+def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
+    gnmi_set = _gnmi_set_file_template(cli_lines)
+    with open(gnmi_file, 'w') as gnmi:
+        gnmi.write(gnmi_set)
 
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
