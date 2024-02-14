@@ -390,7 +390,12 @@ func (ia event_interface_config) interface_config(t *testing.T) {
 				gnmi.Update(t, dut, cliPath, mtu)
 			}
 		} else {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+			//following reload need to try twice
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+			}); errMsg != nil {
+				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+			}
 			if ia.mtu != 0 {
 				mtu := fmt.Sprintf("no interface bundle-Ether 121 mtu %d", ia.mtu)
 				gnmi.Update(t, dut, cliPath, mtu)
