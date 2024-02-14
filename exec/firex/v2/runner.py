@@ -338,6 +338,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         install_image=False,
                         force_install=False,
                         force_reboot=False,
+                        sim_use_mtls=False,
                         smus=None):
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
@@ -384,6 +385,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim and sim_use_mtls:
+        c |= GenerateCertificates.s()
+        c |= SimEnableMTLS.s()
+        
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install)
         force_reboot = False
@@ -1012,9 +1017,83 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
         env = dict(os.environ)
         env.update(_get_go_env(ws))
         check_output(testbed_info_cmd, env=env, cwd=internal_fp_repo_dir)
-        logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True, returns=('certs_dir'))
+def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Generating Certificates...")
+    
+    certs_dir = os.path.join(ws, "certificates")
+    gen_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/certgen ' \
+            f'-args ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-outDir "{certs_dir}" '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(gen_command, env=env, cwd=internal_fp_repo_dir)
+    return certs_dir
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
+    parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
+        f'{" ".join(reserved_testbed["baseconf"].values())}'
+    logger.print(f'Executing confparser cmd {parser_cmd}')
+    logger.print(
+        check_output(parser_cmd, cwd=internal_fp_repo_dir)
+    )
+    
+    _cli_to_gnmi_set_file(reserved_testbed['cli_conf'], reserved_testbed['conf_file'])
+
+    # convert binding to json
+    with tempfile.NamedTemporaryFile() as of:
+        out_file = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-out {out_file}'
+
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(out_file, 'r') as fp:
+            j = json.load(fp)
+
+    #TODO: support multiple ates
+    glob_username = j.get('options', {}).get('username', "")    
+    for dut in j.get('duts', []):
+        dut_id = dut['id']
+        dut_username = dut.get('options', {}).get('username', glob_username)
+        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
+            if s in dut:
+                username = dut[s].get('username', dut_username)
+                dut[s].update({
+                    'insecure': False,
+                    'skipVerify': False,
+                    'mutual_tls': True,
+                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert'),
+                    'cert_file': os.path.join(certs_dir, dut_id, f'{username}.cert.pem'),
+                    'key_file': os.path.join(certs_dir, dut_id, f'{username}.key.pem')
+                })
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+            
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {reserved_testbed["binding_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
