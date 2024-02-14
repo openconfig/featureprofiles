@@ -376,7 +376,7 @@ func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
 		broadcast: tic.GetInBroadcastPkts(),
-		drop:      tic.GetInDiscards()}
+		drop:      tic.GetInErrors()}
 }
 
 func outCounters(tic *oc.Interface_Counters) *counters {

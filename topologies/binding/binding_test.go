@@ -191,9 +191,9 @@ func TestReservation_Error(t *testing.T) {
 		Ates: []*bindpb.Device{{
 			Id:   "ate.both",
 			Name: "ate.name",
-			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
-				Id:   "port2",
-				Name: "1/2",
+			Ports: []*bindpb.Port{{ // port2 missing, port3 extra
+				Id:   "port1",
+				Name: "1/1",
 			}, {
 				Id:   "port3",
 				Name: "1/3",
@@ -209,11 +209,9 @@ func TestReservation_Error(t *testing.T) {
 
 	wants := []string{
 		`missing binding for DUT "dut.tb"`,
-		`error binding DUT "dut.both"`,
-		`binding DUT "dut.b" not found in testbed`,
+		`missing binding for port "port1" on "dut.both"`,
 		`missing binding for ATE "ate.tb"`,
-		`error binding ATE "ate.both"`,
-		`testbed port "port1" is missing in binding`,
+		`missing binding for port "port2" on "ate.both"`,
 	}
 	errText := err.Error()
 
