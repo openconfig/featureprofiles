@@ -1085,11 +1085,14 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     
     glob_username = j.get('options', {}).get('username', "") 
     glob_password = j.get('options', {}).get('password', "")   
-     
+    j['options'] = {}
+    
     for dut in j.get('duts', []):
         dut_id = dut['id']
         dut_username = dut.get('options', {}).get('username', glob_username)
         dut_password = dut.get('options', {}).get('password', glob_password)
+        dut['options'] = {}
+
         dut['config'] = {
             'gnmi_set_file': [reserved_testbed['ondatra_baseconf_path'][dut_id]]
         }
@@ -1103,12 +1106,22 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                     'target': target,
                     'username': username,
                     'password': password,
-                    'insecure': False,
-                    'skip_verify': False,
                     'mutual_tls': True,
                     'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert'),
                     'cert_file': os.path.join(certs_dir, dut_id, f'{username}.cert.pem'),
                     'key_file': os.path.join(certs_dir, dut_id, f'{username}.key.pem')
+                }
+        
+        for s in ['ssh']:
+            target = dut.get(s, {}).get('target', '')
+            if target:
+                username = dut[s].get('username', dut_username)
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
+                    'skip_verify': True,
                 }
 
     # convert binding to prototext
