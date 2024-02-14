@@ -752,6 +752,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                 'dut': reserved_testbed['baseconf']
             }
                 
+        reserved_testbed['cli_conf'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
