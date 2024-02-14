@@ -1061,7 +1061,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         for l in reserved_testbed['cli_conf'][dut]:
             new_conf.append(l)
             if l == 'grpc':
-                new_conf.append('tls_mutual')
+                new_conf.append('tls-mutual')
                 new_conf.append('certificate-authentication')
         reserved_testbed['cli_conf'][dut] = new_conf
         _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
