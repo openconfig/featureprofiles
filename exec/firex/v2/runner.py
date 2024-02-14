@@ -767,7 +767,15 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             else:
                 extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
-            _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
+            with open(ondatra_baseconf_path, 'r') as cli:
+                lines = []
+                for l in cli.read().splitlines():
+                    if l.strip() == 'end':
+                        lines.extend(extra_conf)
+                    lines.append(l)
+                reserved_testbed['cli_conf'][dut] = lines
+            
+            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], ondatra_baseconf_path, extra_conf)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
@@ -1049,7 +1057,8 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         check_output(parser_cmd, cwd=internal_fp_repo_dir)
     )
     
-    _cli_to_gnmi_set_file(reserved_testbed['cli_conf'], reserved_testbed['conf_file'])
+    for dut in reserved_testbed['baseconf']:
+        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], reserved_testbed['conf_file'][dut])
 
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
@@ -1066,22 +1075,33 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         with open(out_file, 'r') as fp:
             j = json.load(fp)
 
-    #TODO: support multiple ates
-    glob_username = j.get('options', {}).get('username', "")    
+    glob_username = j.get('options', {}).get('username', "") 
+    glob_password = j.get('options', {}).get('password', "")   
+     
     for dut in j.get('duts', []):
         dut_id = dut['id']
         dut_username = dut.get('options', {}).get('username', glob_username)
+        dut_password = dut.get('options', {}).get('password', glob_password)
+        dut['config'] = {
+            'gnmi_set_file': reserved_testbed['conf_file'][dut_id]
+        }
+        
         for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
-            if s in dut:
+            target = dut.get(s, {}).get('target', '')
+            if target:
                 username = dut[s].get('username', dut_username)
-                dut[s].update({
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
                     'insecure': False,
-                    'skipVerify': False,
+                    'skip_verify': False,
                     'mutual_tls': True,
                     'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert'),
                     'cert_file': os.path.join(certs_dir, dut_id, f'{username}.cert.pem'),
                     'key_file': os.path.join(certs_dir, dut_id, f'{username}.key.pem')
-                })
+                }
 
     # convert binding to prototext
     with tempfile.NamedTemporaryFile() as f:
