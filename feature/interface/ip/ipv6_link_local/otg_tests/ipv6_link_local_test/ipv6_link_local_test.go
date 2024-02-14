@@ -176,12 +176,16 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
-	srcIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	subInt := srcIntf.GetOrCreateSubinterface(0)
+	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
 
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
-	dstIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -300,6 +304,10 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("IP address prefix length config-path mismatch for port: %s, got: %d, want: %d", p, got, want)
 		}
 
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().Config()), true; got != want {
+			t.Errorf("IPv6 subinterface status config-path mismatch for port: %s, got: %v, want: %v", p, got, want)
+		}
+
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Address(attr.IPv6).State())
 		if got, want := state.GetIp(), attr.IPv6; got != want {
 			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", p, got, want)
@@ -309,6 +317,10 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 		if got, want := state.GetPrefixLength(), attr.IPv6Len; got != want {
 			t.Errorf("IP address prefix length state mismatch for port: %s, got: %d, want: %d", p, got, want)
+		}
+
+		if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(p).Subinterface(0).Ipv6().Enabled().State()), true; got != want {
+			t.Errorf("IPv6 subinterface status state mismatch for port: %s, got: %v, want: %v", p, got, want)
 		}
 	}
 }
