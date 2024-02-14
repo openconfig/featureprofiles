@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-2.3"
+plan_id: "RT-7.2"
 description: "BGP Policy Community Set"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE

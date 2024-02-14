@@ -170,14 +170,15 @@ func TestBGPSetup(t *testing.T) {
 			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4)
 			bs.WithEBGP(t, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true, !tc.enableMultiAS)
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
-			niProtocol := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-			pgUseMulitplePaths := niProtocol.Bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths()
+			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+			pgUseMulitplePaths := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths()
 			if tc.enableMultipath {
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
-				pgUseMulitplePaths.GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
 			}
-			if tc.enableMultiAS {
-				pgUseMulitplePaths.GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+				gEBGP.AllowMultipleAs = ygot.Bool(true)
 			}
 
 			configureOTG(t, bs)

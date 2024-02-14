@@ -822,25 +822,25 @@ func TestBGPDefaultPolicies(t *testing.T) {
 		funcName func()
 		skipMsg  string
 	}{{
-		desc:     "RT-7.1: Policy definition in policy chain is not satisfied and Default Policy has REJECT_ROUTE action",
+		desc:     "RT-7.1.1: Policy definition in policy chain is not satisfied and Default Policy has REJECT_ROUTE action",
 		funcName: func() { testDefaultPolicyRejectRouteAction(t, dut) },
 	}, {
-		desc:     "RT-7.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action",
+		desc:     "RT-7.1.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action",
 		funcName: func() { testDefaultPolicyAcceptRouteAction(t, dut) },
 	}, {
-		desc:     "RT-7.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action",
+		desc:     "RT-7.1.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action",
 		funcName: func() { testDefaultPolicyAcceptRouteActionOnly(t, dut) },
 	}, {
-		desc:     "RT-7.4 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has REJECT_ROUTE action",
+		desc:     "RT-7.1.4 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has REJECT_ROUTE action",
 		funcName: func() { testDefaultPolicyRejectRouteActionOnly(t, dut) },
 	}, {
-		desc:     "RT-7.5 : No policy including the default-policy is attached either at the Peer-group or at the neighbor level for only IBGP peer",
+		desc:     "RT-7.1.5 : No policy including the default-policy is attached either at the Peer-group or at the neighbor level for only IBGP peer",
 		funcName: func() { testNoPolicyConfiguredIBGPPeer(t, dut) },
-		skipMsg:  "TODO: RT-7.5 should be automated only after the expected behavior is confirmed in issue num 981",
+		skipMsg:  "TODO: RT-7.1.5 should be automated only after the expected behavior is confirmed in issue num 981",
 	}, {
-		desc:     "RT-7.6 : No policy including the default-policy is attached either at the Peer-group or at the neighbor level for both EBGP and IBGP peers",
+		desc:     "RT-7.1.6 : No policy including the default-policy is attached either at the Peer-group or at the neighbor level for both EBGP and IBGP peers",
 		funcName: func() { testNoPolicyConfigured(t, dut) },
-		skipMsg:  "TODO: RT-7.5 should be automated only after the expected behavior is confirmed in issue num 981",
+		skipMsg:  "TODO: RT-7.1.6 should be automated only after the expected behavior is confirmed in issue num 981",
 	}}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
