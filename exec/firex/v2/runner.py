@@ -1150,11 +1150,11 @@ def GoTidy(self, ws, repo):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def InstallGoDelve(self, ws, repo):
+def InstallGoDelve(self, ws, internal_fp_repo_dir):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     logger.print(
-        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
+        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=internal_fp_repo_dir)
     )
         
 # noinspection PyPep8Naming
