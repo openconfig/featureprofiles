@@ -9,7 +9,7 @@ Using the
 container to the DUT. Using `gnoi.Containerz` start the container.
 
 The container should expose a simple health API. The test succeeds if is
-possible to contain the container via the gRPC API to determine its health.
+possible to connect to the container via the gRPC API to determine its health.
 
 ## CNTR-1.2: Retrieve a running container's logs.
 
