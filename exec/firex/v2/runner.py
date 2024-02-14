@@ -1080,6 +1080,8 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         with open(out_file, 'r') as fp:
             j = json.load(fp)
 
+    logger.print(json.dumps(j))
+    
     glob_username = j.get('options', {}).get('username', "") 
     glob_password = j.get('options', {}).get('password', "")   
      
@@ -1113,7 +1115,9 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         tmp_binding_file = f.name
         with open(tmp_binding_file, "w") as outfile:
             outfile.write(json.dumps(j))
-            
+        
+        logger.print(json.dumps(j))
+        
         cmd = f'{GO_BIN} run ' \
             f'./exec/utils/binding/fromjson ' \
             f'-binding {tmp_binding_file} ' \
