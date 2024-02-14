@@ -1056,13 +1056,16 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     #     check_output(parser_cmd, cwd=internal_fp_repo_dir)
     # )
     
-    
-    
     for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
-        reserved_testbed['cli_conf'][dut].extend([
-            'grpc tls_mutual',
-            'grpc certificate-authentication'
-        ])
+        new_conf = []
+        logger.print(reserved_testbed['cli_conf'][dut])
+        for l in reserved_testbed['cli_conf'][dut]:
+            if l == 'end':
+                new_conf.append('grpc tls_mutual')
+                new_conf.append('grpc certificate-authentication')
+            new_conf.append(l)
+        reserved_testbed['cli_conf'][dut] = new_conf
+        logger.print(reserved_testbed['cli_conf'][dut])
         _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
 
     # convert binding to json
