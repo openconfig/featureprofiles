@@ -47,3 +47,4 @@ platform_exceptions: {
     bgp_llgr_oc_undefined: true
   }
 }
+tags: TAGS_AGGREGATION

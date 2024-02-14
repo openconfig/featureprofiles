@@ -42,3 +42,4 @@ platform_exceptions: {
     bgp_global_extended_next_hop_encoding_unsupported: true
   }
 }
+tags: TAGS_AGGREGATION

@@ -18,3 +18,4 @@ platform_exceptions: {
     qos_voq_drop_counter_unsupported: true
   }
 }
+tags: TAGS_AGGREGATION

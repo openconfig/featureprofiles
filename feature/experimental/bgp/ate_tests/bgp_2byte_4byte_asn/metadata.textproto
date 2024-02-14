@@ -26,3 +26,4 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
   }
 }
+tags: TAGS_AGGREGATION

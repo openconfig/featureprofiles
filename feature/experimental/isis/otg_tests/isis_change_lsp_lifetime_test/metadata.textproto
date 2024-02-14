@@ -50,3 +50,4 @@ platform_exceptions: {
     isis_level_enabled: true
   }
 }
+tags: TAGS_AGGREGATION

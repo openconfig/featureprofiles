@@ -44,3 +44,4 @@ platform_exceptions: {
     bgp_missing_oc_max_prefixes_configuration: true
   }
 }
+tags: TAGS_TRANSIT
