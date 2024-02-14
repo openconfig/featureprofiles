@@ -248,14 +248,20 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
 			triggerAction.restartProcessBackground(t, a.ctx)
 		}
-		if with_RPFO {
+		if chassis_type == "distributed" {
 			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
-				triggerAction.rpfo(t, a.ctx)
+				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
+				triggerAction.rpfo(t, a.ctx, false)
+			}
+		} else {
+			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
+				triggerAction.rpfo(t, a.ctx, true)
 			}
 		}
-		if with_lc_reload {
+		if chassis_type == "distributed" {
 			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
-				// triggerAction.lc_reload(t)
+				triggerAction.lc_reload(t)
 				tolerance = triggerAction.tolerance
 			}
 		}
@@ -267,7 +273,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 	// remove set configs before further check
 	for _, op := range opts {
 		if _, ok := op.event.(*event_interface_config); ok {
-			eventAction := event_interface_config{config: false, shut: false, mtu: 1514, port: []string{"port2"}}
+			eventAction := event_interface_config{config: false, mtu: 1514, port: []string{"port2"}}
 			eventAction.interface_config(t)
 		} else if _, ok := op.event.(*event_static_route_to_null); ok {
 			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", config: false}
