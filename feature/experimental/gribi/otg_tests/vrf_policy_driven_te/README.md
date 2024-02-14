@@ -552,6 +552,8 @@ IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
 
 *   Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
+*   Install an 0/0 ipv6 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+
 ## Procedure
 
 The DUT should be reset to the baseline after each of the following tests.

@@ -897,6 +897,15 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(gribiIPv6EntryEncapVRF+"/126").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(102).AddNextHop(101, 3).AddNextHop(102, 1).WithBackupNHG(200),
@@ -921,6 +930,15 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().
+			WithIPv6Operation(gribiIPv6EntryEncapVRF+"/126").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+
 	// Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -931,11 +949,25 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(60).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(65).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(65).AddNextHop(65, 1),
+		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfA).
+			WithPrefix("0::0/0").WithNextHopGroup(65).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
 	chk.HasResult(t, args.client.Results(t),
 		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().WithIPv6Operation("0::0/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
@@ -949,11 +981,26 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(61).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(66).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(66).AddNextHop(66, 1),
+		fluent.IPv6Entry().WithNetworkInstance(niEncapTeVrfB).
+			WithPrefix("0::0/0").WithNextHopGroup(66).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
 	chk.HasResult(t, args.client.Results(t),
 		fluent.OperationResult().WithIPv4Operation("0.0.0.0/0").WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
+		chk.IgnoreOperationID(),
+	)
+	chk.HasResult(t, args.client.Results(t),
+		fluent.OperationResult().WithIPv6Operation("0::0/0").WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).AsResult(),
 		chk.IgnoreOperationID(),
 	)
@@ -968,7 +1015,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 
 	args.client.Modify().AddEntry(t,
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-			WithPrefix(prefWithMask).WithNextHopGroup(1001),
+			WithPrefix(prefWithMask).WithNextHopGroup(1001).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -987,7 +1035,8 @@ func configureGribiMixedPrefEntries(ctx context.Context, t *testing.T, dut *onda
 	for _, pref := range prefList {
 		args.client.Modify().AddEntry(t,
 			fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
-				WithPrefix(pref).WithNextHopGroup(1001),
+				WithPrefix(pref).WithNextHopGroup(1001).
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		)
 	}
 
