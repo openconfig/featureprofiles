@@ -405,19 +405,25 @@ message Metadata {
     //Skip tests with decap encap vrf as PBF action 
     // Nokia: partnerissuetracker.corp.google.com/issues/323251581
     bool skip_pbf_with_decap_encap_vrf = 141;
+     // Devices which does not support copying TTL.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 142;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 143;
     // Skip gNMI container OP tc.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool skip_container_op = 142;
+    bool skip_container_op = 144;
     // Reorder calls for vendor compatibility.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool reorder_calls_for_vendor_compatibilty = 143;
+    bool reorder_calls_for_vendor_compatibilty = 145;
     // Add missing base config using cli.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool add_missing_base_config_via_cli = 144;
+    bool add_missing_base_config_via_cli = 146;
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-    bool skip_macaddress_check = 145;
-    
+    bool skip_macaddress_check = 147;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }

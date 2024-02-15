@@ -756,6 +756,17 @@ func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
 }
 
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// GribiDecapMixedPlenUnsupported returns true if devices does not support
+// programming with mixed prefix length.
+func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
