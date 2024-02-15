@@ -1,4 +1,4 @@
-package gnmi_tests
+package union_replace_test
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/protobuf/encoding/prototext"
 )
@@ -592,32 +591,9 @@ func memoryCheck(t *testing.T, dut *ondatra.DUTDevice) uint8 {
 	}
 	return 0
 }
-func configISIS(t *testing.T, dut *ondatra.DUTDevice) {
-	model := oc.NetworkInstance_Protocol{
-		Name:       ygot.String("B4"),
-		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
-		Isis: &oc.NetworkInstance_Protocol_Isis{
-			Global: &oc.NetworkInstance_Protocol_Isis_Global{
-				LspBit: &oc.NetworkInstance_Protocol_Isis_Global_LspBit{
-					OverloadBit: &oc.NetworkInstance_Protocol_Isis_Global_LspBit_OverloadBit{
-						SetBit: ygot.Bool(true),
-					},
-				},
-			},
-		},
-	}
 
-	request := &oc.NetworkInstance{
-		Name:     ygot.String("DEFAULT"),
-		Protocol: make(map[oc.NetworkInstance_Protocol_Key]*oc.NetworkInstance_Protocol),
-	}
-	request.Protocol[oc.NetworkInstance_Protocol_Key{Name: "B4", Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS}] = &model
-
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Config())
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Config(), request)
-}
 func processRestart(t *testing.T, dut *ondatra.DUTDevice) {
-	cli := fmt.Sprint("process restart emsd ")
+	cli := "process restart emsd "
 	config.CMDViaGNMI(context.Background(), t, dut, cli)
 	time.Sleep(60 * time.Second)
 }
@@ -854,7 +830,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			Encoding: gpb.Encoding_ASCII,
 		}
 
-		gotRes, err := gnmiC.Get(context.Background(), inGetRequest)
+		gotRes, _ := gnmiC.Get(context.Background(), inGetRequest)
 		cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
 		startIndex := strings.Index(cliJson, "{")
 		jsonString := cliJson[startIndex:]
