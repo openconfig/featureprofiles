@@ -20,14 +20,12 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: NOKIA
-    hardware_model: "7250-ixr10e"
-    hardware_model: "ixr10"
-  }
+      }
   deviations: {
-    use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     route_policy_under_afi_unsupported: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -52,5 +50,7 @@ platform_exceptions: {
   deviations: {
     route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
   }
 }
