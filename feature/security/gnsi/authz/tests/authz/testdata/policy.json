@@ -67,7 +67,7 @@
         },
         "request": {
           "paths": [
-            "/gribi.gNMI/*"
+            "/gnmi.gNMI/*"
           ]
         }
       }

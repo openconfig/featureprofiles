@@ -144,7 +144,7 @@ func configureATEInterfaces(t *testing.T, ate *ondatra.ATEDevice, srcATE, srcDUT
 		ip6.SetAddress(p.ate.IPv6).SetGateway(p.dut.IPv6).SetPrefix(uint32(p.ate.IPv6Len))
 	}
 
-	c, err := topology.ToJson()
+	c, err := topology.Marshal().ToJson()
 	if err != nil {
 		return topology, err
 	}

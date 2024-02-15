@@ -61,8 +61,8 @@ var (
 
 // OCPathKey contains the fields that uniquely identify an OC path.
 type OCPathKey struct {
-	Path      string
-	Component string
+	Path         string
+	PlatformType string
 }
 
 // OCPath is the parsed version of the spreadsheet's paths.
@@ -97,22 +97,14 @@ func getSchemaFakeroot(publicPath string) (*yang.Entry, error) {
 	return root, nil
 }
 
-func validatePath(ocpathProto *ppb.OCPath, root *yang.Entry) (*OCPath, error) {
-	ocpath := &OCPath{
-		Key: OCPathKey{
-			Path:      ocpathProto.GetName(),
-			Component: ocpathProto.GetOcpathConstraint().GetPlatformType(),
-		},
-		FeatureprofileID: ocpathProto.GetFeatureprofileid(),
-	}
-
+func validatePath(ocpath *OCPath, root *yang.Entry) error {
 	// Validate path
 	path := ocpath.Key.Path
 	if !strings.HasPrefix(path, "/") {
-		return nil, fmt.Errorf("path does not begin with slash: %q", path)
+		return fmt.Errorf("path does not begin with slash: %q", path)
 	}
 	if strings.HasSuffix(path, "/") {
-		return nil, fmt.Errorf("path must not end with slash: %q", path)
+		return fmt.Errorf("path must not end with slash: %q", path)
 	}
 	if entry := root.Find(path); entry == nil {
 		deepestEntry := root
@@ -130,23 +122,23 @@ func validatePath(ocpathProto *ppb.OCPath, root *yang.Entry) (*OCPath, error) {
 			}
 			deepestEntry = next
 		}
-		return nil, fmt.Errorf("path not found: %q, remaining path: %q", path, entryNotFound)
+		return fmt.Errorf("path not found: %q, remaining path: %q", path, entryNotFound)
 	} else if !entry.IsLeaf() && !entry.IsLeafList() {
-		return nil, fmt.Errorf("path %q is not a leaf: got kind %s", path, entry.Kind)
+		return fmt.Errorf("path %q is not a leaf: got kind %s", path, entry.Kind)
 	}
 
 	// Validate component
-	component := ocpath.Key.Component
+	component := ocpath.Key.PlatformType
 	isComponentPath := strings.HasPrefix(path, componentPrefix)
 	switch {
 	case !isComponentPath && component != "":
-		return nil, fmt.Errorf("non-component path %q has component value %q", path, component)
+		return fmt.Errorf("non-component path %q has component value %q", path, component)
 	case !isComponentPath:
 	default:
 		if _, ok := validComponentNames[component]; !ok {
-			return nil, fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, validComponentNamesSorted)
+			return fmt.Errorf("path %q has invalid component %q (must be one of %v)", path, component, validComponentNamesSorted)
 		}
-		ocpath.Key.Component = component
+		ocpath.Key.PlatformType = component
 	}
 
 	// featureprofileID is optional. Only validate the string format if it exists.
@@ -155,11 +147,11 @@ func validatePath(ocpathProto *ppb.OCPath, root *yang.Entry) (*OCPath, error) {
 		case featureprofileIDMatcher.MatchString(featureprofileID):
 			ocpath.FeatureprofileID = featureprofileID
 		default:
-			return nil, fmt.Errorf("unexpected featureprofileID string %q for path %v (must match regex %q)", featureprofileID, path, featureprofileIDRegex)
+			return fmt.Errorf("unexpected featureprofileID string %q for path %v (must match regex %q)", featureprofileID, path, featureprofileIDRegex)
 		}
 	}
 
-	return ocpath, nil
+	return nil
 }
 
 func insert(dstMap map[OCPathKey]*OCPath, src *OCPath) error {
@@ -173,28 +165,50 @@ func insert(dstMap map[OCPathKey]*OCPath, src *OCPath) error {
 	return nil
 }
 
+func convertOCPath(ocpathProto *ppb.OCPath) *OCPath {
+	return &OCPath{
+		Key: OCPathKey{
+			Path:         ocpathProto.GetName(),
+			PlatformType: ocpathProto.GetOcpathConstraint().GetPlatformType(),
+		},
+		FeatureprofileID: ocpathProto.GetFeatureprofileid(),
+	}
+}
+
 // ValidatePaths parses and validates ocpaths, and puts them into a more
 // user-friendly Go structure.
-func ValidatePaths(ocpathsProto []*ppb.OCPath, publicPath string) (map[OCPathKey]*OCPath, error) {
+//
+// The first set of paths contain only valid path, while the second contain only invalid paths.
+func ValidatePaths(ocpathsProto []*ppb.OCPath, publicPath string) (map[OCPathKey]*OCPath, map[OCPathKey]*OCPath, error) {
 	root, err := getSchemaFakeroot(publicPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ocpaths := map[OCPathKey]*OCPath{}
+	invalidOCPaths := map[OCPathKey]*OCPath{}
 	errs := errlist.List{
 		Separator: "\n",
 	}
 	for _, ocpathProto := range ocpathsProto {
-		ocpath, err := validatePath(ocpathProto, root)
-		if err != nil {
-			errs.Add(err)
-		} else if ocpath == nil {
+		ocpath := convertOCPath(ocpathProto)
+		if ocpath == nil {
 			errs.Add(fmt.Errorf("failed to parse proto: %v", ocpathProto))
+		} else if err := validatePath(ocpath, root); err != nil {
+			errs.Add(err)
+			if ocpath != nil {
+				invalidOCPaths[ocpath.Key] = ocpath
+			}
 		} else if err := insert(ocpaths, ocpath); err != nil {
 			errs.Add(err)
 		}
 	}
 
-	return ocpaths, errs.Err()
+	if len(ocpaths) == 0 {
+		ocpaths = nil
+	}
+	if len(invalidOCPaths) == 0 {
+		invalidOCPaths = nil
+	}
+	return ocpaths, invalidOCPaths, errs.Err()
 }

@@ -1,15 +1,25 @@
-# TRANSCEIVER-5: Configuration: 400ZR channel frequency and output TX launch power setting. 
+# TRANSCEIVER-5: Configuration: 400ZR channel frequency, output TX launch power and operational mode setting. 
 
 ## Summary
 
-Validate setting 400ZR tunable parameters channel frequency and output TX
-launch power and verify corresponding telemetry values.
+Validate setting 400ZR tunable parameters channel frequency, output TX
+launch power and operational mode and verify corresponding telemetry values.
 
 ### Goals
 * Verify full C band frequency tunability for 100GHz line system grid.
 * Verify full C band frequency tunability for 75GHz line system grid.
 * Verify adjustable range of transmit output power across -13 to -9 dBm
-  in steps of 1 dB.  
+  in steps of 1 dB.
+* Verify  that the ZR module Host Interface ID and Media Interface ID
+  combination to ZR module AppSel mapping can be configured through the OC
+  `operational-mode`. `operational-mode` is a construct in OpenConfig that masks
+  features related to line port transmission. OC operational modes provides a
+  platform-defined summary of information such as symbol rate, modulation,
+  pulse shaping, etc.
+
+**Note** For standard ZR, OIF 400ZR with C-FEC is the default mode however as we
+move to 400ZR++ and 800ZR, optic AppSel code would need to be configured
+explicitly through OC operational mode.
 
 
 ## TRANSCEIVER-5.1
@@ -47,6 +57,8 @@ launch power and verify corresponding telemetry values.
         *   /components/component/optical-channel/state/output-power/avg
         *   /components/component/optical-channel/state/output-power/min
         *   /components/component/optical-channel/state/output-power/max
+    * Operational Mode
+        *   /components/component/optical-channel/state/operational-mode
 
 * With above streamed data verify
     * For each center frequency, laser frequency offset should not be more than
@@ -128,6 +140,7 @@ launch power and verify corresponding telemetry values.
 *   /components/component/transceiver/config/enabled
 *   /components/component/optical-channel/config/frequency
 *   /components/component/optical-channel/config/target-output-power
+*   /components/component/optical-channel/config/operational-mode
 
 ## Telemetry Parameter coverage
 
@@ -142,3 +155,6 @@ launch power and verify corresponding telemetry values.
     *   /components/component/optical-channel/state/output-power/avg
     *   /components/component/optical-channel/state/output-power/min
     *   /components/component/optical-channel/state/output-power/max
+* Operational Mode
+    *   /components/component/optical-channel/config/operational-mode
+    *   /components/component/optical-channel/state/operational-mode

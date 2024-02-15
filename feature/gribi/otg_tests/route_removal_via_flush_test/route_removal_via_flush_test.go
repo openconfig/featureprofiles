@@ -315,7 +315,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) floa
 		SetTxNames([]string{atePort1.Name + ".IPv4"}).
 		SetRxNames([]string{atePort2.Name + ".IPv4"})
 
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	v4 := flowipv4.Packet().Add().Ipv4()

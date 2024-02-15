@@ -42,6 +42,7 @@ var (
 	skipIdempotentDelete = flag.Bool("skip_idempotent_delete", true, "Skip tests for idempotent DELETE operations")
 	skipNonDefaultNINHG  = flag.Bool("skip_non_default_ni_nhg", true, "skip tests that add entries to non-default network-instance")
 	skipMPLS             = flag.Bool("skip_mpls", true, "skip tests that add mpls entries")
+	skipIPv6             = flag.Bool("skip_ipv6", true, "skip tests that add ipv6 entries")
 
 	nonDefaultNI = flag.String("non_default_ni", "non-default-vrf", "non-default network-instance name")
 
@@ -105,6 +106,8 @@ func shouldSkip(tt *compliance.TestSpec) string {
 		return "This RequiresIdempotentDelete test is skipped by --skip_idempotent_delete"
 	case *skipMPLS && tt.In.RequiresMPLS:
 		return "This RequiresMPLS test is skipped by --skip_mpls"
+	case *skipIPv6 && tt.In.RequiresIPv6:
+		return "This RequiresIPv6 test is skipped by --skip_ipv6"
 	}
 	return moreSkipReasons[tt.In.ShortName]
 }

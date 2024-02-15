@@ -254,11 +254,11 @@ network-instances {
     behavior.
 
 ```
-IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#10 (DEFAULT VRF) -> {
-  {NH#201, DEFAULT VRF, weight:1},
-  {NH#202, DEFAULT VRF, weight:3},
+IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:1},
+  {NH#102, DEFAULT VRF, weight:3},
 }
-NH#201 -> {
+NH#101 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
     dst_ip: "203.0.113.1"
@@ -266,7 +266,7 @@ NH#201 -> {
   }
   network_instance: "TE_VRF_111"
 }
-NH#202 -> {
+NH#102 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
     dst_ip: "203.10.113.2"
@@ -279,20 +279,21 @@ NH#202 -> {
 IPv4Entry {203.0.113.1/32 (TE_VRF_111)} -> NHG#1 (DEFAULT VRF) -> {
   {NH#1, DEFAULT VRF, weight:1,ip_address=192.0.2.101},
   {NH#2, DEFAULT VRF, weight:3,ip_address=192.0.2.102},
-  backup_next_hop_group: 8 // re-encap to 203.0.113.100
+  backup_next_hop_group: 1000 // re-encap to 203.0.113.100
 }
-IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#2 (DEFAULT VRF) -> {
-  {NH#10, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
-  {NH#11, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
+IPv4Entry {192.0.2.101/32 (DEFAULT VRF)} -> NHG#11 (DEFAULT VRF) -> {
+  {NH#11, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-2-interface},
+  {NH#12, DEFAULT VRF, weight:3,mac_address:magic_mac, interface-ref:dut-port-3-interface},
 }
-IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#3 (DEFAULT VRF) -> {
-  {NH#100, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
+IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
+  {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
 }
 
-NHG#8 (Default VRF) {
+NHG#1000 (Default VRF) {
   {NH#1000, DEFAULT VRF}
 }
 NH#1000 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
     dst_ip: "203.0.113.100"
@@ -301,26 +302,27 @@ NH#1000 -> {
   network_instance: "TE_VRF_222"
 }
 
-IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#7 (DEFAULT VRF) -> {
+IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
 }
-IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#8 (DEFAULT VRF) -> {
-  {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
+IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
+  {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
 }
 
-// 203.10.113.2 is the tunnel IP address. Note that the NHG#4 is different than NHG#1.
+// 203.10.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
 
-IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#4 (DEFAULT VRF) -> {
-  {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
-  backup_next_hop_group: 9 // re-encap to 203.10.113.101
+IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
+  {NH#4, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
+  backup_next_hop_group: 1001 // re-encap to 203.0.113.101
 }
-IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#5 (DEFAULT VRF) -> {
-  {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
+IPv4Entry {192.0.2.104/32 (DEFAULT VRF)} -> NHG#14 (DEFAULT VRF) -> {
+  {NH#15, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-6-interface},
 }
-NHG#9 (DEFAULT VRF) {
+NHG#1001 (DEFAULT VRF) {
   {NH#1001, DEFAULT VRF}
 }
 NH#1001 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
     dst_ip: "203.0.113.101"
@@ -328,11 +330,11 @@ NH#1001 -> {
   }
   network_instance: "TE_VRF_222"
 }
-IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#9 (DEFAULT VRF) -> {
-  {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
+IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
+  {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
 }
-IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#10 (DEFAULT VRF) -> {
-  {NH#12, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
+IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
+  {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
 }
 ```
 
@@ -377,10 +379,10 @@ backup specifies fallback to routing, then the traffic for that tunnel is not
 encapped. Instead, that fraction of traffic should be forwarded according to the
 BGP/IS-IS routes in the DEFAULT VRF.
 
-1.  Update `NHG#8` to the following:
+1.  Update `NHG#1000` to the following:
 
 ```
-NHG#8 (Default VRF) {
+NHG#1000 (Default VRF) {
         {NH#1000, DEFAULT VRF}
 }
 NH#1000 -> {
@@ -428,11 +430,11 @@ the double failure handling, and ensures that the fallback to DEFAULT is
 activated through the backup NHGs of the tunnels instead of withdrawing the
 IPv4Entry.
 
-1.  Update `NHG#8` and `NHG#9` to the following: ``` NHG#8 (Default VRF) {
+1.  Update `NHG#1000` and `NHG#1001` to the following: ``` NHG#1000 (Default VRF) {
     {NH#1000, DEFAULT VRF} } NH#1000 ->
     { decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" }
 
-NHG#9 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> { decapsulate_header:
+NHG#1001 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> { decapsulate_header:
 OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" } ```
 
 1.  Validate that all traffic is distributed per the hierarchical weights.

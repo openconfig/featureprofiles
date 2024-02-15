@@ -63,6 +63,7 @@ if (/\b(([[:xdigit:]]+(:|::)){2,}[[:xdigit:]]*)(\/\d+)?\b/) {
 
   my $ip = $parsed->ip();
   next if $ip =~ /2001:0?db8:/i;        # IPv6 Test Net (RFC 3849)
+  next if $ip =~ /fe80:/i;              # IPv6 Link Local
   $lineok = 0;
 }
 

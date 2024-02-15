@@ -347,6 +347,9 @@ In particular:
 [RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
 [RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
 
+For IPv6, link local addresses (FE80::/10) addresses are allowed in contexts
+where link local is being tested.
+
 ### IPv4
 
 *   `TEST-NET-1`: (192.0.2.0/24): control plane addresses split into /30 subnets

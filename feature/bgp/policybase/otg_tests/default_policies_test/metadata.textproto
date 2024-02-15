@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid:  "1d21e3cf-25c0-4e44-8988-582188e37452"
-plan_id:  "RT-7"
+plan_id:  "RT-7.1"
 description:  "BGP default policies"
 testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions:  {

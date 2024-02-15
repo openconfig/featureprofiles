@@ -446,7 +446,7 @@ func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlan
 
 	dev := top.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
-	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
+	eth.Connection().SetPortName(atePort.ID())
 	if vlanID != 0 {
 		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}

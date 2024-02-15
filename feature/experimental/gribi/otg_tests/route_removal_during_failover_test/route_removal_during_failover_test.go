@@ -298,7 +298,7 @@ func configureSubinterfaceDUT(d *oc.Root, dutPort *ondatra.Port, index uint32, v
 func configureATE(top gosnappi.Config, atePort *ondatra.Port, Name string, vlanID uint16, dutIPv4, ateIPv4, ateMAC string) {
 	dev := top.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(ateMAC)
-	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
+	eth.Connection().SetPortName(atePort.ID())
 	if vlanID != 0 {
 		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
@@ -333,7 +333,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart("198.18.196.1").SetCount(1020)

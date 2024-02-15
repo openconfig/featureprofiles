@@ -56,3 +56,31 @@ func TestMPLSLabelPushDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestMPLSPushToIP validates the gRIBI actions that are used to push N labels onto
+// on IP Packet.
+func TestMPLSPushToIP(t *testing.T) {
+	gribic := ondatra.DUT(t, "dut").RawAPIs().GRIBI(t)
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic)
+
+	for numLabels := 1; numLabels <= maximumStackDepth; numLabels++ {
+		t.Run(fmt.Sprintf("TE-10.2: Push MPLS labels to IP: Push %d labels", numLabels), func(t *testing.T) {
+			labels := []uint32{}
+			for i := 0; i < numLabels; i++ {
+				labels = append(labels, uint32(baseLabel+i))
+			}
+
+			mplsT := mplsutil.New(c, mplsutil.PushToIP, deviations.DefaultNetworkInstance(ondatra.DUT(t, "dut")), &mplsutil.Args{
+				LabelsToPush: labels,
+			})
+
+			mplsT.ConfigureDevices(t, ondatra.DUT(t, "dut"), ondatra.ATE(t, "ate"))
+			mplsT.ProgramGRIBI(t)
+			mplsT.ValidateProgramming(t)
+			mplsT.ConfigureFlows(t, ondatra.ATE(t, "ate"))
+			mplsT.RunFlows(t, ondatra.ATE(t, "ate"), 10*time.Second, lossTolerance)
+			mplsT.Cleanup(t)
+		})
+	}
+}

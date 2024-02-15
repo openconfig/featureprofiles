@@ -101,12 +101,12 @@ func TestQoSCounters(t *testing.T) {
 
 	dev1 := top.Devices().Add().SetName(ateSrcName)
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac(ateSrcMac)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress(ateSrcIp).SetGateway(ateSrcGateway).SetPrefix(uint32(prefixLen))
 
 	dev2 := top.Devices().Add().SetName(ateDstName)
 	eth2 := dev2.Ethernets().Add().SetName(dev2.Name() + ".eth").SetMac(ateDstMac)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
+	eth2.Connection().SetPortName(ap2.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev2.Name() + ".ipv4").SetAddress(ateDstIp).SetGateway(ateDstGateway).SetPrefix(uint32(prefixLen))
 
 	queues := netutil.CommonTrafficQueues(t, dut)

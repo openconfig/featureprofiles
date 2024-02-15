@@ -108,6 +108,11 @@ func LoadKeyPair(keyPath, certPath string) (any, *x509.Certificate, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+	case "PRIVATE KEY":
+		caPrivateKey, err = x509.ParsePKCS8PrivateKey(caKeyPem.Bytes)
+		if err != nil {
+			return nil, nil, err
+		}
 	default:
 		return nil, nil, fmt.Errorf("file does not contain an ECDSA/RSA private key")
 

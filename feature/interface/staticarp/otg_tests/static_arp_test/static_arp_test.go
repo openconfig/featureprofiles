@@ -127,6 +127,9 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 	if me.MAC != "" {
 		e := i.GetOrCreateEthernet()
 		e.MacAddress = ygot.String(me.MAC)
+		if deviations.EnableFlowctrlFlag(dut) {
+			e.EnableFlowControl = ygot.Bool(true)
+		}
 	}
 
 	s := i.GetOrCreateSubinterface(0)
@@ -240,7 +243,6 @@ func testFlow(
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 	}
-	flow.Duration().SetChoice("fixed_packets")
 	flow.Duration().FixedPackets().SetPackets(1000)
 	flow.Size().SetFixed(100)
 	eth := flow.EgressPacket().Add().Ethernet()

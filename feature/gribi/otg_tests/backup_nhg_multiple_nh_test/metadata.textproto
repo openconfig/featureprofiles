@@ -21,6 +21,7 @@ platform_exceptions: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    skip_pbf_with_decap_encap_vrf: true
   }
 }
 platform_exceptions: {

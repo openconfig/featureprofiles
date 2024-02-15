@@ -344,6 +344,7 @@ func TestIPv4Entry(t *testing.T) {
 		t.Run(fmt.Sprintf("Persistence=%s", persist), func(t *testing.T) {
 
 			for _, tc := range cases {
+				newGoodFlows, newBadFlows := createTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
 				t.Run(tc.desc, func(t *testing.T) {
 					if tc.gribiMACOverrideWithStaticARPStaticRoute {
 						staticARPWithMagicUniversalIP(t, dut)
@@ -444,8 +445,7 @@ func TestIPv4Entry(t *testing.T) {
 					for _, wantResult := range tc.wantOperationResults {
 						chk.HasResult(t, c.Results(t), wantResult, chk.IgnoreOperationID())
 					}
-
-					validateTrafficFlows(t, ate, tc.wantGoodFlows, tc.wantBadFlows)
+					validateTrafficFlows(t, ate, newGoodFlows, newBadFlows)
 				})
 			}
 		})
@@ -505,7 +505,6 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv4")
 	}
-	otg := ate.OTG()
 	flowipv4 := ateTop.Flows().Add().SetName(name)
 	flowipv4.Metrics().SetEnable(true)
 	e1 := flowipv4.Packet().Add().Ethernet()
@@ -514,19 +513,19 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(dstPfxCount)
-	otg.PushConfig(t, ateTop)
-	otg.StartProtocols(t)
 	return name
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
-	ateTop := ate.OTG().FetchConfig(t)
-	if len(good) == 0 && len(bad) == 0 {
-		return
-	}
-
+func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) (newGood, newBad []string) {
 	var newGoodFlows, newBadFlows []string
 	allFlows := append(good, bad...)
+	otg := ate.OTG()
+	ateTop := otg.FetchConfig(t)
+	if len(good) == 0 && len(bad) == 0 {
+		otg.PushConfig(t, ateTop)
+		otg.StartProtocols(t)
+		return newGoodFlows, newBadFlows
+	}
 	ateTop.Flows().Clear().Items()
 	for _, flow := range allFlows {
 		if flow == "port2Flow" {
@@ -556,6 +555,21 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 
 		}
 	}
+	otg.PushConfig(t, ateTop)
+	otg.StartProtocols(t)
+	return newGoodFlows, newBadFlows
+}
+
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
+	if len(good) == 0 && len(bad) == 0 {
+		return
+	}
+
+	newGoodFlows := good
+	newBadFlows := bad
+
+	ateTop := ate.OTG().FetchConfig(t)
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)

@@ -134,6 +134,12 @@ var resolverBinding = resolver{&bindpb.Binding{
 		Options: &bindpb.Options{
 			Username: "ate.username",
 		},
+		Gnmi: &bindpb.Options{
+			Password: "gnmi.password",
+		},
+		Otg: &bindpb.Options{
+			Password: "otg.password",
+		},
 		Ixnetwork: &bindpb.Options{
 			Password: "ixnetwork.password",
 		},
@@ -145,66 +151,6 @@ var resolverBinding = resolver{&bindpb.Binding{
 		},
 	}},
 }}
-
-func TestResolver_ByID(t *testing.T) {
-	r := resolverBinding
-	cases := []struct {
-		test string
-		id   string
-		fn   func(name string) *bindpb.Device
-		want bool
-	}{{
-		test: "dutByID(dut)",
-		id:   "dut",
-		fn:   r.dutByID,
-		want: true,
-	}, {
-		test: "dutByID(anotherdut)",
-		id:   "anotherdut",
-		fn:   r.dutByID,
-		want: true,
-	}, {
-		test: "ateByID(ate)",
-		id:   "ate",
-		fn:   r.ateByID,
-		want: true,
-	}, {
-		test: "ateByID(anotherate)",
-		id:   "anotherate",
-		fn:   r.ateByID,
-		want: true,
-	}, {
-		test: "dutByID(no.such.dut)",
-		id:   "no.such.dut",
-		fn:   r.dutByID,
-		want: false,
-	}, {
-		test: "ateByID(no.such.ate)",
-		id:   "no.such.ate",
-		fn:   r.ateByID,
-		want: false,
-	}, {
-		test: "ateByID(dut)",
-		id:   "dut",
-		fn:   r.ateByID,
-		want: false,
-	}, {
-		test: "dutByID(ate)",
-		id:   "ate",
-		fn:   r.dutByID,
-		want: false,
-	}}
-
-	for _, c := range cases {
-		t.Run(c.test, func(t *testing.T) {
-			d := c.fn(c.id)
-			got := d != nil
-			if got != c.want {
-				t.Errorf("Lookup by ID got %v, want %v", got, c.want)
-			}
-		})
-	}
-}
 
 func TestResolver_Options(t *testing.T) {
 	r := resolverBinding
@@ -225,7 +171,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnmi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNMI)
+			return r.grpc(d, dutSvcParams[introspect.GNMI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -236,7 +182,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnoi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNOI)
+			return r.grpc(d, dutSvcParams[introspect.GNOI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -247,7 +193,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnsi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GNSI)
+			return r.grpc(d, dutSvcParams[introspect.GNSI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -258,7 +204,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gribi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.GRIBI)
+			return r.grpc(d, dutSvcParams[introspect.GRIBI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -269,13 +215,24 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "p4rt",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.grpc(d, introspect.P4RT)
+			return r.grpc(d, dutSvcParams[introspect.P4RT])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
 			Target:   "dut.name:" + strconv.Itoa(*p4rtPort),
 			Username: "global.username",
 			Password: "p4rt.password",
+		},
+	}, {
+		test: "otg",
+		fn: func(d *bindpb.Device) *bindpb.Options {
+			return r.grpc(d, ateSvcParams[introspect.OTG])
+		},
+		dev: r.Ates[0],
+		want: &bindpb.Options{
+			Target:   "ate.name:" + strconv.Itoa(*ateOTGPort),
+			Username: "ate.username",
+			Password: "otg.password",
 		},
 	}, {
 		test: "ixnetwork",

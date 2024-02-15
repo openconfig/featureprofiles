@@ -134,7 +134,7 @@ func (a *Attributes) AddToOTG(top gosnappi.Config, ap *ondatra.Port, peer *Attri
 	top.Ports().Add().SetName(ap.ID())
 	dev := top.Devices().Add().SetName(a.Name)
 	eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
-	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap.ID())
+	eth.Connection().SetPortName(ap.ID())
 
 	if a.MTU > 0 {
 		eth.SetMtu(uint32(a.MTU))

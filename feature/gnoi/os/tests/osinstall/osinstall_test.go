@@ -425,11 +425,6 @@ func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool) error {
 func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		ocPortName := dut.Port(t, "port1").Name()
-		fptest.AssignToNetworkInstance(t, dut, ocPortName, deviations.DefaultNetworkInstance(dut), 0)
-	}
-
 	t.Logf("Create and push interface config to the DUT")
 	dutPort := dut.Port(t, "port1")
 	dutPortName := dutPort.Name()
@@ -440,6 +435,10 @@ func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 	in := configInterface(dutPortName, dutAttrs.Desc, dutAttrs.IPv4, dutAttrs.IPv4Len, dut)
 	fptest.LogQuery(t, fmt.Sprintf("%s to Replace()", dutPort), dc, in)
 	gnmi.Replace(t, dut, dc, in)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		ocPortName := dut.Port(t, "port1").Name()
+		fptest.AssignToNetworkInstance(t, dut, ocPortName, deviations.DefaultNetworkInstance(dut), 0)
+	}
 
 	t.Logf("Fetch interface config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {

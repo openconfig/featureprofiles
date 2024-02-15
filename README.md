@@ -109,30 +109,6 @@ kne delete topologies/kne/cisco/xrd/topology.textproto
 
 ## Juniper
 
-### cPTX
-
-> NOTE: `cPTX` images require the host supports nested virtualization.
-
-Juniper `cPTX` images can be obtained by contacting Juniper.
-
-1. Create the topology:
-
-```
-kne create topologies/kne/juniper/cptx/topology.textproto
-```
-
-2. Run a sample test:
-
-```
-go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
-```
-
-3. Cleanup:
-
-```
-kne delete topologies/kne/juniper/cptx/topology.textproto
-```
-
 ### ncPTX
 
 Juniper `ncPTX` images can be obtained by contacting Juniper.
