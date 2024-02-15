@@ -248,18 +248,19 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
 			triggerAction.restartProcessBackground(t, a.ctx)
 		}
-		if chassis_type == "distributed" {
+		if chassis_type == "distributed" && with_RPFO {
 			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
 				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
 				triggerAction.rpfo(t, a.ctx, false)
 			}
-		} else {
+		} else if chassis_type == "fixed" && with_RPFO {
 			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
 				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
 				triggerAction.rpfo(t, a.ctx, true)
+				tolerance = triggerAction.tolerance
 			}
 		}
-		if chassis_type == "distributed" {
+		if chassis_type == "distributed" && with_lc_reload {
 			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
 				triggerAction.lc_reload(t)
 				tolerance = triggerAction.tolerance

@@ -17,6 +17,7 @@ package ppc_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -38,16 +39,17 @@ import (
 
 var (
 	chassis_type                  string // check if its distributed or fixed chassis
-	tolerance                     uint64
+	tolerance                     float64
 	rpfo_count                    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
 	multiple_subscription         = 5 // total 5 parallel subscriptions will be tested
 	multiple_subscription_runtime = 5 // for 5 mins multiple subscriptions will keep on running
 )
 
 const (
-	with_RPFO  = true
-	active_rp  = "0/RP0/CPU0"
-	standby_rp = "0/RP1/CPU0"
+	with_RPFO      = true
+	with_lc_reload = true
+	active_rp      = "0/RP0/CPU0"
+	standby_rp     = "0/RP1/CPU0"
 )
 
 type testArgs struct {
@@ -98,18 +100,16 @@ func runBackgroundMonitor(t *testing.T) {
 				timestamp := time.Now().Round(time.Second)
 				result := gnmi.Get(t, dut, query)
 				processName := result.GetName()
-				t.Run(processName, func(t *testing.T) {
-					if *result.CpuUtilization > 80 {
-						t.Logf("%s %s CPU Process utilization high for process %-10s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
-					} else {
-						t.Logf("%s %s INFO: CPU process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
-					}
-					if result.MemoryUtilization != nil {
-						t.Logf("%s %s Memory high for process: %-10s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
-					} else {
-						t.Logf("%s %s INFO:  Memory Process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
-					}
-				})
+				if *result.CpuUtilization > 80 {
+					t.Logf("%s %s CPU Process utilization high for process %-10s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
+				} else {
+					t.Logf("%s %s INFO: CPU process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
+				}
+				if result.MemoryUtilization != nil {
+					t.Logf("%s %s Memory high for process: %-10s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
+				} else {
+					t.Logf("%s %s INFO:  Memory Process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
+				}
 			}
 			// sleep for 30 seconds before checking cpu/memory again
 			time.Sleep(30 * time.Second)
@@ -144,6 +144,7 @@ func (tt trigger_process_restart) restartProcessBackground(t *testing.T, ctx con
 }
 
 type trigger_rpfo struct {
+	tolerance float64
 }
 
 func (tt trigger_rpfo) rpfo(t *testing.T, ctx context.Context, reload bool) {
@@ -266,7 +267,7 @@ func (tt trigger_rpfo) rpfo(t *testing.T, ctx context.Context, reload bool) {
 }
 
 type trigger_lc_reload struct {
-	tolerance uint64
+	tolerance float64
 }
 
 func (tt trigger_lc_reload) lc_reload(t *testing.T) {
@@ -327,7 +328,7 @@ var (
 		{
 			name:         "RPFO",
 			desc:         "perform RPFO and validate pipeline counters",
-			trigger_type: &trigger_rpfo{},
+			trigger_type: &trigger_rpfo{tolerance: 40}, // for fix chassis rfpo is reload and hence tolerance is needed
 		},
 		{
 			name:         "LC reload",
@@ -383,7 +384,11 @@ func (ia event_interface_config) interface_config(t *testing.T) {
 		dutP := dut.Port(t, port)
 		if ia.config {
 			if ia.shut {
-				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+				}); errMsg != nil {
+					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+				}
 			}
 			if ia.mtu != 0 {
 				mtu := fmt.Sprintf("interface bundle-Ether 121 mtu %d", ia.mtu)
@@ -608,15 +613,21 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 
 			pre_data, _ := get_data(t, path, query)
 
-			tgn_data := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type})
+			tgn_data := float64(a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type}))
 
 			post_data, _ := get_data(t, path, query)
 
-			got := post_data - pre_data
-			if ((tgn_data-got)/tgn_data)*100 > tolerance {
-				t.Errorf("Data doesn't match for path %s, got: %d, want: %d", path, got, tgn_data)
+			// following reload, we can have pre data bigger than post indeed using absolute value
+			got := math.Abs(float64(post_data - pre_data))
+
+			t.Logf("Initial counters for path %s : %d", path, pre_data)
+			t.Logf("Final counters for path %s: %d", path, post_data)
+			t.Logf("Expected counters for path %s: %f", path, got)
+
+			if (math.Abs(tgn_data-got)/(tgn_data))*100 > tolerance {
+				t.Errorf("Data doesn't match for path %s, got: %f, want: %f", path, got, tgn_data)
 			} else {
-				t.Logf("Data for path %s, got: %d, want: %d", path, got, tgn_data)
+				t.Logf("Data for path %s, got: %f, want: %f", path, got, tgn_data)
 			}
 		})
 	}
@@ -680,7 +691,11 @@ func TestOC_PPC(t *testing.T) {
 	t.Log("Name: OC PPC")
 
 	// starting cpu/memory check for all the processes in the background
-	runBackgroundMonitor(t)
+	// only running for distributed tb since rpfo event for fix is equal to reload and during reload
+	// we need to kill go routine else cpu/mem call will fail with EOF
+	if chassis_type == "distributed" {
+		runBackgroundMonitor(t)
+	}
 
 	dut := ondatra.DUT(t, "dut")
 
