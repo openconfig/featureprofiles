@@ -221,8 +221,8 @@ Matches should be performed against a subset of extended community types
     * Expected matches for each policy
       |              | zero_linkbw                 | match_100_set_linkbw_1M     | nomatch_100_set_linkbw_2G   |
       | ------------ | --------------------------- | --------------------------- | --------------------------- |
-      | prefix-set-5 | [ link-bandwidth:100000:0 ] | none                        | [ link-bandwidth:100000:0 ] |
-      | prefix-set-6 | [ link-bandwidth:100000:0 ] | [ link-bandwidth:100000:0 ] | none                        |
+      | prefix-set-5 | [ link-bandwidth:100000:0 ] | none                        | [ link-bandwidth:100000:2000000000 ] |
+      | prefix-set-6 | [ link-bandwidth:100000:0 ] | [ link-bandwidth:100000:1000000 ] | none                        |
 
 * RT-7.8.7 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
   * Note, this is the same at RT-7.8.6, but with a change in the location of the
