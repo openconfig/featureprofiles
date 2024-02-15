@@ -6,10 +6,14 @@ Test FRR behaviors with encapsulation scenarios.
 
 ## Topology
 
-ATE port-1 <------> port-1 DUT DUT port-2 <------> port-2 ATE DUT port-3
-<------> port-3 ATE DUT port-4 <------> port-4 ATE DUT port-5 <------> port-5
-ATE DUT port-6 <------> port-6 ATE DUT port-7 <------> port-7 ATE DUT port-8
-<------> port-8 ATE
+-   ATE port-1 <------> port-1 DUT
+-   DUT port-2 <------> port-2 ATE
+-   DUT port-3 <------> port-3 ATE
+-   DUT port-4 <------> port-4 ATE
+-   DUT port-5 <------> port-5 ATE
+-   DUT port-6 <------> port-6 ATE
+-   DUT port-7 <------> port-7 ATE
+-   DUT port-8 <------> port-8 ATE
 
 ## Baseline setup
 
@@ -498,4 +502,4 @@ be routed to the DEFAULT VRF for further lookup.
 
 ## Required DUT platform
 
-vRX
+-   vRX
