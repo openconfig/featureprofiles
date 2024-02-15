@@ -102,7 +102,7 @@ Matches should be performed against a subset of extended community types
     * Expected communities
       |              | add_std_comms                                      | match_and_add_std_comms                         |
       | ------------ | -------------------------------------------------- | ----------------------------------------------- |
-      | prefix-set-1 | [ 500:500, 600:600 ]                               | none                                            |
+      | prefix-set-1 | [ 500:500 ]                               | none                                            |
       | prefix-set-2 | [ 100:100, 200:200, 300:300, 500:500, 600:600 ]    | [ 100:100, 200:200, 300:300, 500:500, 600:600 ] |
       | prefix-set-3 | [ 500000:500000, 600000:600000, 500:500, 600:600 ] | [ 500000:500000, 600000:600000 ]                |
 
