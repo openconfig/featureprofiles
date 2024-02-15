@@ -176,7 +176,7 @@ Matches should be performed against a subset of extended community types
       * ext-community-member = [ "link-bandwidth:100000:1M" ]
     * Create an ext-community-set named 'linkbw_2G' with members as follows:
       * ext-community-member = [ "link-bandwidth:100000:2G" ]
-    * Create an community-set named 'regex_match_100' with members as follows:
+    * Create an community-set named 'regex_match_as100' with members as follows:
       * ext-community-member = [ "^100:.*$" ]
     * Create an community-set named 'regex_nomatch_100' with members as follows:
       * ext-community-member = [ "^100:.*$" ]
