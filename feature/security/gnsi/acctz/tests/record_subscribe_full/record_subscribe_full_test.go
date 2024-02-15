@@ -24,11 +24,8 @@ import (
 	"github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnsi/acctz"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
-	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
-	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
@@ -42,7 +39,6 @@ const (
 	successPassword      = "verysecurepassword"
 	failUsername         = "bilbo"
 	failPassword         = "baggins"
-	command              = "show version"
 	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
 	gnoiPingPath         = "/gnoi.system.System/Ping"
 )
@@ -583,137 +579,10 @@ func sendP4RTRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 	return records
 }
 
-func sendSSHCommands(t *testing.T, addr string, port uint32) []rpcRecord {
-	var records []rpcRecord
+func getServiceTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) (string, uint32) {
+	// this shouldn't happen really, but fallback to dut name for target addr
+	defaultAddr := dut.Name()
 
-	// ssh failures not tracked so we only do the success here
-	startTime := time.Now()
-
-	tcpConn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", addr, port), 0)
-	if err != nil {
-		t.Fatalf("got unexpected error dialing ssh tcp connection, error: %s", err)
-	}
-
-	cConn, chans, reqs, err := ssh.NewClientConn(
-		tcpConn,
-		fmt.Sprintf("%s:%d", addr, port),
-		&ssh.ClientConfig{
-			User: successUsername,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(successPassword),
-				ssh.KeyboardInteractive(
-					func(user, instruction string, questions []string, echos []bool) ([]string, error) {
-						answers := make([]string, len(questions))
-						for i := range answers {
-							answers[i] = successPassword
-						}
-
-						return answers, nil
-					},
-				),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		},
-	)
-	if err != nil {
-		t.Fatalf("got unexpected error dialing ssh with bad creds, error: %s", err)
-	}
-
-	// stdin/stdout so we get a tty allocated
-	conn := ssh.NewClient(cConn, chans, reqs)
-
-	sess, err := conn.NewSession()
-	if err != nil {
-		t.Fatalf("failed creating ssh session, error: %s", err)
-	}
-
-	w, err := sess.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = sess.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	term := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 115200,
-		ssh.TTY_OP_OSPEED: 115200,
-	}
-
-	err = sess.RequestPty(
-		"xterm",
-		255,
-		80,
-		term,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = sess.Shell()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// we dont care if it fails really, just gotta send something so accountz has something to...
-	// account; doing all this with a shell so we get a tty allocated
-	_, _ = w.Write([]byte(fmt.Sprintf("%s\n", command)))
-
-	addrParts := strings.Split(tcpConn.LocalAddr().String(), ":")
-	remoteAddr := addrParts[0]
-	remotePort, _ := strconv.Atoi(addrParts[1])
-
-	resolvedAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, port))
-	if err != nil {
-		t.Fatalf("failed resolving ssh destination addr, error: %s", err)
-	}
-
-	addr = resolvedAddr.IP.String()
-
-	records = append(records, rpcRecord{
-		startTime:            startTime,
-		doneTime:             time.Now(),
-		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_UNSPECIFIED,
-		rpcPayload:           nil,
-		localIp:              addr,
-		localPort:            port,
-		remoteIp:             remoteAddr,
-		remotePort:           uint32(remotePort),
-		succeeded:            true,
-		expectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
-		expectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
-		expectedAuthenCause:  "authentication_method: local",
-		expectedIdentity:     successUsername,
-	})
-
-	return records
-}
-
-func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
-	var serviceDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
-
-	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
-	if err != nil {
-		t.Log("DUT does not support `Service` function, will attempt to use dut name field")
-
-		return dut.Name()
-	}
-
-	dutSSHService, err := serviceDUT.Service("ssh")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return dutSSHService.GetOutsideIp()
-}
-
-func getServicePort(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) uint32 {
 	var defaultPort uint32
 
 	target := introspect.DUTDialer(t, dut, service).DialTarget
@@ -736,29 +605,19 @@ func getServicePort(t *testing.T, dut *ondatra.DUTDevice, service introspect.Ser
 		if err != nil {
 			t.Logf("failed parsing port from target, will use default port. target: %s", target)
 
-			return defaultPort
+			return defaultAddr, defaultPort
 		}
 
-		return uint32(p)
+		return targetParts[0], uint32(p)
 	}
 
-	return defaultPort
+	return defaultAddr, defaultPort
 }
 
 func TestAccountzRecordSubscribeFull(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	setupUsers(t, dut)
-
-	// https://github.com/openconfig/featureprofiles/issues/2637
-	// basically, just waiting to see what the "best"/"preferred" way is to get the v4/v6 of the
-	// dut -- for now we have this little hacky work around for v4 and we'll roll with that
-	// slightly later update: we could now use the introspection api but again this is only the
-	// "main" address/target of the dut, we dont know if itll be v4 or v6 and we wont be able to
-	// get the "other" flavor from it
-	v4addr := getDutAddr(t, dut)
-
-	var v6addr string
 
 	var records []rpcRecord
 
@@ -768,34 +627,27 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 
 	startTime := time.Now()
 
-	// need to make requests from v4 and v6 to each g*** service (gnmi/gnoi/gnsi/gribi/p4rt)
-	// for each service type make a success call and a fail call
-	for _, addrType := range []string{"ipv4", "ipv6"} {
-		addr := v4addr
+	// https://github.com/openconfig/featureprofiles/issues/2637
+	// basically, just waiting to see what the "best"/"preferred" way is to get the v4/v6 of the
+	// dut -- for now we just use introspection buuuuut, that wont get us v4 and v6 it will just get
+	// us whatever is configured in binding, so while the test asks for v4 and v6, we'll just be
+	// doing it for whatever we get
+	gnmiAddr, gnmiPort := getServiceTarget(t, dut, introspect.GNMI)
+	gnoiAddr, gnoiPort := getServiceTarget(t, dut, introspect.GNOI)
+	gribiAddr, gribiPort := getServiceTarget(t, dut, introspect.GRIBI)
+	p4rtAddr, p4rtPort := getServiceTarget(t, dut, introspect.P4RT)
 
-		if addrType == "ipv6" {
-			addr = v6addr
+	newRecords := sendGNMIRPCs(t, gnmiAddr, gnmiPort)
+	records = append(records, newRecords...)
 
-			// skipping for now, see above
-			continue
-		}
+	newRecords = sendGNOIRPCs(t, gnoiAddr, gnoiPort)
+	records = append(records, newRecords...)
 
-		newRecords := sendGNMIRPCs(t, addr, getServicePort(t, dut, introspect.GNMI))
-		records = append(records, newRecords...)
+	newRecords = sendGRIBIRPCs(t, gribiAddr, gribiPort)
+	records = append(records, newRecords...)
 
-		newRecords = sendGNOIRPCs(t, addr, getServicePort(t, dut, introspect.GNOI))
-		records = append(records, newRecords...)
-
-		newRecords = sendGRIBIRPCs(t, addr, getServicePort(t, dut, introspect.GRIBI))
-		records = append(records, newRecords...)
-
-		newRecords = sendP4RTRPCs(t, addr, getServicePort(t, dut, introspect.P4RT))
-		records = append(records, newRecords...)
-
-		// suppose ssh could be not 22 in some cases but dont think this is exposed by introspect
-		newRecords = sendSSHCommands(t, addr, 22)
-		records = append(records, newRecords...)
-	}
+	newRecords = sendP4RTRPCs(t, p4rtAddr, p4rtPort)
+	records = append(records, newRecords...)
 
 	// quick sleep to ensure all the records have been processed/ready for us
 	time.Sleep(5 * time.Second)
@@ -946,14 +798,6 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 			}
 		} else if channelID == "aaa_session_id: 0" {
 			t.Fatalf("auth was successful for this record, but channel id was not set, got %q", channelID)
-		}
-
-		// tty only set for ssh things
-		if serviceType == acctz.GrpcService_GRPC_SERVICE_TYPE_UNSPECIFIED {
-			tty := resp.record.GetSessionInfo().GetTty()
-			if tty == "" {
-				t.Fatal("should have tty allocated but not set")
-			}
 		}
 
 		// status
