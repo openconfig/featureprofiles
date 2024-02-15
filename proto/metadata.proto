@@ -405,7 +405,13 @@ message Metadata {
     //Skip tests with decap encap vrf as PBF action 
     // Nokia: partnerissuetracker.corp.google.com/issues/323251581
     bool skip_pbf_with_decap_encap_vrf = 141;
-    
+     // Devices which does not support copying TTL.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 142;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 143;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
   }
