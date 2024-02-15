@@ -104,7 +104,7 @@ Matches should be performed against a subset of extended community types
       | ------------ | -------------------------------------------------- | ----------------------------------------------- |
       | prefix-set-1 | [ 500:500 ]                               | none                                            |
       | prefix-set-2 | [ 100:100, 200:200, 300:300, 500:500, 600:600 ]    | [ 100:100, 200:200, 300:300, 500:500, 600:600 ] |
-      | prefix-set-3 | [ 500000:500000, 600000:600000, 500:500, 600:600 ] | [ 500000:500000, 600000:600000 ]                |
+      | prefix-set-3 | [ 500000:500000, 600000:600000, 500:500 ] | [ 500000:500000, 600000:600000 ]                |
 
 * RT-7.8.3 - Create policy to set ext-community for various match criteria using OC release 2.x
   * Configure the following community sets on the DUT.
