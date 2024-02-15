@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -716,7 +717,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 	t.Run("Union Replace with OC and Invalid Base config CLI", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		var jsonietfVal []byte
-		occliConfig, err := os.ReadFile("vrf.txt")
+		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
 			panic(fmt.Sprintf("Cannot load base config: %v", err))
 		}
@@ -820,7 +821,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(gpbReplaceReq))
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setRes))
 		var jsonietfVal []byte
-		occliConfig, err := os.ReadFile("vrf.txt")
+		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
 			panic(fmt.Sprintf("Cannot load base config: %v", err))
 		}
@@ -1015,8 +1016,9 @@ func TestGnmiUnionReplace(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-
-		t.Run(fmt.Sprintf("Union Replace with OC %v and Base config CLI", strings.ToUpper(strings.TrimSuffix(tc.configPath, ".txt"))), func(t *testing.T) {
+		fileName := filepath.Base(tc.configPath)
+		part := fileName[:len(fileName)-len(filepath.Ext(fileName))]
+		t.Run(fmt.Sprintf("Union Replace with OC %v and Base config CLI", strings.ToUpper(part)), func(t *testing.T) {
 			cliBaseconfig := []*gpb.Update{{
 				Path: &gpb.Path{
 					Origin: "cisco_cli",
@@ -1053,7 +1055,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			}
 			t.Log(asciiVal)
 			asciiVal = baseConfig + asciiVal
-			if tc.configPath == "telemetry.txt" {
+			if tc.configPath == "testdata/telemetry.txt" {
 				telemetryUnionReplace(t, dut, jsonietfVal, asciiVal)
 
 			} else {
@@ -1074,7 +1076,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 				b.Set(t, dut)
 				t.Log("############# DONE UNION REPLACE ###############")
 				tc.checks(t, dut)
-				if tc.configPath == "vrf.txt" {
+				if tc.configPath == "testdata/vrf.txt" {
 					processRestart(t, dut)
 					b.Set(t, dut)
 					tc.checks(t, dut)
