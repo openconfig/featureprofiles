@@ -74,11 +74,11 @@ Matches should be performed against a subset of extended community types
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition[name='match_and_add_comms'/`
     with the following `statements/`
     * statement[name='match_and_add_std_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set =
-        /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='match_std_comms']
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='add_std_comms']
-      * actions/bgp-actions/set-ext-community/config/options = ADD
+      * conditions/bgp-conditions/match-ext-community-set/config/community-set =
+        /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/community-set[name='match_std_comms']
+      * actions/bgp-actions/set-ext-community/reference/config/community-set-refs =
+          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/community-set[name='add_std_comms']
+      * actions/bgp-actions/set-community/config/options = ADD
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
