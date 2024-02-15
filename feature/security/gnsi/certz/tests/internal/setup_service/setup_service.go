@@ -24,7 +24,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -41,6 +43,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+)
+
+var (
+	username = "certzuser"
+	password = "certzpasswd"
+	sn       = "role001.pop55.net.example.com"
 )
 
 type rpcCredentials struct {
@@ -217,9 +225,8 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	return &certzpb.CertificateChain{}
 }
 
-// CertzRotate function to request the certz rotation and validate the certificates.
-func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileID string, entities ...*certzpb.Entity) bool {
-
+// CertzRotate function to request the client certificate rotation.
+func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
 		return false
@@ -271,6 +278,141 @@ func CertzRotate(t *testing.T, certzClient certzpb.CertzClient, profileID string
 	return true
 }
 
+// ServerCertzRotate function to request the server certificate rotation.
+func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+	if len(entities) == 0 {
+		t.Logf("At least one entity required for Rotate request.")
+		return false
+	}
+	uploadRequest := &certzpb.UploadRequest{Entities: entities}
+	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
+	rotateCertRequest := &certzpb.RotateCertificateRequest{
+		ForceOverwrite: false,
+		SslProfileId:   profileID,
+		RotateRequest:  rotateRequest}
+	rotateRequestClient, err := certzClient.Rotate(context.Background())
+	defer rotateRequestClient.CloseSend()
+	if err != nil {
+		t.Fatalf("Error creating rotate request client: %v", err)
+	}
+	err = rotateRequestClient.Send(rotateCertRequest)
+	if err != nil {
+		t.Fatalf("Error sending rotate request: %v", err)
+	}
+	rotateResponse := &certzpb.RotateCertificateResponse{}
+	for i := 0; i < 6; i++ {
+		rotateResponse, err = rotateRequestClient.Recv()
+		if err == nil {
+			break
+		}
+		t.Logf("Did not receive response ~ %vs after sending rotate request. Sleeping 10s to retry...", i*10)
+		time.Sleep(10 * time.Second)
+	}
+	if err != nil {
+		t.Logf("Error fetching rotate certificate response: %v", err)
+		return false
+	}
+	t.Logf("Received Rotate certificate response: %v", rotateResponse)
+	success := false
+	//Trying for 60s for the connection to succeed.
+	for i := 0; i < 6; i++ {
+		success = TestGnmi(t, caCert, san, serverAddr, username, password, cert)
+		if success {
+			break
+		}
+		if i != 5 {
+			log.Printf("GNMI subscription did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if success {
+		finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
+		rotateCertRequest = &certzpb.RotateCertificateRequest{
+			ForceOverwrite: false,
+			SslProfileId:   profileID,
+			RotateRequest:  finalizeRequest}
+
+		err = rotateRequestClient.Send(rotateCertRequest)
+		if err != nil {
+			t.Fatalf("Error sending rotate finalize request: %v", err)
+		}
+		err = rotateRequestClient.CloseSend()
+		if err != nil {
+			t.Fatalf("Error sending rotate close send request: %v", err)
+		}
+		return true
+	} else {
+		log.Printf("GNMI subscription did not succeed ~60s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent")
+		return false
+	}
+}
+
+// CertGeneration function to create test data for use in TLS tests.
+func CertGeneration(dirPath string) error {
+	cmd := exec.Cmd{
+		Path:   "./mk_cas.sh",
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	cmd.Dir = dirPath
+	fmt.Printf("Executing cert generation command %v", cmd)
+	err := cmd.Start()
+	if err != nil {
+		fmt.Printf("unable to run cert generation command:%v", err)
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		fmt.Printf("unable to run cert generation command:%v", err)
+		return err
+	}
+	return err
+}
+
+// CertCleanup function to  clean out the CA content under test_data.
+func CertCleanup(dirPath string) error {
+	cmd := exec.Cmd{
+		Path:   "./cleanup.sh",
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	cmd.Dir = dirPath
+	fmt.Printf("Executing cleanup command")
+	err := cmd.Start()
+	if err != nil {
+		fmt.Printf("unable to run testdata cleanup command:%v", err)
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		fmt.Printf("unable to run testdata cleanup command:%v", err)
+		return err
+	}
+	return err
+}
+
+// ReadDecodeServerCertificate function to read and decode server certificates to extract the SAN
+func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san string) {
+	sc, err := os.ReadFile(serverCertzFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate: %v", err)
+	}
+	block, _ := pem.Decode(sc)
+	if block == nil {
+		t.Fatalf("Failed to parse PEM block containing the public key.")
+	}
+	sCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
+	}
+	san = sCert.DNSNames[0]
+	t.Logf("SAN :%s", san)
+	if sn != san {
+		t.Fatalf("Server name validation failed for %s.", serverCertzFile)
+	}
+	return san
+}
+
 // TestGnsi function to validate the gNSI service RPC after successful rotation.
 func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
@@ -288,7 +430,7 @@ func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("gRPCdial failed to: %q", target)
+		t.Fatalf("TestGnsi:gRPCdial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -325,7 +467,7 @@ func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("gRPCdial failed to: %q", target)
+		t.Fatalf("TestGnoi : gRPCdial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -355,7 +497,7 @@ func TestGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("gRpcDial failed to: %q", target)
+		t.Logf("TestGnmi: gRpcDial failed to %q", target)
 		return false
 	}
 	defer conn.Close()
@@ -417,7 +559,7 @@ func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, p
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("gRpcDial failed to: %q", target)
+		t.Fatalf("TestGnmi: gRpcDial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -447,7 +589,7 @@ func TestP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("gRpcDial failed to: %q", target)
+		t.Fatalf("TestP4rt : gRpcDial failed to %q", target)
 	}
 	defer conn.Close()
 
