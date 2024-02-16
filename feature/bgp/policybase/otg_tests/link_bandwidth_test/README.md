@@ -86,10 +86,18 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
     * Expected matches for each policy
-      |              | zero_linkbw              | match_100_set_linkbw_1M        | nomatch_100_set_linkbw_2G         |
-      | ------------ | ------------------------ | ------------------------------ | --------------------------------- |
-      | prefix-set-5 | [ link-bandwidth:100:0 ] | none                           | [ link-bandwidth:100:2000000000 ] |
-      | prefix-set-6 | [ link-bandwidth:100:0 ] | [ link-bandwidth:100:1000000 ] | none                              |
+      |              | zero_linkbw                            | match_100_set_linkbw_1M                     | nomatch_100_set_linkbw_2G           |
+      | ------------ | -------------------------------------- | ------------------------------------------- | ----------------------------------- |
+      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        | [ link-bandwidth:100:2000000000 ]   |
+      | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] | [ "100:100" ]                       |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:1000000" ]            | [ "link-bandwidth:100:2000000000" ] |
+
+      * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
+        * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
+        * The DUT evaluates a match for regex_nomatch_as100.  This does not match
+          because the regex pattern does not include the link-bandwidth community type.
+        * Community linkbw_2G should be added.
+
 
 * RT-7.5.3 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
   * Note, this is the same at RT-7.8.6, but with a change in the location of the
