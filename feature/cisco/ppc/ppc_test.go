@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -66,15 +67,36 @@ const (
 	vrf1             = "TE"
 )
 
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
-	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
-	intf_npu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State())
-	return intf_npu
+func (args *testArgs) interfaceToNPU(t testing.TB) []string {
+	dut := ondatra.DUT(t, "dut")
+	var temp, npus []string
+	uniqueMap := make(map[string]bool)
 
+	for _, port := range sortPorts(dut.Ports())[1:] {
+		hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		temp = append(temp, gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State()))
+	}
+
+	for _, str := range temp {
+		// Check if the string is not already in the map
+		if _, ok := uniqueMap[str]; !ok {
+			uniqueMap[str] = true
+			npus = append(npus, str)
+		}
+	}
+	return npus
 }
 
 func runBackgroundMonitor(t *testing.T) {
@@ -371,7 +393,7 @@ type event_interface_config struct {
 	config bool
 	shut   bool
 	mtu    int
-	port   []string
+	port   []*ondatra.Port
 }
 
 func (ia event_interface_config) interface_config(t *testing.T) {
@@ -381,13 +403,12 @@ func (ia event_interface_config) interface_config(t *testing.T) {
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
 	for _, port := range ia.port {
-		dutP := dut.Port(t, port)
 		if ia.config {
 			if ia.shut {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+					gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), false)
 				}); errMsg != nil {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
+					gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), false)
 				}
 			}
 			if ia.mtu != 0 {
@@ -397,9 +418,9 @@ func (ia event_interface_config) interface_config(t *testing.T) {
 		} else {
 			//following reload need to try twice
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 			}); errMsg != nil {
-				gnmi.Replace(t, dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
+				gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 			}
 			if ia.mtu != 0 {
 				mtu := fmt.Sprintf("no interface bundle-Ether 121 mtu %d", ia.mtu)
@@ -455,7 +476,6 @@ func (ia event_enable_mpls_ldp) enable_mpls_ldp(t *testing.T) {
 type Testcase struct {
 	name string
 	desc string
-	npu  string
 	flow *ondatra.Flow
 	// sub_type   SubscriptionType
 	event_type   eventType   // events for creating the scenario
@@ -563,71 +583,88 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 	test := []Testcase{
 		{
 			name:       "drop/lookup-block/state/no-route",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_interface_config{config: true, shut: true, port: []string{"port2"}},
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+			event_type: &event_interface_config{config: true, shut: true, port: sortPorts(a.dut.Ports())[1:]},
 		},
 		{
 			name:       "drop/lookup-block/state/no-nexthop",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
 			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
 		},
 		{
 			name:       "drop/lookup-block/state/no-label",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
 			event_type: &event_enable_mpls_ldp{config: true},
 		},
 		{
 			name: "drop/lookup-block/state/incorrect-software-state",
-			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
 		},
 		{
 			name: "drop/lookup-block/state/invalid-packet",
-			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, ttl: true}),
-			npu:  a.interfaceToNPU(t, a.dut.Port(t, "port2")),
+			flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, ttl: true}),
 		},
 		{
 			name:       "drop/lookup-block/state/fragment-total-drops",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &event_interface_config{config: true, mtu: 500, port: []string{"port2"}},
+			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
+			event_type: &event_interface_config{config: true, mtu: 500, port: sortPorts(a.dut.Ports())[1:]},
 		},
 		// {
 		// 	name: "drop/lookup-block/state/acl-drops",
 		// 	CSCwi94987,
 		// },
+		// {
+		// 	name: "drop/lookup-block/state/lookup-aggregate",
+		// 	flow: a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, fps: 1000000000}),
+		// },
 	}
+
+	npus := a.interfaceToNPU(t)                          // collecting all the destination NPUs
+	data := make(map[string]ygnmi.WildcardQuery[uint64]) //holds path and its query information
+	var pre_counters, post_counters uint64
 
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
-			path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", tt.npu, tt.name)
-			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
 
-			// running mulitple subscriptions while tc is executed
-			multiple_subscriptions(t, query)
+			// collecting each path, query per destination NPU
+			for _, npu := range npus {
+				path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, tt.name)
+				query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
+				data[path] = query
+			}
 
-			pre_data, _ := get_data(t, path, query)
+			// running mulitple subscriptions on all the queries while tc is executed
+			for _, query := range data {
+				multiple_subscriptions(t, query)
+			}
+
+			//aggregrate pre counters for a path across all the destination NPUs
+			for path, query := range data {
+				pre, _ := get_data(t, path, query)
+				pre_counters = pre_counters + pre
+			}
 
 			tgn_data := float64(a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type}))
 
-			post_data, _ := get_data(t, path, query)
+			//aggregrate post counters for a path across all the destination NPUs
+			for path, query := range data {
+				post, _ := get_data(t, path, query)
+				post_counters = post_counters + post
+			}
 
 			// following reload, we can have pre data bigger than post indeed using absolute value
-			got := math.Abs(float64(post_data - pre_data))
+			got := math.Abs(float64(post_counters - pre_counters))
 
-			t.Logf("Initial counters for path %s : %d", path, pre_data)
-			t.Logf("Final counters for path %s: %d", path, post_data)
-			t.Logf("Expected counters for path %s: %f", path, got)
+			t.Logf("Initial counters for path %s : %d", tt.name, pre_counters)
+			t.Logf("Final counters for path %s: %d", tt.name, post_counters)
+			t.Logf("Expected counters for path %s: %f", tt.name, got)
 
 			if (math.Abs(tgn_data-got)/(tgn_data))*100 > tolerance {
-				t.Errorf("Data doesn't match for path %s, got: %f, want: %f", path, got, tgn_data)
+				t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, got, tgn_data)
 			} else {
-				t.Logf("Data for path %s, got: %f, want: %f", path, got, tgn_data)
+				t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgn_data)
 			}
 		})
 	}
