@@ -1,4 +1,4 @@
-# RT-7.8: RT-7.8: BGP Policy Match and Set Extended Communities Import/Export Policy
+# RT-7.8: BGP Policy Match and Set Extended Communities Import/Export Policy
 
 ## Summary
 
