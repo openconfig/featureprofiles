@@ -472,7 +472,7 @@ test: {
 }
 test: {
   id: "RT-7.2"
-  description: "BGP Policy Community Set"
+  description: "BGP Policy Community Match and Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
   exec: " "
 }
@@ -484,7 +484,7 @@ test: {
 }
 test: {
   id: "RT-7.4"
-  description: "BGP Policy AS Path Set and Community Set"
+  description: "BGP Policy AS Path and Community Match and Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
   exec: " "
 }
@@ -508,14 +508,20 @@ test: {
 }
 test: {
   id: "RT-7.8"
-  description: "RT-7.8: BGP Policy - Set Communities"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_action_set_test/README.md"
+  description: "RT-7.8: BGP Policy Match and Set Communities Import/Export Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_ext_match_action_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-7.9"
   description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
   readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-7.11"
+  description: "BGP Policy Match and Set Community Import/Export Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/set_community_test/README.md"
   exec: " "
 }
 test: {
