@@ -1056,39 +1056,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     #     check_output(parser_cmd, cwd=internal_fp_repo_dir)
     # )
     
-    # add mtls params to cli conf
-    for dut, cli_conf in reserved_testbed['cli_conf'].items():
-        new_conf = []
-        for l in cli_conf:
-            new_conf.append(l)
-            if l == 'grpc':
-                new_conf.append('  tls-mutual')
-                new_conf.append('  certificate-authentication')
-        reserved_testbed['cli_conf'][dut] = new_conf
-        
-        # apply new cli conf on duts using non-mtls binding
-        with tempfile.NamedTemporaryFile() as of:
-            cli_conf_file = of.name
-            with open(cli_conf_file, 'w') as fp:
-                fp.writelines(reserved_testbed['cli_conf'][dut])
-    
-            cmd = f'{GO_BIN} test -v ' \
-                f'./exec/utils/setconf ' \
-                f'-args ' \
-                f'-testbed {reserved_testbed["testbed_file"]} ' \
-                f'-binding {reserved_testbed["binding_file"]} ' \
-                f'-dut {dut} ' \
-                f'-conf {cli_conf_file}'
-
-            env = dict(os.environ)
-            env.update(_get_go_env(ws))
-            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
-    
-    # update gnmi conf set file from cli_conf
-    for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
-        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
-
-    # convert binding to json
+    # convert binding to json and adjust for mtls
     with tempfile.NamedTemporaryFile() as of:
         out_file = of.name
         cmd = f'{GO_BIN} run ' \
@@ -1145,6 +1113,44 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                     'password': password,
                     'skip_verify': True,
                 }
+    
+    # add mtls params to cli conf
+    for dut, cli_conf in reserved_testbed['cli_conf'].items():
+        gnmi_username = j['duts'][dut]['gnmi']['username']
+        new_conf = []
+        
+        for l in cli_conf:
+            if l == 'grpc':
+                new_conf.append('aaa accounting commands default start-stop local')
+                new_conf.append(f'aaa map-to username {gnmi_username} spiffe-id any')
+                new_conf.append(l)
+                new_conf.append('  tls-mutual')
+                new_conf.append('  certificate-authentication')
+            else:
+                new_conf.append(l)
+        reserved_testbed['cli_conf'][dut] = new_conf
+        
+        # apply new cli conf on duts using non-mtls binding
+        with tempfile.NamedTemporaryFile() as of:
+            cli_conf_file = of.name
+            with open(cli_conf_file, 'w') as fp:
+                fp.writelines(reserved_testbed['cli_conf'][dut])
+    
+            cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/setconf ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {reserved_testbed["binding_file"]} ' \
+                f'-dut {dut} ' \
+                f'-conf {cli_conf_file}'
+
+            env = dict(os.environ)
+            env.update(_get_go_env(ws))
+            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+    
+    # update gnmi conf set file from cli_conf
+    for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
+        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
 
     # convert binding to prototext
     with tempfile.NamedTemporaryFile() as f:
