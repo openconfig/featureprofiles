@@ -23,8 +23,8 @@ criteria.
   * Configure ATE port 1 with a BGP session to DUT port 1.
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
       * prefix-set-1 with 2 routes without communities.
-      * prefix-set-2 with 2 routes with communities `[500:500, 600:600 ]`.
-      * prefix-set-3 with 2 routes with extended communities `[500000:500000, 600000:600000]`.
+      * prefix-set-2 with 2 routes with communities `[5:5, 6:6 ]`.
+      * prefix-set-3 with 2 routes with extended communities `[50:500000, 60:600000]`.
 
 * RT-7.8.1 - Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
@@ -37,10 +37,10 @@ criteria.
   * Configure the following community sets on the DUT.
     (prefix: `/routing-policy/defined-sets/bgp-defined-sets/`)
     * Create a `community-sets/community-set` named 'match_std_comms' with members as follows:
-      * community-member = [ "500:500" ]
+      * community-member = [ "5:5" ]
       * match-set-options = ANY
     * Create a `community-sets/community-set` named 'add_std_comms' with members as follows:
-      * community-member = [ "100:100", "200:200", "300:300" ]
+      * community-member = [ "10:10", "20:20", "30:30" ]
 
   * Create `/routing-policy/policy-definitions/policy-definition/policy-definition[name='add_std_comms']/`
     with the following `statements/`
@@ -81,20 +81,21 @@ criteria.
     * Verify expected communities are present.
 
     * Expected communities
-      |              | add_std_comms                                   | match_and_add_std_comms                         |
-      | ------------ | ----------------------------------------------- | ----------------------------------------------- |
-      | prefix-set-1 | [ 500:500 ]                                     | none                                            |
-      | prefix-set-2 | [ 100:100, 200:200, 300:300, 500:500, 600:600 ] | [ 100:100, 200:200, 300:300, 500:500, 600:600 ] |
-      | prefix-set-3 | [ 500000:500000, 600000:600000, 500:500 ]       | [ 500000:500000, 600000:600000 ]                |
+      |              | add_std_comms                                 | match_and_add_std_comms           |
+      | ------------ | --------------------------------------------- | --------------------------------- |
+      | prefix-set-1 | [ 10:10, 20:20, 30:30 ]                       | none                              |
+      | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
+      | prefix-set-3 | [ 10:10, 20:20, 30:30, 50:500000, 60:600000 ] | [ 50:500000, 60:600000 ]          |
 
 * RT-7.8.3 - Create policy to set ext-community for various match criteria using OC release 2.x
+  * Note, this particular subtest only covers  <2b AS>:<4b value> per RFC4360 section 3.1
   * Configure the following community sets on the DUT.
     (prefix: `/routing-policy/defined-sets/bgp-defined-sets/`)
     * Create  `ext-community-sets/ext-community-set['match_ext_comms]` with members as follows:
-      * community-member = [ "500000:500000" ]
+      * community-member = [ "50:500000" ]
       * match-set-options = ANY
     * Create `ext-community-sets/ext-community-set[name='add_ext_comms']` with members as follows:
-      * community-member = [ "100:100000", "200000:200000" ]
+      * community-member = [ "1:100000", "2:200000" ]
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition/`
     named 'add_ext_comms' with the following `statements/`
@@ -127,11 +128,11 @@ criteria.
     * Verify expected communities are present.
 
     * Expected matches for each policy
-      |              | add_ext_comms                                               | match_and_add_ext_comms                                     |
-      | ------------ | ----------------------------------------------------------- | ----------------------------------------------------------- |
-      | prefix-set-1 | [ 100:100000, 200000:200000 ]                               | none                                                        |
-      | prefix-set-2 | [ 100:100000, 200000:200000, 500:500, 600:600 ]             | [ 500:500, 600:600 ]                                        |
-      | prefix-set-3 | [ 100:100000, 200000:200000, 500000:500000, 600000:600000 ] | [ 100:100000, 200000:200000, 500000:500000, 600000:600000 ] |
+      |              | add_ext_comms                                | match_and_add_ext_comms                      |
+      | ------------ | -------------------------------------------- | -------------------------------------------- |
+      | prefix-set-1 | [ 1:100000, 2:200000 ]                       | none                                         |
+      | prefix-set-2 | [ 1:100000, 2:200000, 5:5, 6:6 ]             | [ 5:5, 6:6 ]                                 |
+      | prefix-set-3 | [ 1:100000, 2:200000, 50:500000, 60:600000 ] | [ 1:100000, 2:200000, 50:500000, 60:600000 ] |
 
 * RT-7.8.4 - Validate community-sets and routing-policy using OC release 3.x
   * Note, this is the same at RT-7.8.2, but with a change in the location of the
