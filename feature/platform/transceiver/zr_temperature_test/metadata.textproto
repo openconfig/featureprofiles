@@ -1,0 +1,31 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "fd964d62-068c-486d-8b17-912dfd48f388"
+plan_id:  "TRANSCEIVER-8"
+description:  "TRANSCEIVER-8: Telemetry: 400ZR Optics module temperature streaming"
+testbed: TESTBED_DUT_DUT_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    transceiver_thresholds_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    transceiver_thresholds_unsupported:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    transceiver_thresholds_unsupported:  true
+  }
+}
