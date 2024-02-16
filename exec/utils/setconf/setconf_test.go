@@ -35,6 +35,8 @@ func TestSetConf(t *testing.T) {
 	}
 
 	conf := string(b)
+	t.Logf("%v", conf)
+
 	updateRequest := &gnmi.Update{
 		Path: &gnmi.Path{
 			Origin: "cli",
