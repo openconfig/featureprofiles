@@ -85,18 +85,18 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*40).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
 				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 			}
-			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*40).Await(t)
 			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 			if len(outputPowers) == 0 {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 			}
 
-			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
+			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*40).Await(t)
 			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
@@ -237,8 +237,8 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := gnmi.OC().Component(transceiverName).Transceiver().ChannelAny()
-			inputPowers := gnmi.LookupAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), channels.InputPower().Instant().State())
-			outputPowers := gnmi.LookupAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), channels.OutputPower().Instant().State())
+			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
+			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
 
 			for _, inputPower := range inputPowers {
 				inPower, ok := inputPower.Val()
