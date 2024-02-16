@@ -621,11 +621,11 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 
 	npus := a.interfaceToNPU(t)                          // collecting all the destination NPUs
 	data := make(map[string]ygnmi.WildcardQuery[uint64]) //holds path and its query information
-	var pre_counters, post_counters uint64
 
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
+			var pre_counters, post_counters uint64
 			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 			// collecting each path, query per destination NPU
