@@ -1146,7 +1146,8 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                 f'-testbed {reserved_testbed["testbed_file"]} ' \
                 f'-binding {reserved_testbed["binding_file"]} ' \
                 f'-dut {dut} ' \
-                f'-conf {cli_conf_file}'
+                f'-conf {cli_conf_file} ' \
+                f'-ignore_set_err=true ' \
 
             env = dict(os.environ)
             env.update(_get_go_env(ws))
