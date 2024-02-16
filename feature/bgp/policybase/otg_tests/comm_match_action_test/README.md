@@ -5,7 +5,7 @@
 Configure bgp policy to add communities to routes by matching on the following
 criteria.
 
-* RT-7.11.1 Setup and validate test environment
+* RT-7.11.1 Validate test environment
 * RT-7.11.2 Validate policy to set standard community for various policies using OC release 2.x
 * RT-7.11.3 Validate community-sets and routing-policy for various policies using OC release 3.x
 

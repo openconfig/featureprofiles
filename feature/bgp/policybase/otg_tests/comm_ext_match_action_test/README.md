@@ -1,10 +1,11 @@
-# RT-7.8: BGP Policy - Set Communities and Extended Communities
+# RT-7.8: RT-7.8: BGP Policy Match and Set Extended Communities Import/Export Policy
 
 ## Summary
 
 Configure bgp policy to add communities to routes by matching on the following
 criteria.
 
+* RT-7.8.1 Validate test environment
 * RT-7.8.2 Validate policy to set standard community for all routes using OC release 2.x
 * RT-7.8.3 Validate policy to set ext-community for various match criteria using OC release 2.x
 * RT-7.8.4 Validate community-sets and routing-policy using OC release 3.x
@@ -26,7 +27,7 @@ criteria.
       * prefix-set-2 with 2 ipv6 and 2 ipv4 routes with communities `[5:5, 6:6 ]`.
       * prefix-set-3 with 2 ipv6 and 2 ipv4 routes with extended communities `[50:500000, 60:600000]`.
 
-* RT-7.8.1 - Validate prefixes are propagated by DUT
+* RT-7.8.1 - Validate test environment
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
   * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
