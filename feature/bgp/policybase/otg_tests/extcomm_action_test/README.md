@@ -1,4 +1,4 @@
-# RT-7.8: BGP Policy - Set Communities
+# RT-7.8: BGP Policy - Set Communities and Extended Communities
 
 ## Summary
 
