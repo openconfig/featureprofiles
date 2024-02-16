@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-7.10"
-description: "BGP Policy - Import/Export Policy Action Using Multiple Criteria"
+plan_id: "RT-7.8"
+description: "RT-7.8: BGP Policy - Set Communities"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: TAGS_AGGREGATION, TAGS_DATACENTER_EDGE
