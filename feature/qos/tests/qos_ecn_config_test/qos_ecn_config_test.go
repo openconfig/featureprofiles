@@ -279,21 +279,17 @@ func testECNConfig(t *testing.T, q *oc.Qos) {
 		}
 
 	}
-	if !deviations.StatePathsUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
-			t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
-			t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
-		}
+	if got, want := gnmi.Get(t, dut, wredUniform.MinThreshold().State()), ecnConfig.minThreshold; got != want {
+		t.Errorf("wredUniform.MinThreshold().State(): got %v, want %v", got, want)
 	}
-	if !deviations.DropWeightLeavesUnsupported(dut) {
-		if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
-			t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
-		}
-		if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
-			t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
-		}
+	if got, want := gnmi.Get(t, dut, wredUniform.MaxThreshold().State()), ecnConfig.maxThreshold; got != want {
+		t.Errorf("wredUniform.MaxThreshold().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.Drop().State()), ecnConfig.dropEnabled; got != want {
+		t.Errorf("wredUniform.Drop().State(): got %v, want %v", got, want)
+	}
+	if got, want := gnmi.Get(t, dut, wredUniform.Weight().State()), ecnConfig.weight; got != want {
+		t.Errorf("wredUniform.Weight().State(): got %v, want %v", got, want)
 	}
 }
 
@@ -425,16 +421,14 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 		// Verify the policy is applied by checking the telemetry path state values.
 		policy := gnmi.OC().Qos().Interface(dp.Name()).Output().SchedulerPolicy()
 		outQueue := gnmi.OC().Qos().Interface(dp.Name()).Output().Queue(tc.queueName)
-		if !deviations.StatePathsUnsupported(dut) {
-			if got, want := gnmi.Get(t, dut, policy.Name().State()), tc.scheduler; got != want {
-				t.Errorf("policy.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
-				t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
-			}
-			if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
-				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
-			}
+		if got, want := gnmi.Get(t, dut, policy.Name().State()), tc.scheduler; got != want {
+			t.Errorf("policy.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.Name().State()), tc.queueName; got != want {
+			t.Errorf("outQueue.Name().State(): got %v, want %v", got, want)
+		}
+		if got, want := gnmi.Get(t, dut, outQueue.QueueManagementProfile().State()), tc.ecnProfile; got != want {
+			t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 		}
 		if deviations.QosGetStatePathUnsupported(dut) {
 			if got, want := gnmi.Get(t, dut, policy.Name().Config()), tc.scheduler; got != want {
