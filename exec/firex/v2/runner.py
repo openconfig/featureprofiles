@@ -1138,7 +1138,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         with tempfile.NamedTemporaryFile() as of:
             cli_conf_file = of.name
             with open(cli_conf_file, 'w') as fp:
-                fp.writelines(reserved_testbed['cli_conf'][dut])
+                fp.write('\n'.join(reserved_testbed['cli_conf'][dut]) + '\n')
     
             cmd = f'{GO_BIN} test -v ' \
                 f'./exec/utils/setconf ' \
