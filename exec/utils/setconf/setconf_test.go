@@ -13,7 +13,8 @@ import (
 
 var (
 	confFlag   = flag.String("conf", "", "CLI configuration file")
-	updateFlag = flag.Bool("update", false, "Perform Update instead of Replace")
+	dutIdFlag  = flag.String("dut", "dut", "DUT id (default: dut)")
+	updateFlag = flag.Bool("update", false, "Perform Update instead of Replace (default: false)")
 )
 
 func TestMain(m *testing.M) {
@@ -26,7 +27,7 @@ func TestSetConf(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	dut := ondatra.DUT(t, "dut")
+	dut := ondatra.DUT(t, *dutIdFlag)
 
 	b, err := os.ReadFile(*confFlag)
 	if err != nil {
