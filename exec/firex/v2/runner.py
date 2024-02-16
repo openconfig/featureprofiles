@@ -1077,8 +1077,11 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
     glob_password = j.get('options', {}).get('password', "")   
     j['options'] = {}
     
+    dut_map = {}
     for dut in j.get('duts', []):
         dut_id = dut['id']
+        dut_map[dut_id] = dut
+
         dut_username = dut.get('options', {}).get('username', glob_username)
         dut_password = dut.get('options', {}).get('password', glob_password)
         dut['options'] = {}
@@ -1114,9 +1117,10 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
                     'skip_verify': True,
                 }
     
+    
     # add mtls params to cli conf
     for dut, cli_conf in reserved_testbed['cli_conf'].items():
-        gnmi_username = j['duts'][dut]['gnmi']['username']
+        gnmi_username = dut_map[dut]['gnmi']['username']
         new_conf = []
         
         for l in cli_conf:
