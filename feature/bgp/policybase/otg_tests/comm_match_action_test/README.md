@@ -2,17 +2,12 @@
 
 ## Summary
 
-# RT-7.8: BGP Policy - Set Communities and Extended Communities
-
-## Summary
-
 Configure bgp policy to add communities to routes by matching on the following
 criteria.
 
-* RT-7.8.2 Validate policy to set standard community for all routes using OC release 2.x
-* RT-7.8.3 Validate policy to set community for various match criteria using OC release 2.x
-* RT-7.8.4 Validate community-sets and routing-policy using OC release 3.x
-* RT-7.8.5 Validate community-sets and routing-policy using OC release 3.x
+* RT-7.11.1 Setup and validate test environment
+* RT-7.11.2 Validate policy to set standard community for various policies using OC release 2.x
+* RT-7.11.3 Validate community-sets and routing-policy for various policies using OC release 3.x
 
 ## Testbed type
 
@@ -101,8 +96,8 @@ criteria.
       | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
       | prefix-set-3 | [ 10:10, 20:20, 30:30, 50:500000, 60:600000 ] | [ 50:500000, 60:600000 ]          |
 
-* RT-7.11.4 - Validate community-sets and routing-policy using OC release 3.x
-  * Note, this is the same at RT-7.8.2, but with a change in the location of the
+* RT-7.11.3 - Validate community-sets and routing-policy using OC release 3.x
+  * Note, this is the same at RT-7.11.2, but with a change in the location of the
     `match-set-options` leaf which moved to
     `/routing-policy/policy-definitions/policy-definition/policy-definition/bgp-conditions/match-community-set/config/match-set-options`
 
