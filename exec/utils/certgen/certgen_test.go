@@ -71,7 +71,10 @@ func TestCertGen(t *testing.T) {
 			t.Fatalf("Error creating output directory: %v", err)
 		}
 
-		certTemp, err := certUtil.PopulateCertTemplate(d.gnmiUser, []string{d.gnmiUser}, []net.IP{}, d.gnmiUser, 100)
+		t.Logf("IP: %v", d.gnmiIp)
+		t.Logf("User: %v", d.gnmiUser)
+
+		certTemp, err := certUtil.PopulateCertTemplate(d.gnmiUser, []string{d.gnmiUser}, []net.IP{net.ParseIP(d.gnmiIp)}, d.gnmiUser, 100)
 		if err != nil {
 			panic(fmt.Sprintf("Could not generate template: %v", err))
 		}
@@ -92,7 +95,7 @@ func TestCertGen(t *testing.T) {
 			panic(fmt.Sprintf("Could not save cleint cert/key in pem files: %v", err))
 		}
 
-		copyFile(t, path.Join(dir, caKeyFileName), path.Join(dutOutDir, caCertFileName))
+		copyFile(t, path.Join(dir, caCertFileName), path.Join(dutOutDir, caCertFileName))
 		transferKeys(t, &d, dutOutDir)
 
 		copyKeysCmds := []string{
@@ -104,8 +107,10 @@ func TestCertGen(t *testing.T) {
 		dut := ondatra.DUT(t, d.dut)
 		for _, c := range copyKeysCmds {
 			time.Sleep(3 * time.Second)
-			if _, err := sendCLI(t, dut, c); err != nil {
+			if resp, err := sendCLI(t, dut, c); err != nil {
 				t.Fatalf("Error running command %v, on dut %v", c, d.dut)
+			} else {
+				t.Logf("%v", resp)
 			}
 		}
 	}
