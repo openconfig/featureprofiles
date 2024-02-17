@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -137,6 +139,49 @@ func runBackgroundMonitor(t *testing.T) {
 			time.Sleep(30 * time.Second)
 		}
 	}()
+}
+
+// extend it to run p4rt in background as well
+func runMultipleClientBackground(t *testing.T) {
+	t.Logf("running multiple client like gribi in the background")
+	dut := ondatra.DUT(t, "dut")
+	client := gribi.Client{
+		DUT:                   dut,
+		FibACK:                true,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	defer client.Close(t)
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	go func() {
+		for {
+			client.BecomeLeader(t)
+			client.FlushServer(t)
+			time.Sleep(10 * time.Second)
+			ciscoFlags.GRIBIChecks.AFTCheck = false
+			client.AddNH(t, 3, ateDst.IPv4, "DEFAULT", "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+			client.AddNHG(t, 3, 0, map[uint64]uint64{3: 30}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
+			client.AddIPv4(t, "10.1.0.1/32", 3, vrf1, "DEFAULT", false, ciscoFlags.GRIBIChecks)
+
+			client.AddNH(t, 2, "DecapEncap", "DEFAULT", "TE", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
+			client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
+			client.AddIPv4(t, "192.0.2.40/32", 2, "DEFAULT", "", false, ciscoFlags.GRIBIChecks)
+
+			client.AddNH(t, 1, "192.0.2.40", "DEFAULT", "", "", false, ciscoFlags.GRIBIChecks)
+			client.AddNHG(t, 1, 0, map[uint64]uint64{1: 20}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
+			client.AddIPv4(t, "198.51.100.1/32", 1, vrf1, "DEFAULT", false, ciscoFlags.GRIBIChecks)
+
+			//reprogram every 30 seconds to add churn
+			time.Sleep(30 * time.Second)
+		}
+	}()
+	time.Sleep(30 * time.Second)
 }
 
 type triggerType interface {
@@ -626,6 +671,8 @@ func (a *testArgs) testOC_drop_block(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			var pre_counters, post_counters uint64
+			pre_counters, post_counters = 0, 0
+
 			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 			// collecting each path, query per destination NPU
@@ -733,6 +780,9 @@ func TestOC_PPC(t *testing.T) {
 	if chassis_type == "distributed" {
 		runBackgroundMonitor(t)
 	}
+
+	//starting other clients running in the backgroun
+	// runMultipleClientBackground(t)
 
 	dut := ondatra.DUT(t, "dut")
 
