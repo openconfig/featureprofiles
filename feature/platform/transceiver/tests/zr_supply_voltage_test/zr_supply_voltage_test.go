@@ -46,7 +46,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 	// Create slice of transceivers with required PMD.
 	zrTransceivers := make([]string, 0)
 	for _, tx := range transceivers {
-		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd != ethernetPMD {
+		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd == ethernetPMD {
 			zrTransceivers = append(zrTransceivers, tx)
 		}
 	}
