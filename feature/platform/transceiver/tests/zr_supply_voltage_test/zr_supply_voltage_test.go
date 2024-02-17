@@ -47,7 +47,6 @@ func TestZrSupplyVoltage(t *testing.T) {
 	zrTransceivers := make([]string, 0)
 	for _, tx := range transceivers {
 		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd != ethernetPMD {
-			t.Logf("Want ethernetPMD %q for tx %q: got %q", ethernetPMD, tx, txPmd)
 			zrTransceivers = append(zrTransceivers, tx)
 		}
 	}
