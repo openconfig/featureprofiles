@@ -490,7 +490,7 @@ test: {
 }
 test: {
   id: "RT-7.5"
-  description: "RT-7.5: BGP Link Bandwidth Community Forwarding"
+  description: "RT-7.5: BGP Policy - Set Link Bandwidth Community"
   readme: ""
   exec: " "
 }
@@ -514,12 +514,6 @@ test: {
 }
 test: {
   id: "RT-7.9"
-  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
-  readme: " "
-  exec: " "
-}
-test: {
-  id: "RT-7.11"
   description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
   exec: " "
