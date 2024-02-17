@@ -613,6 +613,11 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.tempOpSensor {
+				subCompStr := cName + "-Module Temp"
+				opticTempSubComp := gnmi.Get(t, dut, gnmi.OC().Component(cName).Subcomponent(subCompStr).State())
+				if opticTempSubComp == nil {
+					t.Skipf("Skipping as optic does not support temp sensor")
+				}
 				tempOpSensor := gnmi.Get(t, dut, gnmi.OC().Component(cName).Temperature().State())
 				var minTimeString string
 				var maxTimeString string
