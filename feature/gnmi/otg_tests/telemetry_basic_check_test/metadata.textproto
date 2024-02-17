@@ -67,3 +67,4 @@ platform_exceptions: {
     os_component_parent_is_chassis: true
   }
 }
+path_presence_test: true
