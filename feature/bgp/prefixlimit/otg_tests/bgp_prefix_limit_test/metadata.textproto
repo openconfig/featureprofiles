@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    prefix_limit_exceeded_telemetry_unsupported: true
   }
 }
 platform_exceptions: {
