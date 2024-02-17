@@ -28,7 +28,7 @@ communities to routes based on a prefix match.
   * Validate that traffic can be received on ATE port-1 for all installed
     routes.
 
-* RT-7.5.2 - Validate adding link-bandwidth ext-community-sets using OC model release 2.x
+* RT-7.5.2 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
   * Configure the following extended community sets on the DUT:
     (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
     * Create an ext-community-set named 'linkbw_0' with:
@@ -41,7 +41,6 @@ communities to routes based on a prefix match.
       * ext-community-member = [ "^100:.*$" ]
     * Create an community-set named 'regex_nomatch_as100' with members as follows:
       * ext-community-member = [ "^100:.*$" ]
-      * match-set-options = INVERT
     * Create an ext-community-set named 'linkbw_any' with members as follows:
       * ext-community-member = [ "^link-bandwidth:.*:.*$" ]
 
@@ -60,6 +59,7 @@ communities to routes based on a prefix match.
     named 'match_100_set_linkbw_1M' with the following `statements`
     * statement[name='1-megabit-match']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
           /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_1M']
     * statement[name='accept_all_routes']/
@@ -113,12 +113,6 @@ communities to routes based on a prefix match.
         * The DUT evaluates a match for regex_nomatch_as100.  This does not match
           because the regex pattern does not include the link-bandwidth community type.
         * Community linkbw_2G should be added.
-
-
-* RT-7.5.3 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
-  * Note, this is the same at RT-7.8.6, but with a change in the location of the
-    `match-set-options` leaf which moved to
-    `/routing-policy/policy-definitions/policy-definition/policy-definition/bgp-conditions/match-ext-community-set/config/match-set-options`
 
 ## Config Parameter Coverage
 

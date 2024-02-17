@@ -6,8 +6,7 @@ Configure bgp policy to add communities to routes by matching on the following
 criteria.
 
 * RT-7.9.1 Validate test environment
-* RT-7.9.2 Validate policy to set standard community for various policies using OC release 2.x
-* RT-7.9.3 Validate community-sets and routing-policy for various policies using OC release 3.x
+* RT-7.9.2 Validate policy to set standard community for various policies using OC release 3.x
 
 ## Testbed type
 
@@ -33,12 +32,11 @@ criteria.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
     * Stop traffic
 
-* RT-7.9.2 - Create policy to set standard community for all routes using OC release 2.x
+* RT-7.9.2 - Create policy to set standard community for all routes using OC release 3.x
   * Configure the following community sets on the DUT.
     (prefix: `/routing-policy/defined-sets/bgp-defined-sets/`)
     * Create a `community-sets/community-set` named 'match_std_comms' with members as follows:
       * community-member = [ "5:5" ]
-      * match-set-options = ANY
     * Create a `community-sets/community-set` named 'add_std_comms' with members as follows:
       * community-member = [ "10:10", "20:20", "30:30" ]
 
@@ -58,6 +56,7 @@ criteria.
     * statement[name='match_and_add_std_comms']/
       * conditions/bgp-conditions/match-community-set/config/community-set =
         /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set[name='match_std_comms']
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/bgp-actions/set-community/reference/config/community-set-refs =
           /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set[name='add_std_comms']
       * actions/bgp-actions/set-community/config/options = ADD
@@ -95,11 +94,6 @@ criteria.
       | prefix-set-1 | [ 10:10, 20:20, 30:30 ]                       | none                              |
       | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
       | prefix-set-3 | [ 10:10, 20:20, 30:30, 50:500000, 60:600000 ] | [ 50:500000, 60:600000 ]          |
-
-* RT-7.9.3 - Validate community-sets and routing-policy using OC release 3.x
-  * Note, this is the same at RT-7.9.2, but with a change in the location of the
-    `match-set-options` leaf which moved to
-    `/routing-policy/policy-definitions/policy-definition/policy-definition/bgp-conditions/match-community-set/config/match-set-options`
 
 ## Config Parameter Coverage
 
