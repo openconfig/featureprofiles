@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -59,6 +60,7 @@ type properties struct {
 	hwVerValidation       bool
 	fwVerValidation       bool
 	rrValidation          bool
+	tempOpSensor          bool
 	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
 	parentValidation      bool
 	pType                 oc.Component_Type_Union
@@ -115,6 +117,17 @@ func TestMain(m *testing.M) {
 //
 //   - https://github.com/karimra/gnmic/blob/main/README.md
 
+// Helper function to format and log time.
+func formatUnixTime(unixTimePtr *uint64) string {
+	if unixTimePtr != nil {
+		// Safely convert uint64 to int64 for the time.Unix function.
+		unixTime := int64(*unixTimePtr)
+		// Format the time to RFC3339 format and return it as a string.
+		return time.Unix(unixTime, 0).UTC().Format(time.RFC3339)
+	}
+	// If the pointer is nil, return an empty string or a placeholder.
+	return "time not available"
+}
 func TestHardwareCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -136,6 +149,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      false,
 				pType:                 componentType["Chassis"],
@@ -153,6 +167,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 componentType["Fabric"],
@@ -170,6 +185,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      false,
 				pType:                 componentType["Fan"],
@@ -187,6 +203,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
@@ -204,6 +221,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 componentType["PowerSupply"],
@@ -222,6 +240,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          true,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 componentType["Supervisor"],
@@ -240,6 +259,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       true,
 				rrValidation:          false,
+				tempOpSensor:          true,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Transceiver"],
@@ -258,6 +278,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Cpu"],
@@ -276,6 +297,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Storage"],
@@ -587,6 +609,63 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				t.Logf("Component %s Name: %s", cName, name)
 				if name == "" {
 					t.Errorf("Encountered empty Name for component %s", cName)
+				}
+			}
+
+			if p.tempOpSensor {
+				tempOpSensor := gnmi.Get(t, dut, gnmi.OC().Component(cName).Temperature().State())
+				var minTimeString string
+				var maxTimeString string
+				minTimeString = formatUnixTime(tempOpSensor.MinTime)
+				maxTimeString = formatUnixTime(tempOpSensor.MaxTime)
+
+				// Check if any of the values are nil and log an error.
+				if tempOpSensor.Instant == nil || tempOpSensor.Avg == nil ||
+					tempOpSensor.Min == nil || tempOpSensor.Max == nil ||
+					tempOpSensor.MaxTime == nil || tempOpSensor.MinTime == nil ||
+					tempOpSensor.Interval == nil {
+
+					missingFields := []string{}
+					if tempOpSensor.Instant == nil {
+						missingFields = append(missingFields, "Instant")
+					}
+					if tempOpSensor.Avg == nil {
+						missingFields = append(missingFields, "Avg")
+					}
+					if tempOpSensor.Min == nil {
+						missingFields = append(missingFields, "Min")
+					}
+					if tempOpSensor.Max == nil {
+						missingFields = append(missingFields, "Max")
+					}
+					if tempOpSensor.MaxTime == nil {
+						missingFields = append(missingFields, "MaxTime")
+					}
+					if tempOpSensor.MinTime == nil {
+						missingFields = append(missingFields, "MinTime")
+					}
+					if tempOpSensor.Interval == nil {
+						missingFields = append(missingFields, "Interval")
+					}
+					t.Errorf("Values not found for component %v: %s", cName, strings.Join(missingFields, ", "))
+				} else {
+					// Use a helper function or loop to log the values to avoid repetitive code.
+
+					t.Logf(minTimeString)
+					values := map[string]interface{}{
+						"Instant":  *tempOpSensor.Instant,
+						"AVG":      *tempOpSensor.Avg,
+						"MIN":      *tempOpSensor.Min,
+						"MAX":      *tempOpSensor.Max,
+						"INTERVAL": *tempOpSensor.Interval,
+						"MIN TIME": maxTimeString,
+						"MAX TIME": minTimeString,
+					}
+					for output, value := range values {
+						if value != nil {
+							t.Logf("Component %v %s: %v", cName, output, value)
+						}
+					}
 				}
 			}
 
