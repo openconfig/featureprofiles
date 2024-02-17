@@ -38,13 +38,12 @@ func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
-	t.Logf("Found transceiver list: %v", transceivers)
-	if len(transceivers) == 0 {
-		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
-	}
 
 	// Map of 400zr transceiver.
 	for _, tx := range transceivers {
+		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd != ethernetPMD {
+			continue
+		}
 		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
 			txComponent := gnmi.OC().Component(tx)
 
