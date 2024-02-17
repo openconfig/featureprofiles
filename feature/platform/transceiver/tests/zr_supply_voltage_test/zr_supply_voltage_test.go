@@ -40,14 +40,22 @@ func TestZrSupplyVoltage(t *testing.T) {
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
 	if len(transceivers) == 0 {
-		t.Fatalf("Get transceiver list for %q: got 0, want > 0", dut.Model())
+		t.Fatalf("Got transceiver list for %q: got 0, want > 0", dut.Model())
 	}
 
+	// Create slice of transceivers with required PMD.
+	zrTransceivers := make([]string, 0)
 	for _, tx := range transceivers {
-		// Skip if PMD is not of required type.
 		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd != ethernetPMD {
-			continue
+			t.Logf("Want ethernetPMD %q for tx %q: got %q", ethernetPMD, tx, txPmd)
+			zrTransceivers = append(zrTransceivers, tx)
 		}
+	}
+	if len(zrTransceivers) == 0 {
+		t.Fatalf("Got ZR transceiver list for %q: got 0, want > 0", dut.Model())
+	}
+
+	for _, tx := range zrTransceivers {
 		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
 			txComponent := gnmi.OC().Component(tx)
 
