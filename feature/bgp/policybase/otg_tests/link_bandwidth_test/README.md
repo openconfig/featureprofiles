@@ -74,6 +74,16 @@ communities to routes based on a prefix match.
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
+  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
+    named 'del_linkbw' with the following `statements`
+    * statement[name='del_linkbw']/
+      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any'
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
+          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_any']
+      * actions/config/policy-result = NEXT_STATEMENT
+    * statement[name='accept_all_routes']/
+      * actions/config/policy-result = ACCEPT_ROUTE
+
   * For each policy-definition created, run a subtest (RT-7.8.3.x-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
@@ -86,11 +96,17 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
     * Expected matches for each policy
-      |              | zero_linkbw                            | match_100_set_linkbw_1M                     | nomatch_100_set_linkbw_2G           |
-      | ------------ | -------------------------------------- | ------------------------------------------- | ----------------------------------- |
-      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        | [ link-bandwidth:100:2000000000 ]   |
-      | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] | [ "100:100" ]                       |
-      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:1000000" ]            | [ "link-bandwidth:100:2000000000" ] |
+      |              | zero_linkbw                            | match_100_set_linkbw_1M                     |
+      | ------------ | -------------------------------------- | ------------------------------------------- |
+      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        |
+      | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:1000000" ]            |
+
+      |              | nomatch_100_set_linkbw_2G           | del_linkbw    |
+      | ------------ | ----------------------------------- | ------------- |
+      | prefix-set-1 | [ "link-bandwidth:100:2000000000" ] | none          |
+      | prefix-set-2 | [  "100:100" ]                      | [ "100:100" ] |
+      | prefix-set-3 | [ "link-bandwidth:100:2000000000" ] | [ none ]      |
 
       * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
         * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
