@@ -212,32 +212,49 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 		}
 	}
 
+	// close all the existing goroutine for the trigger
+	close(stop_monitor)
+	close(stop_clients)
+	<-done_monitor
+	<-done_clients
+
 	// Space to add trigger code
 	for _, tt := range triggers {
 		t.Logf("Name: %s", tt.name)
 		t.Logf("Description: %s", tt.desc)
-		// if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
-		// 	triggerAction.restartProcessBackground(t, a.ctx)
-		// }
-		// if chassis_type == "distributed" && with_RPFO {
-		// 	if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
-		// 		// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
-		// 		triggerAction.rpfo(t, a.ctx, false)
-		// 	}
-		// } else if chassis_type == "fixed" && with_RPFO {
-		// 	if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
-		// 		// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
-		// 		triggerAction.rpfo(t, a.ctx, true)
-		// 		tolerance = triggerAction.tolerance
-		// 	}
-		// }
-		// if chassis_type == "distributed" && with_lc_reload {
-		// 	if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
-		// 		triggerAction.lc_reload(t)
-		// 		tolerance = triggerAction.tolerance
-		// 	}
-		// }
+		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
+			triggerAction.restartProcessBackground(t, a.ctx)
+		}
+		if chassis_type == "distributed" && with_RPFO {
+			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
+				triggerAction.rpfo(t, a.ctx, false)
+			}
+		} else if chassis_type == "fixed" && with_RPFO {
+			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
+				triggerAction.rpfo(t, a.ctx, true)
+				tolerance = triggerAction.tolerance
+			}
+		}
+		if chassis_type == "distributed" && with_lc_reload {
+			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
+				triggerAction.lc_reload(t)
+				tolerance = triggerAction.tolerance
+			}
+		}
 	}
+
+	// restart goroutines
+	if chassis_type == "distributed" {
+		done_monitor_trigger = make(chan struct{})
+		stop_monitor_trigger = make(chan struct{})
+		runBackgroundMonitor(t, stop_monitor_trigger, done_monitor_trigger)
+	}
+	//starting other clients running in the backgroun
+	done_clients_trigger = make(chan struct{})
+	stop_clients_trigger = make(chan struct{})
+	runMultipleClientBackground(t, stop_clients_trigger, done_clients_trigger)
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	a.ate.Traffic().Stop(t)
