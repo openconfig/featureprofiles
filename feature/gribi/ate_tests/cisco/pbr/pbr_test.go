@@ -114,6 +114,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 }
 
 func configSrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	seq_id := uint32(SeqID)
 	r1.SequenceId = &seq_id
@@ -341,10 +342,10 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
-	t.Log("Reload the router to activate hw module config")
-	reloadDevice(t, dut)
-	time.Sleep(2 * time.Minute)
-	startGribiClient(t)
+	// t.Log("Reload the router to activate hw module config")
+	// reloadDevice(t, dut)
+	// time.Sleep(2 * time.Minute)
+	// startGribiClient(t)
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
@@ -1154,7 +1155,14 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
 
-		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		// gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]+".0").IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).Config(), &oc.Acl_Interface{
+			Id: ygot.String(args.interfaces.in[0]),
+		})
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_IngressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
 		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
@@ -1166,7 +1174,14 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
 
-		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		// gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).Config(), &oc.Acl_Interface{
+			Id: ygot.String(args.interfaces.in[0]),
+		})
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_IngressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
 		testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)

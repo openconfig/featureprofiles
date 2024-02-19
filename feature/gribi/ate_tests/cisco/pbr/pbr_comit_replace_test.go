@@ -10,6 +10,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -196,6 +197,7 @@ func getBasePBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interfa
 }
 
 func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, interface{}) {
+	fptest.ConfigureDefaultNetworkInstance(t, args.dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
@@ -206,7 +208,6 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 	r2 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r2.SequenceId = ygot.Uint32(2)
 	r2.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		//DscpSet: []uint8{*ygot.Uint8(14)}, // wrong value
 		DscpSet: []uint8{*ygot.Uint8(17)}, // wrong value
 	}
 	r2.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
@@ -214,7 +215,6 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 	r3 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r3.SequenceId = ygot.Uint32(3)
 	r3.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
-		//DscpSet: []uint8{*ygot.Uint8(15)}, //wrong value
 		DscpSet: []uint8{*ygot.Uint8(19)}, //wrong value
 	}
 	r3.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("VRF1")}
@@ -224,7 +224,6 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 	r4.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
 		DscpSet: []uint8{*ygot.Uint8(49)}, // wrong value
 	}
-	//r4.Action = &telemetry.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(*ciscoFlags.NonDefaultNetworkInstance)}
 
 	p := oc.NetworkInstance_PolicyForwarding_Policy{}
 	p.PolicyId = ygot.String(pbrName)
@@ -235,7 +234,6 @@ func getPartialPBROCConfig(t *testing.T, args *testArgs) (ygnmi.PathStruct, inte
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
 	return gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding(), &policy
-
 }
 
 func removeHWModuleFromBaseConfing(t *testing.T, baseConfig string) string {
@@ -331,7 +329,6 @@ func testRemAddHWWithGNMIReplaceAndPBRwithOC(ctx context.Context, t *testing.T, 
 
 	// add PBR with OC and HWModule with text, and expect the traffic to be passed after adding gribi routes
 	path, basePolicy := getBasePBROCConfig(t, args)
-
 	config.GNMICommitReplaceWithOC(context.Background(), t, args.dut, baseConfigWithoutPBR, path, basePolicy)
 	t.Log("Add HWModule and set PBR to the right config, reload the router and check the traffic")
 	args.clientA.StartWithNoCache(t)
