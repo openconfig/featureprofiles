@@ -766,3 +766,23 @@ func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
 }
+
+// SkipSettingSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
+func SkipSettingSetLevel(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingSetLevel()
+}
+
+// SkipSettingSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+func SkipSettingSetMetricStyleType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingSetMetricStyleType()
+}
+
+// SkipSettingMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+func SkipSettingMatchSetOptions(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingMatchSetOptions()
+}
+
+// SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
+func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
+}
