@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/binding/introspect"
 	ondatragnmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -59,7 +58,8 @@ type rpcRecord struct {
 	expectedAuthenStatus acctz.AuthnDetail_AuthnStatus
 	expectedAuthenCause  string
 	expectedIdentity     string
-	expectedRole         string
+	// see note in test, will be needed in th future
+	//expectedRole         string
 }
 
 type recordRequestResult struct {
@@ -94,44 +94,44 @@ func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
 			t.Fatalf("Error with json Marshal: %v", err)
 		}
 
-		SetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
+		SetRequest := &gnmi.SetRequest{
+			Prefix: &gnmi.Path{
 				Origin: "native",
 			},
-			Replace: []*gpb.Update{
+			Replace: []*gnmi.Update{
 				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
+					Path: &gnmi.Path{
+						Elem: []*gnmi.PathElem{
 							{Name: "system"},
 							{Name: "aaa"},
 							{Name: "authorization"},
 							{Name: "role", Key: map[string]string{"rolename": role}},
 						},
 					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonIetfVal{
 							JsonIetfVal: roleData,
 						},
 					},
 				},
 				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
+					Path: &gnmi.Path{
+						Elem: []*gnmi.PathElem{
 							{Name: "system"},
 							{Name: "aaa"},
 							{Name: "authentication"},
 							{Name: "user", Key: map[string]string{"username": successUsername}},
 						},
 					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
+					Val: &gnmi.TypedValue{
+						Value: &gnmi.TypedValue_JsonIetfVal{
 							JsonIetfVal: successUserData,
 						},
 					},
 				},
 				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
+					Path: &gnmi.Path{
+						Elem: []*gnmi.PathElem{
 							{Name: "system"},
 							{Name: "aaa"},
 							{Name: "authentication"},
