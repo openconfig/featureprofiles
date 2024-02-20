@@ -1,0 +1,87 @@
+
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "admin"
+  password: "admin"
+}
+
+duts {
+  id: "dut"
+  name: "DUT"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false 
+    skip_verify: false
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+    #trust_bundle_file: "/ws/venthota-bgl/CertZ_new/featureprofiles/feature/security/gnsi/certz/cisco/tests/testdata/cacert.rsa.pem"
+    #cert_file: "/ws/venthota-bgl/CertZ_new/featureprofiles/feature/security/gnsi/certz/cisco/tests/testdata/client_cert.pem"
+    #key_file: "/ws/venthota-bgl/CertZ_new/featureprofiles/feature/security/gnsi/certz/cisco/tests/testdata/client_key.pem"
+    #trust_bundle_file: "/ws/venthota-bgl/B4/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem"
+    #cert_file: "/ws/venthota-bgl/B4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.cert.pem"
+    #key_file:  "/ws/venthota-bgl/B4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.key.pem"
+    trust_bundle_file: "/ws/anidamod-bgl/gNSI_B4/featureprofiles/internal/cisco/security/cert/keys/CA/ca.cert.pem"
+    cert_file: "/ws/anidamod-bgl/gNSI_B4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.cert.pem"
+    key_file:  "/ws/anidamod-bgl/gNSI_B4/featureprofiles/internal/cisco/security/cert/keys/clients/cafyauto.key.pem"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnmi {
+    target: "173.39.33.218:5725"
+  }
+
+  gribi {
+    target: "173.39.33.218:5725"
+  }
+
+  gnoi {
+    target: "173.39.33.218:5725"
+  }
+  
+  p4rt {
+    target: "173.39.33.218:5725"
+  }
+
+
+  ssh {
+    target: "173.39.33.218:5723"
+    skip_verify: true
+  }
+
+  gnsi{
+     # default grpc mapping : 57777  target: "10.85.84.159:47402"
+     #target: "10.85.84.159:9559"
+     target: "173.39.33.218:5725"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "FourHundredGigE0/0/0/10"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "FourHundredGigE0/0/0/11"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "FourHundredGigE0/0/0/12"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "FourHundredGigE0/0/0/13"  # Change this to the actual port name.
+  }
+}
+

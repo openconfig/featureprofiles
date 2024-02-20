@@ -1,0 +1,12 @@
+name: security_gnsi_credz
+owners: 
+  - anidamod
+testbeds:
+  - 8608-FOX2543PNNM
+tests:
+- name: credz_test
+  path: feature/security/gnsi/credentialz/cisco/credz
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master

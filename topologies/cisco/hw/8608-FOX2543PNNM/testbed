@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides 12 links between a dut and an ATE connected
+# pairwise.
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8000"
+  software_version: "IOSXR"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+}
+
