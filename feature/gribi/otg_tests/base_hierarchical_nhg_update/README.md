@@ -31,11 +31,19 @@ Validate NHG update in hierarchical resolution scenario
     6. Add the same NHG#42 but reference only NH#40.
     7. Validate that only ATE port-2 receives the packets
 
-[TODO]: Repeat the above tests with one additional scenario with the following changes, and it should not change the expected test result.
+Repeat the above tests with one additional scenario with the following changes,
+and it should not change the expected test result.
 
 *   Add an empty decap VRF, `DECAP_TE_VRF`.
-*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C` and `ENCAP_TE_VRF_D`.
-*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as in <https://github.com/openconfig/featureprofiles/pull/2217>
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`,
+    `ENCAP_TE_VRF_C`, and `ENCAP_TE_VRF_D`.
+*   Add 2 empty transit VRFs, `TE_VRF_111` and `TE_VRF_222`.
+*   Program route 198.51.100.1/32 through gribi in `TE_VRF_111` instead of
+    `VRF-1`.
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
+    in <https://github.com/openconfig/featureprofiles/pull/2217>.
+*   Send IP-In-IP traffic with source IP to ipv4_outer_src_111
+    (`198.51.100.111`) and DSCP to dscp_encap_a_1(10).
 
 ## Config Parameter coverage
 

@@ -243,7 +243,6 @@ func testFlow(
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 	}
-	flow.Duration().SetChoice("fixed_packets")
 	flow.Duration().FixedPackets().SetPackets(1000)
 	flow.Size().SetFixed(100)
 	eth := flow.EgressPacket().Add().Ethernet()

@@ -1,0 +1,12 @@
+name: oc-ppc 
+owners: 
+  - mananpat
+testbeds:
+  - 8808-36FH_FOX2504P3CE
+tests:
+- name: OC-PPC (openconfig pipeline counters)
+  path: feature/cisco/ppc
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master

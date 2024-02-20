@@ -231,7 +231,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnmi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, dutSvcParams[introspect.GNMI])
+			return r.grpc(d, dutSvcParams[introspect.GNMI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -242,7 +242,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnoi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, dutSvcParams[introspect.GNOI])
+			return r.grpc(d, dutSvcParams[introspect.GNOI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -253,7 +253,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gnsi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, dutSvcParams[introspect.GNSI])
+			return r.grpc(d, dutSvcParams[introspect.GNSI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -264,7 +264,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "gribi",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, dutSvcParams[introspect.GRIBI])
+			return r.grpc(d, dutSvcParams[introspect.GRIBI])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -275,7 +275,7 @@ func TestResolver_Options(t *testing.T) {
 	}, {
 		test: "p4rt",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.dutGRPC(d, dutSvcParams[introspect.P4RT])
+			return r.grpc(d, dutSvcParams[introspect.P4RT])
 		},
 		dev: r.Duts[0],
 		want: &bindpb.Options{
@@ -284,20 +284,9 @@ func TestResolver_Options(t *testing.T) {
 			Password: "p4rt.password",
 		},
 	}, {
-		test: "ate gnmi",
-		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.ateGRPC(d, ateSvcParams[introspect.GNMI])
-		},
-		dev: r.Ates[0],
-		want: &bindpb.Options{
-			Target:   "ate.name:" + strconv.Itoa(*ateGNMIPort),
-			Username: "ate.username",
-			Password: "gnmi.password",
-		},
-	}, {
 		test: "otg",
 		fn: func(d *bindpb.Device) *bindpb.Options {
-			return r.ateGRPC(d, ateSvcParams[introspect.OTG])
+			return r.grpc(d, ateSvcParams[introspect.OTG])
 		},
 		dev: r.Ates[0],
 		want: &bindpb.Options{

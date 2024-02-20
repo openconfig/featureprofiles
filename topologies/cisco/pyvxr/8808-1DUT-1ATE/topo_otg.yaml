@@ -1,0 +1,51 @@
+simulation: 
+  pyvxr_flags: 
+    port_file_timeout: 10000
+    spitfire_cvac_override: true
+  sim_flags: 
+    - "-k ConfigEnableNgdp=true"
+  slurm_flags: 
+    cluster: ott-slurm-m1
+    hours: 72
+    pending_timeout: 30
+devices: 
+  ate:     
+    platform: linux
+    vcpu: 16
+    memory: "32GB"
+    image: /ws/mananpat-ott/public/ixia-c.qcow2
+    linux_username: vxr
+    linux_password: "cisco123"
+    linux_prompt: 'vxr@vxr-vm:~\$'
+    xr_port_redir: [22, 35000, 31001, 31002, 31003]  
+    data_ports: ["eth[1..4]"]
+    cli_commands: |
+      curl --data-raw '{"license-address": "10.85.70.247" }' http://localhost:35000/license 
+  dut: 
+    cvac: $BASE_CONF_PATH
+    dual_rp: true
+    num_linecards: 1
+    linecard_types: 
+      - 8800-LC-36FH-2
+    platform: spitfire_d
+    xr_hostname: dut
+    xr_password: cisco123
+    xr_port_redir: 
+      - 22
+      - 23
+      - 57777
+    xr_username: cisco
+connections: 
+  hubs: 
+    port1: 
+      - dut.FourHundredGigE0/0/0/10
+      - ate.eth1
+    port2: 
+      - dut.FourHundredGigE0/0/0/20
+      - ate.eth2
+    port3: 
+      - dut.FourHundredGigE0/0/0/12
+      - ate.eth3
+    port4: 
+      - dut.FourHundredGigE0/0/0/13
+      - ate.eth4

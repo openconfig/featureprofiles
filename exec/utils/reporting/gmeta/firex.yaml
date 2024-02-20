@@ -1,0 +1,19 @@
+google_img_metadata:
+  framework: b4
+  owners:
+      - b4-test
+  testbeds:
+      - 8201-1DUT
+  supported_platforms:
+      - "8000"
+  test_size: galactic
+  purpose: >-
+      Utility test to generate metadata for google image
+  script_paths:
+      - google_img_metadata:
+          test_name: google_img_metadata
+          test_path: exec/utils/reporting/gmeta
+          test_args: -outDir=($test_log_directory_path)
+          test_branch: master
+          internal_test: true
+          internal_fp_repo_branch: master

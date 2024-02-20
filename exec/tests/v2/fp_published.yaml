@@ -78,6 +78,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2590
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -99,6 +100,7 @@ tests:
     skip: false
     mustpass: true
     priority: 3
+    pr: 2648
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -125,6 +127,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2648   
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -132,12 +135,22 @@ tests:
     mustpass: true
     priority: 3
     internal: false
+    pr: 2648
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
+    pr: 2648
+  - name: TE-11.4 (Gribi Programming with reload)
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
+    timeout: 7200
+    pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
@@ -305,6 +318,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
+    pr: 2622
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
@@ -312,7 +326,7 @@ tests:
     mustpass: true
     priority: 32
   - name: gNMI-1.5 (Telemetry Port Speed Test)
-    path: feature/gnmi/ate_tests/telemetry_port_speed_test
+    path: feature/gnmi/otg_tests/telemetry_port_speed_test
     owners:
       - agvarghe
     mustpass: true
@@ -326,6 +340,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
+    pr: 2551
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
@@ -394,22 +409,23 @@ tests:
       - agvarghe
     mustpass: true
     priority: 46
+    pr: 2605
   - name: RT-1.1 (Base BGP Session Parameters)
-    path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
+    path: feature/experimental/bgp/otg_tests/base_bgp_session_parameters
     owners:
       - arvbaska
     mustpass: true
     priority: 47
     skip: false
   - name: RT-2.2 (IS-IS LSP Updates)
-    path: feature/experimental/isis/ate_tests/lsp_updates_test
+    path: feature/experimental/isis/otg_tests/lsp_updates_test
     owners:
       - mananpat
     mustpass: true
     priority: 48
     skip: false
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
-    path: feature/experimental/isis/ate_tests/base_adjacencies_test
+    path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
       - mananpat
     mustpass: true
@@ -430,12 +446,13 @@ tests:
     priority: 52
     skip: false
   - name: RT-1.5 (BGP Prefix Limit)
-    path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+    path: feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test
     owners:
       - sprem
     mustpass: true
     priority: 53
     skip: false
+    pr: 2623
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -466,7 +483,7 @@ tests:
     priority: 52
     timeout: 4200
   - name: RT-1.12 (BGP always compare MED)
-    path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
+    path: feature/experimental/bgp/otg_tests/bgp_always_compare_med
     owners:
       - sprem
     mustpass: true
@@ -536,7 +553,7 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-1.1 (Static ARP)
-    path: feature/interface/staticarp/ate_tests/static_arp_test
+    path: feature/interface/staticarp/otg_tests/static_arp_test
     owners:
       - mbagherz
     mustpass: true
@@ -592,6 +609,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
+    pr: 2550
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
     path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
     owners:
@@ -638,6 +656,7 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    pr: 2552
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests/authz
     args:
@@ -668,6 +687,7 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    pr: 2548
   - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
     path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
     owners:
@@ -708,3 +728,9 @@ tests:
     owners:
       - mananpat
     mustpass: false
+  - name: RT-1.26 (Basic static route support)
+    path: feature/staticroute/otg_tests/basic_static_route_support_test
+    owners:
+      - mananpat
+    mustpass: false
+
