@@ -1,0 +1,37 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "5509c53c-260b-4b1e-ba5b-67863d1f61c1"
+plan_id: "RT-5.1"
+description: "RT-5.1.4, 5.1.5 and 5.1.6 Explicit Breakout Behavior"
+testbed: TESTBED_DUT_400G
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    breakout_schema_value: 1
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+  }
+}

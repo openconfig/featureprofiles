@@ -84,6 +84,9 @@ a new testbed configuration with the desired port types.
     *   /components/component/port/breakout-mode/groups/group/config
     *   /components/component/port/breakout-mode/groups/group/config/index
     *   /components/component/port/breakout-mode/groups/group/config/breakout-speed
+    *   /components/component/port/breakout-mode/groups/group/state
+    *   /components/component/port/breakout-mode/groups/group/state/index
+    *   /components/component/port/breakout-mode/groups/group/state/breakout-speed
 *   Validate the port state changes to "DOWN"
     *   /interfaces/interface/state/oper-status
 
@@ -103,7 +106,7 @@ a new testbed configuration with the desired port types.
 
 *   Using a single gNMI Replace, remove the DUT port-1 and its breakout config
 *   Ensure the gNMI Replace is successful and configuration for DUT port-1 including its breakout is removed
-    *   /interfaces/interface/ethernet/state/
+    *   /interfaces/interface/ethernet/state/  - holds default value
     *   /components/component/port/breakout-mode/groups/group/state
 
 ## Config Parameter Coverage
