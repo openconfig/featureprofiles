@@ -1,0 +1,26 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides 1 400G link between DUT and ATE
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_400GB
+    pmd: PMD_400GBASE_FR4
+  }
+}
+ates {
+  id: "ate"
+  vendor: IXIA
+  ports {
+    id: "port1"
+    speed: S_400GB
+    pmd: PMD_400GBASE_FR4
+  }
+}
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
