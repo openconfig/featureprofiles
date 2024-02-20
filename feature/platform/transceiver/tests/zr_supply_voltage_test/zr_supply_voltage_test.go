@@ -17,12 +17,16 @@ package zr_supply_voltage_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -32,6 +36,13 @@ const (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(
+		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(interval),
+	)
 }
 
 func TestZrSupplyVoltage(t *testing.T) {
@@ -57,23 +68,41 @@ func TestZrSupplyVoltage(t *testing.T) {
 	for _, tx := range zrTransceivers {
 		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
 			txComponent := gnmi.OC().Component(tx)
+			subscribeTimeout := 30 * time.Second
+			sampleInterval := 1 * time.Second
 
-			avgV := gnmi.Get(t, dut, txComponent.Transceiver().SupplyVoltage().Avg().State())
-			minV := gnmi.Get(t, dut, txComponent.Transceiver().SupplyVoltage().Min().State())
-			instV := gnmi.Get(t, dut, txComponent.Transceiver().SupplyVoltage().Instant().State())
-			maxV := gnmi.Get(t, dut, txComponent.Transceiver().SupplyVoltage().Max().State())
+			avgVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Avg().State(), subscribeTimeout).Await(t)
+			minVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Min().State(), subscribeTimeout).Await(t)
+			instVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Instant().State(), subscribeTimeout).Await(t)
+			maxVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Max().State(), subscribeTimeout).Await(t)
 
-			if avgV < minV {
-				t.Errorf("Want minV < avgV for tx %q: got minVoltage %f, avgV %f", tx, minV, avgV)
+			if len(avgVS) < 2 || len(minVS) < 2 || len(instVS) < 2 || len(maxVS) < 2 {
+				t.Fatalf("did not get enough samples: avgVoltage: %s minVoltage: %s maxVoltage: %s instVoltage: %s",
+					avgVS, minVS, maxVS, instVS)
 			}
-			if avgV > maxV {
-				t.Errorf("Want maxV > avgV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, avgV)
-			}
-			if instV < minV {
-				t.Errorf("Want minV < instV for tx %q: got minVoltage %f, avgV %f", tx, minV, instV)
-			}
-			if instV > maxV {
-				t.Errorf("Want maxV > instV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, instV)
+
+			for i := 0; i < len(avgVS); i++ {
+				avgV, avgOk := avgVS[i].Val()
+				minV, minOk := minVS[i].Val()
+				instV, instOk := instVS[i].Val()
+				maxV, maxOk := maxVS[i].Val()
+
+				if !avgOk || !minOk || !instOk || !maxOk {
+					t.Errorf("Expected all true but got: avgOk: %v minOk: %v instOk: %v maxOk: %v", avgOk, minOk, instOk, maxOk)
+				}
+
+				if avgV < minV {
+					t.Errorf("Want minV < avgV for tx %q: got minVoltage %f, avgV %f", tx, minV, avgV)
+				}
+				if avgV > maxV {
+					t.Errorf("Want maxV > avgV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, avgV)
+				}
+				if instV < minV {
+					t.Errorf("Want minV < instV for tx %q: got minVoltage %f, avgV %f", tx, minV, instV)
+				}
+				if instV > maxV {
+					t.Errorf("Want maxV > instV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, instV)
+				}
 			}
 
 		})
