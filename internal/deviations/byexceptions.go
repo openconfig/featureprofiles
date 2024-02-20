@@ -128,6 +128,9 @@ func ATEIPv6FlowLabelUnsupported(ate *ondatra.ATEDevice) bool {
 
 // BreakOutSchemaValueFlag returns the value that the flag is being set to. As older images will require 0 for breakout
 // schema and newer images will use 1 for the breakout config
-func BreakOutSchemaValueFlag(dut *ondatra.DUTDevice) int32 {
-	return int32(*breakoutSchemaValueFlag)
+func BreakOutSchemaValueFlag(dut *ondatra.DUTDevice) int64 {
+	if isFlagSet("deviation_breakout_schema_value") {
+		return *breakoutSchemaValueFlag
+	}
+	return lookupDUTDeviations(dut).GetBreakoutSchemaValue()
 }

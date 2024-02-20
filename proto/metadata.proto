@@ -412,6 +412,9 @@ message Metadata {
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
+    // As older images will require 0 for breakout schema and newer images will use 1 for the breakout config
+    // in /components/component/port/breakout-mode/groups/group(schemaValue) 
+    int64 breakout_schema_value = 144;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
