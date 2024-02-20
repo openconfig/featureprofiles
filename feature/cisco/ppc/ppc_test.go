@@ -51,7 +51,7 @@ var (
 
 const (
 	with_RPFO      = true
-	with_lc_reload = false
+	with_lc_reload = true
 	active_rp      = "0/RP0/CPU0"
 	standby_rp     = "0/RP1/CPU0"
 )
