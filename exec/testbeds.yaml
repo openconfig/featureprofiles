@@ -167,10 +167,37 @@ testbeds:
       host: kne2-lnx
       controller_port: 40052
       gnmi_port: 50052
+  
+  8608-FOX2543PNNM:
+    hw: 8608-FOX2543PNNM
+    owner: anidamod
+    testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
+    binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
+
 #SIM
+  8201-1DUT:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT/basefp.conf
+  8808-1DUT:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
+  8201-1DUT-vrf-mgmt:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT/basefp-mgmt-vrf.conf
+  8808-1DUT-vrf-mgmt:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp-mgmt-vrf.conf
   8201-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
+  8201-1DUT-1ATE-OTG:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo_otg.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
   8201-1DUT-1ATE-vrf-mgmt:
     sim: true
@@ -183,6 +210,10 @@ testbeds:
   8808-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
+  8808-1DUT-1ATE-OTG:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo_otg.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
   8808-1DUT-1ATE-vrf-mgmt:
     sim: true
@@ -230,5 +261,9 @@ testbeds:
     hw: 8201-32FH-FLM254306M8_OTG
     owner: mananpat
     testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
-    binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.binding
+    binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40051
+      gnmi_port: 50051
