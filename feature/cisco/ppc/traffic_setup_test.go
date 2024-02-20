@@ -42,85 +42,53 @@ type TGNoptions struct {
 	drop, mpls, ipv4, ttl bool
 	traffic_timer         int
 	fps                   uint64
+	fpercent              float64
 	frame_size            uint32
 	event                 eventType
 }
 
-// configureATE configures port1, port2 and port3 on the ATE.
+// configureATE configures ports on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
+	atePorts := sortPorts(ate.Ports())
 	top := ate.Topology().New()
 
-	p1 := ate.Port(t, "port1")
-	i1 := top.AddInterface(atePort1.Name).WithPort(p1)
+	atesrc := atePorts[0]
+	i1 := top.AddInterface(ateSrc.Name).WithPort(atesrc)
 	i1.IPv4().
-		WithAddress(atePort1.IPv4CIDR()).
-		WithDefaultGateway(dutPort1.IPv4)
+		WithAddress(ateSrc.IPv4CIDR()).
+		WithDefaultGateway(dutSrc.IPv4)
 	i1.IPv6().
-		WithAddress(atePort1.IPv6CIDR()).
-		WithDefaultGateway(dutPort1.IPv6)
+		WithAddress(ateSrc.IPv6CIDR()).
+		WithDefaultGateway(dutSrc.IPv6)
 
-	p2 := ate.Port(t, "port2")
-	i2 := top.AddInterface(atePort2.Name).WithPort(p2)
+	i2 := top.AddInterface(ateDst.Name)
+	lag := top.AddLAG("lag").WithPorts(atePorts[1:]...)
+	lag.LACP().WithEnabled(true)
+	i2.WithLAG(lag)
+
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	if atesrc.PMD() == ondatra.PMD100GBASEFR {
+		i1.Ethernet().FEC().WithEnabled(false)
+	}
+	is100gfr := false
+	for _, p := range atePorts[1:] {
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			is100gfr = true
+		}
+	}
+	if is100gfr {
+		i2.Ethernet().FEC().WithEnabled(false)
+	}
+	top.Push(t).StartProtocols(t)
+
 	i2.IPv4().
-		WithAddress(atePort2.IPv4CIDR()).
-		WithDefaultGateway(dutPort2.IPv4)
+		WithAddress(ateDst.IPv4CIDR()).
+		WithDefaultGateway(dutDst.IPv4)
 	i2.IPv6().
-		WithAddress(atePort2.IPv6CIDR()).
-		WithDefaultGateway(dutPort2.IPv6)
-
-	p3 := ate.Port(t, "port3")
-	i3 := top.AddInterface(atePort3.Name).WithPort(p3)
-	i3.IPv4().
-		WithAddress(atePort3.IPv4CIDR()).
-		WithDefaultGateway(dutPort3.IPv4)
-	i3.IPv6().
-		WithAddress(atePort3.IPv6CIDR()).
-		WithDefaultGateway(dutPort3.IPv6)
-
-	p4 := ate.Port(t, "port4")
-	i4 := top.AddInterface(atePort4.Name).WithPort(p4)
-	i4.IPv4().
-		WithAddress(atePort4.IPv4CIDR()).
-		WithDefaultGateway(dutPort4.IPv4)
-	i4.IPv6().
-		WithAddress(atePort4.IPv6CIDR()).
-		WithDefaultGateway(dutPort4.IPv6)
-
-	// p5 := ate.Port(t, "port5")
-	// i5 := top.AddInterface(atePort5.Name).WithPort(p5)
-	// i5.IPv4().
-	// 	WithAddress(atePort5.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort5.IPv4)
-	// i5.IPv6().
-	// 	WithAddress(atePort5.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort5.IPv6)
-
-	// p6 := ate.Port(t, "port6")
-	// i6 := top.AddInterface(atePort6.Name).WithPort(p6)
-	// i6.IPv4().
-	// 	WithAddress(atePort6.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort6.IPv4)
-	// i6.IPv6().
-	// 	WithAddress(atePort6.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort6.IPv6)
-
-	// p7 := ate.Port(t, "port7")
-	// i7 := top.AddInterface(atePort7.Name).WithPort(p7)
-	// i7.IPv4().
-	// 	WithAddress(atePort7.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort7.IPv4)
-	// i7.IPv6().
-	// 	WithAddress(atePort7.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort7.IPv6)
-
-	// p8 := ate.Port(t, "port8")
-	// i8 := top.AddInterface(atePort8.Name).WithPort(p8)
-	// i8.IPv4().
-	// 	WithAddress(atePort8.IPv4CIDR()).
-	// 	WithDefaultGateway(dutPort8.IPv4)
-	// i8.IPv6().
-	// 	WithAddress(atePort8.IPv6CIDR()).
-	// 	WithDefaultGateway(dutPort8.IPv6)
+		WithAddress(ateDst.IPv6CIDR()).
+		WithDefaultGateway(dutDst.IPv6)
+	top.Update(t)
+	top.StartProtocols(t)
 	return top
 }
 
@@ -172,18 +140,18 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
-	intfs["atePort2"].WithIPv4Loopback("100.100.100.100/32")
+	intfs["ateDst"].WithIPv4Loopback("100.100.100.100/32")
 
-	addAteISISL2(t, top, "atePort2", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
+	addAteISISL2(t, top, "ateDst", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
 
-	addAteEBGPPeer(t, top, "atePort2", dutPort2.IPv4, 64001, "bgp_recursive", atePort2.IPv4, innerdstPfxMin_bgp+"/"+v4mask, totalbgpPfx, true)
+	addAteEBGPPeer(t, top, "ateDst", dutDst.IPv4, 64001, "bgp_recursive", ateDst.IPv4, innerdstPfxMin_bgp+"/"+v4mask, totalbgpPfx, true)
 
 	top.Push(t).StartProtocols(t)
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
 func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TGNoptions) *ondatra.Flow {
-	srcEndPoint := a.top.Interfaces()[atePort1.Name]
+	srcEndPoint := a.top.Interfaces()[ateSrc.Name]
 	var flow *ondatra.Flow
 	var header []ondatra.Header
 
@@ -200,7 +168,7 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 			} else {
 				hdr_ipv4 = ondatra.NewIPv4Header()
 			}
-			hdr_ipv4.WithSrcAddress(dutPort1.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
+			hdr_ipv4.WithSrcAddress(dutSrc.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
 			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_ipv4}
 		}
 	}
@@ -215,8 +183,11 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 		flow.WithFrameRateFPS(1000)
 	}
 
+	flow.WithFrameRatePct(100)
 	if opts[0].frame_size != 0 {
 		flow.WithFrameSize(opts[0].frame_size)
+	} else if opts[0].fpercent != 0 {
+		flow.WithFrameRatePct((opts[0].fpercent))
 	} else {
 		flow.WithFrameSize(300)
 	}
@@ -241,6 +212,12 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 		}
 	}
 
+	// close all the existing goroutine for the trigger
+	close(stop_monitor)
+	close(stop_clients)
+	<-done_monitor
+	<-done_clients
+
 	// Space to add trigger code
 	for _, tt := range triggers {
 		t.Logf("Name: %s", tt.name)
@@ -248,18 +225,36 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
 			triggerAction.restartProcessBackground(t, a.ctx)
 		}
-		if with_RPFO {
+		if chassis_type == "distributed" && with_RPFO {
 			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
-				triggerAction.rpfo(t, a.ctx)
+				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
+				triggerAction.rpfo(t, a.ctx, false)
+			}
+		} else if chassis_type == "fixed" && with_RPFO {
+			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
+				triggerAction.rpfo(t, a.ctx, true)
+				tolerance = triggerAction.tolerance
 			}
 		}
-		if with_lc_reload {
+		if chassis_type == "distributed" && with_lc_reload {
 			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
-				// triggerAction.lc_reload(t)
+				triggerAction.lc_reload(t)
 				tolerance = triggerAction.tolerance
 			}
 		}
 	}
+
+	// restart goroutines
+	if chassis_type == "distributed" {
+		done_monitor_trigger = make(chan struct{})
+		stop_monitor_trigger = make(chan struct{})
+		runBackgroundMonitor(t, stop_monitor_trigger, done_monitor_trigger)
+	}
+	//starting other clients running in the backgroun
+	done_clients_trigger = make(chan struct{})
+	stop_clients_trigger = make(chan struct{})
+	runMultipleClientBackground(t, stop_clients_trigger, done_clients_trigger)
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	a.ate.Traffic().Stop(t)
@@ -267,7 +262,7 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 	// remove set configs before further check
 	for _, op := range opts {
 		if _, ok := op.event.(*event_interface_config); ok {
-			eventAction := event_interface_config{config: false, shut: false, mtu: 1514, port: []string{"port2"}}
+			eventAction := event_interface_config{config: false, mtu: 1514, port: sortPorts(a.dut.Ports())[1:]}
 			eventAction.interface_config(t)
 		} else if _, ok := op.event.(*event_static_route_to_null); ok {
 			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", config: false}
