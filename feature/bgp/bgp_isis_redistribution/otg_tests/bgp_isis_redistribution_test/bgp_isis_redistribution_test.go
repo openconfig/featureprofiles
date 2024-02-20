@@ -183,11 +183,10 @@ func TestBGPToBGPRedistribution(t *testing.T) {
 			tc.applyPolicyFunc(t, ts.DUT)
 			tc.verifyTelemetryFunc(t, ts.DUT, ts.ATE)
 			if tc.testTraffic {
-				switch tc.ipv4 {
-				case true:
+				if tc.ipv4 {
 					createFlow(t, ts)
 					checkTraffic(t, ts, v4FlowName)
-				case false:
+				} else {
 					createFlowV6(t, ts)
 					checkTraffic(t, ts, v6FlowName)
 				}
@@ -265,10 +264,10 @@ func nonMatchingPrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4Statement, err)
 	}
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
 	}
-	if !deviations.SkipSettingSetMetricStyleType(dut) {
+	if !deviations.SkipIsisSetMetricStyleType(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
 	}
 
@@ -276,7 +275,7 @@ func nonMatchingPrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv4.cidr(t), maskLenExact)
 
-	if !deviations.SkipSettingMatchSetOptions(dut) {
+	if !deviations.SkipSetRpMatchSetOptions(dut) {
 		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	}
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
@@ -303,10 +302,10 @@ func nonMatchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4Statement, err)
 	}
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
 	}
-	if !deviations.SkipSettingSetMetricStyleType(dut) {
+	if !deviations.SkipIsisSetMetricStyleType(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
 	}
 
@@ -338,7 +337,7 @@ func verifyNonMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate 
 	if polResult := rPolicyDef.GetStatement(v4Statement).GetActions().GetPolicyResult(); polResult != oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE {
 		t.Errorf("Routing policy statement result: %s, want: %s", polResult, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		if isisLevel := rPolicyDef.GetStatement(v4Statement).GetActions().GetIsisActions().GetSetLevel(); isisLevel != 2 {
 			t.Errorf("IS-IS level: %d, want: %d", isisLevel, 2)
 		}
@@ -450,10 +449,10 @@ func nonMatchingPrefixRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6Statement, err)
 	}
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
 	}
-	if !deviations.SkipSettingSetMetricStyleType(dut) {
+	if !deviations.SkipIsisSetMetricStyleType(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
 	}
 
@@ -461,7 +460,7 @@ func nonMatchingPrefixRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv6.cidr(t), maskLenExact)
 
-	if !deviations.SkipSettingMatchSetOptions(dut) {
+	if !deviations.SkipSetRpMatchSetOptions(dut) {
 		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	}
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
@@ -488,10 +487,10 @@ func nonMatchingCommunityRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6Statement, err)
 	}
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
 	}
-	if !deviations.SkipSettingSetMetricStyleType(dut) {
+	if !deviations.SkipIsisSetMetricStyleType(dut) {
 		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
 	}
 
@@ -523,7 +522,7 @@ func verifyNonMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 	if polResult := rPolicyDef.GetStatement(v6Statement).GetActions().GetPolicyResult(); polResult != oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE {
 		t.Errorf("Routing policy statement result: %s, want: %s", polResult, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
-	if !deviations.SkipSettingSetLevel(dut) {
+	if !deviations.SkipIsisSetLevel(dut) {
 		if isisLevel := rPolicyDef.GetStatement(v6Statement).GetActions().GetIsisActions().GetSetLevel(); isisLevel != 2 {
 			t.Errorf("IS-IS level: %d, want: %d", isisLevel, 2)
 		}

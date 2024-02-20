@@ -17,9 +17,9 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     isis_interface_afi_unsupported:  true
-    skip_setting_set_level:  true
-    skip_setting_set_metric_style_type:  true
-    skip_setting_match_set_options:  true
+    skip_isis_set_level:  true
+    skip_isis_set_metric_style_type:  true
+    skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
   }
 }

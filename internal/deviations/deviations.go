@@ -767,19 +767,19 @@ func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
 }
 
-// SkipSettingSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
-func SkipSettingSetLevel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSettingSetLevel()
+// SkipIsisSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
+func SkipIsisSetLevel(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetLevel()
 }
 
-// SkipSettingSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
-func SkipSettingSetMetricStyleType(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSettingSetMetricStyleType()
+// SkipIsisSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
 }
 
-// SkipSettingMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
-func SkipSettingMatchSetOptions(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSettingMatchSetOptions()
+// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
 }
 
 // SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection

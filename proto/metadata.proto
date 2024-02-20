@@ -412,11 +412,11 @@ message Metadata {
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
     // Skip setting isis-actions set-level while configuring routing-policy statement action
-    bool skip_setting_set_level = 144;
+    bool skip_isis_set_level = 144;
     // Skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
-    bool skip_setting_set_metric_style_type = 145;
+    bool skip_isis_set_metric_style_type = 145;
     // Skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
-    bool skip_setting_match_set_options = 146;
+    bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
 
