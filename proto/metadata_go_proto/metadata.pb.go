@@ -48,7 +48,6 @@ const (
 	Metadata_TESTBED_DUT_ATE_9LINKS_LAG Metadata_Testbed = 5
 	Metadata_TESTBED_DUT_DUT_ATE_2LINKS Metadata_Testbed = 6
 	Metadata_TESTBED_DUT_ATE_8LINKS     Metadata_Testbed = 7
-	Metadata_TESTBED_DUT_400G           Metadata_Testbed = 8 
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -62,7 +61,6 @@ var (
 		5: "TESTBED_DUT_ATE_9LINKS_LAG",
 		6: "TESTBED_DUT_DUT_ATE_2LINKS",
 		7: "TESTBED_DUT_ATE_8LINKS",
-		8: "TESTBED_DUT_400G,
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":        0,
@@ -73,7 +71,6 @@ var (
 		"TESTBED_DUT_ATE_9LINKS_LAG": 5,
 		"TESTBED_DUT_DUT_ATE_2LINKS": 6,
 		"TESTBED_DUT_ATE_8LINKS":     7,
-		"TESTBED_DUT_400G":           8,
 	}
 )
 
