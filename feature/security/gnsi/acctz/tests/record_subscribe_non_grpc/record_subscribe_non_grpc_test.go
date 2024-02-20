@@ -49,7 +49,8 @@ type rpcRecord struct {
 	expectedAuthenStatus acctz.AuthnDetail_AuthnStatus
 	expectedAuthenCause  string
 	expectedIdentity     string
-	expectedRole         string
+	// see note in test, will be needed in the future
+	// expectedRole         string
 }
 
 type recordRequestResult struct {
