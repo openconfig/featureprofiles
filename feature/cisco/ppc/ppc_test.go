@@ -37,18 +37,22 @@ import (
 )
 
 var (
-	chassisType                   string // check if its distributed or fixed chassis
-	tolerance                     uint64
-	rpfo_count                    = 0               // used to track rpfo_count if it's more than 10 then reset to 0 and reload the HW
-	subscriptionCount             = 5               // total 5 parallel subscriptions will be tested
-	multiple_subscription_runtime = 5 * time.Minute // for 5 mins multiple subscriptions will keep on running
+	chassisType                 string // check if its distributed or fixed chassis
+	tolerance                   uint64
+	rpfoCount                   = 0               // if more than 10 then reset to 0 and reload the HW
+	subscriptionCount           = 5               // number of parallel subscriptions to be tested
+	multipleSubscriptionRuntime = 5 * time.Minute // duration for which parallel subscriptions will run
 )
 
 const (
-	with_RPFO      = true
-	with_lc_reload = true
-	active_rp      = "0/RP0/CPU0"
-	standby_rp     = "0/RP1/CPU0"
+	withRpfo         = true
+	withLcReload     = true
+	activeRp         = "0/RP0/CPU0"
+	standbyRp        = "0/RP1/CPU0"
+	mask             = "32"
+	policyID         = "match-ipip"
+	ipOverIPProtocol = 4
+	vrf1             = "TE"
 )
 
 type testArgs struct {
@@ -58,20 +62,13 @@ type testArgs struct {
 	top *ondatra.ATETopology
 }
 
-const (
-	mask             = "32"
-	policyID         = "match-ipip"
-	ipOverIPProtocol = 4
-	vrf1             = "TE"
-)
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func (args *testArgs) interfaceToNPU(t testing.TB, dst *ondatra.Port) string {
-	hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
-	intfNpu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State())
+	hwPort := gnmi.Get(t, args.dut, gnmi.OC().Interface(dst.Name()).HardwarePort().State())
+	intfNpu := gnmi.Get(t, args.dut, gnmi.OC().Component(hwPort).Parent().State())
 	return intfNpu
 }
 
@@ -130,7 +127,7 @@ func (tt triggerProcessRestart) restartProcessBackground(t *testing.T, ctx conte
 
 		//patch for CLIviaSSH failing, else pattern to use is #
 		var acp string
-		if with_RPFO {
+		if withRpfo {
 			acp = ".*Last switch-over.*ago"
 		} else {
 			acp = ".*"
@@ -149,8 +146,8 @@ type triggerRpfo struct {
 func (tt triggerRpfo) rpfo(t *testing.T, ctx context.Context) {
 	dut := ondatra.DUT(t, "dut")
 
-	// reload the HW is rfpo count is 10 or more
-	if rpfo_count == 10 {
+	// reload the HW if rfpo count is 10 or more
+	if rpfoCount == 10 {
 		gnoiClient := dut.RawAPIs().GNOI(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
@@ -161,14 +158,14 @@ func (tt triggerRpfo) rpfo(t *testing.T, ctx context.Context) {
 		if err != nil {
 			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 		}
-		rpfo_count = 0
-		time.Sleep(time.Minute * 20)
+		rpfoCount = 0
+		time.Sleep(time.Minute * 20) // TODO - why 20 minutes?
 	}
 	// supervisor info
 	var supervisors []string
-	activeState := gnmi.OC().Component(active_rp).Name().State()
+	activeState := gnmi.OC().Component(activeRp).Name().State()
 	active := gnmi.Get(t, dut, activeState)
-	standbyState := gnmi.OC().Component(standby_rp).Name().State()
+	standbyState := gnmi.OC().Component(standbyRp).Name().State()
 	standby := gnmi.Get(t, dut, standbyState)
 	supervisors = append(supervisors, active, standby)
 
@@ -180,8 +177,8 @@ func (tt triggerRpfo) rpfo(t *testing.T, ctx context.Context) {
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	if got := gnmi.Get(t, dut, switchoverReady.State()); got != true {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, true)
 	}
 	gnoiClient, _ := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
@@ -245,8 +242,8 @@ func (tt triggerRpfo) rpfo(t *testing.T, ctx context.Context) {
 
 	t.Log("Validate OC Switchover time/reason.")
 	activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-	if got, want := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(), true; got != want {
-		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
+	if got := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(); got != true {
+		t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, true)
 	} else {
 		t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
 	}
@@ -308,26 +305,6 @@ type triggerLcReload struct {
 // 		})
 // 	}
 // }
-
-// Extend triggers
-var triggers = []Testcase{
-	{
-		name: "Process restart",
-		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
-		desc:         "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
-		trigger_type: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}},
-	},
-	{
-		name:         "RPFO",
-		desc:         "perform RPFO and validate pipeline counters",
-		trigger_type: &triggerRpfo{},
-	},
-	{
-		name:         "LC reload",
-		desc:         "perform LC reload and validate pipeline counters",
-		trigger_type: &triggerLcReload{tolerance: 40}, //when LC is reloading, component is missing and indeed no data will be collected hence tolerance is needed
-	},
-}
 
 func checkChassisType(t *testing.T, dut *ondatra.DUTDevice) string {
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
@@ -442,8 +419,8 @@ type Testcase struct {
 	npu  string
 	flow *ondatra.Flow
 	// sub_type   SubscriptionType
-	event_type   eventType   // events for creating the scenario
-	trigger_type triggerType // triggers
+	eventType   eventType   // events for creating the scenario
+	triggerType triggerType // triggers
 }
 
 // to do subscriptions
@@ -542,14 +519,34 @@ func getPathFromElements(input []*gpb.PathElem) string {
 // 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
 // }
 
+// Extend triggers
+var triggers = []Testcase{
+	{
+		name: "Process restart",
+		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
+		desc:        "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
+		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}},
+	},
+	{
+		name:        "RPFO",
+		desc:        "perform RPFO and validate pipeline counters",
+		triggerType: &triggerRpfo{},
+	},
+	{
+		name:        "LC reload",
+		desc:        "perform LC reload and validate pipeline counters",
+		triggerType: &triggerLcReload{tolerance: 40}, //when LC is reloading, component is missing and indeed no data will be collected hence tolerance is needed
+	},
+}
+
 func (args *testArgs) testocDropBlock(t *testing.T) {
 
 	test := []Testcase{
 		{
-			name:       "drop/lookup-block/state/no-route",
-			flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
-			npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-			event_type: &eventInterfaceConfig{config: true, shut: true, port: []string{"port2"}},
+			name:      "drop/lookup-block/state/no-route",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
+			npu:       args.interfaceToNPU(t, args.dut.Port(t, "port2")),
+			eventType: &eventInterfaceConfig{config: true, shut: true, port: []string{"port2"}},
 		},
 		//{
 		//	name:       "drop/lookup-block/state/no-nexthop",
@@ -577,7 +574,8 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 		//	name:       "drop/lookup-block/state/fragment-total-drops",
 		//	flow:       a.createFlow("valid_stream", []ondatra.Endpoint{a.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
 		//	npu:        a.interfaceToNPU(t, a.dut.Port(t, "port2")),
-		//	event_type: &event_interface_config{config: true, mtu: 500, port: []string{"port2"}},
+		//	event_type: &
+		//	{config: true, mtu: 500, port: []string{"port2"}},
 		//},
 		// {
 		// 	name: "drop/lookup-block/state/acl-drops",
@@ -593,12 +591,12 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 			query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
 
 			// running multiple subscriptions while tc is executed
-			sa := &subscriptionArgs{}
-			sa.multipleSubscriptions(t, query, subscriptionCount, gpb.SubscriptionMode_SAMPLE)
+			sa := &subscriptionArgs{streamMode: gpb.SubscriptionMode_SAMPLE}
+			sa.multipleSubscriptions(t, query, subscriptionCount)
 
 			preData, _ := getData(t, path, query)
 
-			tgnData := a.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type})
+			tgnData := args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.eventType})
 
 			postData, _ := getData(t, path, query)
 
@@ -639,10 +637,11 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 // keep subscription args
 type subscriptionArgs struct {
 	sampleInterval time.Duration
+	streamMode     gpb.SubscriptionMode
 }
 
 // subMode represents type of STREAMING subscription mode
-func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64], subCount int, streamMode gpb.SubscriptionMode) {
+func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64], subCount int) {
 	dut := ondatra.DUT(t, "dut")
 	// once, poll, stream
 	// sample, on-change, target-defined
@@ -651,13 +650,13 @@ func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.Wildc
 
 	for i := 1; i <= subCount; i++ {
 		go func() {
-			switch streamMode {
+			switch sa.streamMode {
 			case gpb.SubscriptionMode_SAMPLE:
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multiple_subscription_runtime)
+				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
 			case gpb.SubscriptionMode_ON_CHANGE:
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(streamMode)), query, multiple_subscription_runtime)
-			default:
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_TARGET_DEFINED)), query, multiple_subscription_runtime)
+				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode)), query, multipleSubscriptionRuntime)
+			default: // TODO - target-defined is not supported yet till Sev6 is resolved
+				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)), query, multipleSubscriptionRuntime)
 			}
 			wg.Done()
 		}()
@@ -708,7 +707,7 @@ func TestOC_PPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	//Determine if its fixed or distributed chassis
-	chassisType := checkChassisType(t, dut)
+	//chassisType := checkChassisType(t, dut)
 
 	ctx := context.Background()
 

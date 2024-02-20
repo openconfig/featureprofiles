@@ -181,9 +181,9 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
-func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TGNoptions) *ondatra.Flow {
-	srcEndPoint := a.top.Interfaces()[atePort1.Name]
+// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive at ATE interface dst.
+func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TGNoptions) *ondatra.Flow {
+	srcEndPoint := args.top.Interfaces()[atePort1.Name]
 	var flow *ondatra.Flow
 	var header []ondatra.Header
 
@@ -204,7 +204,7 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_ipv4}
 		}
 	}
-	flow = a.ate.Traffic().NewFlow(name).
+	flow = args.ate.Traffic().NewFlow(name).
 		WithSrcEndpoints(srcEndPoint).
 		WithDstEndpoints(dstEndPoint...).
 		WithHeaders(header...)
@@ -225,19 +225,19 @@ func (a *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts 
 }
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TGNoptions) uint64 {
-	a.ate.Traffic().Start(t, flow)
+func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TGNoptions) uint64 {
+	args.ate.Traffic().Start(t, flow)
 	// run traffic for 30 seconds, before introducing fault
 	time.Sleep(time.Duration(30) * time.Second)
 
 	// Set configs if needed for scenario
 	for _, op := range opts {
-		if eventAction, ok := op.event.(*event_interface_config); ok {
-			eventAction.interface_config(t)
-		} else if eventAction, ok := op.event.(*event_static_route_to_null); ok {
-			eventAction.static_route_to_null(t)
-		} else if eventAction, ok := op.event.(*event_enable_mpls_ldp); ok {
-			eventAction.enable_mpls_ldp(t)
+		if eventAction, ok := op.event.(*eventInterfaceConfig); ok {
+			eventAction.interfaceConfig(t)
+		} else if eventAction, ok := op.event.(*eventStaticRouteToNull); ok {
+			eventAction.staticRouteToNull(t)
+		} else if eventAction, ok := op.event.(*eventEnableMplsLdp); ok {
+			eventAction.enableMplsLdp(t)
 		}
 	}
 
@@ -245,16 +245,16 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 	for _, tt := range triggers {
 		t.Logf("Name: %s", tt.name)
 		t.Logf("Description: %s", tt.desc)
-		if triggerAction, ok := tt.trigger_type.(*trigger_process_restart); ok {
-			triggerAction.restartProcessBackground(t, a.ctx)
+		if triggerAction, ok := tt.triggerType.(*triggerProcessRestart); ok {
+			triggerAction.restartProcessBackground(t, args.ctx)
 		}
-		if with_RPFO {
-			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
-				triggerAction.rpfo(t, a.ctx)
+		if withRpfo {
+			if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
+				triggerAction.rpfo(t, args.ctx)
 			}
 		}
-		if with_lc_reload {
-			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
+		if withLcReload {
+			if triggerAction, ok := tt.triggerType.(*triggerLcReload); ok {
 				// triggerAction.lc_reload(t)
 				tolerance = triggerAction.tolerance
 			}
@@ -262,26 +262,26 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts .
 	}
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
-	a.ate.Traffic().Stop(t)
+	args.ate.Traffic().Stop(t)
 
 	// remove set configs before further check
 	for _, op := range opts {
-		if _, ok := op.event.(*event_interface_config); ok {
-			eventAction := event_interface_config{config: false, shut: false, mtu: 1514, port: []string{"port2"}}
-			eventAction.interface_config(t)
-		} else if _, ok := op.event.(*event_static_route_to_null); ok {
-			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", config: false}
-			eventAction.static_route_to_null(t)
-		} else if _, ok := op.event.(*event_enable_mpls_ldp); ok {
-			eventAction := event_enable_mpls_ldp{config: false}
-			eventAction.enable_mpls_ldp(t)
+		if _, ok := op.event.(*eventInterfaceConfig); ok {
+			eventAction := eventInterfaceConfig{config: false, shut: false, mtu: 1514, port: []string{"port2"}}
+			eventAction.interfaceConfig(t)
+		} else if _, ok := op.event.(*eventStaticRouteToNull); ok {
+			eventAction := eventStaticRouteToNull{prefix: "202.1.0.1/32", config: false}
+			eventAction.staticRouteToNull(t)
+		} else if _, ok := op.event.(*eventEnableMplsLdp); ok {
+			eventAction := eventEnableMplsLdp{config: false}
+			eventAction.enableMplsLdp(t)
 		}
 	}
 
 	for _, op := range opts {
 		if op.drop {
-			in := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
-			out := gnmi.Get(t, a.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+			in := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
+			out := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
 			return uint64(out - in)
 		}
 	}
