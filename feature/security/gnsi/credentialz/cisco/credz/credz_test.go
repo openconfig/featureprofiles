@@ -32,8 +32,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/testt"
-
-	spb "github.com/openconfig/gnoi/system"
 )
 
 const (
@@ -46,10 +44,6 @@ const (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
-var (
-	serverIP = flag.String("serverip", "", "Server IP address")
-)
 
 type AuthenticationError struct {
 	message string
@@ -708,7 +702,7 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
+	switchoverRequest := &system.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
