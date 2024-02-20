@@ -342,10 +342,10 @@ func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDev
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
-	// t.Log("Reload the router to activate hw module config")
-	// reloadDevice(t, dut)
-	// time.Sleep(2 * time.Minute)
-	// startGribiClient(t)
+	t.Log("Reload the router to activate hw module config")
+	reloadDevice(t, dut)
+	time.Sleep(2 * time.Minute)
+	startGribiClient(t)
 
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
