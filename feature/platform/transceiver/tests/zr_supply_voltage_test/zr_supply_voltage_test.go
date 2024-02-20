@@ -88,7 +88,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 				maxV, maxOk := maxVS[i].Val()
 
 				if !avgOk || !minOk || !instOk || !maxOk {
-					t.Errorf("Expected all true but got: avgOk: %v minOk: %v instOk: %v maxOk: %v", avgOk, minOk, instOk, maxOk)
+					t.Fatalf("Expected all true but got: avgOk: %v minOk: %v instOk: %v maxOk: %v", avgOk, minOk, instOk, maxOk)
 				}
 
 				if avgV < minV {
