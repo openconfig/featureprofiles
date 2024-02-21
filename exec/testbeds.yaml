@@ -173,6 +173,7 @@ testbeds:
     owner: anidamod
     testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
+    baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
 #SIM
   8201-1DUT:
