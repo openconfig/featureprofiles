@@ -5,7 +5,7 @@ testbeds:
   - 8608-FOX2543PNNM
 tests:
 - name: credz_test
-  path: feature/security/gnsi/credentialz/cisco/credz
+  path: feature/security/gnsi/credentialz/cisco/tests
   timeout: 36000
   mustpass: true
   internal: true

@@ -32,6 +32,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/testt"
+
+	spb "github.com/openconfig/gnoi/system"
 )
 
 const (
@@ -44,6 +46,10 @@ const (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+var (
+	serverIP = flag.String("serverip", "", "Server IP address")
+)
 
 type AuthenticationError struct {
 	message string
@@ -702,7 +708,7 @@ func rpSwitchOver(t *testing.T, dut *ondatra.DUTDevice) {
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &system.SwitchControlProcessorRequest{
+	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
@@ -1570,3 +1576,132 @@ func TestExpiredHostCert(t *testing.T) {
 		log.Infof("Host based authentication failed, which is expected")
 	}
 }
+
+// func TestClientCertWithProcessRestartAndRPFO(t *testing.T) {
+// 	filePath := "credz"
+// 	accountName := "CERT"
+// 	authenticationType := []string{"ecdsa-nistp256-cert", "ecdsa-nistp521-cert", "ed25519-cert", "rsa-cert"}
+
+// 	tartgetIP, tartgetPort, err := getIpAndPortFromBindingFile()
+// 	if err != nil {
+// 		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+// 	}
+
+// 	var users []*oc.System_Aaa_Authentication_User
+// 	users = append(users, &oc.System_Aaa_Authentication_User{
+// 		Username: &accountName,
+// 		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+// 	})
+
+// 	dut := ondatra.DUT(t, "dut")
+// 	createUsersOnDevice(t, dut, users)
+
+// 	gnsiC := dut.RawAPIs().GNSI(t)
+
+// 	mkdirErr := os.Mkdir(filePath, 0755)
+// 	defer os.RemoveAll(filePath)
+// 	if mkdirErr != nil {
+// 		t.Fatalf("Error creating directory: %v", mkdirErr)
+// 	}
+// 	clientKeyNames, caKeyNames, hostKeyNames := generateAllSupportedPvtPublicKeyPairs(filePath, true, true)
+// 	clientKeyNames = clientKeyNames[:len(clientKeyNames)-1]
+// 	caKeyNames = caKeyNames[:len(caKeyNames)-1]
+// 	hostKeyNames = hostKeyNames[:len(hostKeyNames)-1]
+// 	var authUsrReq credz.AuthorizedUsersRequest
+
+// 	policyReq, caPubkeyReq := createAccountPoliciesAndPrincipals(accountName, filePath)
+// 	authUsrReq.Policies = append(authUsrReq.Policies, &policyReq)
+
+// 	stream, err := gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+// 	if err != nil {
+// 		t.Fatalf("failed to get stream: %v", err)
+// 	}
+// 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
+// 	finalizeAccountRequest(t, stream)
+// 	stream.CloseSend()
+// 	time.Sleep(2 * time.Second)
+
+// 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
+// 	defer hostParamStream.CloseSend()
+// 	if err != nil {
+// 		t.Fatalf("	failed to get stream: %v", err)
+// 	}
+
+// 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
+// 	finalizeHostRequest(t, hostParamStream)
+
+// 	for i := 0; i < len(clientKeyNames); i++ {
+// 		_, authUsr := filepath.Split(clientKeyNames[i])
+// 		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i])
+// 		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "+1d")
+// 	}
+
+// 	var skreq credz.ServerKeysRequest
+// 	var authArtifacts []*credz.ServerKeysRequest_AuthenticationArtifacts
+
+// 	skreq = credz.ServerKeysRequest{
+// 		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{},
+// 		Version:       "1.1",
+// 		CreatedOn:     123,
+// 	}
+
+// 	for i := 0; i < len(clientKeyNames); i++ {
+// 		hostCertFile := hostKeyNames[i] + "-cert.pub"
+
+// 		hostPvtKeyBytes, err := os.ReadFile(hostKeyNames[i])
+// 		if err != nil {
+// 			t.Fatalf("Error in reading host private key file: %v", err.Error())
+// 		}
+// 		hostcertBytes, err := os.ReadFile(hostCertFile)
+// 		if err != nil {
+// 			t.Fatalf("Error in reading host certificate file: %v", err.Error())
+// 		}
+// 		auArtifacts := &credz.ServerKeysRequest_AuthenticationArtifacts{PrivateKey: hostPvtKeyBytes, Certificate: hostcertBytes}
+// 		authArtifacts = append(authArtifacts, auArtifacts)
+// 	}
+// 	skreq.AuthArtifacts = authArtifacts
+
+// 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
+// 	finalizeHostRequest(t, hostParamStream)
+// 	time.Sleep(2 * time.Second)
+
+// 	sshVerification := func() {
+// 		errCount := 0
+// 		for i := 0; i < len(clientKeyNames); i++ {
+// 			clientCertPath := clientKeyNames[i] + "-cert.pub"
+
+// 			clientPvtKey, err := os.ReadFile(clientKeyNames[i])
+// 			if err != nil {
+// 				t.Fatalf("Error in reading Client Private key: %v", err.Error())
+// 			}
+// 			clientCert, err := os.ReadFile(clientCertPath)
+// 			if err != nil {
+// 				t.Fatalf("Error in reading : %v", err.Error())
+// 			}
+// 			sshParams := sshClientParams{
+// 				user:         accountName,
+// 				clientPvtKey: clientPvtKey,
+// 				clientCert:   clientCert,
+// 			}
+// 			err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshParams, authenticationType[i], nil)
+// 			if err != nil {
+// 				errCount = errCount + 1
+// 				log.Error("Error in establishing ssh connection: ", err.Error())
+// 			}
+// 		}
+// 		if errCount == 0 {
+// 			log.Infof("Verified all types of encryption algorithms for Host based authentication successfully")
+// 		} else {
+// 			t.Fatalf("Host based authentication failed")
+// 		}
+// 	}
+// 	RestartProcess(t, dut, "emsd")
+// 	sshVerification()
+// 	RestartProcess(t, dut, "ssh_conf_proxy")
+// 	sshVerification()
+// 	RestartProcess(t, dut, "cepki")
+// 	sshVerification()
+// 	rpSwitchOver(t, dut)
+// 	sshVerification()
+
+// }
