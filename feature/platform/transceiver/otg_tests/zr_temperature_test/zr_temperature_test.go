@@ -48,12 +48,6 @@ func TestZRTemperatureState(t *testing.T) {
 	dp1 := dut1.Port(t, "port1")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	// Check if TRANSCEIVER is of type 400ZR
-	if dp1.PMD() != ondatra.PMD400GBASEZR {
-		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
-	}
-	component1 := gnmi.OC().Component(transceiverName)
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(true)
@@ -61,6 +55,25 @@ func TestZRTemperatureState(t *testing.T) {
 	intUpdateTime := 2 * time.Minute
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
+	// Check if TRANSCEIVER is of type 400ZR
+	if dp1.PMD() != ondatra.PMD400GBASEZR {
+		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
+	}
+	component1 := gnmi.OC().Component(transceiverName)
+	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+	for _, s := range subcomponents {
+		subc, ok := s.Val()
+		if ok {
+			sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
+			if sensorComponent.GetType() == sensorType {
+				scomponent := gnmi.OC().Component(sensorComponent.GetName())
+				if scomponent != nil {
+					component1 = scomponent
+				}
+			}
+		}
+	}
 	temperatureInstantSample := gnmi.Collect(t, gnmiOpts(t, dut1, gpb.SubscriptionMode_SAMPLE, time.Second*10), component1.Temperature().Instant().State(), time.Second*10)
 	temperatureInstantSamples := temperatureInstantSample.Await(t)
 	if len(temperatureInstantSamples) == 0 {
@@ -120,6 +133,24 @@ func TestZRTemperatureState(t *testing.T) {
 	} else {
 		t.Fatalf("The average is not between the maximum and minimum values")
 	}
+}
+func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
+	dut1 := ondatra.DUT(t, "dut1")
+	dp1 := dut1.Port(t, "port1")
+	t.Logf("dut1: %v", dut1)
+	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(dp1.Name())
+	i.Enabled = ygot.Bool(false)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	// Disable interface
+	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
+	// Check if TRANSCEIVER is of type 400ZR
+	if dp1.PMD() != ondatra.PMD400GBASEZR {
+		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
+	}
+	component1 := gnmi.OC().Component(transceiverName)
 	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
 	for _, s := range subcomponents {
 		subc, ok := s.Val()
@@ -127,47 +158,12 @@ func TestZRTemperatureState(t *testing.T) {
 			sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
 			if sensorComponent.GetType() == sensorType {
 				scomponent := gnmi.OC().Component(sensorComponent.GetName())
-				v := gnmi.Lookup(t, dut1, scomponent.Temperature().Instant().State())
-				if _, ok := v.Val(); !ok {
-					t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+				if scomponent != nil {
+					component1 = scomponent
 				}
-				v = gnmi.Lookup(t, dut1, scomponent.Temperature().Min().State())
-				if _, ok := v.Val(); !ok {
-					t.Errorf("Sensor %s: Temperature Min is not defined", sensorComponent.GetName())
-				}
-				v = gnmi.Lookup(t, dut1, scomponent.Temperature().Max().State())
-				if _, ok := v.Val(); !ok {
-					t.Errorf("Sensor %s: Temperature Max is not defined", sensorComponent.GetName())
-				}
-				v = gnmi.Lookup(t, dut1, scomponent.Temperature().Avg().State())
-				if _, ok := v.Val(); !ok {
-					t.Errorf("Sensor %s: Temperature Avg is not defined", sensorComponent.GetName())
-				}
-			} else {
-				t.Fatalf("Subcomponent %s is not a sensor", subc.GetName())
 			}
-		} else {
-			t.Fatalf("Subcomponent %s is not defined", subc.GetName())
 		}
 	}
-}
-func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
-	dut1 := ondatra.DUT(t, "dut1")
-	dp1 := dut1.Port(t, "port1")
-	t.Logf("dut1: %v", dut1)
-	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	// Check if TRANSCEIVER is of type 400ZR
-	if dp1.PMD() != ondatra.PMD400GBASEZR {
-		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
-	}
-	component1 := gnmi.OC().Component(transceiverName)
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(false)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	// Disable interface
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	// During interface disable temperature sensor should not return invalid type
 	temperatureInstantSample := gnmi.Collect(t, gnmiOpts(t, dut1, gpb.SubscriptionMode_SAMPLE, time.Second*10), component1.Temperature().Instant().State(), time.Second*10)
 	temperatureInstantSamples := temperatureInstantSample.Await(t)
