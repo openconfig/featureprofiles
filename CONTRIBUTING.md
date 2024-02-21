@@ -368,6 +368,10 @@ where link local is being tested.
 
 *   138.0.11.0/24: data plane source network addresses used for traffic testing; split as needed.
 
+*   192.168.10.0/24: network addresses used for BGP policy testing; split as needed.
+
+*   192.168.20.0/24: network addresses used for BGP policy testing; split as needed.
+
 *   192.51.100.1/24: data plane source network addresses used for traffic testing; split as needed.
 
 *   192.51.129.0/22: data plane source network addresses used for traffic testing; split as needed.
