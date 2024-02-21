@@ -488,7 +488,7 @@ func TestTempSensor(t *testing.T) {
 			if sensor.Type == nil {
 				t.Fatalf("TempSensor %s: Type is empty", sName)
 			}
-
+			
 			t.Logf("TempSensor %s Type: %s", sName, sensor.GetType())
 			if got, want := sensor.GetType(), componentType["TempSensor"]; got != want {
 				t.Errorf("Type for TempSensor %s: got %v, want %v", sName, got, want)
