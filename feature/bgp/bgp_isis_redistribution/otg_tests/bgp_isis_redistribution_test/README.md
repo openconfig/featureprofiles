@@ -16,13 +16,13 @@
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
 *   Configure IPv4/IPv6 addresses on the ports
-*   Create an IPv4 networks i.e. ```ipv4-network = 192.168.10.0/24``` attached to ATE port-1
-*   Create an IPv6 networks i.e. ```ipv6-network = 2024:db8:128:128::/64``` attached to ATE port-1
-*   Configure IPv4 and IPv6 eBGP between DUT Port-1 and ATE Port-1
+*   Create an IPv4 networks i.e. ```ipv4-network = 192.168.10.0/24``` attached to ATE port-2
+*   Create an IPv6 networks i.e. ```ipv6-network = 2024:db8:128:128::/64``` attached to ATE port-2
+*   Configure IPv4 and IPv6 eBGP between DUT Port-2 and ATE Port-2
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
     *   Advertise ```ipv4-network = 192.168.10.0/24``` and ```ipv6-network = 2024:db8:128:128::/64``` from ATE to DUT with community ```64512:100```
-*   Configure IPv4 and IPv6 IS-IS L2 adjacency between ATE port-2 and DUT port-2
+*   Configure IPv4 and IPv6 IS-IS L2 adjacency between ATE port-1 and DUT port-1
     *   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
     *   Set level-capability to ```LEVEL_2```
         *   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability
@@ -119,8 +119,8 @@
 ##### Validate test results
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv4-network``` i.e. ```192.168.10.0/24```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
-*   Initiate traffic from ATE port-2 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
-*   Validate that the traffic is received on ATE port-1
+*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
+*   Validate that the traffic is received on ATE port-2
 
 ### RT-1.28.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS
@@ -132,7 +132,7 @@
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Attach community-set to the route-policy
 *   For routing-policy ```route-policy-v4``` statement ```statement-v4``` reference the community set ```community-set-v4```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set
 ##### Verification
 *   Verity a community set with name ```community-set-v4``` exists
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name
@@ -155,8 +155,8 @@
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv4-network``` i.e. ```192.168.10.0/24```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
-*   Initiate traffic from ATE port-2 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
-*   Validate that the traffic is received on ATE port-1
+*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
+*   Validate that the traffic is received on ATE port-2
 
 ### RT-1.28.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### Non matching IPv6 BGP prefixes in a prefix-set should not be redistributed to IS-IS
@@ -248,8 +248,8 @@
 ##### Validate test results
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
-*   Initiate traffic from ATE port-2 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-*   Validate that the traffic is received on ATE port-1
+*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
+*   Validate that the traffic is received on ATE port-2
 
 ### RT-1.28.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv6: Non matching BGP community in a community-set should not be redistributed to IS-IS
@@ -261,7 +261,7 @@
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 ##### Attach community-set to the route-policy
 *   For routing-policy ```route-policy-v6``` statement ```statement-v6``` reference the community set ```community-set-v6```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set
 ##### Verification
 *   Verity a community set with name ```community-set-v6``` exists
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name
@@ -284,8 +284,8 @@
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/metric
-*   Initiate traffic from ATE port-2 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-*   Validate that the traffic is received on ATE port-1
+*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
+*   Validate that the traffic is received on ATE port-2
 
 ## Config parameter coverage
 

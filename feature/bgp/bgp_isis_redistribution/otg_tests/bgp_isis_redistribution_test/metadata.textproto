@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "169cbf57-f750-4f14-8317-6f78e780607e"
+plan_id:  "RT-1.28"
+description:  "BGP to IS-IS redistribution"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    isis_instance_enabled_required:  true
+    route_policy_under_afi_unsupported:  true
+    omit_l2_mtu:  true
+    missing_value_for_defaults:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_interface_afi_unsupported:  true
+    skip_isis_set_level:  true
+    skip_isis_set_metric_style_type:  true
+    skip_set_rp_match_set_options:  true
+    skip_setting_disable_metric_propagation:  true
+  }
+}
