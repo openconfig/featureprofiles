@@ -6,18 +6,18 @@ Test FRR behaviors with encapsulation scenarios.
 
 ## Topology
 
-ATE port-1 <------> port-1 DUT
-DUT port-2 <------> port-2 ATE
-DUT port-3 <------> port-3 ATE
-DUT port-4 <------> port-4 ATE
-DUT port-5 <------> port-5 ATE
-DUT port-6 <------> port-6 ATE
-DUT port-7 <------> port-7 ATE
-DUT port-8 <------> port-8 ATE
+-   ATE port-1 <------> port-1 DUT
+-   DUT port-2 <------> port-2 ATE
+-   DUT port-3 <------> port-3 ATE
+-   DUT port-4 <------> port-4 ATE
+-   DUT port-5 <------> port-5 ATE
+-   DUT port-6 <------> port-6 ATE
+-   DUT port-7 <------> port-7 ATE
+-   DUT port-8 <------> port-8 ATE
 
 ## Baseline setup
 
-* Apply the following vrf selection policy to DUT port-1
+*   Apply the following vrf selection policy to DUT port-1
 
 ```
 # DSCP value that will be matched to ENCAP_TE_VRF_A
@@ -289,7 +289,7 @@ IPv4Entry {192.0.2.102/32 (DEFAUlT VRF)} -> NHG#12 (DEFAULT VRF) -> {
   {NH#13, DEFAULT VRF, weight:2,mac_address:magic_mac, interface-ref:dut-port-4-interface},
 }
 
-NHG#1000 (Default VRF) {
+NHG#1000 (DEFAULT VRF) {
   {NH#1000, DEFAULT VRF}
 }
 NH#1000 -> {
@@ -304,6 +304,7 @@ NH#1000 -> {
 
 IPv4Entry {203.0.113.100/32 (TE_VRF_222)} -> NHG#2 (DEFAULT VRF) -> {
   {NH#3, DEFAULT VRF, weight:1,ip_address=192.0.2.103},
+  backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
   {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
@@ -332,9 +333,18 @@ NH#1001 -> {
 }
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
   {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
+  backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
   {NH#16, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-7-interface},
+}
+
+NHG#2000 (DEFAULT VRF) {
+  {NH#2000, DEFAULT VRF}
+}
+NH#2000 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  network_instance: "DEFAULT"
 }
 ```
 
@@ -430,12 +440,13 @@ the double failure handling, and ensures that the fallback to DEFAULT is
 activated through the backup NHGs of the tunnels instead of withdrawing the
 IPv4Entry.
 
-1.  Update `NHG#1000` and `NHG#1001` to the following: ``` NHG#1000 (Default VRF) {
-    {NH#1000, DEFAULT VRF} } NH#1000 ->
+1.  Update `NHG#1000` and `NHG#1001` to the following: ``` NHG#1000 (Default
+    VRF) { {NH#1000, DEFAULT VRF} } NH#1000 ->
     { decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" }
 
-NHG#1001 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> { decapsulate_header:
-OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" } ```
+NHG#1001 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> {
+decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+network_instance: "DEFAULT" } ```
 
 1.  Validate that all traffic is distributed per the hierarchical weights.
 2.  Shutdown DUT port-2, port-3, and port-4, and port-6.
@@ -491,4 +502,4 @@ be routed to the DEFAULT VRF for further lookup.
 
 ## Required DUT platform
 
-vRX
+-   vRX
