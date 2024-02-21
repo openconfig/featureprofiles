@@ -696,6 +696,9 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	})
 
 	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
+		if deviations.SkipPbfWithDecapEncapVrf(dut) {
+			t.Skip("Skipping test as it is not supported")
+		}
 		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
@@ -705,6 +708,9 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	})
 
 	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
+		if deviations.SkipPbfWithDecapEncapVrf(dut) {
+			t.Skip("Skipping test as it is not supported")
+		}
 		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
