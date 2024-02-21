@@ -1,0 +1,31 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "56813f02-5db1-4c6b-89ba-4cc2b500b9c3"
+plan_id: "TRANSCEIVER-9"
+description: "Telemetry: 400ZR TX laser bias current telemetry values streaming."
+testbed: TESTBED_DUT_DUT_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    transceiver_thresholds_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    transceiver_thresholds_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    transceiver_thresholds_unsupported: true
+  }
+}
