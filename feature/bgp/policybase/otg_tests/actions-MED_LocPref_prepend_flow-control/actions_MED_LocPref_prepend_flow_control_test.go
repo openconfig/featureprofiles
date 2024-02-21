@@ -22,7 +22,7 @@ import (
         "github.com/open-traffic-generator/snappi/gosnappi"
         "github.com/openconfig/featureprofiles/internal/attrs"
         "github.com/openconfig/featureprofiles/internal/deviations"
-        "ithub.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/featureprofiles/internal/fptest"
         "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
         "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
