@@ -39,8 +39,7 @@ Use the same topology as TE-14.1
 1.  Build the same scale setup as TE-14.1.
 2.  Apply `vrf_selection_policy_w` to DUT port-1.
 
-### vrf_selection_policy_w
-
+vrf_selection_policy_w
 ```
 network-instances {
     network-instance {
