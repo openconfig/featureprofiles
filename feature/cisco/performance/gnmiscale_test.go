@@ -1,13 +1,11 @@
 package main
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -35,15 +33,20 @@ func TestMain(m *testing.M) {
 
 func TestCpuCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	t.Log("Starting CPU data collection")
 	wg := CollectCpuData(t, dut, 50*time.Millisecond, 5*time.Second)
 	wg.Wait()
+	t.Log("CPU data collection finished")
 }
 
 func TestEmsdRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	t.Log("Starting CPU data collection")
 	wg := CollectCpuData(t, dut, 1*time.Second, 60*time.Second)
-	
+
+	t.Log("Restarting emsd")
 	RestartEmsd(t, dut)
-	
+
 	wg.Wait()
+	t.Log("CPU data collection finished")
 }

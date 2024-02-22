@@ -20,10 +20,10 @@ func cpuVerify(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup, freq ti
 		done := false
 		for !done {
 			select {
-			case <- ticker.C:
+			case <-ticker.C:
 				data := gnmi.GetAll[*oc.System_Cpu](t, dut, gnmi.OC().System().CpuAny().State())
 				cpuChan <- data
-			case <- timer.C:
+			case <-timer.C:
 				close(cpuChan)
 				done = true
 			}
