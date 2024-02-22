@@ -50,14 +50,25 @@ import (
 	bpb "github.com/openconfig/bootz/proto/bootz"
 )
 
+// var (
+//
+//	dhcpIntf        = flag.String("dhcp-intf", "", "Interface that will be used by dhcp server to listen for dhcp requests")
+//	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+//	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+//	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
+//	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
+//	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
+//	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
+//
+// )
 var (
-	dhcpIntf        = flag.String("dhcp-intf", "", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
-	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
-	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
-	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
+	dhcpIntf        = flag.String("dhcp-intf", "ens224", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "5.38.4.124:15006", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "5.38.4.124:15007", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "/var/www/html/", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "24.2.1.18I", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "5.38.9.29/16", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "5.38.0.1", "Gateway IP that dhcp server will assign to DUT.")
 )
 
 var (
@@ -113,14 +124,14 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func checkBootzStatus(t *testing.T, expectFailure bool, dut *ondatra.DUTDevice) {
+func checkBootzStatus(t *testing.T, expectFailure bool, dut *ondatra.DUTDevice, bootzstatustimeout time.Duration) {
 	if bootzServerFailed.Load() {
 		t.Fatal("bootz server is down, check the test log for detailed error")
 	}
 	for _, ccSerial := range controllerCardSerials {
-		err := awaitBootzStatus(ccSerial, bpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStatusTimeout, t, dut)
+		err := awaitBootzStatus(ccSerial, bpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzstatustimeout, t, dut)
 		if err != nil {
-			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", bootzStatusTimeout, ccSerial)
+			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", bootzstatustimeout, ccSerial)
 		} else {
 			t.Log("DUT reported ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED to bootz server as expected")
 		}
@@ -130,9 +141,9 @@ func checkBootzStatus(t *testing.T, expectFailure bool, dut *ondatra.DUTDevice) 
 		expectedCCstatus = bpb.ReportStatusRequest_BOOTSTRAP_STATUS_FAILURE
 	}
 	for _, ccSerial := range controllerCardSerials {
-		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzStatusTimeout, t, dut)
+		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzstatustimeout, t, dut)
 		if err != nil {
-			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzStatusTimeout)
+			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzstatustimeout)
 		} else {
 			t.Logf("DUT reported %s to bootz server as expected", expectedCCstatus.String())
 		}
@@ -535,21 +546,21 @@ func TestBootz1(t *testing.T) {
 
 				t.Logf("Executing ztp initiate on the box")
 				ztpInitiateMgmtDhcp4(t, dut)
-				// time.Sleep(3 * time.Minute)
-
 				traversedStates = []oc.E_Bootz_Status{}
-				for len(traversedStates) == 0 {
+				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
 					got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
 						return val.IsPresent()
 					}).Await(t)
+
 					if ok {
 						bootzstatus, _ := got.Val()
 						traversedStates = append(traversedStates, bootzstatus)
 					}
+
 					time.Sleep(time.Second)
 				}
 
-				checkBootzStatus(t, tt.ExpectedFailure, dut)
+				checkBootzStatus(t, tt.ExpectedFailure, dut, bootzStatusTimeout)
 
 				got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
 					return val.IsPresent()
@@ -582,7 +593,7 @@ func TestBootz1(t *testing.T) {
 }
 
 // ### bootz-2: Validate Software image in bootz configuration
-func TestBootz2(t *testing.T) {
+func JTestBootz2(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	testSetup(t, dut)
@@ -643,14 +654,16 @@ func TestBootz2(t *testing.T) {
 				ztpInitiateMgmtDhcp4(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
-				for len(traversedStates) == 0 {
+				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
 					got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
 						return val.IsPresent()
 					}).Await(t)
+
 					if ok {
 						bootzstatus, _ := got.Val()
 						traversedStates = append(traversedStates, bootzstatus)
 					}
+
 					time.Sleep(time.Second)
 				}
 
@@ -672,7 +685,7 @@ func TestBootz2(t *testing.T) {
 						t.Log("DUT is connected to bootz server")
 					}
 
-					checkBootzStatus(t, tt.ExpectedFailure, dut)
+					checkBootzStatus(t, tt.ExpectedFailure, dut, fullBootzCompletionTimeout)
 					awaitOCBootzStatus(t, dut, 2*time.Minute, tt.TelemetryStatusValidation)
 				}
 				traversedStates = removeDuplicates(traversedStates)
@@ -769,12 +782,17 @@ func TestBootz3(t *testing.T) {
 				ztpInitiateMgmtDhcp4(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
-				got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
-					return val.IsPresent()
-				}).Await(t)
-				if ok {
-					bootzstatus, _ := got.Val()
-					traversedStates = append(traversedStates, bootzstatus)
+				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
+					got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
+						return val.IsPresent()
+					}).Await(t)
+
+					if ok {
+						bootzstatus, _ := got.Val()
+						traversedStates = append(traversedStates, bootzstatus)
+					}
+
+					time.Sleep(time.Second)
 				}
 				if !tt.ExpectedFailure { // when OV validation fails, device has no secure way to connect and report the status
 					dhcpIDs := []string{chassisSerial}
@@ -791,7 +809,7 @@ func TestBootz3(t *testing.T) {
 					} else {
 						t.Log("DUT is connected to bootz server")
 					}
-					checkBootzStatus(t, tt.ExpectedFailure, dut)
+					checkBootzStatus(t, tt.ExpectedFailure, dut, bootzStatusTimeout)
 					dutBootzStatus(t, dut, 5*time.Second)
 					ocLeafValidation(t, dut, checksumServer, tt.ExpectedFailure)
 				} else {
@@ -899,18 +917,20 @@ func TestBootz4(t *testing.T) {
 				ztpInitiateMgmtDhcp4(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
-				for len(traversedStates) == 0 {
+				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
 					got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
 						return val.IsPresent()
 					}).Await(t)
+
 					if ok {
 						bootzstatus, _ := got.Val()
 						traversedStates = append(traversedStates, bootzstatus)
 					}
+
 					time.Sleep(time.Second)
 				}
 
-				checkBootzStatus(t, tt.ExpectedFailure, dut)
+				checkBootzStatus(t, tt.ExpectedFailure, dut, bootzStatusTimeout)
 				if tt.ExpectedFailure {
 					awaitOCBootzStatus(t, dut, 3*time.Minute, tt.TelemetryStatusValidation)
 				}

@@ -86,12 +86,11 @@ var (
 	muRw            sync.RWMutex
 )
 var checksumServer string
+var traversedStates []oc.E_Bootz_Status
 
 type SerializedBootstrapData struct {
 	SerializedBootstrapData string `json:"serialized_bootstrap_data"`
 }
-
-var traversedStates []oc.E_Bootz_Status
 
 func bootzInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
