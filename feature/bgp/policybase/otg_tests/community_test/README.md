@@ -1,4 +1,4 @@
-# RT-2.3: BGP Policy Community Set
+# RT-7.2: BGP Policy Community Set
 
 ## Summary
 
@@ -6,7 +6,7 @@ BGP policy configuration for AS Paths and Community Sets
 
 ## Subtests
 
-* RT-2.3.1 - Setup BGP sessions
+* RT-7.2.1 - Setup BGP sessions
   * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
   * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
@@ -21,7 +21,7 @@ BGP policy configuration for AS Paths and Community Sets
   * Validate that traffic can be received on ATE port-1 for all installed
         routes.
 
-* RT-2.3.2 - Validate community-set
+* RT-7.2.2 - Validate community-set
   * Configure the following community sets on the DUT.
     * Create a community-set named `any_my_3_comms` with members as follows:
       * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
