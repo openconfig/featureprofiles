@@ -178,4 +178,3 @@ func TestBGPSetup(t *testing.T) {
 	checkPacketLoss(t, bs.ATE)
 	verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
 }
-
