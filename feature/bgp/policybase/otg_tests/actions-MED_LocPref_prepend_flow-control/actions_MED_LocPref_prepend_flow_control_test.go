@@ -15,9 +15,6 @@
 package actions_MED_LocPref_prepend_flow_control_test
 
 import (
-	"testing"
-	"time"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -31,6 +28,8 @@ import (
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
