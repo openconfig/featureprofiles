@@ -597,6 +597,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-22.2"
+  description: "gRIBI IPinIP encap of IPv6 Traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/encap_v6_ipinip/README.md"
+  exec: " "
+}
+test: {
   id: "TE-3.1"
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
