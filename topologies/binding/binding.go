@@ -90,9 +90,9 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
-	resv, err := reservation(tb, b.r)
-	if err != nil {
-		return nil, err
+	resv, errs := reservation(tb, b.r)
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
 	}
 	resv.ID = resvID
 	b.resv = resv
@@ -275,7 +275,9 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
-func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
+func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+	var errs []error
+
 	bduts := make(map[string]*bindpb.Device)
 	for _, bdut := range r.Duts {
 		bduts[bdut.Id] = bdut
@@ -284,8 +286,6 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	for _, bate := range r.Ates {
 		bates[bate.Id] = bate
 	}
-
-	var errs []error
 
 	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
@@ -319,13 +319,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		}
 	}
 
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
-	}
 	return &binding.Reservation{
 		DUTs: duts,
 		ATEs: ates,
-	}, nil
+	}, errs
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
@@ -368,12 +365,13 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 }
 
 func ports(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+	var errs []error
+
 	bports := make(map[string]*bindpb.Port)
 	for _, bport := range bd.Ports {
 		bports[bport.Id] = bport
 	}
 
-	var errs []error
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
 		bport, ok := bports[tport.Id]

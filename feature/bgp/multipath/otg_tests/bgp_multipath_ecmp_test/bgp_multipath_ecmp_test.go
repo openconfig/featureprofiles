@@ -186,10 +186,10 @@ func TestBGPSetup(t *testing.T) {
 			bs.PushAndStart(t)
 
 			t.Logf("Verify DUT BGP sessions up")
-			bs.VerifyDUTBGPEstablished(t)
+			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Verify OTG BGP sessions up")
-			bs.VerifyOTGBGPEstablished(t)
+			cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 			aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
