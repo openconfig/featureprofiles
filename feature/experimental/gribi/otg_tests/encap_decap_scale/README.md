@@ -33,7 +33,7 @@ Use the same topology as TE-14.1
 
 # Magic destination MAC address
 * magic_mac = 02:00:00:00:00:01
-
+```
 ## Baseline
 
 1.  Build the same scale setup as TE-14.1.
