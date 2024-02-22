@@ -402,18 +402,26 @@ message Metadata {
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
     bool skip_setting_allow_multiple_as = 140;
-    //Skip tests with decap encap vrf as PBF action 
+    //Skip tests with decap encap vrf as PBF action
     // Nokia: partnerissuetracker.corp.google.com/issues/323251581
-    bool skip_pbf_with_decap_encap_vrf = 141;
-     // Devices which does not support copying TTL.
+     bool skip_pbf_with_decap_encap_vrf = 141;
+    // Devices which does not support copying TTL.
     // Juniper: b/307258544
     bool ttl_copy_unsupported = 142;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
     bool gribi_decap_mixed_plen_unsupported = 143;
+    // Skip setting isis-actions set-level while configuring routing-policy statement action
+    bool skip_isis_set_level = 144;
+    // Skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+    bool skip_isis_set_metric_style_type = 145;
+    // Skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+    bool skip_set_rp_match_set_options = 146;
+    // Skip setting disable-metric-propagation while configuring table-connection
+    bool skip_setting_disable_metric_propagation = 147;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
 
   message PlatformExceptions {
@@ -437,3 +445,4 @@ message Metadata {
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
 }
+

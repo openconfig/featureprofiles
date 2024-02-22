@@ -154,11 +154,16 @@ func TestReservation_Error(t *testing.T) {
 		Duts: []*opb.Device{{
 			Id: "dut.tb", // only in testbed.
 		}, {
-			Id: "dut.both",
+			Id:                   "dut.both",
+			Vendor:               opb.Device_CIENA,                                         // only in testbed
+			HardwareModelValue:   &opb.Device_HardwareModel{HardwareModel: "modelA"},       // differs from binding
+			SoftwareVersionValue: &opb.Device_SoftwareVersion{SoftwareVersion: "versionB"}, // matches binding
 			Ports: []*opb.Port{{
 				Id: "port1",
 			}, {
-				Id: "port2",
+				Id:       "port2",
+				Speed:    opb.Port_S_100GB,                                // only in testbed
+				PmdValue: &opb.Port_Pmd_{Pmd: opb.Port_PMD_100GBASE_CLR4}, // differs in binding
 			}},
 		}},
 		Ates: []*opb.Device{{
@@ -166,7 +171,8 @@ func TestReservation_Error(t *testing.T) {
 		}, {
 			Id: "ate.both",
 			Ports: []*opb.Port{{
-				Id: "port1",
+				Id:    "port1",
+				Speed: opb.Port_S_10GB, // matches binding
 			}, {
 				Id: "port2",
 			}},
@@ -178,22 +184,28 @@ func TestReservation_Error(t *testing.T) {
 			Id:   "dut.b", // only in binding.
 			Name: "dut.b.name",
 		}, {
-			Id:   "dut.both",
-			Name: "dut.both.name",
+			Id:              "dut.both",
+			Name:            "dut.both.name",
+			HardwareModel:   "modelB",   // differs in testbed
+			SoftwareVersion: "versionB", // differs in binding
 			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
 				Id:   "port2",
 				Name: "Ethernet2",
+				Pmd:  opb.Port_PMD_400GBASE_DR4, // differs in testbed
 			}, {
 				Id:   "port3",
 				Name: "Ethernet3",
 			}},
 		}},
 		Ates: []*bindpb.Device{{
-			Id:   "ate.both",
-			Name: "ate.name",
+			Id:     "ate.both",
+			Name:   "ate.name",
+			Vendor: opb.Device_IXIA, // only in binding
 			Ports: []*bindpb.Port{{ // port2 missing, port3 extra
-				Id:   "port1",
-				Name: "1/1",
+				Id:    "port1",
+				Name:  "1/1",
+				Speed: opb.Port_S_10GB,          // matches testbed
+				Pmd:   opb.Port_PMD_40GBASE_SR4, // only in binding
 			}, {
 				Id:   "port3",
 				Name: "1/3",
@@ -201,23 +213,25 @@ func TestReservation_Error(t *testing.T) {
 		}},
 	}
 
-	_, err := reservation(tb, resolver{b})
-	if err == nil {
-		t.Fatalf("Error building reservation: %v", err)
+	r, errs := reservation(tb, resolver{b})
+	if len(errs) == 0 {
+		t.Fatalf("reservation() unexpectedly succeeded: %v", r)
 	}
-	t.Logf("Got reservation errors: %v", err)
 
 	wants := []string{
 		`missing binding for DUT "dut.tb"`,
+		`binding hardware model`,
 		`missing binding for port "port1" on "dut.both"`,
+		`binding port PMD`,
 		`missing binding for ATE "ate.tb"`,
 		`missing binding for port "port2" on "ate.both"`,
 	}
-	errText := err.Error()
-
-	for _, want := range wants {
-		if !strings.Contains(errText, want) {
-			t.Errorf("Want error not found: %s", want)
+	if got, want := len(errs), len(wants); got != want {
+		t.Errorf("reservation() got %d errors, want %d: %v", got, want, errs)
+	}
+	for i, err := range errs {
+		if got, want := err.Error(), wants[i]; !strings.Contains(got, want) {
+			t.Errorf("reservation() got error %q, want: %q", got, want)
 		}
 	}
 }

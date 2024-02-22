@@ -120,6 +120,7 @@ func (tc *testcase) fix() error {
 	if tc.existing != nil {
 		tc.fixed.Testbed = tc.existing.Testbed
 		tc.fixed.PlatformExceptions = tc.existing.PlatformExceptions
+		tc.fixed.Tags = tc.existing.Tags
 		u, err := uuid.Parse(tc.existing.Uuid)
 		if err == nil && u.Variant() == uuid.RFC4122 && u.Version() == 4 {
 			// Existing UUID is valid, but make sure it is normalized.
