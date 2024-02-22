@@ -541,7 +541,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	t.Helper()
 
 	_, decapStartIP, _ := net.ParseCIDR(IPBlockDecap)
-	/*flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
+	flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: []uint32{dscpEncapA1},
 		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapA1},
 	})
@@ -559,7 +559,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	flow4 := createFlow(&flowArgs{flowName: "flow4", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
 		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: []uint32{dscpEncapD1},
 		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD1},
-	})*/
+	})
 
 	flow5 := createFlow(&flowArgs{flowName: "flow5", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
 		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: []uint32{dscpEncapA2},
@@ -581,8 +581,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD2},
 	})
 
-	//flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
-	flowList := []gosnappi.Flow{flow5, flow6, flow7, flow8}
+	flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
 
 	args.top.Flows().Clear()
 	for _, flow := range flowList {
@@ -600,8 +599,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	t.Logf("Stop traffic")
 	args.ate.OTG().StopTraffic(t)
 
-	//flowNameList := []string{"flow1", "flow2", "flow3", "flow4", "flow5", "flow6", "flow7", "flow8"}
-	flowNameList := []string{"flow5", "flow6", "flow7", "flow8"}
+	flowNameList := []string{"flow1", "flow2", "flow3", "flow4", "flow5", "flow6", "flow7", "flow8"}
 
 	verifyTraffic(t, args, flowNameList, !wantLoss)
 }
