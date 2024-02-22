@@ -42,7 +42,10 @@ func TestCpuCollector(t *testing.T) {
 func TestEmsdRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Log("Starting CPU data collection")
-	wg := CollectCpuData(t, dut, 1*time.Second, 60*time.Second)
+	wg := CollectCpuData(t, dut, 14*time.Second, 60*time.Second)
+
+	// guarantee a few timestamps before emsd restart occurs
+	time.Sleep(5*time.Second)
 
 	t.Log("Restarting emsd")
 	RestartEmsd(t, dut)
