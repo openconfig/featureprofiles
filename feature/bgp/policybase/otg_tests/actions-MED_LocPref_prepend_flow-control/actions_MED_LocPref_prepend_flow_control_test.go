@@ -19,18 +19,18 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg/otg"
-	"github.com/openconfig/ondatra/ondatra"
-	otg "github.com/openconfig/ondatra/otg/otg"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -185,25 +185,19 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var nbrIP = []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
-	for _, nbr := range nbrIP {
-		nbrPath := bgpPath.Neighbor(nbr)
-		// Get BGP adjacency state.
-		var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
-		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			state, ok := val.Val()
-			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Fatal("No BGP neighbor formed")
+	watch := gnmi.Watch(t, dut, bgpPath.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp]) bool {
+		path, _ := val.Val()
+		for _, nbr := range nbrIP {
+			if path.GetNeighbor(nbr).GetSessionState() != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
+				return false
+			}
 		}
-		state, _ := status.Val()
-		t.Logf("BGP adjacency for %s: %v", nbr, state)
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbr, state, want)
-		}
+		return true
+	})
+	if val, ok := watch.Await(t); !ok {
+		t.Fatalf("BGP sessions not established: got %v", val)
 	}
+	t.Log("BGP sessions Established")
 }
 
 // configureMEDLocalPrefPolicy configures MED, Local Pref, AS prepend etc
