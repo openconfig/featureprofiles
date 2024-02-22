@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -53,7 +54,6 @@ var (
 		"telemetry model-driven", "routing isis", "routing bgp", "linux networking",
 		"install",
 	}
-
 	pipedCmds = []string{
 		"show grpc trace all",
 		"show telemetry model-driven trace all",
@@ -70,6 +70,7 @@ var (
 	}
 )
 
+// NewTargets initialize the Targets
 func NewTargets(t *testing.T) *Targets {
 	t.Helper()
 	// set up all ssh for the targets
@@ -84,11 +85,14 @@ func NewTargets(t *testing.T) *Targets {
 	return &nt
 }
 
+// TestMain sets up Ondatra tests init
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// TestCollectDebugFiles collects debug commands if coreFile flag is set to false, else it Skips the test
 func TestCollectDebugFiles(t *testing.T) {
+	// set up Targets
 	targets := NewTargets(t)
 	if *outDirFlag == "" {
 		t.Fatalf("outDirFlag was not set")
@@ -97,6 +101,9 @@ func TestCollectDebugFiles(t *testing.T) {
 		timestamp = *timestampFlag
 	}
 	coreFlag = *coreFilesFlag
+
+	// this generate dummy core files --- for testing use only
+	// targets.SetCoreFile(t)
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
@@ -134,11 +141,15 @@ func TestCollectDebugFiles(t *testing.T) {
 			})
 		}
 
-		copyDebugFiles(t, targetInfo)
+		copyDebugFiles(t, targetInfo, "CollectDebugFiles")
 	}
 }
 
-func copyDebugFiles(t *testing.T, d targetInfo) {
+// copyDebugFiles copies files from the runs to an specified directory with a filename
+//
+// d targetInfo - contains the dut info
+// filename - self-explanatory
+func copyDebugFiles(t *testing.T, d targetInfo, filename string) {
 	t.Helper()
 
 	target := fmt.Sprintf("%s:%s", d.sshIP, d.sshPort)
@@ -152,7 +163,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}
 	defer scpClient.Close()
 
-	dutOutDir := filepath.Join(outDir, d.dut)
+	dutOutDir := filepath.Join(outDir, d.dut, filename)
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
 		t.Errorf("Error creating output directory: %v", err)
 		return
@@ -165,6 +176,9 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}
 }
 
+// getSSHInfo adds dut ssh info to a slice targetInfo[dut.Id]
+//
+// return an error if any
 func (ti *Targets) getSSHInfo(t *testing.T) error {
 	t.Helper()
 
@@ -243,4 +257,39 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 // getTechFileName return the techDirecory + / + replacing " " with _
 func getTechFileName(tech string) string {
 	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
+}
+
+// GetOndatraCLI
+//
+// returns a new streaming CLI client for the DUT.
+func GetOndatraCLI(t *testing.T, dutID string) binding.CLIClient {
+	t.Helper()
+	dut := ondatra.DUT(t, dutID)
+
+	return dut.RawAPIs().CLI(t)
+}
+
+// setCoreFile creates a core file. function to be deleted !!!!!!!!!!
+func (ti *Targets) SetCoreFile(t *testing.T) {
+	fmt.Println("Starting setCoreFile")
+	t.Helper()
+
+	cmd := "dumpcore running 1215"
+
+	for dutID := range ti.targetInfo {
+		t.Logf("Collecting debug files on %s", dutID)
+		ctx := context.Background()
+		cli := GetOndatraCLI(t, dutID)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if result, err := cli.RunCommand(ctx, cmd); err == nil {
+				t.Logf("> %s", cmd)
+				t.Log(result.Output())
+			} else {
+				t.Logf("> %s", cmd)
+				t.Log(err.Error())
+			}
+			t.Logf("\n")
+		})
+	}
+	fmt.Println("Exiting setCoreFile")
 }
