@@ -413,10 +413,10 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
-    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '1'))
+    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
 
 def decommission_testbed_after_tests():
-    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '0') == '1'
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '1') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
