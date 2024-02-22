@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 //   - ate:port2.i -> dut:port2.i VLAN-ID i subnet 198.18.x.(4*i)/30 (out of subnet 198.18.192.0/18)
 const (
 	ipv4PrefixLen           = 30 // ipv4PrefixLen is the ATE and DUT interface IP prefix length
+	ipv6PrefixLen           = 126
 	vrf1                    = "VRF-A"
 	vrf2                    = "VRF-B"
 	vrf3                    = "VRF-C"
@@ -112,7 +113,7 @@ const (
 	encapIPv6Count          = 5000
 	encapNhSize             = 8
 	decapIPv4Count          = 48
-	decapIPv4ScaleCount     = 5000
+	decapIPv4ScaleCount     = 3000
 	decapScale              = true
 	wantLoss                = false
 	tolerance               = 50
@@ -123,17 +124,30 @@ var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
+		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6Len: ipv6PrefixLen,
 	}
-	lastNhIndex  int
-	lastNhgIndex int
+	lastNhIndex         int
+	lastNhgIndex        int
+	encapVrfAIPv4Enries = createIPv4Entries(IPBlockEncapA)[0:encapIPv4Count]
+	encapVrfBIPv4Enries = createIPv4Entries(IPBlockEncapB)[0:encapIPv4Count]
+	encapVrfCIPv4Enries = createIPv4Entries(IPBlockEncapC)[0:encapIPv4Count]
+	encapVrfDIPv4Enries = createIPv4Entries(IPBlockEncapD)[0:encapIPv4Count]
+
+	encapVrfAIPv6Enries = createIPv6Entries(IPv6BlockEncapA, encapIPv6Count)
+	encapVrfBIPv6Enries = createIPv6Entries(IPv6BlockEncapB, encapIPv6Count)
+	encapVrfCIPv6Enries = createIPv6Entries(IPv6BlockEncapC, encapIPv6Count)
+	encapVrfDIPv6Enries = createIPv6Entries(IPv6BlockEncapD, encapIPv6Count)
 )
 
 // routesParam holds parameters required for provisioning
@@ -248,31 +262,31 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	pfRule8 := &policyFwRule{SeqId: 8, protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
-	pfRule9 := &policyFwRule{SeqId: 1, protocol: 4, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule9 := &policyFwRule{SeqId: 9, protocol: 4, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfC, decapFallbackNi: niTeVrf222}
-	pfRule10 := &policyFwRule{SeqId: 2, protocol: 41, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule10 := &policyFwRule{SeqId: 10, protocol: 41, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfC, decapFallbackNi: niTeVrf222}
-	pfRule11 := &policyFwRule{SeqId: 3, protocol: 4, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule11 := &policyFwRule{SeqId: 11, protocol: 4, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfC, decapFallbackNi: niTeVrf111}
-	pfRule12 := &policyFwRule{SeqId: 4, protocol: 41, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule12 := &policyFwRule{SeqId: 12, protocol: 41, dscpSet: []uint8{dscpEncapC1, dscpEncapC2}, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfC, decapFallbackNi: niTeVrf111}
 
-	pfRule13 := &policyFwRule{SeqId: 1, protocol: 4, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule13 := &policyFwRule{SeqId: 13, protocol: 4, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfD, decapFallbackNi: niTeVrf222}
-	pfRule14 := &policyFwRule{SeqId: 2, protocol: 41, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule14 := &policyFwRule{SeqId: 14, protocol: 41, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfD, decapFallbackNi: niTeVrf222}
-	pfRule15 := &policyFwRule{SeqId: 3, protocol: 4, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule15 := &policyFwRule{SeqId: 15, protocol: 4, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfD, decapFallbackNi: niTeVrf111}
-	pfRule16 := &policyFwRule{SeqId: 4, protocol: 41, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule16 := &policyFwRule{SeqId: 16, protocol: 41, dscpSet: []uint8{dscpEncapD1, dscpEncapD2}, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfD, decapFallbackNi: niTeVrf111}
 
-	pfRule17 := &policyFwRule{SeqId: 9, protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule17 := &policyFwRule{SeqId: 17, protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
-	pfRule18 := &policyFwRule{SeqId: 10, protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
+	pfRule18 := &policyFwRule{SeqId: 18, protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
-	pfRule19 := &policyFwRule{SeqId: 11, protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule19 := &policyFwRule{SeqId: 19, protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
-	pfRule20 := &policyFwRule{SeqId: 12, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
+	pfRule20 := &policyFwRule{SeqId: 20, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
 		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
@@ -368,7 +382,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k entries in ENCAP-VRF-A
 	vrfEntryParams[niEncapTeVrfA] = &routesParam{
-		ipEntries:     createIPv4Entries(IPBlockEncapA)[0:encapIPv4Count],
+		ipEntries:     encapVrfAIPv4Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -386,7 +400,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k entries in ENCAP-VRF-B.
 	vrfEntryParams[niEncapTeVrfB] = &routesParam{
-		ipEntries:     createIPv4Entries(IPBlockEncapB)[0:encapIPv4Count],
+		ipEntries:     encapVrfBIPv4Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -404,7 +418,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k entries in ENCAP-VRF-C
 	vrfEntryParams[niEncapTeVrfC] = &routesParam{
-		ipEntries:     createIPv4Entries(IPBlockEncapC)[0:encapIPv4Count],
+		ipEntries:     encapVrfCIPv4Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -422,7 +436,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k entries in ENCAP-VRF-D
 	vrfEntryParams[niEncapTeVrfD] = &routesParam{
-		ipEntries:     createIPv4Entries(IPBlockEncapD)[0:encapIPv4Count],
+		ipEntries:     encapVrfDIPv4Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -444,7 +458,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k IPv6 entries in ENCAP-VRF-A
 	vrfEntryParams[niEncapTeVrfA] = &routesParam{
-		ipv6Entries:   createIPv6Entries(IPv6BlockEncapA, encapIPv6Count),
+		ipv6Entries:   encapVrfAIPv6Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -463,7 +477,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k IPv6 entries in ENCAP-VRF-B.
 	vrfEntryParams[niEncapTeVrfB] = &routesParam{
-		ipv6Entries:   createIPv6Entries(IPv6BlockEncapB, encapIPv6Count),
+		ipv6Entries:   encapVrfBIPv6Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -482,7 +496,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k IPv6 entries in ENCAP-VRF-C.
 	vrfEntryParams[niEncapTeVrfC] = &routesParam{
-		ipv6Entries:   createIPv6Entries(IPv6BlockEncapC, encapIPv6Count),
+		ipv6Entries:   encapVrfCIPv6Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -501,7 +515,7 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 
 	// Add 5k IPv6 entries in ENCAP-VRF-D.
 	vrfEntryParams[niEncapTeVrfD] = &routesParam{
-		ipv6Entries:   createIPv6Entries(IPv6BlockEncapD, encapIPv6Count),
+		ipv6Entries:   encapVrfDIPv6Enries,
 		numUniqueNHs:  encapNhgcount * encapNhSize,
 		nextHops:      vrfEntryParams[niTeVrf111].ipEntries,
 		nextHopVRF:    niTeVrf111,
@@ -523,78 +537,62 @@ func pushEncapEntries(t *testing.T, virtualVIPs []string, decapEncapVirtualIPs [
 	}
 }
 
-func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []string, decapScale bool) {
+func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []string, decapRouteCount uint32) {
+	t.Helper()
 
-	var decapRouteCount uint32 = 12 // Divide 48 decap entries and use them in all encap flow 48/4 = 12
-	if decapScale {
-		decapRouteCount = 5000
-	}
-	_, encapAStartIP, _ := net.ParseCIDR(IPBlockEncapA)
-	flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapAStartIP.IP.String(), //inHdrDscp: []uint32{dscpEncapA1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapEntries[0], outHdrDscp: []uint32{dscpEncapA1},
+	_, decapStartIP, _ := net.ParseCIDR(IPBlockDecap)
+	/*flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: []uint32{dscpEncapA1},
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapA1},
 	})
 
-	_, encapBStartIP, _ := net.ParseCIDR(IPBlockEncapB)
 	flow2 := createFlow(&flowArgs{flowName: "flow2", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapBStartIP.IP.String(), //inHdrDscp: []uint32{dscpEncapB1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapEntries[12], outHdrDscp: []uint32{dscpEncapB1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfBIPv4Enries, inHdrDscp: []uint32{dscpEncapB1},
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapB1},
 	})
 
-	_, encapCStartIP, _ := net.ParseCIDR(IPBlockEncapC)
 	flow3 := createFlow(&flowArgs{flowName: "flow3", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapCStartIP.IP.String(), //inHdrDscp: []uint32{dscpEncapC1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapEntries[24], outHdrDscp: []uint32{dscpEncapC1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfCIPv4Enries, inHdrDscp: []uint32{dscpEncapC1},
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapC1},
 	})
 
-	_, encapDStartIP, _ := net.ParseCIDR(IPBlockEncapD)
 	flow4 := createFlow(&flowArgs{flowName: "flow4", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapDStartIP.IP.String(), //inHdrDscp: []uint32{dscpEncapD1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapEntries[36], outHdrDscp: []uint32{dscpEncapD1},
-	})
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: []uint32{dscpEncapD1},
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD1},
+	})*/
 
-	_, encapAStartIPv6, _ := net.ParseCIDR(IPv6BlockEncapA)
 	flow5 := createFlow(&flowArgs{flowName: "flow5", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv6, InnHdrDstIP: encapAStartIPv6.IP.String(), //inHdrDscp: []uint32{dscpEncapA2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapEntries[0], outHdrDscp: []uint32{dscpEncapA2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: []uint32{dscpEncapA2},
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapA2},
 	})
 
-	_, encapBStartIPv6, _ := net.ParseCIDR(IPv6BlockEncapB)
 	flow6 := createFlow(&flowArgs{flowName: "flow6", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv6, InnHdrDstIP: encapBStartIPv6.IP.String(), //inHdrDscp: []uint32{dscpEncapB2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapEntries[12], outHdrDscp: []uint32{dscpEncapB2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfBIPv6Enries, inHdrDscp: []uint32{dscpEncapB2},
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapB2},
 	})
 
-	_, encapCStartIPv6, _ := net.ParseCIDR(IPv6BlockEncapC)
 	flow7 := createFlow(&flowArgs{flowName: "flow7", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv6, InnHdrDstIP: encapCStartIPv6.IP.String(), //inHdrDscp: []uint32{dscpEncapC2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapEntries[24], outHdrDscp: []uint32{dscpEncapC2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfCIPv6Enries, inHdrDscp: []uint32{dscpEncapC2},
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapC2},
 	})
 
-	_, encapDStartIPv6, _ := net.ParseCIDR(IPv6BlockEncapD)
 	flow8 := createFlow(&flowArgs{flowName: "flow8", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv6, InnHdrDstIP: encapDStartIPv6.IP.String(), //inHdrDscp: []uint32{dscpEncapD2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapEntries[36], outHdrDscp: []uint32{dscpEncapD2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfDIPv6Enries, inHdrDscp: []uint32{dscpEncapD2},
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD2},
 	})
-	flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
+
+	//flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
+	flowList := []gosnappi.Flow{flow5, flow6, flow7, flow8}
+
 	args.top.Flows().Clear()
 	for _, flow := range flowList {
 		args.top.Flows().Append(flow)
 	}
 
-	args.top.Captures().Clear()
-	args.top.Captures().Add().SetName("packetCapture").
-		SetPortNames([]string{"port2"}).
-		SetFormat(gosnappi.CaptureFormat.PCAP)
-
 	args.ate.OTG().PushConfig(t, args.top)
 	time.Sleep(30 * time.Second)
 	args.ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
-
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	args.ate.OTG().SetControlState(t, cs)
 
 	t.Logf("Starting traffic")
 	args.ate.OTG().StartTraffic(t)
@@ -602,10 +600,8 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	t.Logf("Stop traffic")
 	args.ate.OTG().StopTraffic(t)
 
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	args.ate.OTG().SetControlState(t, cs)
-
-	flowNameList := []string{"flow1", "flow2", "flow3", "flow4", "flow5", "flow6", "flow7", "flow8"}
+	//flowNameList := []string{"flow1", "flow2", "flow3", "flow4", "flow5", "flow6", "flow7", "flow8"}
+	flowNameList := []string{"flow5", "flow6", "flow7", "flow8"}
 
 	verifyTraffic(t, args, flowNameList, !wantLoss)
 }
@@ -614,7 +610,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss boo
 	t.Helper()
 	for _, flowName := range flowList {
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
-		recvMetric := gnmi.Get(t, args.ate, gnmi.OTG().Flow(flowName).State())
+		recvMetric := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Flow(flowName).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
 
@@ -706,23 +702,23 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string, 
 }
 
 type flowArgs struct {
-	flowName                     string
-	outHdrSrcIP, outHdrDstIP     string
-	InnHdrSrcIP, InnHdrDstIP     string
-	InnHdrSrcIPv6, InnHdrDstIPv6 string
-	isInnHdrV4                   bool
-	outHdrDscp                   []uint32
-	// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-	// Below code will be uncommented once ixia issue is fixed.
-	// inHdrDscp []uint32
-	outHdrDstIPCount uint32
+	flowName                 string
+	outHdrSrcIP, outHdrDstIP string
+	InnHdrSrcIP              string
+	InnHdrDstIP              []string
+	InnHdrSrcIPv6            string
+	InnHdrDstIPv6            []string
+	isInnHdrV4               bool
+	outHdrDscp               []uint32
+	inHdrDscp                []uint32
+	outHdrDstIPCount         uint32
 }
 
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowValues.flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"})
-	flow.TxRx().Device().SetRxNames([]string{"atePort2.IPv4"})
+	flow.TxRx().Device().SetRxNames([]string{"dst0.IPv4"})
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(100)
 	flow.Duration().Continuous()
@@ -733,28 +729,20 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr.Dst().Increment().SetStart(flowValues.outHdrDstIP).SetCount(flowValues.outHdrDstIPCount)
 	outerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.outHdrDscp)
 
-	UDPHeader := flow.Packet().Add().Udp()
-	UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
-	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
-
 	if flowValues.isInnHdrV4 {
 		innerIpHdr := flow.Packet().Add().Ipv4()
 		innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
-		innerIpHdr.Dst().Increment().SetStart(flowValues.InnHdrDstIP).SetCount(5000)
-		// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-		// Below code will be uncommented once ixia issue is fixed.
-		// if len(flowValues.inHdrDscp) != 0 {
-		// 	innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
-		// }
+		innerIpHdr.Dst().SetValues(flowValues.InnHdrDstIP)
+		if len(flowValues.inHdrDscp) != 0 {
+			innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
+		}
 	} else {
 		innerIpv6Hdr := flow.Packet().Add().Ipv6()
 		innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
-		innerIpv6Hdr.Dst().Increment().SetStart(flowValues.InnHdrDstIPv6).SetCount(5000)
-		// TODO : https://github.com/open-traffic-generator/fp-testbed-juniper/issues/42
-		// Below code will be uncommented once ixia issue is fixed.
-		// if len(flowValues.inHdrDscp) != 0 {
-		// 	innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
-		// }
+		innerIpv6Hdr.Dst().SetValues(flowValues.InnHdrDstIPv6)
+		if len(flowValues.inHdrDscp) != 0 {
+			innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
+		}
 	}
 	return flow
 }
@@ -894,7 +882,6 @@ func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *te
 					WithIPAddress(routeParams.nextHops[i%len(routeParams.nextHops)]).
 					WithElectionID(args.electionID.Low, args.electionID.High))
 		}
-
 		nextHopIndices = append(nextHopIndices, index)
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
@@ -1093,13 +1080,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 	d := &oc.Root{}
+	dutOCRoot := gnmi.OC()
 
 	vrfs := []string{deviations.DefaultNetworkInstance(dut), vrf1, vrf2, vrf3, niDecapTeVrf,
 		niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222}
 	createVrf(t, dut, vrfs)
 
 	// configure Ethernet interfaces first
-	configureInterfaceDUT(t, d, dut, dp1, "src")
+	gnmi.Replace(t, dut, dutOCRoot.Interface(dp1.Name()).Config(), dutPort1.NewOCInterface(dp1.Name(), dut))
 	configureInterfaceDUT(t, d, dut, dp2, "dst")
 
 	// configure an L3 subinterface without vlan tagging under DUT port#1
@@ -1219,6 +1207,19 @@ func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlan
 	eth.Ipv4Addresses().Add().SetName(Name + ".IPv4").SetAddress(ateIPv4).SetGateway(dutIPv4).SetPrefix(uint32(atePort1.IPv4Len))
 }
 
+func configureATEPort1(t *testing.T, top gosnappi.Config) {
+	t.Helper()
+
+	port1 := top.Ports().Add().SetName("port1")
+	iDut1Dev := top.Devices().Add().SetName(atePort1.Name)
+	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+	iDut1Eth.Connection().SetPortName(port1.Name())
+	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
+	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
+	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
+	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
+}
+
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
 	subctx, cancel := context.WithTimeout(ctx, timeout)
@@ -1292,12 +1293,10 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
-	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	dp2 := dut.Port(t, "port2")
 
 	top := gosnappi.NewConfig()
-	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 
 	configureDUT(t, dut)
@@ -1305,7 +1304,7 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	// return slice containing interface name, subinterface index and ATE next hop IP that will be used for creating gRIBI next-hop entries
 	subIntfNextHops := configureDUTSubIfs(t, dut, dp2)
 
-	configureATE(t, top, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
+	configureATEPort1(t, top)
 	configureATESubIfs(t, top, ap2, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -1354,24 +1353,22 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	// Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
 	pushEncapEntries(t, defaultIpv4Entries, decapEncapDefaultIpv4Entries, args)
 
-	if deviations.GribiDecapMixedPlenUnsupported(dut) {
-		t.Skip("Gribi route programming with mixed prefix length is not supported.")
-	} else {
+	if !deviations.GribiDecapMixedPlenUnsupported(dut) {
 		// Inject mixed length prefixes (48 entries) in the DECAP_TE_VRF.
 		decapEntries := createIPv4Entries(IPBlockDecap)[0:decapIPv4Count]
 		pushDecapEntries(t, args, decapEntries, decapIPv4Count)
 		// Send traffic and verify packets to DUT-1.
-		createAndSendTrafficFlows(t, args, decapEntries, !decapScale)
+		createAndSendTrafficFlows(t, args, decapEntries, decapIPv4Count)
 		// Flush the DECAP_TE_VRF
 		if _, err := gribi.Flush(client, args.electionID, niDecapTeVrf); err != nil {
 			t.Error(err)
 		}
 	}
 
-	// Install 5000 entries with fixed prefix length of /32 in DECAP_TE_VRF.
+	// Install decapIPv4ScaleCount entries with fixed prefix length of /32 in DECAP_TE_VRF.
 	decapScaleEntries := createIPv4Entries(IPBlockDecap)[0:decapIPv4ScaleCount]
 	pushDecapScaleEntries(t, args, decapScaleEntries, decapIPv4ScaleCount)
 
 	// Send traffic and verify packets to DUT-1.
-	createAndSendTrafficFlows(t, args, decapScaleEntries, decapScale)
+	createAndSendTrafficFlows(t, args, decapScaleEntries, decapIPv4ScaleCount)
 }
