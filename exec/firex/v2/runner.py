@@ -53,6 +53,7 @@ whitelist_arguments([
     'test_fail_skipped',
     'test_show_skipped',
     'test_repo_url',
+    'sim_use_mtls'
 ])
 
 def _get_go_root_path(ws=None):
@@ -214,14 +215,10 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
-def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
-    with open(cli_file, 'r') as cli:
-        lines = []
-        for l in cli.read().splitlines():
-            if l.strip() == 'end':
-                lines.extend(extra_conf)
-            lines.append(l)
-        gnmi_set = _gnmi_set_file_template(lines)
+def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
+    gnmi_set = _gnmi_set_file_template(cli_lines)
+    with open(gnmi_file, 'w') as gnmi:
+        gnmi.write(gnmi_set)
 
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
@@ -338,6 +335,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         install_image=False,
                         force_install=False,
                         force_reboot=False,
+                        sim_use_mtls=False,
                         smus=None):
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
@@ -384,6 +382,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim and sim_use_mtls:
+        c |= GenerateCertificates.s()
+        c |= SimEnableMTLS.s()
+        
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install)
         force_reboot = False
@@ -746,22 +748,33 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                 'dut': reserved_testbed['baseconf']
             }
                 
+        reserved_testbed['cli_conf'] = {}
+        reserved_testbed['ondatra_baseconf_path'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
-            extra_conf = []
         
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
+            extra_conf = []
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
             if mgmt_vrf:
                 extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
             else:
                 extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
-            _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
+            with open(ondatra_baseconf_path, 'r') as cli:
+                lines = []
+                for l in cli.read().splitlines():
+                    if l.strip() == 'end':
+                        lines.extend(extra_conf)
+                    lines.append(l)
+                reserved_testbed['cli_conf'][dut] = lines
+            
+            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], ondatra_baseconf_path)
             check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
@@ -1012,9 +1025,152 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
         env = dict(os.environ)
         env.update(_get_go_env(ws))
         check_output(testbed_info_cmd, env=env, cwd=internal_fp_repo_dir)
-        logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True, returns=('certs_dir'))
+def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Generating Certificates...")
+    
+    certs_dir = os.path.join(ws, "certificates")
+    gen_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/certgen ' \
+            f'-args ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-outDir "{certs_dir}" '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(gen_command, env=env, cwd=internal_fp_repo_dir)
+    return certs_dir
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
+    # parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
+    #     f'{" ".join(reserved_testbed["baseconf"].values())}'
+    # logger.print(f'Executing confparser cmd {parser_cmd}')
+    # logger.print(
+    #     check_output(parser_cmd, cwd=internal_fp_repo_dir)
+    # )
+    
+    # convert binding to json and adjust for mtls
+    with tempfile.NamedTemporaryFile() as of:
+        out_file = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-out {out_file}'
+
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(out_file, 'r') as fp:
+            j = json.load(fp)
+
+    logger.print(json.dumps(j))
+    
+    glob_username = j.get('options', {}).get('username', "") 
+    glob_password = j.get('options', {}).get('password', "")   
+    j['options'] = {}
+    
+    dut_map = {}
+    for dut in j.get('duts', []):
+        dut_id = dut['id']
+        dut_map[dut_id] = dut
+
+        dut_username = dut.get('options', {}).get('username', glob_username)
+        dut_password = dut.get('options', {}).get('password', glob_password)
+        dut['options'] = {}
+
+        dut['config'] = {
+            'gnmi_set_file': [reserved_testbed['ondatra_baseconf_path'][dut_id]]
+        }
+        
+        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
+            target = dut.get(s, {}).get('target', '')
+            if target:
+                username = dut[s].get('username', dut_username)
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
+                    'mutual_tls': True,
+                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert.pem'),
+                    'cert_file': os.path.join(certs_dir, dut_id, f'ems.cert.pem'),
+                    'key_file': os.path.join(certs_dir, dut_id, f'ems.key.pem')
+                }
+        
+        for s in ['ssh']:
+            target = dut.get(s, {}).get('target', '')
+            if target:
+                username = dut[s].get('username', dut_username)
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
+                    'skip_verify': True,
+                }
+    
+    
+    # add mtls params to cli conf
+    for dut, cli_conf in reserved_testbed['cli_conf'].items():
+        gnmi_username = dut_map[dut]['gnmi']['username']
+        new_conf = []
+        
+        for l in cli_conf:
+            if l == 'grpc':
+                new_conf.append('aaa accounting commands default start-stop local')
+                new_conf.append(f'aaa map-to username {gnmi_username} spiffe-id any')
+                new_conf.append(l)
+                new_conf.append('  tls-mutual')
+                new_conf.append('  certificate-authentication')
+            else:
+                new_conf.append(l)
+        reserved_testbed['cli_conf'][dut] = new_conf
+        
+        # apply new cli conf on duts using non-mtls binding
+        with tempfile.NamedTemporaryFile() as of:
+            cli_conf_file = of.name
+            with open(cli_conf_file, 'w') as fp:
+                fp.write('\n'.join(reserved_testbed['cli_conf'][dut]) + '\n')
+    
+            cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/setconf ' \
+                f'-args ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {reserved_testbed["binding_file"]} ' \
+                f'-dut {dut} ' \
+                f'-conf {cli_conf_file} ' \
+                f'-ignore_set_err=true ' \
+
+            env = dict(os.environ)
+            env.update(_get_go_env(ws))
+            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+    
+    # update gnmi conf set file from cli_conf
+    for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
+        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+        
+        logger.print(json.dumps(j))
+        
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {reserved_testbed["binding_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -1027,11 +1183,11 @@ def GoTidy(self, ws, repo):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def InstallGoDelve(self, ws, repo):
+def InstallGoDelve(self, ws, internal_fp_repo_dir):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     logger.print(
-        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
+        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=internal_fp_repo_dir)
     )
         
 # noinspection PyPep8Naming

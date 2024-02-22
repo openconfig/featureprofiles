@@ -728,3 +728,14 @@ tests:
     owners:
       - mananpat
     mustpass: false
+  - name: RT-1.26 (Basic static route support)
+    path: feature/staticroute/otg_tests/basic_static_route_support_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
+    path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 2698
