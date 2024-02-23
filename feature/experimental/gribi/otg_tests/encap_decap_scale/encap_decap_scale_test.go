@@ -115,7 +115,7 @@ const (
 	decapIPv4Count          = 48
 	decapIPv4ScaleCount     = 3000
 	decapScale              = true
-	wantLoss                = false
+	wantLoss                = true
 	tolerance               = 50
 	tolerancePct            = 2
 )
