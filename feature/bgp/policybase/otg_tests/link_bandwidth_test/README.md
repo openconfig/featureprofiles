@@ -38,7 +38,7 @@ communities to routes based on a prefix match.
     * Create an ext-community-set named 'linkbw_2G' with members as follows:
       * ext-community-member = [ "link-bandwidth:100:2G" ]
     * Create an community-set named 'regex_match_as100' with members as follows:
-      * ext-community-member = [ "^100:.*$" ]
+      * community-member = [ "^100:.*$" ]
     * Create an community-set named 'regex_nomatch_as100' with members as follows:
       * ext-community-member = [ "^100:.*$" ]
     * Create an ext-community-set named 'linkbw_any' with members as follows:
