@@ -74,6 +74,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "CNTR-1"
+  description: "gNOI.Containerz"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "CNTR-2"
+  description: "Container networking"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "DP-1.10"
   description: "Mixed strict priority and WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md"
