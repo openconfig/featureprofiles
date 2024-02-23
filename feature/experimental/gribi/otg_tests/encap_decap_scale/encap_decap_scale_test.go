@@ -739,7 +739,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 		innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 		innerIpv6Hdr.Dst().SetValues(flowValues.InnHdrDstIPv6)
 		if len(flowValues.inHdrDscp) != 0 {
-			innerIpv6Hdr.FlowLabel().SetValues(flowValues.inHdrDscp)
+			innerIpv6Hdr.TrafficClass().SetValues(flowValues.inHdrDscp)
 		}
 	}
 	return flow
