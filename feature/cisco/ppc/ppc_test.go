@@ -17,7 +17,9 @@ package ppc_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,12 +41,12 @@ import (
 )
 
 var (
-	chassisType                                                                                                                                    string // check if its distributed or fixed chassis
-	tolerance                                                                                                                                      uint64
-	rpfoCount                                                                                                                                      = 0               // if more than 10 then reset to 0 and reload the HW
-	subscriptionCount                                                                                                                              = 5               // number of parallel subscriptions to be tested
-	multipleSubscriptionRuntime                                                                                                                    = 5 * time.Minute // duration for which parallel subscriptions will run
-	done_monitor, stop_monitor, done_clients, stop_clients, done_monitor_trigger, stop_monitor_trigger, done_clients_trigger, stop_clients_trigger chan struct{}     // channel for go routine
+	chassisType                                                                                                                                   string // check if its distributed or fixed chassis
+	tolerance                                                                                                                                     uint64
+	rpfoCount                                                                                                                                     = 0               // if more than 10 then reset to 0 and reload the HW
+	subscriptionCount                                                                                                                             = 5               // number of parallel subscriptions to be tested
+	multipleSubscriptionRuntime                                                                                                                   = 5 * time.Minute // duration for which parallel subscriptions will run
+	doneMonitor, stop_monitor, done_clients, stop_clients, done_monitor_trigger, stop_monitor_trigger, done_clients_trigger, stop_clients_trigger chan struct{}     // channel for go routine
 )
 
 const (
@@ -77,6 +79,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// interfaceToNPU returns a slice of unique NPU (Network Processing Unit) names
+// associated with the hardware ports of a DUT (Device Under Test).
 func (args *testArgs) interfaceToNPU(t testing.TB) []string {
 	dut := ondatra.DUT(t, "dut")
 	var temp, npus []string
@@ -667,19 +671,19 @@ var futureTriggers = []Testcase{
 func (args *testArgs) testocDropBlock(t *testing.T) {
 	test := []Testcase{
 		{
-			name:       "drop/lookup-block/state/no-route",
-			flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
-			event_type: &event_interface_config{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
+			name:      "drop/lookup-block/state/no-route",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+			eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
 		},
 		{
-			name:       "drop/lookup-block/state/no-nexthop",
-			flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
-			event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
+			name:      "drop/lookup-block/state/no-nexthop",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+			eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
 		},
 		{
-			name:       "drop/lookup-block/state/no-label",
-			flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
-			event_type: &event_enable_mpls_ldp{config: true},
+			name:      "drop/lookup-block/state/no-label",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
+			eventType: &eventEnableMplsLdp{config: true},
 		},
 		{
 			name: "drop/lookup-block/state/incorrect-software-state",
@@ -690,9 +694,9 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 			flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, ttl: true}),
 		},
 		{
-			name:       "drop/lookup-block/state/fragment-total-drops",
-			flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
-			event_type: &event_interface_config{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
+			name:      "drop/lookup-block/state/fragment-total-drops",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
+			eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
 		},
 		//{
 		//	name:       "drop/lookup-block/state/no-nexthop",
@@ -739,20 +743,20 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
-			var pre_counters, post_counters uint64
-			pre_counters, post_counters = 0, 0
+			var preCounters, postCounters uint64
+			preCounters, postCounters = 0, 0
 
 			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 			// start go routine to track cpu/memery and running multiple clients.
 			if chassisType == "distributed" {
-				done_monitor = make(chan struct{})
+				doneMonitor = make(chan struct{})
 				stop_monitor = make(chan struct{})
-				runBackgroundMonitor(t, stop_monitor, done_monitor)
+				runBackgroundMonitor(t, stop_monitor, doneMonitor)
 			}
 			done_clients = make(chan struct{})
 			stop_clients = make(chan struct{})
-			runMultipleClientBackground(t, stop_clients, done_clients)
+			runMultipleClientBackground(t, stop_clients, done_clients) // TODO - why?
 
 			// collecting each path, query per destination NPU
 			for _, npu := range npus {
@@ -761,23 +765,27 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 				data[path] = query
 			}
 
-			// running mulitple subscriptions on all the queries while tc is executed
+			// running multiple subscriptions on all the queries while tc is executed
 			for _, query := range data {
-				multipleSubscriptions(t, query)
+				sa := &subscriptionArgs{
+					streamMode:     gpb.SubscriptionMode_SAMPLE,
+					sampleInterval: 30,
+				}
+				sa.multipleSubscriptions(t, query, subscriptionCount)
 			}
 
-			//aggregrate pre counters for a path across all the destination NPUs
+			// aggregrate pre counters for a path across all the destination NPUs
 			for path, query := range data {
-				pre, _ := get_data(t, path, query)
-				pre_counters = pre_counters + pre
+				pre, _ := getData(t, path, query)
+				preCounters = preCounters + pre
 			}
 
-			tgn_data := float64(args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.event_type}))
+			tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.eventType}))
 
-			//aggregrate post counters for a path across all the destination NPUs
+			// aggregate post counters for a path across all the destination NPUs
 			for path, query := range data {
-				post, _ := get_data(t, path, query)
-				post_counters = post_counters + post
+				post, _ := getData(t, path, query)
+				postCounters = postCounters + post
 			}
 
 			// Wait for both goroutines to finish using the channel
@@ -787,16 +795,16 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 			<-done_clients_trigger
 
 			// following reload, we can have pre data bigger than post indeed using absolute value
-			got := math.Abs(float64(post_counters - pre_counters))
+			got := math.Abs(float64(postCounters - preCounters))
 
-			t.Logf("Initial counters for path %s : %d", tt.name, pre_counters)
-			t.Logf("Final counters for path %s: %d", tt.name, post_counters)
+			t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
+			t.Logf("Final counters for path %s: %d", tt.name, postCounters)
 			t.Logf("Expected counters for path %s: %f", tt.name, got)
 
-			if (math.Abs(tgn_data-got)/(tgn_data))*100 > tolerance {
+			if (math.Abs(tgnData-got)/(tgnData))*100 > float64(tolerance) {
 				// t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, got, tgn_data)
 			} else {
-				t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgn_data)
+				t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgnData)
 			}
 		})
 	}
@@ -822,51 +830,28 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 	if ok {
 		return counter, nil
 	} else {
-		return 0, fmt.Errorf("Failed to collect data for path %s", path)
+		return 0, fmt.Errorf("failed to collect data for path %s", path)
 	}
 }
 
 // keep subscription args
 type subscriptionArgs struct {
-	sampleInterval time.Duration
 	streamMode     gpb.SubscriptionMode
+	sampleInterval time.Duration
 }
 
 // subMode represents type of STREAMING subscription mode
-func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64], subCount int) {
+func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
 	dut := ondatra.DUT(t, "dut")
 	// once, poll, stream
 	// sample, on-change, target-defined
-	var wg sync.WaitGroup
-	wg.Add(subCount)
-
-	for i := 1; i <= subCount; i++ {
-		go func() {
-			switch sargs.streamMode {
-			case gpb.SubscriptionMode_SAMPLE:
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sargs.streamMode), ygnmi.WithSampleInterval(sargs.sampleInterval)), query, multipleSubscriptionRuntime)
-			case gpb.SubscriptionMode_ON_CHANGE:
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sargs.streamMode)), query, multipleSubscriptionRuntime)
-			default: // TODO - target-defined is not supported yet till Sev6 is resolved
-				gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE)), query, multipleSubscriptionRuntime)
-			}
-			wg.Done()
-		}()
+	for i := 1; i <= subscriptionCount; i++ {
+		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime*time.Minute)
 	}
-	wg.Wait()
 }
 
 // sleeping while all the concurrent subscriptions are executed
 // time.Sleep(time.Duration(multiple_subscription_runtime) * time.Minute)
-
-func multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
-	dut := ondatra.DUT(t, "dut")
-	for i := 1; i <= subscriptionCount; i++ {
-		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), query, time.Duration(multiple_subscription_runtime)*time.Minute)
-	}
-	// sleeping while all the concurrent subscriptions are executed
-	// time.Sleep(time.Duration(multiple_subscription_runtime) * time.Minute)
-}
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
 	startTime := time.Now()

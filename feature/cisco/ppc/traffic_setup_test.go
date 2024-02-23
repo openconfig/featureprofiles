@@ -215,7 +215,7 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 	// close all the existing goroutine for the trigger
 	close(stop_monitor)
 	close(stop_clients)
-	<-done_monitor
+	<-doneMonitor
 	<-done_clients
 
 	// Space to add trigger code
