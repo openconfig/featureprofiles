@@ -56,7 +56,7 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'match_100_set_linkbw_1M' with the following `statements`
+    named 'not_match_100_set_linkbw_1M' with the following `statements`
     * statement[name='1-megabit-match']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
       * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
@@ -96,11 +96,11 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
     * Expected matches for each policy
-      |              | zero_linkbw                            | match_100_set_linkbw_1M                     |
+      |              | zero_linkbw                            | not_match_100_set_linkbw_1M                     |
       | ------------ | -------------------------------------- | ------------------------------------------- |
       | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        |
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
-      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:1000000" ]            |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]            |
 
       |              | nomatch_100_set_linkbw_2G           | del_linkbw    |
       | ------------ | ----------------------------------- | ------------- |
