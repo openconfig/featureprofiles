@@ -1,13 +1,13 @@
-# RT-7.8: BGP Policy Match and Set Extended Communities Import/Export Policy
+# RT-7.9: BGP Policy Match and Set Extended Communities Import/Export Policy
 
 ## Summary
 
 Configure bgp policy to add communities to routes by matching on the following
 criteria.
 
-* RT-7.8.1 Validate test environment
-* RT-7.8.2 Validate policy to set standard community for all routes using OC release 3.x
-* RT-7.8.3 Validate policy to set ext-community for various match criteria using OC release 3.x
+* RT-7.9.1 Validate test environment
+* RT-7.9.2 Validate policy to set standard community for all routes using OC release 3.x
+* RT-7.9.3 Validate policy to set ext-community for various match criteria using OC release 3.x
 
 ## Testbed type
 
@@ -25,7 +25,7 @@ criteria.
       * prefix-set-2 with 2 ipv6 and 2 ipv4 routes with communities `[5:5, 6:6 ]`.
       * prefix-set-3 with 2 ipv6 and 2 ipv4 routes with extended communities `[50:500000, 60:600000]`.
 
-* RT-7.8.1 - Validate test environment
+* RT-7.9.1 - Validate test environment
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
   * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
@@ -33,7 +33,7 @@ criteria.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
     * Stop traffic
 
-* RT-7.8.2 - Create policy to set standard community for all routes using OC release 3.x
+* RT-7.9.2 - Create policy to set standard community for all routes using OC release 3.x
   * Configure the following community sets on the DUT.
     (prefix: `/routing-policy/defined-sets/bgp-defined-sets/`)
     * Create a `community-sets/community-set` named 'match_std_comms' with members as follows:
@@ -66,7 +66,7 @@ criteria.
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
-  * For each policy-definition created, run a subtest (RT-7.8.2.x-neighbor-<policy_name_here>) to
+  * For each policy-definition created, run a subtest (RT-7.9.2.x-neighbor-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
       * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
@@ -78,7 +78,7 @@ criteria.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
-  * For each policy-definition created, run a sub-test (RT-7.8.2.x-peer-group-<policy_name_here>) to
+  * For each policy-definition created, run a sub-test (RT-7.9.2.x-peer-group-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
       * Use `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy`
@@ -96,7 +96,7 @@ criteria.
       | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
       | prefix-set-3 | [ 10:10, 20:20, 30:30, 50:500000, 60:600000 ] | [ 50:500000, 60:600000 ]          |
 
-* RT-7.8.3 - Create policy to set ext-community for various match criteria using OC release 3.x
+* RT-7.9.3 - Create policy to set ext-community for various match criteria using OC release 3.x
   * Note, this particular subtest only covers  <2b AS>:<4b value> per RFC4360 section 3.1
   * Configure the following community sets on the DUT.
     (prefix: `/routing-policy/defined-sets/bgp-defined-sets/`)
@@ -128,7 +128,7 @@ criteria.
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
-  * For each policy-definition created, run a subtest (RT-7.8.3.x-<policy_name_here>) to
+  * For each policy-definition created, run a subtest (RT-7.9.3.x-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
       * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`

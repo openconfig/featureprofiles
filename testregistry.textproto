@@ -491,7 +491,7 @@ test: {
 test: {
   id: "RT-7.5"
   description: "RT-7.5: BGP Policy - Set Link Bandwidth Community"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
   exec: " "
 }
 test: {
@@ -508,14 +508,14 @@ test: {
 }
 test: {
   id: "RT-7.8"
-  description: "BGP Policy Match and Set Extended Communities Import/Export Policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_ext_match_action_test/README.md"
+  description: "BGP Policy Match and Set Standard Communities Import/Export Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-7.9"
   description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_ext_match_action_test/README.md"
   exec: " "
 }
 test: {
