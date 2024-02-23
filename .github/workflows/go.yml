@@ -99,9 +99,11 @@ jobs:
         #
         # goimports does not support "gofmt -s" so both goimports and gofmt are
         # required.
-        if goimports -d . | grep '^'; then
-          exit 1
-        fi
+        find . -name "*.go" | egrep -v "pb.go$" | while read l; do
+          if goimports -d $l | grep '^'; then
+            exit 1;
+          fi;
+        done
     - name: Get revive
       run: go install github.com/mgechev/revive@v1.3.4
     - name: Run revive
