@@ -88,26 +88,6 @@ type resolver struct {
 	*bindpb.Binding
 }
 
-// dutByID looks up the *bindpb.Device with the given dutID.
-func (r *resolver) dutByID(dutID string) *bindpb.Device {
-	for _, dut := range r.Duts {
-		if dut.Id == dutID {
-			return dut
-		}
-	}
-	return nil
-}
-
-// ateByID looks up the *bindpb.Device with the given ateID.
-func (r *resolver) ateByID(ateID string) *bindpb.Device {
-	for _, ate := range r.Ates {
-		if ate.Id == ateID {
-			return ate
-		}
-	}
-	return nil
-}
-
 func (r *resolver) grpc(dev *bindpb.Device, params *svcParams) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
 	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))

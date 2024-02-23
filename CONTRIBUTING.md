@@ -347,6 +347,9 @@ In particular:
 [RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
 [RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
 
+For IPv6, link local addresses (FE80::/10) addresses are allowed in contexts
+where link local is being tested.
+
 ### IPv4
 
 *   `TEST-NET-1`: (192.0.2.0/24): control plane addresses split into /30 subnets
@@ -372,6 +375,14 @@ In particular:
 *   192.55.200.3/32: data plane source network addresses used for traffic testing; split as needed.
 
 *   198.100.200.123/24: data plane source network addresses used for traffic testing; split as needed.
+
+*   203.10.113.1/24: data plane source network addresses used for traffic testing; split as needed.
+
+*   192.58.200.1/24:  data plane source network addresses used for traffic testing; split as needed.
+
+*   192.168.10.0/24:  network addresses used for bgp policy testing; split as needed.
+
+*   192.168.20.0/24:  network addresses used for bgp policy testing; split as needed.
 
 ### IPv6
 
