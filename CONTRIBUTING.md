@@ -376,6 +376,14 @@ where link local is being tested.
 
 *   198.100.200.123/24: data plane source network addresses used for traffic testing; split as needed.
 
+*   203.10.113.1/24: data plane source network addresses used for traffic testing; split as needed.
+
+*   192.58.200.1/24:  data plane source network addresses used for traffic testing; split as needed.
+
+*   192.168.10.0/24:  network addresses used for bgp policy testing; split as needed.
+
+*   192.168.20.0/24:  network addresses used for bgp policy testing; split as needed.
+
 ### IPv6
 
 2001:DB8::/32 is a very large space, so we divide them as follows.

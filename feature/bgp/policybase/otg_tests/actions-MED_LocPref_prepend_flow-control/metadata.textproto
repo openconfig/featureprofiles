@@ -4,4 +4,4 @@
 plan_id: "RT-1.32"
 description: "BGP policy actions - MED, LocPref, prepend, flow-control"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: TAGS_AGGREGATION, TAGS_DATACENTER_EDGE
+tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
