@@ -733,4 +733,9 @@ tests:
     owners:
       - mananpat
     mustpass: false
-
+  - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
+    path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 2698
