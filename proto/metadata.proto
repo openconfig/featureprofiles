@@ -419,6 +419,8 @@ message Metadata {
     bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
+    // Skip setting prefix-set mode while configuring prefix-set routing-policy
+    bool skip_prefix_set_mode = 148;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;

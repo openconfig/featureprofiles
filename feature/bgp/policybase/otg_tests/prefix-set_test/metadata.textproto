@@ -5,3 +5,15 @@ plan_id: "RT-1.33"
 description: "BGP Policy with prefix-set matching"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    interface_enabled:  true
+    explicit_interface_in_default_vrf: true
+    explicit_port_speed: true
+    skip_prefix_set_mode: true
+    skip_set_rp_match_set_options:  true
+  }
+}
