@@ -519,6 +519,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.10"
+  description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_ext_match_action_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
