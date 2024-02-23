@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-1.33"
-description: "BGP Policy with prefix-set matching"
+uuid: "dc9a9682-8ec1-4ca0-8f54-635d690bb488"
+plan_id: "CNTR-2"
+description: "Container network connectivity tests"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
