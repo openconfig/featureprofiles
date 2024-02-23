@@ -620,6 +620,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     repo_name = repo_url.split("/")[-1].split(".")[0]
     logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
     try:
+        os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
         repo = git.Repo.clone_from(url=repo_url,
                                    to_path=target_dir,
                                    branch=repo_branch)
