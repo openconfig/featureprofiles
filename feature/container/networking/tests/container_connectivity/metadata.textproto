@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "dc9a9682-8ec1-4ca0-8f54-635d690bb488"
+plan_id: "CNTR-2"
+description: "Container network connectivity tests"
+testbed: TESTBED_DUT_ATE_2LINKS
