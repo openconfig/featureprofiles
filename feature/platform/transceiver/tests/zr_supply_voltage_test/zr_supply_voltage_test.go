@@ -65,11 +65,12 @@ func TestZrSupplyVoltage(t *testing.T) {
 		t.Fatalf("Got ZR transceiver list for %q: got 0, want > 0", dut.Model())
 	}
 
+	subscribeTimeout := 30 * time.Second
+	sampleInterval := 1 * time.Second
+
 	for _, tx := range zrTransceivers {
 		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
 			txComponent := gnmi.OC().Component(tx)
-			subscribeTimeout := 30 * time.Second
-			sampleInterval := 1 * time.Second
 
 			avgVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Avg().State(), subscribeTimeout).Await(t)
 			minVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Min().State(), subscribeTimeout).Await(t)
