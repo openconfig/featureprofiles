@@ -41,12 +41,12 @@ import (
 )
 
 var (
-	chassisType                                                                                                                                   string // check if its distributed or fixed chassis
-	tolerance                                                                                                                                     uint64
-	rpfoCount                                                                                                                                     = 0               // if more than 10 then reset to 0 and reload the HW
-	subscriptionCount                                                                                                                             = 5               // number of parallel subscriptions to be tested
-	multipleSubscriptionRuntime                                                                                                                   = 5 * time.Minute // duration for which parallel subscriptions will run
-	doneMonitor, stop_monitor, done_clients, stop_clients, done_monitor_trigger, stop_monitor_trigger, done_clients_trigger, stop_clients_trigger chan struct{}     // channel for go routine
+	chassisType                                                                                                                        string // check if its distributed or fixed chassis
+	tolerance                                                                                                                          uint64
+	rpfoCount                                                                                                                          = 0               // if more than 10 then reset to 0 and reload the HW
+	subscriptionCount                                                                                                                  = 5               // number of parallel subscriptions to be tested
+	multipleSubscriptionRuntime                                                                                                        = 5 * time.Minute // duration for which parallel subscriptions will run
+	doneMonitor, stopMonitor, doneClients, stopClients, doneMonitorTrigger, stopMonitorTrigger, doneClientsTrigger, stopClientsTrigger chan struct{}     // channel for go routine
 )
 
 const (
@@ -67,7 +67,7 @@ type testArgs struct {
 	top *ondatra.ATETopology
 }
 
-// sortPorts sorts the ports by the testbed port ID.
+// sortPorts sorts the given slice of ports by the testbed port ID in ascending order.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
 		return ports[i].ID() < ports[j].ID()
@@ -82,25 +82,24 @@ func TestMain(m *testing.M) {
 // interfaceToNPU returns a slice of unique NPU (Network Processing Unit) names
 // associated with the hardware ports of a DUT (Device Under Test).
 func (args *testArgs) interfaceToNPU(t testing.TB) []string {
-	dut := ondatra.DUT(t, "dut")
-	var temp, npus []string
+	var npus []string
 	uniqueMap := make(map[string]bool)
 
-	for _, port := range sortPorts(dut.Ports())[1:] {
-		hwport := gnmi.Get(t, args.dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
-		temp = append(temp, gnmi.Get(t, args.dut, gnmi.OC().Component(hwport).Parent().State()))
-	}
-
-	for _, str := range temp {
-		// Check if the string is not already in the map
-		if _, ok := uniqueMap[str]; !ok {
-			uniqueMap[str] = true
-			npus = append(npus, str)
+	// Get hardware ports and corresponding components
+	ports := sortPorts(args.dut.Ports())[1:]
+	for _, port := range ports {
+		hwPort := gnmi.Get(t, args.dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		component := gnmi.Get(t, args.dut, gnmi.OC().Component(hwPort).Parent().State())
+		// Check if the component is not already in the map
+		if _, ok := uniqueMap[component]; !ok {
+			uniqueMap[component] = true
+			npus = append(npus, component)
 		}
 	}
 	return npus
 }
 
+// TODO - raise TZs for the leaves and source of truth
 func runBackgroundMonitor(t *testing.T, stop <-chan struct{}, done chan<- struct{}) {
 	t.Logf("check CPU/memory in the background")
 	dut := ondatra.DUT(t, "dut")
@@ -136,11 +135,15 @@ func runBackgroundMonitor(t *testing.T, stop <-chan struct{}, done chan<- struct
 					result := gnmi.Get(t, dut, query)
 					processName := result.GetName()
 					if *result.CpuUtilization > 80 {
+						// TODO - add a tracking flag for breach; with timer, keep polling the status; check with Takenaga what is the expected behavior
 						t.Logf("%s %s CPU Process utilization high for process %-10s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
 					} else {
 						t.Logf("%s %s INFO: CPU process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
 					}
 					if result.MemoryUtilization != nil {
+						// TODO - check with Maya DE
+						// TODO - check both leaves if they are returning valid values
+						// TODO - check what Memory Utilization and CPU util are mapped to? even mem and cpu usage - where are they mapped to?
 						t.Logf("%s %s Memory high for process: %-10s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
 					} else {
 						t.Logf("%s %s INFO:  Memory Process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
@@ -629,10 +632,14 @@ type Testcase struct {
 // 	}
 // }
 
+// getPathFromElements constructs a path string from a slice of PathElem elements.
+// It iterates through each PathElem and concatenates the element names along with any key-value pairs.
+// If a PathElem has key-value pairs, they are formatted as "[key=value]" and appended to the element name.
+// The resulting path string is returned with "/" as the delimiter.
 func getPathFromElements(input []*gpb.PathElem) string {
 	var result []string
 	for _, elem := range input {
-		// If there are key-value pairs, add them to the keyPart
+		// If there are key-value pairs, add them to the element name
 		if elem.Key != nil {
 			for key, value := range elem.Key {
 				result = append(result, elem.Name+fmt.Sprintf("[%s=%s]", key, value))
@@ -668,7 +675,7 @@ var futureTriggers = []Testcase{
 	},
 }
 
-func (args *testArgs) testocDropBlock(t *testing.T) {
+func (args *testArgs) testOcDropBlock(t *testing.T) {
 	test := []Testcase{
 		{
 			name:      "drop/lookup-block/state/no-route",
@@ -698,65 +705,36 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
 			eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
 		},
-		//{
-		//	name:       "drop/lookup-block/state/no-nexthop",
-		//	flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true}),
-		//	npu:        args.interfaceToNPU(t, args.dut.Port(t, "port2")),
-		//	event_type: &event_static_route_to_null{prefix: "202.1.0.1/32", config: true},
+		{
+			name: "drop/lookup-block/state/acl-drops",
+			CSCwi94987,
+		},
+		//{ rate-limit need to check how to automate
+		//	name: "drop/lookup-block/state/lookup-aggregate", // waiting for Muthu to advise - https://miggbo.atlassian.net/browse/XR-56749
+		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, fps: 1000000000}),
 		//},
-		//{
-		//	name:       "drop/lookup-block/state/no-label",
-		//	flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-		//	npu:        args.interfaceToNPU(t, args.dut.Port(t, "port2")),
-		//	event_type: &event_enable_mpls_ldp{config: true},
-		//},
-		//{
-		//	name: "drop/lookup-block/state/incorrect-software-state",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{mpls: true}),
-		//	npu:  args.interfaceToNPU(t, args.dut.Port(t, "port2")),
-		//},
-		//{
-		//	name: "drop/lookup-block/state/invalid-packet",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, ttl: true}),
-		//	npu:  args.interfaceToNPU(t, args.dut.Port(t, "port2")),
-		//},
-		//{
-		//	name:       "drop/lookup-block/state/fragment-total-drops",
-		//	flow:       args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["atePort2"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
-		//	npu:        args.interfaceToNPU(t, args.dut.Port(t, "port2")),
-		//	event_type: &
-		//	{config: true, mtu: 500, port: []string{"port2"}},
-		//},
-		// {
-		// 	name: "drop/lookup-block/state/acl-drops",
-		// 	CSCwi94987,
-		// },
-		// {
-		// 	name: "drop/lookup-block/state/lookup-aggregate",
-		// 	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, fps: 1000000000}),
-		// },
 	}
 
 	npus := args.interfaceToNPU(t)                       // collecting all the destination NPUs
-	data := make(map[string]ygnmi.WildcardQuery[uint64]) //holds path and its query information
+	data := make(map[string]ygnmi.WildcardQuery[uint64]) // holds a path and its query information
 
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
 			var preCounters, postCounters uint64
 			preCounters, postCounters = 0, 0
-
+			// TODO - make sure outer for loop loops over different subscription modes
 			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
-			// start go routine to track cpu/memery and running multiple clients.
+			// start go routine to track cpu/memory and running multiple clients.
 			if chassisType == "distributed" {
 				doneMonitor = make(chan struct{})
-				stop_monitor = make(chan struct{})
-				runBackgroundMonitor(t, stop_monitor, doneMonitor)
+				stopMonitor = make(chan struct{})
+				runBackgroundMonitor(t, stopMonitor, doneMonitor)
 			}
-			done_clients = make(chan struct{})
-			stop_clients = make(chan struct{})
-			runMultipleClientBackground(t, stop_clients, done_clients) // TODO - why?
+			doneClients = make(chan struct{})
+			stopClients = make(chan struct{})
+			runMultipleClientBackground(t, stopClients, doneClients) // TODO - why?
 
 			// collecting each path, query per destination NPU
 			for _, npu := range npus {
@@ -771,12 +749,12 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 					streamMode:     gpb.SubscriptionMode_SAMPLE,
 					sampleInterval: 30,
 				}
-				sa.multipleSubscriptions(t, query, subscriptionCount)
+				sa.multipleSubscriptions(t, query)
 			}
-
-			// aggregrate pre counters for a path across all the destination NPUs
+			// TODO - add a loop over all the diff sub modes;
+			// aggregate pre counters for a path across all the destination NPUs
 			for path, query := range data {
-				pre, _ := getData(t, path, query)
+				pre, _ := getData(t, path, query) //
 				preCounters = preCounters + pre
 			}
 
@@ -789,12 +767,12 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 			}
 
 			// Wait for both goroutines to finish using the channel
-			close(stop_monitor_trigger)
-			close(stop_clients_trigger)
-			<-done_monitor_trigger
-			<-done_clients_trigger
+			close(stopMonitorTrigger)
+			close(stopClientsTrigger)
+			<-doneMonitorTrigger
+			<-doneClientsTrigger
 
-			// following reload, we can have pre data bigger than post indeed using absolute value
+			// following reload, we can have pre data bigger than post data. So using absolute value
 			got := math.Abs(float64(postCounters - preCounters))
 
 			t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
@@ -810,6 +788,9 @@ func (args *testArgs) testocDropBlock(t *testing.T) {
 	}
 }
 
+// TODO - support levels and sub modes
+// getData retrieves data from a DUT using GNMI.
+// It performs a one-time subscription to the specified path using a wildcard query.
 func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -817,7 +798,6 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
 		query,
 		30*time.Second,
-		// Stop the gnmi.Watch() if value is invalid.
 		func(val *ygnmi.Value[uint64]) bool {
 			_, present := val.Val()
 			element := val.Path.Elem
@@ -825,14 +805,40 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 				return present
 			}
 			return !present
-		}).Await(t)
-	counter, ok := datargs.Val()
+		},
+	).Await(t)
+
+	counter, ok := data.Val()
 	if ok {
 		return counter, nil
 	} else {
 		return 0, fmt.Errorf("failed to collect data for path %s", path)
 	}
 }
+
+//func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
+//	dut := ondatra.DUT(t, "dut")
+//
+//	data, _ := gnmi.WatchAll(t,
+//		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
+//		query,
+//		30*time.Second,
+//		// Stop the gnmi.Watch() if value is invalid.
+//		func(val *ygnmi.Value[uint64]) bool {
+//			_, present := val.Val()
+//			element := val.Path.Elem
+//			if getPathFromElements(element) == path {
+//				return present
+//			}
+//			return !present
+//		}).Await(t)
+//	counter, ok := datargs.Val()
+//	if ok {
+//		return counter, nil
+//	} else {
+//		return 0, fmt.Errorf("failed to collect data for path %s", path)
+//	}
+//}
 
 // keep subscription args
 type subscriptionArgs struct {
@@ -841,6 +847,7 @@ type subscriptionArgs struct {
 }
 
 // subMode represents type of STREAMING subscription mode
+// TODO - support levels and sub modes
 func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
 	dut := ondatra.DUT(t, "dut")
 	// once, poll, stream
@@ -907,7 +914,7 @@ func TestOC_PPC(t *testing.T) {
 	// Configure the ATE
 	// port 1 is source port
 	// port 2 is destination port running isis
-	// port 3 and port 4 are additional destionation ports
+	// port 3 and port 4 are additional destination ports
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	addPrototoAte(t, top)
@@ -921,6 +928,6 @@ func TestOC_PPC(t *testing.T) {
 	}
 
 	t.Run("Test drop block", func(t *testing.T) {
-		args.testocDropBlock(t)
+		args.testOcDropBlock(t)
 	})
 }

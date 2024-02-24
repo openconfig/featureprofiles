@@ -213,10 +213,10 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 	}
 
 	// close all the existing goroutine for the trigger
-	close(stop_monitor)
-	close(stop_clients)
+	close(stopMonitor)
+	close(stopClients)
 	<-doneMonitor
-	<-done_clients
+	<-doneClients
 
 	// Space to add trigger code
 	for _, tt := range triggers {
@@ -247,14 +247,14 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 
 	// restart goroutines
 	if chassis_type == "distributed" {
-		done_monitor_trigger = make(chan struct{})
-		stop_monitor_trigger = make(chan struct{})
-		runBackgroundMonitor(t, stop_monitor_trigger, done_monitor_trigger)
+		doneMonitorTrigger = make(chan struct{})
+		stopMonitorTrigger = make(chan struct{})
+		runBackgroundMonitor(t, stopMonitorTrigger, doneMonitorTrigger)
 	}
-	//starting other clients running in the backgroun
-	done_clients_trigger = make(chan struct{})
-	stop_clients_trigger = make(chan struct{})
-	runMultipleClientBackground(t, stop_clients_trigger, done_clients_trigger)
+	//starting other clients running in the background
+	doneClientsTrigger = make(chan struct{})
+	stopClientsTrigger = make(chan struct{})
+	runMultipleClientBackground(t, stopClientsTrigger, doneClientsTrigger)
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	args.ate.Traffic().Stop(t)
