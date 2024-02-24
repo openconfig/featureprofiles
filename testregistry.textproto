@@ -74,18 +74,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "CNTR-1"
-  description: "gNOI.Containerz"
-  readme: " "
-  exec: " "
-}
-test: {
-  id: "CNTR-2"
-  description: "Container networking"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "DP-1.10"
   description: "Mixed strict priority and WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md"
@@ -513,12 +501,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7.7"
-  description: "RT-7.7: BGP Link Bandwidth Community - Set Link Bandwidth"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "RT-7.8"
   description: "BGP Policy Match and Set Standard Communities Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
@@ -526,8 +508,8 @@ test: {
 }
 test: {
   id: "RT-7.9"
-  description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_ext_match_action_test/README.md"
+  description: "BGP Import/Export Policy Action Using Extended Communities"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/extcomm_action_test/README.md"
   exec: " "
 }
 test: {
