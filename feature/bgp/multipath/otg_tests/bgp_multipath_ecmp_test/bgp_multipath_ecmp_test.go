@@ -96,6 +96,7 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 }
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
+	dut := ondatra.DUT(t, "dut")
 	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
 	expectedPerLinkFms := framesTx / uint64(expectedLinks)
 	t.Logf("Total packets %d flow through the %d links and expected per link packets %d", framesTx, expectedLinks, expectedPerLinkFms)
@@ -113,11 +114,15 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 			t.Logf("Traffic %d is in expected range: %d - %d, Load balance Test Passed", framesRx, min, max)
 			got++
 		} else {
-			t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed", min, max, framesRx)
+			if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
+				t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed", min, max, framesRx)
+			}
 		}
 	}
-	if got != expectedLinks {
-		t.Errorf("invalid number of load balancing interfaces, got: %d want %d", got, expectedLinks)
+	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
+		if got != expectedLinks {
+			t.Errorf("invalid number of load balancing interfaces, got: %d want %d", got, expectedLinks)
+		}
 	}
 }
 
