@@ -1,4 +1,4 @@
-# TE-11.2: Backup NHG: Multiple NH
+# TE-11.21: Backup NHG: Multiple NH with PBF
 
 ## Summary
 
@@ -20,6 +20,11 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
         *   A backup NHG containing a single next-hop pointing to VRF-B.
     *   The same IPv4Entry but in VRF-B, pointing to a NextHopGroup (in DEFAULT
         VRF) containing a primary next-hop to the IP of ATE port-4.
+*   Add an empty decap VRF, `DECAP_TE_VRF`.
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C`
+    and `ENCAP_TE_VRF_D`.
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
+    in <https://github.com/openconfig/featureprofiles/pull/2217>
 *   Ensure that traffic forwarded to the destination is received at ATE port-2
     and port-3. Validate that AFT telemetry covers this case.
 *   Disable ATE port-2. Ensure that traffic for the destination is received at
@@ -46,4 +51,3 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 ## Minimum DUT platform requirement
 
 vRX
-
