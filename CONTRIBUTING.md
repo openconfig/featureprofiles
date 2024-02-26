@@ -360,11 +360,11 @@ where link local is being tested.
     used for traffic testing; split as needed.
 *   `BMWG`: (198.18.0.0/15): additional data plane networks.
 
-*   20.0.0.1/15: data plane source network addresses used for scale testing.
+*   20.0.0.0/8: data plane source network addresses used for scale testing.
 
-*   30.0.0.1/15: data plane source network addresses used for scale testing.
+*   30.0.0.0/8: data plane source network addresses used for scale testing.
 
-*   100.0.0.0/12: data plane source network addresses used for scale testing.
+*   100.0.0.0/8: data plane source network addresses used for scale testing.
 
 *   138.0.11.0/24: data plane source network addresses used for traffic testing; split as needed.
 
