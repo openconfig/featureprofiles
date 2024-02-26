@@ -85,8 +85,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 ##### Validate test results
 *   Validate that the DUT receives the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` from BGP neighbor on ATE Port-1 has local preference set to 200
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+*   Validate that the prefix ```ipv4-network-1``` i.e. ```192.168.10.0/24``` on DUT from BGP neighbor on ATE Port-1 has local preference set to 200
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 *   Initiate traffic from ATE Port-2 towards the DUT destined to ```ipv4-network-1``` i.e. ```192.168.10.0/24```
     *   Validate that the traffic is received on ATE Port-1
 
@@ -130,7 +130,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   Validate that the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` on ATE from BGP neighbor on DUT Port-1 has AS-PATH with the ASN of DUT occuring twice
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
-*   Validate that the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` from BGP neighbor on DUT Port-1 has MED set to ```1000```
+*   Validate that the prefix ```ipv4-network-2``` i.e. ```192.168.20.0/24``` on ATE from BGP neighbor on DUT Port-1 has MED set to ```1000```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 *   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv4-network-2``` i.e. ```192.168.20.0/24```
     *   Validate that the traffic is received on ATE Port-2
