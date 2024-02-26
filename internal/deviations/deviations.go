@@ -756,11 +756,6 @@ func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
 
-  // SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
-}
-
 // TTLCopyUnsupported returns true for devices which does not support TTL copy.
 func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
@@ -790,4 +785,9 @@ func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
 // SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
 func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
+}
+
+// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
+func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
 }
