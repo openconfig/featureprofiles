@@ -22,3 +22,12 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    interface_enabled: true
+  }
+}

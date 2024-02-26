@@ -14,6 +14,7 @@ require (
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v0.13.7
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
@@ -24,9 +25,9 @@ require (
 	github.com/openconfig/goyang v1.4.5
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231213034307-d0abeba7f432
-	github.com/openconfig/kne v0.1.14
+	github.com/openconfig/kne v0.1.16
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.5.0
+	github.com/openconfig/ondatra v0.5.2
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.11.1
@@ -41,6 +42,7 @@ require (
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/klog/v2 v2.100.1
 )
 
 require (
@@ -97,7 +99,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jstemmer/go-junit-report/v2 v2.1.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
@@ -109,7 +110,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
-	github.com/open-traffic-generator/ixia-c-operator v0.3.6 // indirect
+	github.com/open-traffic-generator/keng-operator v0.3.13 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
@@ -159,7 +160,6 @@ require (
 	k8s.io/api v0.26.3 // indirect
 	k8s.io/apimachinery v0.26.3 // indirect
 	k8s.io/client-go v0.26.3 // indirect
-	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230308215209-15aac26d736a // indirect
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
