@@ -74,6 +74,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "CNTR-1"
+  description: "gNOI.Containerz"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "CNTR-2"
+  description: "Container networking"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "DP-1.10"
   description: "Mixed strict priority and WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md"
@@ -465,7 +477,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7.1"
+  id: "RT-7"
   description: "BGP default policies"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/default_policies_test/README.md"
   exec: " "
@@ -522,6 +534,12 @@ test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-9"
+  description: "Weighted-ECMP for IS-IS"
+  readme: ""
   exec: " "
 }
 test: {
@@ -1006,6 +1024,12 @@ test: {
   id: "gNOI-5.2"
   description: "Traceroute Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/traceroute_test/README.md"
+  exec: " "
+}
+test: {
+  id: "gNOI-5.3"
+  description: "Copying Debug Files"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/system/tests/copying_debug_files_test/README.md"
   exec: " "
 }
 test: {

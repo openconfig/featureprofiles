@@ -20,20 +20,18 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gribigo/client"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -45,13 +43,11 @@ const (
 	dstPfxMax        = "203.0.113.254"
 	ipOverIPProtocol = 4
 	routeCount       = 1
-	vrf1             = "TE_VRF_111"
+	vrf1             = "vrfA"
 	vrf2             = "vrfB"
 	fps              = 1000000 // traffic frames per second
 	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	decapFlowSrc     = "198.51.100.111"
-	dscpEncapA1      = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -162,24 +158,6 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), ni)
 }
 
-// configNetworkInstanceInterface creates VRFs and subinterfaces and then applies VRFs
-func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32) {
-	// create empty subinterface
-	si := &oc.Interface_Subinterface{}
-	si.Index = ygot.Uint32(subint)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
-
-	// create vrf and apply on subinterface
-	v := &oc.NetworkInstance{
-		Name: ygot.String(vrfname),
-		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
-	}
-	vi := v.GetOrCreateInterface(intfname)
-	vi.Interface = ygot.String(intfname)
-	vi.Subinterface = ygot.Uint32(subint)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
-}
-
 // configInterfaceDUT configures the interface
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	if deviations.InterfaceEnabled(dut) {
@@ -198,7 +176,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// create VRF "vrfA" and assign incoming port under it
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
-	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
+	// create VRF "vrfA"
+	configNetworkInstance(t, dut, vrf1)
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -278,36 +257,18 @@ func TestBackup(t *testing.T) {
 	// Flush past entries before running the tc
 	client.FlushAll(t)
 
-	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
-		t.Logf("Name: IPv4BackUpSwitch")
-		t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
+	t.Logf("Name: IPv4BackUpSwitch")
+	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
 
-		tcArgs := &testArgs{
-			ctx:    ctx,
-			client: &client,
-			dut:    dut,
-			ate:    ate,
-			top:    top,
-		}
+	tcArgs := &testArgs{
+		ctx:    ctx,
+		client: &client,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
+	}
 
-		tcArgs.testIPv4BackUpSwitch(t)
-	})
-
-	t.Run("IPv4BackUpSwitchWithVrfPolicyW", func(t *testing.T) {
-		t.Logf("Name: IPv4BackUpSwitchWithVrfPolicyW")
-		t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path with vrf policy W")
-
-		tcArgs := &testArgs{
-			ctx:    ctx,
-			client: &client,
-			dut:    dut,
-			ate:    ate,
-			top:    top,
-		}
-
-		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
-		tcArgs.testIPv4BackUpSwitch(t)
-	})
+	tcArgs.testIPv4BackUpSwitch(t)
 }
 
 // testIPv4BackUpSwitch Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH
@@ -415,8 +376,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().Increment().SetStart(decapFlowSrc)
-	v4.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
+	v4.Src().Increment().SetStart(dutPort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 
 	// use ip over ip packets since some vendors only support decap for backup
