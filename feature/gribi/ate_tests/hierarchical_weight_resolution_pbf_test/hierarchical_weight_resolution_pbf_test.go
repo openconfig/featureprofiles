@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package hierarchical_weight_resolution_test implements TE-3.3 of the Popgate vendor testplan
-package hierarchical_weight_resolution_test
+package hierarchical_weight_resolution_pbf_test
 
 import (
 	"context"
@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -58,9 +59,11 @@ const (
 	ipv4FlowCount     = 65000
 	nhEntryIP1        = "192.0.2.111"
 	nhEntryIP2        = "192.0.2.222"
-	nonDefaultVRF     = "VRF-1"
+	nonDefaultVRF     = "TE_VRF_111"
 	policyName        = "redirect-to-VRF1"
 	ipipProtocol      = 4
+	decapFlowSrc      = "198.51.100.111"
+	dscpEncapA1       = 10
 )
 
 var (
@@ -417,7 +420,8 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology)
 	// Configure Ethernet+IPv4 headers.
 	ethHeader := ondatra.NewEthernetHeader()
 	ipv4Header := ondatra.NewIPv4Header()
-	ipv4Header.WithSrcAddress(atePort1.IPv4)
+	ipv4Header.WithSrcAddress(decapFlowSrc)
+	ipv4Header.WithDSCP(dscpEncapA1)
 	ipv4Header.WithDstAddress(ipv4FlowIP)
 	innerIpv4Header := ondatra.NewIPv4Header()
 	innerIpv4Header.SrcAddressRange().WithMin(innerSrcIPv4Start).WithCount(ipv4FlowCount).WithStep("0.0.0.1")
@@ -687,11 +691,13 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("TestBasicHierarchicalWeight", func(t *testing.T) {
+	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
 
-	t.Run("TestHierarchicalWeightBoundaryScenario", func(t *testing.T) {
+	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 
