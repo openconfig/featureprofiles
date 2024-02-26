@@ -260,9 +260,9 @@ func generateKeyPairsUsingHiba(filePath string, hibaPath string, bytesForEncrypt
 	return nil
 }
 
-func generateClientCertificates(caPvtKeyName string, authUsrName string, clientPubKeyName string) error {
+func generateClientCertificates(caPvtKeyName string, authUsrName string, clientPubKeyName string, validity string) error {
 	clientPubKeyName = clientPubKeyName + ".pub"
-	cmd := exec.Command("ssh-keygen", "-s", caPvtKeyName, "-I", "CISCO", "-V", "+1d", "-n", authUsrName, clientPubKeyName)
+	cmd := exec.Command("ssh-keygen", "-s", caPvtKeyName, "-I", "CISCO", "-V", validity, "-n", authUsrName, clientPubKeyName)
 	err := cmd.Run()
 	if err != nil {
 		return err
@@ -673,6 +673,7 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 	if resp == nil {
 		t.Error("")
 	}
+	log.Infof("%s process restarted successfully", processName)
 	time.Sleep(30 * time.Second)
 	return nil
 }
@@ -1001,7 +1002,7 @@ func TestCredentialz_3(t *testing.T) {
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
-		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i])
+		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i], "+1d")
 		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "+1d")
 	}
 
@@ -1059,9 +1060,9 @@ func TestCredentialz_3(t *testing.T) {
 			}
 		}
 		if errCount == 0 {
-			log.Infof("Verified all types of encryption algorithms for Host based authentication successfully")
+			log.Infof("Verified all types of encryption algorithms for client based authentication successfully")
 		} else {
-			t.Fatalf("Host based authentication failed")
+			t.Fatalf("Client based authentication failed")
 		}
 
 	})
@@ -1366,7 +1367,7 @@ func TestCredentialz_5(t *testing.T) {
 	finalizeHostRequest(t, hostParamStream)
 }
 
-func TestPubkeyWithProcessRestartAndRPFO(t *testing.T) {
+func TestPubkeyWithHA(t *testing.T) {
 	filePath := "credz"
 	accountName := "CREDZ"
 	authenticationType := []string{"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp521", "ssh-ed25519", "rsa-pubkey", "rsa-pubkey"}
@@ -1445,9 +1446,107 @@ func TestPubkeyWithProcessRestartAndRPFO(t *testing.T) {
 func TestExpiredHostCert(t *testing.T) {
 	filePath := "credz"
 	accountName := "CERT"
+	knownHostsFile := fmt.Sprintf("%s/known_hosts", filePath)
+
+	var users []*oc.System_Aaa_Authentication_User
+	users = append(users, &oc.System_Aaa_Authentication_User{
+		Username: &accountName,
+		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+	})
+
+	dut := ondatra.DUT(t, "dut")
+	createUsersOnDevice(t, dut, users)
+
+	gnsiC := dut.RawAPIs().GNSI(t)
+
+	mkdirErr := os.Mkdir(filePath, 0755)
+	defer os.RemoveAll(filePath)
+	if mkdirErr != nil {
+		t.Fatalf("Error creating directory: %v", mkdirErr)
+	}
+	file, err := os.Create(knownHostsFile)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer file.Close()
+	clientKeyNames, caKeyNames, hostKeyNames := generateAllSupportedPvtPublicKeyPairs(filePath, true, true)
+	clientKeyNames = clientKeyNames[:len(clientKeyNames)-1]
+	caKeyNames = caKeyNames[:len(caKeyNames)-1]
+	hostKeyNames = hostKeyNames[:len(hostKeyNames)-1]
+	var authUsrReq credz.AuthorizedUsersRequest
+
+	policyReq, caPubkeyReq := createAccountPoliciesAndPrincipals(accountName, filePath)
+	authUsrReq.Policies = append(authUsrReq.Policies, &policyReq)
+
+	stream, err := gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
+	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
+	finalizeAccountRequest(t, stream)
+	stream.CloseSend()
+	time.Sleep(2 * time.Second)
+
+	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
+
+	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
+	finalizeHostRequest(t, hostParamStream)
+
+	for i := 0; i < len(clientKeyNames); i++ {
+		_, authUsr := filepath.Split(clientKeyNames[i])
+		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i], "+1d")
+		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "20100101123000:20110101123000")
+	}
+
+	var skreq credz.ServerKeysRequest
+	var authArtifacts []*credz.ServerKeysRequest_AuthenticationArtifacts
+
+	skreq = credz.ServerKeysRequest{
+		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{},
+		Version:       "1.1",
+		CreatedOn:     123,
+	}
+
+	for i := 0; i < len(clientKeyNames); i++ {
+		hostCertFile := hostKeyNames[i] + "-cert.pub"
+
+		hostPvtKeyBytes, err := os.ReadFile(hostKeyNames[i])
+		if err != nil {
+			t.Fatalf("Error in reading host private key file: %v", err.Error())
+		}
+		hostcertBytes, err := os.ReadFile(hostCertFile)
+		if err != nil {
+			t.Fatalf("Error in reading host certificate file: %v", err.Error())
+		}
+		auArtifacts := &credz.ServerKeysRequest_AuthenticationArtifacts{PrivateKey: hostPvtKeyBytes, Certificate: hostcertBytes}
+		authArtifacts = append(authArtifacts, auArtifacts)
+	}
+	skreq.AuthArtifacts = authArtifacts
+
+	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
+	if err != nil {
+		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		return
+	}
+
+	_, err = stream.Recv()
+	hostParamStream.CloseSend()
+	if err != nil {
+		log.Infof("Credz:  Stream receive returned error due to invalid certificate which is expected: " + err.Error())
+	} else {
+		t.Fatalf("Credz:  Stream receive without any erors: which is not expected")
+	}
+}
+
+func TestExpiredClientCert(t *testing.T) {
+	filePath := "credz"
+	accountName := "CERT"
 	authenticationType := []string{"ecdsa-nistp256-cert", "ecdsa-nistp521-cert", "ed25519-cert", "rsa-cert"}
-	hostKeyAlgorithms := []string{"ecdsa-sha2-nistp256-cert-v01@openssh.com",
-		"ecdsa-sha2-nistp521-cert-v01@openssh.com", "ssh-ed25519-cert-v01@openssh.com", "ssh-rsa-cert-v01@openssh.com"}
 
 	tartgetIP, tartgetPort, err := getIpAndPortFromBindingFile()
 	if err != nil {
@@ -1499,8 +1598,8 @@ func TestExpiredHostCert(t *testing.T) {
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
-		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i])
-		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "20100101123000:20110101123000")
+		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i], "20100101123000:20110101123000")
+		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "+1d")
 	}
 
 	var skreq credz.ServerKeysRequest
@@ -1536,7 +1635,6 @@ func TestExpiredHostCert(t *testing.T) {
 	errCount := 0
 	for i := 0; i < len(clientKeyNames); i++ {
 		clientCertPath := clientKeyNames[i] + "-cert.pub"
-		hostCertPath := hostKeyNames[i] + "-cert.pub"
 
 		clientPvtKey, err := os.ReadFile(clientKeyNames[i])
 		if err != nil {
@@ -1546,27 +1644,152 @@ func TestExpiredHostCert(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error in reading : %v", err.Error())
 		}
-		hostCert, err := os.ReadFile(hostCertPath)
-		if err != nil {
-			t.Fatalf("Error in reading host certificate: %v", err.Error())
+		sshParams := sshClientParams{
+			user:         accountName,
+			clientPvtKey: clientPvtKey,
+			clientCert:   clientCert,
 		}
-		sshParams := sshHostParams{
-			user:              accountName,
-			clientPvtKey:      clientPvtKey,
-			clientCert:        clientCert,
-			hostCert:          hostCert,
-			hostKeyAlgorithms: []string{hostKeyAlgorithms[i]},
-		}
-		hostVerifier := strings.Split(hostKeyAlgorithms[i], "@")[0]
-		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshParams, authenticationType[i], &hostVerifier)
+		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshParams, authenticationType[i], nil)
 		if err != nil {
 			errCount = errCount + 1
 			log.Error("Error in establishing ssh connection: ", err.Error())
 		}
 	}
 	if errCount == 0 {
-		t.Fatalf("Verified all types of encryption algorithms for Host based authentication successfully, which is not expected")
+		t.Fatalf("client based authentication successfully, which is not expected")
 	} else {
-		log.Infof("Host based authentication failed, which is expected")
+		log.Infof("client based authentication failed, which is expected")
 	}
+}
+
+func TestForSecondRPSwitchOver(t *testing.T) {
+	time.Sleep(360 * time.Second) // This sleep is to get ready for the second RP switchover
+}
+
+func TestClientCertWithHA(t *testing.T) {
+	filePath := "credz"
+	accountName := "CERT"
+	authenticationType := []string{"ecdsa-nistp256-cert", "ecdsa-nistp521-cert", "ed25519-cert", "rsa-cert"}
+
+	tartgetIP, tartgetPort, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+	}
+
+	var users []*oc.System_Aaa_Authentication_User
+	users = append(users, &oc.System_Aaa_Authentication_User{
+		Username: &accountName,
+		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
+	})
+
+	dut := ondatra.DUT(t, "dut")
+	createUsersOnDevice(t, dut, users)
+
+	gnsiC := dut.RawAPIs().GNSI(t)
+
+	mkdirErr := os.Mkdir(filePath, 0755)
+	defer os.RemoveAll(filePath)
+	if mkdirErr != nil {
+		t.Fatalf("Error creating directory: %v", mkdirErr)
+	}
+	clientKeyNames, caKeyNames, hostKeyNames := generateAllSupportedPvtPublicKeyPairs(filePath, true, true)
+	clientKeyNames = clientKeyNames[:len(clientKeyNames)-1]
+	caKeyNames = caKeyNames[:len(caKeyNames)-1]
+	hostKeyNames = hostKeyNames[:len(hostKeyNames)-1]
+	var authUsrReq credz.AuthorizedUsersRequest
+
+	policyReq, caPubkeyReq := createAccountPoliciesAndPrincipals(accountName, filePath)
+	authUsrReq.Policies = append(authUsrReq.Policies, &policyReq)
+
+	stream, err := gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
+	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
+	finalizeAccountRequest(t, stream)
+	stream.CloseSend()
+	time.Sleep(2 * time.Second)
+
+	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
+
+	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
+	finalizeHostRequest(t, hostParamStream)
+
+	for i := 0; i < len(clientKeyNames); i++ {
+		_, authUsr := filepath.Split(clientKeyNames[i])
+		generateClientCertificates(caKeyNames[i], authUsr, clientKeyNames[i], "+1d")
+		generateHostCertificates(caKeyNames[i], hostKeyNames[i], "+1d")
+	}
+
+	var skreq credz.ServerKeysRequest
+	var authArtifacts []*credz.ServerKeysRequest_AuthenticationArtifacts
+
+	skreq = credz.ServerKeysRequest{
+		AuthArtifacts: []*credz.ServerKeysRequest_AuthenticationArtifacts{},
+		Version:       "1.1",
+		CreatedOn:     123,
+	}
+
+	for i := 0; i < len(clientKeyNames); i++ {
+		hostCertFile := hostKeyNames[i] + "-cert.pub"
+
+		hostPvtKeyBytes, err := os.ReadFile(hostKeyNames[i])
+		if err != nil {
+			t.Fatalf("Error in reading host private key file: %v", err.Error())
+		}
+		hostcertBytes, err := os.ReadFile(hostCertFile)
+		if err != nil {
+			t.Fatalf("Error in reading host certificate file: %v", err.Error())
+		}
+		auArtifacts := &credz.ServerKeysRequest_AuthenticationArtifacts{PrivateKey: hostPvtKeyBytes, Certificate: hostcertBytes}
+		authArtifacts = append(authArtifacts, auArtifacts)
+	}
+	skreq.AuthArtifacts = authArtifacts
+
+	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
+	finalizeHostRequest(t, hostParamStream)
+	time.Sleep(2 * time.Second)
+
+	sshVerification := func() {
+		errCount := 0
+		for i := 0; i < len(clientKeyNames); i++ {
+			clientCertPath := clientKeyNames[i] + "-cert.pub"
+
+			clientPvtKey, err := os.ReadFile(clientKeyNames[i])
+			if err != nil {
+				t.Fatalf("Error in reading Client Private key: %v", err.Error())
+			}
+			clientCert, err := os.ReadFile(clientCertPath)
+			if err != nil {
+				t.Fatalf("Error in reading : %v", err.Error())
+			}
+			sshParams := sshClientParams{
+				user:         accountName,
+				clientPvtKey: clientPvtKey,
+				clientCert:   clientCert,
+			}
+			err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshParams, authenticationType[i], nil)
+			if err != nil {
+				errCount = errCount + 1
+				log.Error("Error in establishing ssh connection: ", err.Error())
+			}
+		}
+		if errCount == 0 {
+			log.Infof("Verified all types of encryption algorithms for Host based authentication successfully")
+		} else {
+			t.Fatalf("Host based authentication failed")
+		}
+	}
+	RestartProcess(t, dut, "emsd")
+	sshVerification()
+	RestartProcess(t, dut, "ssh_conf_proxy")
+	sshVerification()
+	RestartProcess(t, dut, "cepki")
+	sshVerification()
+	rpSwitchOver(t, dut)
+	sshVerification()
 }
