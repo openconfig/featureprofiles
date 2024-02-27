@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "139f3ee1-d0d0-45cf-8c92-4957c868d30a"
-plan_id: "TE-11.2"
-description: "Backup NHG: Multiple NH"
+uuid: "f76a89e9-a2f1-4160-b6e6-e762dc10219a"
+plan_id: "RT-1.52"
+description: "BGP multipath UCMP support with Link Bandwidth Community"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
@@ -28,11 +28,12 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    interface_config_vrf_before_address: true
-    backup_nhg_requires_vrf_with_decap: true
+    missing_value_for_defaults: true
+    skip_setting_allow_multiple_as: false
   }
 }
-tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE

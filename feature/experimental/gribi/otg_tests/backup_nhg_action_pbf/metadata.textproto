@@ -1,9 +1,9 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "139f3ee1-d0d0-45cf-8c92-4957c868d30a"
-plan_id: "TE-11.2"
-description: "Backup NHG: Multiple NH"
+uuid: "e4ec3769-86eb-41c8-8600-f8835cdcf0a6"
+plan_id: "TE-11.31"
+description: "Backup NHG: Actions with PBF"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
@@ -20,6 +20,7 @@ platform_exceptions: {
   deviations: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
     interface_enabled: true
   }
 }
@@ -29,10 +30,10 @@ platform_exceptions: {
   }
   deviations: {
     omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
     interface_enabled: true
     default_network_instance: "default"
-    interface_config_vrf_before_address: true
-    backup_nhg_requires_vrf_with_decap: true
   }
 }
-tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE
