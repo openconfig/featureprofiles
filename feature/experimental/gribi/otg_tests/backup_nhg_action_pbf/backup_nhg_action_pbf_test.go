@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backup_nhg_action_test
+package backup_nhg_action_pbf_test
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -39,14 +40,13 @@ const (
 	ipv6PrefixLen      = 126
 	mask               = "32"
 	outerDstIP1        = "198.51.100.1"
-	outerSrcIP1        = "198.51.100.2"
 	outerDstIP2        = "203.0.113.1"
 	outerSrcIP2        = "203.0.113.2"
 	innerDstIP1        = "198.18.0.1"
 	innerSrcIP1        = "198.18.0.255"
 	vip1               = "198.18.1.1"
 	vip2               = "198.18.1.2"
-	vrfA               = "VRF-A"
+	vrfA               = "TE_VRF_111"
 	vrfB               = "VRF-B"
 	vrfC               = "VRF-C"
 	nh1ID              = 1
@@ -63,7 +63,7 @@ const (
 	nhg103ID           = 103
 	nh104ID            = 104
 	nhg104ID           = 104
-	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 5 bits of src 198.51.100.2
+	baseSrcFlowFilter  = "0x0f" // hexadecimal value of last 5 bits of src 198.51.100.111
 	baseDstFlowFilter  = "0x18" // hexadecimal value of first 5 bits of dst 198.51.100.1
 	encapSrcFlowFilter = "0x02" // hexadecimal value of last 5 bits of src 203.0.113.2
 	encapDstFlowFilter = "0x19" // hexadecimal value of first 5 bits of dst 203.0.113.1
@@ -74,6 +74,8 @@ const (
 	ipOverIPProtocol   = 4
 	srcTrackingName    = "ipSrcTracking"
 	dstTrackingName    = "ipDstTracking"
+	decapFlowSrc       = "198.51.100.111"
+	dscpEncapA1        = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -215,12 +217,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		if vrf == vrfA {
-			p1 := dut.Port(t, "port1")
-			niIntf := ni.GetOrCreateInterface(p1.Name())
-			niIntf.Subinterface = ygot.Uint32(0)
-			niIntf.Interface = ygot.String(p1.Name())
-		}
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
 }
@@ -271,14 +267,14 @@ func TestBackupNHGAction(t *testing.T) {
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
 		{
-			name: "testBackupDecap",
-			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap",
-			fn:   testBackupDecap,
+			name: "testBackupDecapWithVrfPolW",
+			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap with vrf policy W",
+			fn:   testBackupDecapWithVrfPolW,
 		},
 		{
-			name: "testDecapEncap",
-			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
-			fn:   testDecapEncap,
+			name: "testDecapEncapWithVrfPolW",
+			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap with vrf policy W",
+			fn:   testDecapEncapWithVrfPolW,
 		},
 	}
 	// Configure the gRIBI client
@@ -479,6 +475,22 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 }
 
+func testBackupDecapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
+	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
+		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	testBackupDecap(ctx, t, args)
+}
+
+func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
+	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
+		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	testDecapEncap(ctx, t, args)
+}
+
 // createFlow returns a flow name from atePort1 to the dstPfx.
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string, dst *attrs.Attributes) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(name)
@@ -487,8 +499,9 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	outerIPHeader := flow.Packet().Add().Ipv4()
-	outerIPHeader.Src().SetValue(outerSrcIP1)
+	outerIPHeader.Src().SetValue(decapFlowSrc)
 	outerIPHeader.Dst().Increment().SetStart(outerDstIP1).SetCount(1)
+	outerIPHeader.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
 	innerIPHeader := flow.Packet().Add().Ipv4()
 	innerIPHeader.Src().SetValue(innerSrcIP1)
 	innerIPHeader.Dst().Increment().SetStart(innerDstIP1).SetCount(1)
