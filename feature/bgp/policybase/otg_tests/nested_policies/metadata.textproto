@@ -1,0 +1,8 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+#proto-message: Metadata
+uuid: "aa9b83cb-fd87-4098-ab3d-db05c66fc3c0"
+plan_id: "RT-1.30"
+description: "BGP nested import/export policy attachment"
+testbed: TESTBED_DUT_ATE_2LINKS
+tags: TAGS_DATACENTER_EDGE
+
