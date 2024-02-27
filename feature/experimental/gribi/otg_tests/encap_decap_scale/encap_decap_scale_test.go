@@ -94,11 +94,11 @@ const (
 	niTeVrf111              = "TE_VRF_111"
 	niTeVrf222              = "TE_VRF_222"
 	niDefault               = "DEFAULT"
-	IPBlockEncapA           = "20.1.64.1/15"  // IPBlockEncapA represents the ipv4 entries in EncapVRFA
-	IPBlockEncapB           = "20.5.64.1/15"  // IPBlockEncapB represents the ipv4 entries in EncapVRFB
-	IPBlockEncapC           = "20.10.64.1/15" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
-	IPBlockEncapD           = "20.15.64.1/15" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
-	IPBlockDecap            = "30.0.0.1/15"   // IPBlockDecap represents the ipv4 entries in Decap VRF
+	IPBlockEncapA           = "251.1.64.1/15"  // IPBlockEncapA represents the ipv4 entries in EncapVRFA
+	IPBlockEncapB           = "251.5.64.1/15"  // IPBlockEncapB represents the ipv4 entries in EncapVRFB
+	IPBlockEncapC           = "251.10.64.1/15" // IPBlockEncapC represents the ipv4 entries in EncapVRFC
+	IPBlockEncapD           = "251.15.64.1/15" // IPBlockEncapD represents the ipv4 entries in EncapVRFD
+	IPBlockDecap            = "252.0.0.1/15"   // IPBlockDecap represents the ipv4 entries in Decap VRF
 	ipv4OuterSrc111         = "198.51.100.111"
 	gribiIPv4EntryVRF1111   = "203.0.113.1"
 	IPv6BlockEncapA         = "2001:DB8:0:1::/64"
