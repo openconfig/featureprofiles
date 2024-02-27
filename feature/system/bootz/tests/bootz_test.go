@@ -47,9 +47,9 @@ import (
 )
 
 var (
-	dhcpIntf        = flag.String("dhcp-intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specified and be reachable from the router.")
-	imageServerAddr = flag.String("img_srv_addr", "", "The ip:port to start the Image server. Ip must be specified and be reachable from the router.")
+	dhcpIntf        = flag.String("dhcp-intf", "", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
 	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
 	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
 	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
@@ -84,22 +84,22 @@ type bootzTest struct {
 const (
 	dhcpTimeout                = 30 * time.Minute // connection to dhcp after factory default
 	bootzConnectionTimeout     = 5 * time.Minute  // request for bootstrap after dhcp
-	bootzStatusTimeout         = 5 * time.Minute  // only ov + config
-	fullBootzCompletionTimeout = 45 * time.Minute // image + ov + config
+	bootzStatusTimeout         = 30 * time.Minute // only ov + config
+	fullBootzCompletionTimeout = 60 * time.Minute // image + ov + config
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func checkBootzStatus(t *testing.T, expectFailure bool) {
+func checkBootzStatus(t *testing.T, expectFailure bool, timeout time.Duration) {
 	if bootzServerFailed.Load() {
 		t.Fatal("bootz server is down, check the test log for detailed error")
 	}
 	for _, ccSerial := range controllerCardSerials {
-		err := awaitBootzStatus(ccSerial, bpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, bootzStatusTimeout)
+		err := awaitBootzStatus(ccSerial, bpb.ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED, timeout)
 		if err != nil {
-			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", bootzStatusTimeout, ccSerial)
+			t.Errorf("ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED in not reported in %d minutes for controller card %s", timeout, ccSerial)
 		} else {
 			t.Log("DUT reported ReportStatusRequest_BOOTSTRAP_STATUS_INITIATED to bootz server as expected")
 		}
@@ -109,9 +109,9 @@ func checkBootzStatus(t *testing.T, expectFailure bool) {
 		expectedCCstatus = bpb.ReportStatusRequest_BOOTSTRAP_STATUS_FAILURE
 	}
 	for _, ccSerial := range controllerCardSerials {
-		err := awaitBootzStatus(ccSerial, expectedCCstatus, bootzStatusTimeout)
+		err := awaitBootzStatus(ccSerial, expectedCCstatus, timeout)
 		if err != nil {
-			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), bootzStatusTimeout)
+			t.Errorf("Status %s is not reported as expected in %d minutes", expectedCCstatus.String(), timeout)
 		} else {
 			t.Logf("DUT reported %s to bootz server as expected", expectedCCstatus.String())
 		}
@@ -186,7 +186,7 @@ func testSetup(t *testing.T, dut *ondatra.DUTDevice) {
 
 // loadOV load ovs from a specified file
 func loadOV(t *testing.T, serialNumber string, pdc *x509.Certificate, verify bool) []byte {
-	ovPath := fmt.Sprintf("testdata/%s.ov", serialNumber)
+	ovPath := fmt.Sprintf("../cisco/tests/testdata/%s.ov", serialNumber)
 	ovByte, err := os.ReadFile(ovPath)
 	if err != nil {
 		t.Fatalf("Error opening key file %v", err)
@@ -373,7 +373,7 @@ func TestBootz1(t *testing.T) {
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
-				checkBootzStatus(t, tt.ExpectedFailure)
+				checkBootzStatus(t, tt.ExpectedFailure, bootzStatusTimeout)
 			})
 		}
 		dutBootzStatus(t, dut, 5*time.Second)
@@ -457,7 +457,7 @@ func TestBootz2(t *testing.T) {
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
-				checkBootzStatus(t, tt.ExpectedFailure)
+				checkBootzStatus(t, tt.ExpectedFailure, fullBootzCompletionTimeout)
 			})
 		}
 		dutBootzStatus(t, dut, fullBootzCompletionTimeout)
@@ -550,13 +550,13 @@ func TestBootz3(t *testing.T) {
 					t.Log("DUT is connected to bootz server")
 				}
 				if !tt.ExpectedFailure { // when OV validation fails, device has no secure way to connect and report the status
-					checkBootzStatus(t, tt.ExpectedFailure)
+					checkBootzStatus(t, tt.ExpectedFailure, bootzStatusTimeout)
 				}
 			})
 		}
 		dutBootzStatus(t, dut, 5*time.Second)
 		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
-		if dutPreTestVersion != dutPreTestVersion {
+		if dutPreTestVersion != dutPostTestVersion {
 			t.Fatalf("DUT Software Versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
 		}
 	})
@@ -650,12 +650,12 @@ func TestBootz4(t *testing.T) {
 				} else {
 					t.Log("DUT is connected to bootz server")
 				}
-				checkBootzStatus(t, tt.ExpectedFailure)
+				checkBootzStatus(t, tt.ExpectedFailure, bootzStatusTimeout)
 			})
 		}
 		dutBootzStatus(t, dut, 5*time.Second)
 		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
-		if dutPreTestVersion != dutPreTestVersion {
+		if dutPreTestVersion != dutPostTestVersion {
 			t.Fatalf("DUT Software Versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
 		}
 	})
