@@ -56,7 +56,6 @@ import (
 	bpb "github.com/openconfig/bootz/proto/bootz"
 	bootzem "github.com/openconfig/bootz/server/entitymanager"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
@@ -419,27 +418,6 @@ func getImageHash(t *testing.T, imgPath string) string {
 		t.Fatalf("Could not calculate sha256 %v", err)
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
-func factoryReset(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if err != nil {
-		t.Fatalf("Could not start the GNOI client, %v", err)
-	}
-	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
-	if err != nil {
-		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
-	}
-	t.Logf("Get Response after Factory Reset: %v\n", facRe.GetResponse())
-	switch v := facRe.GetResponse().(type) {
-	case *frpb.StartResponse_ResetError:
-		actErr := facRe.GetResetError()
-		t.Fatalf("Error during Factory Reset %v: %v", actErr.GetOther(), actErr.GetDetail())
-	case *frpb.StartResponse_ResetSuccess:
-		t.Logf("Factory rest as sucessful")
-	default:
-		t.Fatalf("Expected resetSuccess following Start: got %v", v)
-	}
 }
 
 // MASA Helper functions

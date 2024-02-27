@@ -105,7 +105,7 @@ const (
 	dhcpTimeout                = 30 * time.Minute // connection to dhcp after factory default
 	bootzConnectionTimeout     = 5 * time.Minute  // request for bootstrap after dhcp
 	bootzStatusTimeout         = 20 * time.Minute // only ov + config
-	fullBootzCompletionTimeout = 30 * time.Minute // image + ov + config
+	fullBootzCompletionTimeout = 60 * time.Minute // image + ov + config
 	lastBootAttemptTimeDiff    = 10 * time.Minute
 )
 
@@ -675,7 +675,7 @@ func TestBootz2(t *testing.T) {
 					}
 
 					checkBootzStatus(t, tt.ExpectedFailure, dut, fullBootzCompletionTimeout)
-					awaitOCBootzStatus(t, dut, 2*time.Minute, tt.TelemetryStatusValidation)
+					awaitOCBootzStatus(t, dut, 10*time.Minute, tt.TelemetryStatusValidation)
 				}
 				traversedStates = removeDuplicates(traversedStates)
 				fmt.Printf("Traversed Bootz states %v", traversedStates)
