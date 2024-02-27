@@ -14,7 +14,7 @@ criteria.
 
 ## Procedure
 
-* Testbed configuration - Setup BGP sessions and prefixes.
+* Testbed configuration - Setup eBGP sessions and prefixes.
   * Generate config for 2 DUT and ATE ports where:
     * DUT port 1 to ATE port 1.
     * DUT port 2 to ATE port 2.
@@ -22,14 +22,12 @@ criteria.
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
       * prefix-set-1 with 2 ipv6 and 2 ipv4 routes without communities.
       * prefix-set-2 with 2 ipv6 and 2 ipv4 routes with communities `[5:5, 6:6 ]`.
-      * prefix-set-3 with 2 ipv6 and 2 ipv4 routes with extended communities `[50:500000, 60:600000]`.
 
 * RT-7.8.1 - Validate prefixes are propagated by DUT
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
-  * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
-    * Verify traffic is received on ATE port 1 for accepted prefixes.
-    * Verify traffic is not received on ATE port 1 for rejected prefixes.
+  * Send traffic from ATE port-2 to all prefix-sets-1,2.
+    * Verify traffic is received on ATE port 1 for all prefixes.
     * Stop traffic
 
 * RT-7.8.2 - Create policy to set standard community for all routes using OC release 3.x
@@ -54,11 +52,9 @@ criteria.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition[name='match_and_add_comms'/`
     with the following `statements/`
     * statement[name='match_and_add_std_comms']/
-      * conditions/bgp-conditions/match-community-set/config/community-set =
-        /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set[name='match_std_comms']
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'match_std_comms'
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
-      * actions/bgp-actions/set-community/reference/config/community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set[name='add_std_comms']
+      * actions/bgp-actions/set-community/reference/config/community-set-refs = 'add_std_comms'
       * actions/bgp-actions/set-community/config/options = ADD
       * actions/bgp-actions/set-community/config/method = REFERENCE
       * actions/config/policy-result = NEXT_STATEMENT
@@ -93,7 +89,6 @@ criteria.
       | ------------ | --------------------------------------------- | --------------------------------- |
       | prefix-set-1 | [ 10:10, 20:20, 30:30 ]                       | none                              |
       | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
-      | prefix-set-3 | [ 10:10, 20:20, 30:30, 50:500000, 60:600000 ] | [ 50:500000, 60:600000 ]          |
 
 ## Config Parameter Coverage
 

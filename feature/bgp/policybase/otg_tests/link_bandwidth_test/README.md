@@ -7,7 +7,7 @@ communities to routes based on a prefix match.
 
 ## Testbed type
 
-* https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
+* [2 port ATE to DUT](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## Procedure
 
@@ -47,8 +47,7 @@ communities to routes based on a prefix match.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named 'set_linkbw_0' with the following `statements`
     * statement[name='zero_linkbw']/
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_0']
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
       * actions/bgp-actions/set-ext-community/config/options = ADD
       * actions/bgp-actions/set-community/config/method = REFERENCE
       * actions/config/policy-result = NEXT_STATEMENT
@@ -60,8 +59,8 @@ communities to routes based on a prefix match.
     * statement[name='1-megabit-match']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
       * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_1M']
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_1M'
+      * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
@@ -69,8 +68,8 @@ communities to routes based on a prefix match.
     named 'nomatch_100_set_linkbw_2G' with the following `statements`
     * statement[name='2-gigabit-match']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_nomatch_as100'
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_2G']
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_2G'
+      * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
@@ -79,8 +78,20 @@ communities to routes based on a prefix match.
     * statement[name='del_linkbw']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs =
-          /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set[name='linkbw_any']
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any'
+      * actions/config/policy-result = NEXT_STATEMENT
+    * statement[name='accept_all_routes']/
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
+    named 'rm_any_zero_bw_set_LocPref_5' with the following `statements`
+    * statement[name='match_zero_bw_and_remove']/
+      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_0'
+      * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
+      * actions/config/policy-result = NEXT_STATEMENT
+    * statement[name='set_LocPref_5']/
+      * actions/bgp-actions/config/set-local-pref = 5
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
@@ -96,22 +107,27 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
-    * Expected matches for each policy
-      |              | zero_linkbw                            | not_match_100_set_linkbw_1M                     |
+    * Expected community values for each policy
+      |              | zero_linkbw                            | not_match_100_set_linkbw_1M                 |
       | ------------ | -------------------------------------- | ------------------------------------------- |
       | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        |
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
-      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]            |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]                  |
 
-      |              | nomatch_100_set_linkbw_2G           | del_linkbw    |
-      | ------------ | ----------------------------------- | ------------- |
-      | prefix-set-1 | [ "link-bandwidth:100:2000000000" ] | none          |
-      | prefix-set-2 | [  "100:100" ]                      | [ "100:100" ] |
-      | prefix-set-3 | [ "link-bandwidth:100:2000000000" ] | [ none ]      |
+      |              | nomatch_100_set_linkbw_2G           | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
+      | ------------ | ----------------------------------- | ------------- | ----------------------------- |
+      | prefix-set-1 | [ "link-bandwidth:100:2000000000" ] | none          | none                          |
+      | prefix-set-2 | [  "100:100" ]                      | [ "100:100" ] | [ "100:100" ]                 |
+      | prefix-set-3 | [ "link-bandwidth:100:2000000000" ] | [ none ]      | [ none ], localpref=5         |
+
+      * LocalPreference
+        The prefixes of "prefix-set-3" matching policy "rm_any_zero_bw_set_LocPref_5" should have Local Preference value 5.\
+        All other prefixes, Local Preference should be none or 100 (standard default).\
+        For all other policies, Local Preference should be none or 100 (standard default)
 
       * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
         * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
-        * The DUT evaluates a match for regex_nomatch_as100.  This does not match
+        * The DUT evaluates a match for "regex_nomatch_as100".  This does not match
           because the regex pattern does not include the link-bandwidth community type.
         * Community linkbw_2G should be added.
 
