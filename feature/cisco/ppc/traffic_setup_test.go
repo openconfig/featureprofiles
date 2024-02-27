@@ -211,12 +211,12 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 			eventAction.enableMplsLdp(t)
 		}
 	}
-
-	// close all the existing goroutine for the trigger
-	close(stopMonitor)
-	close(stopClients)
-	<-doneMonitor
-	<-doneClients
+	// TODO - uncomment
+	//// close all the existing goroutine for the trigger
+	//close(stopMonitor)
+	//close(stopClients)
+	//<-doneMonitor
+	//<-doneClients
 
 	// Space to add trigger code
 	for _, tt := range triggers {
@@ -225,51 +225,51 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 		if triggerAction, ok := tt.triggerType.(*triggerProcessRestart); ok {
 			triggerAction.restartProcessBackground(t, args.ctx)
 		}
-		if chassis_type == "distributed" && with_RPFO {
-			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+		if chassisType == "distributed" && withRpfo {
+			if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
 				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
-				triggerAction.rpfo(t, a.ctx, false)
+				triggerAction.rpfo(t, args.ctx, false)
 			}
-		} else if chassis_type == "fixed" && with_RPFO {
-			if triggerAction, ok := tt.trigger_type.(*trigger_rpfo); ok {
+		} else if chassisType == "fixed" && withRpfo {
+			if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
 				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
-				triggerAction.rpfo(t, a.ctx, true)
-				tolerance = triggerAction.tolerance
+				triggerAction.rpfo(t, args.ctx, true)
+				tolerance = uint64(triggerAction.tolerance)
 			}
 		}
-		if chassis_type == "distributed" && with_lc_reload {
-			if triggerAction, ok := tt.trigger_type.(*trigger_lc_reload); ok {
-				triggerAction.lc_reload(t)
-				tolerance = triggerAction.tolerance
+		if chassisType == "distributed" && withLcReload {
+			if triggerAction, ok := tt.triggerType.(*triggerLcReload); ok {
+				triggerAction.lcReload(t)
+				tolerance = uint64(triggerAction.tolerance)
 			}
 		}
 	}
-
-	// restart goroutines
-	if chassis_type == "distributed" {
-		doneMonitorTrigger = make(chan struct{})
-		stopMonitorTrigger = make(chan struct{})
-		runBackgroundMonitor(t, stopMonitorTrigger, doneMonitorTrigger)
-	}
-	//starting other clients running in the background
-	doneClientsTrigger = make(chan struct{})
-	stopClientsTrigger = make(chan struct{})
-	runMultipleClientBackground(t, stopClientsTrigger, doneClientsTrigger)
+	// TODO - uncomment
+	//// restart goroutines
+	//if chassisType == "distributed" {
+	//	doneMonitorTrigger = make(chan struct{})
+	//	stopMonitorTrigger = make(chan struct{})
+	//	runBackgroundMonitor(t, stopMonitorTrigger, doneMonitorTrigger)
+	//}
+	////starting other clients running in the background
+	//doneClientsTrigger = make(chan struct{})
+	//stopClientsTrigger = make(chan struct{})
+	//runMultipleClientBackground(t, stopClientsTrigger, doneClientsTrigger)
 
 	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	args.ate.Traffic().Stop(t)
 
 	// remove set configs before further check
 	for _, op := range opts {
-		if _, ok := op.event.(*event_interface_config); ok {
-			eventAction := event_interface_config{config: false, mtu: 1514, port: sortPorts(a.dut.Ports())[1:]}
-			eventAction.interface_config(t)
-		} else if _, ok := op.event.(*event_static_route_to_null); ok {
-			eventAction := event_static_route_to_null{prefix: "202.1.0.1/32", config: false}
-			eventAction.static_route_to_null(t)
-		} else if _, ok := op.event.(*event_enable_mpls_ldp); ok {
-			eventAction := event_enable_mpls_ldp{config: false}
-			eventAction.enable_mpls_ldp(t)
+		if _, ok := op.event.(*eventInterfaceConfig); ok {
+			eventAction := eventInterfaceConfig{config: false, mtu: 1514, port: sortPorts(args.dut.Ports())[1:]}
+			eventAction.interfaceConfig(t)
+		} else if _, ok := op.event.(*eventStaticRouteToNull); ok {
+			eventAction := eventStaticRouteToNull{prefix: "202.1.0.1/32", config: false}
+			eventAction.staticRouteToNull(t)
+		} else if _, ok := op.event.(*eventEnableMplsLdp); ok {
+			eventAction := eventEnableMplsLdp{config: false}
+			eventAction.enableMplsLdp(t)
 		}
 	}
 

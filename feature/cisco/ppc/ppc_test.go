@@ -433,12 +433,12 @@ var (
 	}
 )
 
-func checkChassisType(t *testing.T, dut *ondatra.DUTDevice) {
+func (args *testArgs) checkChassisType(t *testing.T, dut *ondatra.DUTDevice) string {
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	if len(cs) < 2 {
-		chassisType = "fixed"
+		return "fixed"
 	} else {
-		chassisType = "distributed"
+		return "distributed"
 	}
 }
 
@@ -705,10 +705,10 @@ func (args *testArgs) testOcDropBlock(t *testing.T) {
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
 			eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
 		},
-		{
-			name: "drop/lookup-block/state/acl-drops",
-			CSCwi94987,
-		},
+		//{
+		//	name: "drop/lookup-block/state/acl-drops",
+		//	CSCwi94987,
+		//},
 		//{ rate-limit need to check how to automate
 		//	name: "drop/lookup-block/state/lookup-aggregate", // waiting for Muthu to advise - https://miggbo.atlassian.net/browse/XR-56749
 		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, fps: 1000000000}),
@@ -717,74 +717,80 @@ func (args *testArgs) testOcDropBlock(t *testing.T) {
 
 	npus := args.interfaceToNPU(t)                       // collecting all the destination NPUs
 	data := make(map[string]ygnmi.WildcardQuery[uint64]) // holds a path and its query information
+	sampleInterval := 30 * time.Second
 
 	for _, tt := range test {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			var preCounters, postCounters uint64
-			preCounters, postCounters = 0, 0
-			// TODO - make sure outer for loop loops over different subscription modes
-			tolerance = 2.0 // 2% change tolerance is allowed between want and got value
+		// loop over different subscription modes
+		for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_ON_CHANGE, gpb.SubscriptionMode_SAMPLE} {
+			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode.String()), func(t *testing.T) {
+				t.Logf("Name: %s", tt.name)
+				var preCounters, postCounters uint64
+				preCounters, postCounters = 0, 0
+				// TODO - make sure outer for loop loops over different subscription modes
+				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
-			// start go routine to track cpu/memory and running multiple clients.
-			if chassisType == "distributed" {
-				doneMonitor = make(chan struct{})
-				stopMonitor = make(chan struct{})
-				runBackgroundMonitor(t, stopMonitor, doneMonitor)
-			}
-			doneClients = make(chan struct{})
-			stopClients = make(chan struct{})
-			runMultipleClientBackground(t, stopClients, doneClients) // TODO - why?
+				// TODO - uncomment after processmgr team confirms leaf mapping
+				//chassisType = args.checkChassisType(t, args.dut)
+				//// start go routine to track cpu/memory and running multiple clients
+				//if chassisType == "distributed" {
+				//	doneMonitor = make(chan struct{})
+				//	stopMonitor = make(chan struct{})
+				//	runBackgroundMonitor(t, stopMonitor, doneMonitor)
+				//}
+				doneClients = make(chan struct{})
+				stopClients = make(chan struct{})
+				runMultipleClientBackground(t, stopClients, doneClients) // TODO - why?
 
-			// collecting each path, query per destination NPU
-			for _, npu := range npus {
-				path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, tt.name)
-				query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
-				data[path] = query
-			}
-
-			// running multiple subscriptions on all the queries while tc is executed
-			for _, query := range data {
-				sa := &subscriptionArgs{
-					streamMode:     gpb.SubscriptionMode_SAMPLE,
-					sampleInterval: 30,
+				// collecting each path, query per destination NPU
+				for _, npu := range npus {
+					path := fmt.Sprintf("/components/component[name=%s]/integrated-circuit/pipeline-counters/%s", npu, tt.name)
+					query, _ := schemaless.NewWildcard[uint64](path, "openconfig")
+					data[path] = query
 				}
-				sa.multipleSubscriptions(t, query)
-			}
-			// TODO - add a loop over all the diff sub modes;
-			// aggregate pre counters for a path across all the destination NPUs
-			for path, query := range data {
-				pre, _ := getData(t, path, query) //
-				preCounters = preCounters + pre
-			}
 
-			tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.eventType}))
+				// running multiple subscriptions on all the queries while tc is executed
+				for _, query := range data {
+					sa := &subscriptionArgs{
+						streamMode:     subMode,
+						sampleInterval: sampleInterval,
+					}
+					sa.multipleSubscriptions(t, query)
+				}
+				// TODO - add a loop over all the diff sub modes;
+				// aggregate pre counters for a path across all the destination NPUs
+				for path, query := range data {
+					pre, _ := getData(t, path, query) //
+					preCounters = preCounters + pre
+				}
 
-			// aggregate post counters for a path across all the destination NPUs
-			for path, query := range data {
-				post, _ := getData(t, path, query)
-				postCounters = postCounters + post
-			}
+				tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.eventType}))
 
-			// Wait for both goroutines to finish using the channel
-			close(stopMonitorTrigger)
-			close(stopClientsTrigger)
-			<-doneMonitorTrigger
-			<-doneClientsTrigger
+				// aggregate post counters for a path across all the destination NPUs
+				for path, query := range data {
+					post, _ := getData(t, path, query)
+					postCounters = postCounters + post
+				}
 
-			// following reload, we can have pre data bigger than post data. So using absolute value
-			got := math.Abs(float64(postCounters - preCounters))
+				//// Wait for both goroutines to finish using the channel
+				//close(stopMonitorTrigger)
+				//close(stopClientsTrigger)
+				//<-doneMonitorTrigger
+				//<-doneClientsTrigger
 
-			t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
-			t.Logf("Final counters for path %s: %d", tt.name, postCounters)
-			t.Logf("Expected counters for path %s: %f", tt.name, got)
+				// following reload, we can have pre data bigger than post data. So using absolute value
+				got := math.Abs(float64(postCounters - preCounters))
 
-			if (math.Abs(tgnData-got)/(tgnData))*100 > float64(tolerance) {
-				// t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, got, tgn_data)
-			} else {
-				t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgnData)
-			}
-		})
+				t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
+				t.Logf("Final counters for path %s: %d", tt.name, postCounters)
+				t.Logf("Expected counters for path %s: %f", tt.name, got)
+
+				if (math.Abs(tgnData-got)/(tgnData))*100 > float64(tolerance) {
+					// t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, got, tgn_data)
+				} else {
+					t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgnData)
+				}
+			})
+		}
 	}
 }
 
