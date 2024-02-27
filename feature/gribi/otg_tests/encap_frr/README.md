@@ -459,7 +459,7 @@ Test that if there is no lookup match in the encap VRF, then the traffic should
 be routed to the DEFAULT VRF for further lookup.
 
 1.  In `ENCAP_TE_VRF_A`, Add an 0/0 static route pointing to the DEFAULT VRF.
-2.  Send traffic with destination address 138.0.11.10, which should produce no
+2.  Send traffic with destination address 20.0.0.1, which should produce no
     match in `ENCAP_TE_VRF_A`.
 3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-8.
