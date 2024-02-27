@@ -24,6 +24,8 @@ syntax = "proto3";
 
 package openconfig.ocpaths;
 
+option go_package = "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto;ocpaths";
+
 // OCPaths is the complete list of all OpenConfig paths associated with some
 // entity (e.g. NOS, or path requirements list for a particular device role).
 message OCPaths {
@@ -52,6 +54,10 @@ message OCPath {
   // This destination featureprofiles folder serves as a grouping of the paths
   // related to the tests which appear in this folder and subfolders the folder.
   string featureprofileid = 3;
+
+  // A set of opaque tags that are used for this path. These tags can be used
+  // to group paths according to use-case specific criteria.
+  repeated string tags = 4;
 }
 
 // OCPathConstraint enumerates platform_types that are required to be supported

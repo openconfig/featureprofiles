@@ -2,7 +2,8 @@
 
 ## Summary
 
-Validate IPv4 support in gRIBI using an Aggregate Port as a static route Next Hop.
+Validate IPv4 support in gRIBI using an Aggregate Port as a static route Next
+Hop.
 
 ## Procedure
 
@@ -17,26 +18,34 @@ Validate IPv4 support in gRIBI using an Aggregate Port as a static route Next Ho
 
     *   Single IPv4Entry -> NHG -> NH with MAC Override.
 
-        *   Install 198.51.100.0/24 to NextHopGroup containing one NextHop which
-            is a static route to the ATE LAG port containing ports 2-3, and
-            override the destination MAC to a specified value.
+        *   Configure a static ARP entry for the LAG interface pointing the
+            synthetic IP 192.0.2.22 to the neighbor's MAC address
+            02:00:00:00:00:01.
+        *   Configure a static route matching 192.0.2.22/32 to the interface ref
+            of the LAG.
+        *   The gRIBI NH entry uses 192.0.2.22 to select the LAG as the egress
+            interface.
 
-        *   Forward packets between ATE port-1 and ATE LAG (destined to
-            198.51.100.0/24 i.e. packets with destination IP starting
-            198.51.100.1 up to 198.51.100.255) and determine that packets are
-            forwarded successfully.
+    *   Install 198.51.100.0/24 to NextHopGroup containing one NextHop which is
+        a static route to the ATE LAG port containing ports 2-3, and override
+        the destination MAC to a specified value.
 
-        *   Disable ATE port-2 and forward packets between ATE port-1 and ATE
-            LAG (destined to 198.51.100.0/24 ) and determine that packets are
-            forwarded successfully.
+    *   Forward packets between ATE port-1 and ATE LAG (destined to
+        198.51.100.0/24 i.e. packets with destination IP starting 198.51.100.1
+        up to 198.51.100.255) and determine that packets are forwarded
+        successfully.
 
-        *   Disable ATE port-2 and port-3 and forward packets between ATE port-1
-            and ATE LAG (destined to 198.51.100.0/24 ) and determine that
-            packets are lost 100%.
+    *   Disable ATE port-2 and forward packets between ATE port-1 and ATE LAG
+        (destined to 198.51.100.0/24 ) and determine that packets are forwarded
+        successfully.
 
-        *   Re-enable both ATE port-2 and port-3 and forward packets between ATE
-            port-1 and ATE LAG (destined to 198.51.100.0/24 ) and determine that
-            packets are forwarded successfully again.
+    *   Disable ATE port-2 and port-3 and forward packets between ATE port-1 and
+        ATE LAG (destined to 198.51.100.0/24 ) and determine that packets are
+        lost 100%.
+
+    *   Re-enable both ATE port-2 and port-3 and forward packets between ATE
+        port-1 and ATE LAG (destined to 198.51.100.0/24 ) and determine that
+        packets are forwarded successfully again.
 
 ## Config Parameter coverage
 

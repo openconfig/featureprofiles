@@ -37,10 +37,6 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 )
 
-const (
-	sshPort = 22
-)
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -54,19 +50,10 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context, sshIP string, dut *ondatra.DUTDevice) (gpb.GNMIClient, error) {
-	// TODO(greg-dennis): Remove hard-coded gNMI port.
-	var gnmiPort int
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		gnmiPort = 6030
-	default:
-		gnmiPort = 9339
-	}
-
+func gnmiClient(ctx context.Context, dut *ondatra.DUTDevice, gnmiAddr string) (gpb.GNMIClient, error) {
 	conn, err := grpc.DialContext(
 		ctx,
-		fmt.Sprintf("%s:%d", sshIP, gnmiPort),
+		gnmiAddr,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify: true, // NOLINT
@@ -189,7 +176,13 @@ func TestAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sshIP := sshService.GetOutsideIp()
+	sshAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), sshService.GetOutside())
+	gnmiService, err := servDUT.Service("gnmi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Deliberately try to reach gnmi via the DUT (SSH) IP.
+	gnmiAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), gnmiService.GetOutside())
 
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", "password", "admin")
@@ -224,7 +217,7 @@ func TestAuthentication(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			sshClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", sshIP, sshPort), &ssh.ClientConfig{
+			sshClient, err := ssh.Dial("tcp", sshAddr, &ssh.ClientConfig{
 				User: tc.user,
 				Auth: []ssh.AuthMethod{
 					ssh.KeyboardInteractive(keyboardInteraction(tc.pass)),
@@ -247,7 +240,7 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx, sshIP, dut)
+			gnmi, err := gnmiClient(ctx, dut, gnmiAddr)
 			if err != nil {
 				t.Fatal(err)
 			}

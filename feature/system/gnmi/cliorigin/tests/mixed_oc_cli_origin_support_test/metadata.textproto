@@ -5,3 +5,11 @@ uuid: "3b8c5e39-3f00-43eb-a8ae-71dfc49e1e65"
 plan_id: "gNMI-1.12"
 description: "Mixed OpenConfig/CLI Origin"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    qos_queue_requires_id: true
+  }
+}

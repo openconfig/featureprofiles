@@ -36,6 +36,7 @@ message Metadata {
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
+    TESTBED_DUT_ATE_8LINKS = 7;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -311,7 +312,7 @@ message Metadata {
     // Arista: partnerissuetracker.corp.google.com/299285115
     bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
     // Devices do not support telemetry for isis counter: part-changes.
-    // Arista: partnerissuetracker.corp.google.com/299285991
+    // Arista: partnerissuetracker.corp.google.com/317086576
     bool isis_counter_part_changes_unsupported = 107;
     // Devices do not support threshold container under /components/component/transceiver.
     bool transceiver_thresholds_unsupported = 108;
@@ -369,15 +370,58 @@ message Metadata {
     // Devices which needs to skip checking AFI-SAFI disable.
     // Juniper: b/310698466
     bool skip_bgp_session_check_without_afisafi = 129;
-    // Device does not support variable sequence id for policy forwarding rule for default class
-    // Cisco: partnerissuetracker.corp.google.com/TBD
-    bool pf_default_rule_variable_sequence_unsupported = 130;
-    // Device does not support copying of inner header ttl/hoplimit to tunnel (encap) header
-    // Cisco: partnerissuetracker.corp.google.com/TBD
-    bool ttl_copy_to_tunnel_header_unsupported = 131;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Devices that don't support telemetry for hardware resources before
+    // used-threshold-upper configuration.
+    bool missing_hardware_resource_telemetry_before_config = 131;
+    // Device does not support reboot status check on subcomponents.
+    bool gnoi_subcomponent_reboot_status_unsupported = 132;
+    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
+    // Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 133;
+    // Devices do not support path
+    // /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+    // Arista: https://partnerissuetracker.corp.google.com/issues/317064733
+    bool isis_metric_style_telemetry_unsupported = 134;
+    // Devices do not support configuring Interface-ref under Static-Route Next-Hop
+    bool static_route_next_hop_interface_ref_unsupported = 135;
+    // Devices which does not support nexthop index state
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 136;
+    // Devices which needs to enable leaf specific flag
+    // Juniper: b/319202763
+    bool enable_flowctrl_flag = 137;
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974 
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
+    //Skip tests with decap encap vrf as PBF action
+    // Nokia: partnerissuetracker.corp.google.com/issues/323251581
+     bool skip_pbf_with_decap_encap_vrf = 141;
+    // Devices which does not support copying TTL.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 142;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 143;
+    // Skip setting isis-actions set-level while configuring routing-policy statement action
+    bool skip_isis_set_level = 144;
+    // Skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+    bool skip_isis_set_metric_style_type = 145;
+    // Skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+    bool skip_set_rp_match_set_options = 146;
+    // Skip setting disable-metric-propagation while configuring table-connection
+    bool skip_setting_disable_metric_propagation = 147;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19; 
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
 
   message PlatformExceptions {
@@ -401,3 +445,4 @@ message Metadata {
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
 }
+
