@@ -339,9 +339,9 @@ a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 ## IP Addresses Assignment
 
 > **Warning:** Though we are trying to use RFC defined non-globally routable
-> space, there might be tests that are still using public routable ranges. Users
-> who runs the tests owns the responsibility of not letting test traffic leaked
-> to the internet.
+> space in the test, there might be tests (e.g. scaling tests) that are still
+> using public routable ranges. Users who run the tests own the responsibility
+> of not leaking test traffic to internet.
 
 ### IPv4
 
