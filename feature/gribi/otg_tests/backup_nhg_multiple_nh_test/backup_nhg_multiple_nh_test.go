@@ -158,6 +158,24 @@ func configNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, vrfname string)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), ni)
 }
 
+// configNetworkInstanceInterface creates VRFs and subinterfaces and then applies VRFs
+func configNetworkInstanceInterface(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfname string, subint uint32) {
+	// create empty subinterface
+	si := &oc.Interface_Subinterface{}
+	si.Index = ygot.Uint32(subint)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
+
+	// create vrf and apply on subinterface
+	v := &oc.NetworkInstance{
+		Name: ygot.String(vrfname),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
+	}
+	vi := v.GetOrCreateInterface(intfname)
+	vi.Interface = ygot.String(intfname)
+	vi.Subinterface = ygot.Uint32(subint)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), v)
+}
+
 // configInterfaceDUT configures the interface
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	if deviations.InterfaceEnabled(dut) {
@@ -176,8 +194,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// create VRF "vrfA" and assign incoming port under it
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
-	// create VRF "vrfA"
-	configNetworkInstance(t, dut, vrf1)
+	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
