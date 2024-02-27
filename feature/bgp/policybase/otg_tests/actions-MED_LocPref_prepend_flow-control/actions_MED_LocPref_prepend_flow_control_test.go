@@ -55,6 +55,8 @@ const (
 	initialMEDValue             = 50
 	setMEDPolicy                = "med-policy"
 	matchStatement1             = "match-statement-1"
+	setPrependPolicy            = "prepend-policy"
+	testASN                     = 23456
 	defRejectRoute              = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
 	defAcceptRoute              = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
 	peerGrpName1v4              = "iBGP-PEER-GROUP1-V4"
@@ -203,7 +205,7 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureMEDLocalPrefPolicy configures MED, Local Pref, AS prepend etc
-func configureMEDLocalPrefPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string) {
+func configureMEDLocalPrefPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
 	dutOcRoot := &oc.Root{}
 	batchConfig := &gnmi.SetBatch{}
@@ -226,6 +228,12 @@ func configureMEDLocalPrefPolicy(t *testing.T, dut *ondatra.DUTDevice, policyTyp
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 		}
+		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	case setPrependPolicy:
+		metric, _ := strconv.Atoi(policyValue)
+		asPrepend := actions.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
+		asPrepend.Asn = ygot.Uint32(ASN)
+		asPrepend.RepeatN = ygot.Uint8(uint8(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	default:
 		rp = nil
@@ -403,8 +411,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	return config
 }
 
-// validateOTGBgpPrefixV4AndMED verifies that the IPv4 prefix is received on OTG.
-func validateOTGBgpPrefixV4AndMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, isMEDCheck bool, med uint32) {
+// validateOTGBgpPrefixV4AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
+func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
@@ -414,29 +422,47 @@ func validateOTGBgpPrefixV4AndMED(t *testing.T, otg *otg.OTG, config gosnappi.Co
 			_, present := v.Val()
 			return present
 		}).Await(t)
-
+	var foundPrefix = false
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
+				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
-				if isMEDCheck {
-					if bgpPrefix.GetMultiExitDiscriminator() != med {
-						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
+				switch pathAttr {
+				case setMEDPolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					} else {
-						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
+				case setLocalPrefPolicy:
+					if bgpPrefix.GetLocalPreference() != metric {
+						t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+					} else {
+						t.Logf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+					}
+				case setPrependPolicy:
+					if len(bgpPrefix.AsPath) != int(metric) {
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+					}
+				default:
+					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
 				break
 			}
 		}
-		t.Logf("Prefix %v not received on OTG", ipAddr)
+	}
+	if !foundPrefix {
+		t.Errorf("Prefix %v not received on OTG", ipAddr)
 	}
 }
 
-// validateOTGBgpPrefixV6AndMED verifies that the IPv6 prefix is received on OTG.
-func validateOTGBgpPrefixV6AndMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, isMEDCheck bool, med uint32) {
+// validateOTGBgpPrefixV6AndASLocalPrefMED verifies that the IPv6 prefix is received on OTG.
+func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
@@ -446,24 +472,42 @@ func validateOTGBgpPrefixV6AndMED(t *testing.T, otg *otg.OTG, config gosnappi.Co
 			_, present := v.Val()
 			return present
 		}).Await(t)
-
+	var foundPrefix = false
 	if ok {
 		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
+				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
-				if isMEDCheck {
-					if bgpPrefix.GetMultiExitDiscriminator() != med {
-						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
+				switch pathAttr {
+				case setMEDPolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					} else {
-						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
+				case setLocalPrefPolicy:
+					if bgpPrefix.GetLocalPreference() != metric {
+						t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+					} else {
+						t.Logf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+					}
+				case setPrependPolicy:
+					if len(bgpPrefix.AsPath) != int(metric) {
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+					}
+				default:
+					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
 				break
 			}
 		}
-		t.Logf("Prefix %v not received on OTG", ipAddr)
+	}
+	if !foundPrefix {
+		t.Errorf("Prefix %v not received on OTG", ipAddr)
 	}
 }
 
@@ -509,8 +553,8 @@ func TestBGPPolicy(t *testing.T) {
 		defPolicyPort1, defPolicyPort2                              oc.E_RoutingPolicy_DefaultPolicyType
 		policyValue                                                 string
 		port1v4Prefix, port1v6Prefix, port2v4Prefix, port2v6Prefix  string
-		isMEDCheck, isDeletePolicy                                  bool
-		metricValue                                                 uint32
+		isDeletePolicy                                              bool
+		metricValue, asn                                            uint32
 		deleteNbrv4, deleteNbrv6                                    string
 		polNbrv4, polNbrv6                                          string
 	}{{
@@ -526,13 +570,13 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		isMEDCheck:      true,
 		metricValue:     100,
 		polNbrv4:        atePort1.IPv4,
 		polNbrv6:        atePort1.IPv6,
 		isDeletePolicy:  false,
 		deleteNbrv4:     "",
 		deleteNbrv6:     "",
+		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP set MED Import Export Policy",
 		rpPolicy:        setMEDPolicy,
@@ -546,13 +590,13 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		isMEDCheck:      true,
 		metricValue:     100,
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
 		deleteNbrv4:     atePort1.IPv4,
 		deleteNbrv6:     atePort1.IPv6,
+		asn:             dutAS,
 	}, {
 		desc:            "Configure iBGP increase MED Import Export Policy",
 		rpPolicy:        setMEDPolicy,
@@ -566,13 +610,13 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net1,
 		port2v4Prefix:   advertisedRoutesv4Net2,
 		port2v6Prefix:   advertisedRoutesv6Net2,
-		isMEDCheck:      true,
 		metricValue:     150,
 		polNbrv4:        atePort1.IPv4,
 		polNbrv6:        atePort1.IPv6,
 		isDeletePolicy:  true,
 		deleteNbrv4:     atePort2.IPv4,
 		deleteNbrv6:     atePort2.IPv6,
+		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP increase MED Import Export Policy",
 		rpPolicy:        setMEDPolicy,
@@ -586,13 +630,13 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		isMEDCheck:      true,
 		metricValue:     150,
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
 		deleteNbrv4:     atePort1.IPv4,
 		deleteNbrv6:     atePort1.IPv6,
+		asn:             dutAS,
 	}, {
 		desc:            "Configure iBGP set Local Preference Import Export Policy",
 		rpPolicy:        setLocalPrefPolicy,
@@ -606,13 +650,13 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		isMEDCheck:      false,
 		metricValue:     100,
 		polNbrv4:        atePort1.IPv4,
 		polNbrv6:        atePort1.IPv6,
 		isDeletePolicy:  true,
 		deleteNbrv4:     atePort2.IPv4,
 		deleteNbrv6:     atePort2.IPv6,
+		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP set Local Preference Import Export Policy",
 		rpPolicy:        setLocalPrefPolicy,
@@ -626,19 +670,99 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		isMEDCheck:      false,
 		metricValue:     100,
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
 		deleteNbrv4:     atePort1.IPv4,
 		deleteNbrv6:     atePort1.IPv6,
+		asn:             dutAS,
+	}, {
+		desc:            "Configure iBGP  prepend 10 x local ASN Import Export Policy",
+		rpPolicy:        setPrependPolicy,
+		policyTypePort1: setPrependPolicy,
+		policyValue:     "10",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defRejectRoute,
+		defPolicyPort2:  defAcceptRoute,
+		policyTypePort2: "",
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     11,
+		polNbrv4:        atePort1.IPv4,
+		polNbrv6:        atePort1.IPv6,
+		isDeletePolicy:  true,
+		deleteNbrv4:     atePort2.IPv4,
+		deleteNbrv6:     atePort2.IPv6,
+		asn:             dutAS,
+	}, {
+		desc:            "Configure eBGP  prepend 10 x local ASN Import Export Policy",
+		rpPolicy:        setPrependPolicy,
+		policyTypePort1: "",
+		policyValue:     "10",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defRejectRoute,
+		defPolicyPort2:  defAcceptRoute,
+		policyTypePort2: setPrependPolicy,
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     11,
+		polNbrv4:        atePort2.IPv4,
+		polNbrv6:        atePort2.IPv6,
+		isDeletePolicy:  true,
+		deleteNbrv4:     atePort1.IPv4,
+		deleteNbrv6:     atePort1.IPv6,
+		asn:             dutAS,
+	}, {
+		desc:            "Configure iBGP  prepend 10 x ASN Import Export Policy",
+		rpPolicy:        setPrependPolicy,
+		policyTypePort1: setPrependPolicy,
+		policyValue:     "10",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defRejectRoute,
+		defPolicyPort2:  defAcceptRoute,
+		policyTypePort2: "",
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     11,
+		polNbrv4:        atePort1.IPv4,
+		polNbrv6:        atePort1.IPv6,
+		isDeletePolicy:  true,
+		deleteNbrv4:     atePort2.IPv4,
+		deleteNbrv6:     atePort2.IPv6,
+		asn:             23456,
+	}, {
+		desc:            "Configure eBGP  prepend 10 x ASN Import Export Policy",
+		rpPolicy:        setPrependPolicy,
+		policyTypePort1: "",
+		policyValue:     "10",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defRejectRoute,
+		defPolicyPort2:  defAcceptRoute,
+		policyTypePort2: setPrependPolicy,
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     11,
+		polNbrv4:        atePort2.IPv4,
+		polNbrv6:        atePort2.IPv6,
+		isDeletePolicy:  true,
+		deleteNbrv4:     atePort1.IPv4,
+		deleteNbrv6:     atePort1.IPv6,
+		asn:             23456,
 	}}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
 			// Configure Routing Policy on the DUT.
-			configureMEDLocalPrefPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement)
+			configureMEDLocalPrefPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
 			// Configure BGP default import export policy on Port1
 			configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
 			// Configure BGP default import export policy on Port1
@@ -655,10 +779,10 @@ func TestBGPPolicy(t *testing.T) {
 			verifyBgpPolicyTelemetry(t, dut, atePort2.IPv4, tc.defPolicyPort2, tc.policyTypePort2, true)
 			verifyBgpPolicyTelemetry(t, dut, atePort2.IPv6, tc.defPolicyPort2, tc.policyTypePort2, false)
 			// Validate Prefixes
-			validateOTGBgpPrefixV4AndMED(t, otg, otgConfig, atePort1.Name+".BGP4.Route", tc.port1v4Prefix, advertisedRoutesv4PrefixLen, tc.isMEDCheck, tc.metricValue)
-			validateOTGBgpPrefixV6AndMED(t, otg, otgConfig, atePort1.Name+".BGP6.Route", tc.port1v6Prefix, advertisedRoutesv6PrefixLen, tc.isMEDCheck, tc.metricValue)
-			validateOTGBgpPrefixV4AndMED(t, otg, otgConfig, atePort2.Name+".BGP4.Route", tc.port2v4Prefix, advertisedRoutesv4PrefixLen, tc.isMEDCheck, tc.metricValue)
-			validateOTGBgpPrefixV6AndMED(t, otg, otgConfig, atePort2.Name+".BGP6.Route", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.isMEDCheck, tc.metricValue)
+			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, otgConfig, atePort1.Name+".BGP4.Route", tc.port1v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, otgConfig, atePort1.Name+".BGP6.Route", tc.port1v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, otgConfig, atePort2.Name+".BGP4.Route", tc.port2v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, otgConfig, atePort2.Name+".BGP6.Route", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
 		})
 	}
 }
