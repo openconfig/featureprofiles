@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backup_nhg_multiple_nh_test
+package backup_nhg_multiple_nh_pbf_test
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -43,11 +44,13 @@ const (
 	dstPfxMax        = "203.0.113.254"
 	ipOverIPProtocol = 4
 	routeCount       = 1
-	vrf1             = "vrfA"
+	vrf1             = "TE_VRF_111"
 	vrf2             = "vrfB"
 	fps              = 1000000 // traffic frames per second
 	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	decapFlowSrc     = "198.51.100.111"
+	dscpEncapA1      = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -257,8 +260,11 @@ func TestBackup(t *testing.T) {
 	// Flush past entries before running the tc
 	client.FlushAll(t)
 
-	t.Logf("Name: IPv4BackUpSwitch")
-	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
+	if deviations.SkipPbfWithDecapEncapVrf(dut) {
+		t.Skip("Skipping test as PBF with decap / encap vrf is not supported")
+	}
+	t.Logf("Name: IPv4BackUpSwitchWithVrfPolicyW")
+	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path with vrf policy W")
 
 	tcArgs := &testArgs{
 		ctx:    ctx,
@@ -268,6 +274,7 @@ func TestBackup(t *testing.T) {
 		top:    top,
 	}
 
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 	tcArgs.testIPv4BackUpSwitch(t)
 }
 
@@ -376,7 +383,8 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().Increment().SetStart(dutPort1.IPv4)
+	v4.Src().Increment().SetStart(decapFlowSrc)
+	v4.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 
 	// use ip over ip packets since some vendors only support decap for backup
