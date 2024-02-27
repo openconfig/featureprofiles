@@ -4,9 +4,10 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
-    pf_default_rule_variable_sequence_unsupported: true
-    ttl_copy_to_tunnel_header_unsupported: true
+    pf_require_match_default_rule: true
+    ttl_copy_unsupported: true
     gribi_mac_override_with_static_arp: true
     interface_ref_interface_id_format: true
   }
 }
+tags: TAGS_DATACENTER_EDGE

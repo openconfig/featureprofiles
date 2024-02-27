@@ -576,7 +576,7 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 
 	pbrRules = append(pbrRules, splitDefaultClassRules...)
 
-	if deviations.PfDefaultRuleVariableSequenceUnsupported(dut) {
+	if deviations.PfRequireMatchDefaultRule(dut) {
 		pbrRules = append(pbrRules, splitDefaultClassRules...)
 	} else {
 		pbrRules = append(pbrRules, defaultClassRule...)
@@ -783,7 +783,8 @@ func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortName
 		t.Log("Enabling capture on ", port)
 		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
-	t.Log(topo.Msg().GetCaptures())
+	pb, _ := topo.Marshal().ToProto()
+	t.Log(pb.GetCaptures())
 	otg.PushConfig(t, topo)
 }
 
@@ -946,7 +947,7 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 					t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
 					break
 				}
-				if !deviations.TtlCopyToTunnelHeaderUnsupported(args.dut) {
+				if !deviations.TTLCopyUnsupported(args.dut) {
 					if got := uint32(v4Packet.TTL); got != pa.ttl {
 						t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
 						break

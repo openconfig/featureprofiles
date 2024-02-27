@@ -419,6 +419,8 @@ message Metadata {
     bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
+    // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 148;   
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
