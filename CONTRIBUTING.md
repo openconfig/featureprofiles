@@ -57,7 +57,7 @@ Here is a specific list of test design patterns that we follow:
 
 ## Directory Organization
 
-The directory tree is organized as follows: 
+The directory tree is organized as follows:
 
 *   `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/openconfig/kne)
