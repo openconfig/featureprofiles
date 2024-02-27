@@ -10,32 +10,45 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-func CollectAllData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *sync.WaitGroup {
-	t.Helper()
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go receiveCpuData(t, getCpuData(t, dut, wg, frequency, duration), wg)
-	go receiveMemData(t, getMemData(t, dut, wg, frequency, duration), wg)
-	return wg
+type Collector struct {
+	sync.WaitGroup
+	CpuLogs [][]*oc.System_Cpu
+	MemLogs []*oc.System_Memory
 }
 
-func CollectCpuData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *sync.WaitGroup {
+func CollectAllData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
 	t.Helper()
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go receiveCpuData(t, getCpuData(t, dut, wg, frequency, duration), wg)
-	return wg
+	collector := &Collector{
+		CpuLogs: make([][]*oc.System_Cpu, 0),
+		MemLogs: make([]*oc.System_Memory, 0),
+	}
+	collector.Add(2)
+	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
+	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
+	return collector 
 }
 
-func CollectMemData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *sync.WaitGroup {
+func CollectCpuData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
 	t.Helper()
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go receiveMemData(t, getMemData(t, dut, wg, frequency, duration), wg)
-	return wg
+	collector := &Collector{
+		CpuLogs: make([][]*oc.System_Cpu, 0),
+	}
+	collector.Add(1)
+	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
+	return collector
 }
 
-func getCpuData(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup, freq time.Duration, dur time.Duration) chan []*oc.System_Cpu {
+func CollectMemData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
+	t.Helper()
+	collector := &Collector{
+		MemLogs: make([]*oc.System_Memory, 0),
+	}
+	collector.Add(1)
+	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
+	return collector 
+}
+
+func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan []*oc.System_Cpu {
 	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
 	t.Helper()
 	cpuChan := make(chan []*oc.System_Cpu, 100)
@@ -59,7 +72,7 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup, freq t
 	return cpuChan
 }
 
-func getMemData(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup, freq time.Duration, dur time.Duration) chan *oc.System_Memory {
+func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan *oc.System_Memory {
 	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
 	t.Helper()
 	memChan := make(chan *oc.System_Memory, 100)
@@ -83,21 +96,23 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, wg *sync.WaitGroup, freq t
 	return memChan
 }
 
-func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, wg *sync.WaitGroup) {
+func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Collector) {
 	t.Helper()
-	defer wg.Done()
+	defer collector.Done()
 	for cpuData := range cpuChan {
 		// change from log to capture
 		t.Logf("\nCPU INFO:, t: %d\n%s\n", time.Now().Unix(), PrettyPrint(cpuData))
+		collector.CpuLogs = append(collector.CpuLogs, cpuData)
 	}
 }
 
-func receiveMemData(t *testing.T, cpuChan chan *oc.System_Memory, wg *sync.WaitGroup) {
+func receiveMemData(t *testing.T, memChan chan *oc.System_Memory, collector *Collector) {
 	t.Helper()
-	defer wg.Done()
-	for cpuData := range cpuChan {
+	defer collector.Done()
+	for memData := range memChan {
 		// change from log to capture
-		t.Logf("\nMemory INFO:, t: %d\n%s\n", time.Now().Unix(), PrettyPrint(cpuData))
+		t.Logf("\nMemory INFO:, t: %d\n%s\n", time.Now().Unix(), PrettyPrint(memData))
+		collector.MemLogs = append(collector.MemLogs, memData)
 	}
 }
 

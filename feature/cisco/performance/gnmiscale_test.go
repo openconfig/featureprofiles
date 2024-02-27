@@ -1,9 +1,11 @@
 package main
 
 import (
+	"os"
 	"testing"
 	"time"
 
+	"github.com/markkurossi/tabulate"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 )
@@ -34,15 +36,28 @@ func TestMain(m *testing.M) {
 func TestCpuCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Log("Starting CPU data collection")
-	wg := CollectAllData(t, dut, 50*time.Millisecond, 5*time.Second)
-	wg.Wait()
+	collector := CollectAllData(t, dut, 50*time.Millisecond, 5*time.Second)
+	collector.Wait()
+	tab := tabulate.New(tabulate.ASCII)
+	tab.Header("Time").SetAlign(tabulate.TL)
+	tab.Header("Value")
+	err := tabulate.Reflect(tab, 0, nil, collector.CpuLogs)
+	if err != nil {
+		t.Errorf("Error tabulating data: %s", err)
+	}
+	tab.Print(os.Stdout)
+	err = tabulate.Reflect(tab, 0, nil, collector.MemLogs)
+	if err != nil {
+		t.Errorf("Error tabulating data: %s", err)
+	}
+	tab.Print(os.Stdout)
 	t.Log("CPU data collection finished")
 }
 
 func TestEmsdRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Log("Starting CPU data collection")
-	wg := CollectAllData(t, dut, 14*time.Second, 60*time.Second)
+	collector := CollectAllData(t, dut, 14*time.Second, 60*time.Second)
 
 	// guarantee a few timestamps before emsd restart occurs
 	time.Sleep(5*time.Second)
@@ -50,6 +65,6 @@ func TestEmsdRestart(t *testing.T) {
 	t.Log("Restarting emsd")
 	RestartEmsd(t, dut)
 
-	wg.Wait()
+	collector.Wait()
 	t.Log("CPU data collection finished")
 }
