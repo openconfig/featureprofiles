@@ -57,7 +57,7 @@ Here is a specific list of test design patterns that we follow:
 
 ## Directory Organization
 
-The directory tree is organized as follows:
+The directory tree is organized as follows: 
 
 *   `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/openconfig/kne)
@@ -70,6 +70,8 @@ The directory tree is organized as follows:
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
+
+Directory names are not allowed to contain hyphen (-) characters.
 
 ## Allowed File Types
 
