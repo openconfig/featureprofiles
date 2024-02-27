@@ -1,7 +1,38 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-1.32"
-description: "BGP policy actions - MED, LocPref, prepend, flow-control"
-testbed: TESTBED_DUT_ATE_2LINKS
+uuid:  "b4b2249f-9226-4555-9946-dc22cf6adae2"
+plan_id:  "RT-1.32"
+description:  "BGP policy actions - MED, LocPref, prepend, flow-control"
+testbed:  TESTBED_DUT_ATE_2LINKS
 tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    prepolicy_received_routes: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
