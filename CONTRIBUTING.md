@@ -123,8 +123,8 @@ in the [project](https://github.com/orgs/openconfig/projects/2/views/1) item.
 
 Each test must also be accompanied by a `metadata.textproto` file that supplies
 the metadata for annotating the JUnit XML test results. This file can be
-generated or updated using the command: `go run ./tools/addrundata --fix`.
-See [addrundata](/tools/addrundata/README.md) for more info.
+generated or updated using the command: `go run ./tools/addrundata --fix`. See
+[addrundata](/tools/addrundata/README.md) for more info.
 
 For example:
 
@@ -338,55 +338,29 @@ a1v4.Protocol, _ = a1v4.To_Acl_AclSet_AclEntry_Ipv4_Protocol_Union(6)
 
 ## IP Addresses Assignment
 
-Netblocks used in the test topology should follow IPv4 Address Blocks Reserved
-for Documentation ([RFC 5737]), IPv4 reserved for Benchmarking Methodology
-([RFC 2544]), and IPv6 Address Prefix Reserved for Documentation ([RFC 3849]).
-In particular:
-
-[RFC 5737]: https://datatracker.ietf.org/doc/html/rfc5737
-[RFC 2544]: https://datatracker.ietf.org/doc/html/rfc2544
-[RFC 3849]: https://datatracker.ietf.org/doc/html/rfc3849
-
-For IPv6, link local addresses (FE80::/10) addresses are allowed in contexts
-where link local is being tested.
+> **Warning:** Though we are trying to use RFC defined non-globally routable
+> space in tests, there might be tests (e.g. scaling tests) that are still using
+> public routable ranges. Users who run the tests own the responsibility of not
+> leaking test traffic to internet.
 
 ### IPv4
 
-*   `TEST-NET-1`: (192.0.2.0/24): control plane addresses split into /30 subnets
-    for each ATE/DUT port pair.
-*   `TEST-NET-2`: (198.51.100.0/24): data plane source network addresses used
-    for traffic testing; split as needed.
-*   `TEST-NET-3`: (203.0.113.0/24): data plane destination network addresses
-    used for traffic testing; split as needed.
-*   `BMWG`: (198.18.0.0/15): additional data plane networks.
-
-*   20.0.0.1/15: data plane source network addresses used for scale testing.
-
-*   30.0.0.1/15: data plane source network addresses used for scale testing.
-
-*   100.0.0.0/12: data plane source network addresses used for scale testing.
-
-*   138.0.11.0/24: data plane source network addresses used for traffic testing; split as needed.
-
-*   192.51.100.1/24: data plane source network addresses used for traffic testing; split as needed.
-
-*   192.51.129.0/22: data plane source network addresses used for traffic testing; split as needed.
-
-*   192.55.200.3/32: data plane source network addresses used for traffic testing; split as needed.
-
-*   198.100.200.123/24: data plane source network addresses used for traffic testing; split as needed.
-
-*   203.10.113.1/24: data plane source network addresses used for traffic testing; split as needed.
-
-*   192.58.200.1/24:  data plane source network addresses used for traffic testing; split as needed.
-
-*   192.168.10.0/24:  network addresses used for bgp policy testing; split as needed.
-
-*   192.168.20.0/24:  network addresses used for bgp policy testing; split as needed.
+*   192.0.2.0/24 ([TEST-NET-1](https://www.iana.org/go/rfc5737)): control plane
+    addresses split into /30 subnets for each ATE/DUT port pair.
+*   198.51.100.0/24 ([TEST-NET-2](https://www.iana.org/go/rfc5737)): data plane
+    source network addresses used for traffic testing; split as needed.
+*   203.0.113.0/24 ([TEST-NET-3](https://www.iana.org/go/rfc5737)): data plane
+    destination network addresses used for traffic testing; split as needed.
+*   100.64.0.0/10 ([CGN Shared Space](https://www.iana.org/go/rfc6598)):
+    additional network address; split as needed.
+*   198.18.0.0/15 ([Device Benchmark Testing](https://www.iana.org/go/rfc2544)):
+    additional network address; split as needed.
 
 ### IPv6
 
-2001:DB8::/32 is a very large space, so we divide them as follows.
+2001:DB8::/32
+([Reserved for Documentation](https://datatracker.ietf.org/doc/html/rfc3849)) is
+a very large space, so we divide them as follows.
 
 *   2001:DB8:0::/64: control plane addresses split into /126 subnets for each
     ATE/DUT port pair.
@@ -394,6 +368,9 @@ where link local is being tested.
     address; split as needed.
 *   2001:DB8:2::/64: data plane addresses used for traffic testing as the
     destination address; split as needed.
+
+Link local addresses (FE80::/10) addresses are allowed in contexts where link
+local is being tested.
 
 ### Rationale
 
