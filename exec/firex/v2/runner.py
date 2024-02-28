@@ -34,7 +34,6 @@ logger = get_task_logger(__name__)
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
 TBLOCK_BIN = '/auto/tftpboot-ottawa/b4/bin/tblock'
-IXIA_RELEASE_BIN = '/auto/tftpboot-ottawa/b4/bin/ixia_release'
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -1149,25 +1148,29 @@ def InstallGoDelve(self, ws, internal_fp_repo_dir):
         
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, binding_file):
+def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
-    with tempfile.NamedTemporaryFile() as f:
-        #FIXME: remove once release script is updated to new binding proto
-        tmp_binding_file = f.name
-        shutil.copyfile(binding_file, tmp_binding_file)
-        cmd = "sed -i 's|mutual_tls|#mutual_tls|g;"
-        cmd += "s|trust_bundle_file|#trust_bundle_file|g;"
-        cmd += "s|cert_file|#cert_file|g;"
-        cmd += "s|key_file|#key_file|g' "
-        cmd += f"{tmp_binding_file}"
-        check_output(cmd)
-        
-        try:
+    venv_path = os.path.join(ws, 'ixia_venv')
+    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
+    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+    
+    try:
+        if not os.path.exists(venv_python_bin):
             logger.print(
-                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
             )
-        except:
-            logger.warning(f'Failed to release ixia ports. Ignoring...')
+            
+            ixia_release_req = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
+            logger.print(
+                check_output(f'{venv_pip_bin} install -r {ixia_release_req}')
+            )
+
+        ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
+        logger.print(
+            check_output(f'{venv_python_bin} {ixia_release_bin} {binding_file}')
+        )
+    except:
+        logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
