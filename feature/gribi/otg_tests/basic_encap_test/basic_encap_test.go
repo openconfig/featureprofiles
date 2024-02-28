@@ -667,6 +667,7 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 // configureBaseconfig configures network instances and forwarding policy on the DUT
 func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure VRFs")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	configureNetworkInstance(t, dut)
 	t.Log("Configure Cluster facing VRF selection Policy")
 	pf := getPbrPolicy(dut, clusterPolicy, true)
