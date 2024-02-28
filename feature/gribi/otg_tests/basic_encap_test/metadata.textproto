@@ -1,0 +1,20 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "36cc79b5-3766-4cb4-b83b-1baea1464de8"
+plan_id:  "TE-16.1"
+description:  "basic encapsulation tests"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+    gribi_mac_override_with_static_arp:  true
+    interface_ref_interface_id_format:  true
+    ttl_copy_unsupported:  true
+    pf_require_match_default_rule:  true
+  }
+}
+tags:  TAGS_DATACENTER_EDGE
