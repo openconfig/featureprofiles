@@ -791,3 +791,8 @@ func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
 }
+
+// PfRequireMatchDefaultRule returns true for device which requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
+}
