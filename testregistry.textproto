@@ -112,7 +112,7 @@ test: {
 test: {
   id: "DP-1.14"
   description: "DSCP transperency with ECN"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/DSCP-transparency/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ecn/otg_tests/DSCP_transparency/README.md"
   exec: " "
 }
 test: {
@@ -262,7 +262,7 @@ test: {
 test: {
   id: "RT-1.27"
   description: "Static route to BGP redistribution"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static-route_bgp_redistribution/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static_route_bgp_redistribution/README.md"
   exec: " "
 }
 test: {
@@ -292,7 +292,7 @@ test: {
 test: {
   id: "RT-1.32"
   description: "BGP policy actions - MED, LocPref, prepend, flow-control"
-  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions_MED_LocPref_prepend_flow_control/README.md"
   exec: " "
 }
 test: {
@@ -383,13 +383,13 @@ test: {
 test: {
   id: "RT-2.12"
   description: "Static route to IS-IS redistribution"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static_route_isis_redistribution/README.md"
   exec: " "
 }
 test: {
   id: "RT-2.13"
   description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/Weighted-ECMP/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
 test: {
@@ -1047,7 +1047,7 @@ test: {
 test: {
   id: "TRANSCEIVER-2"
   description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_pre_fec_ber_test/README.md"
   exec: " "
 }
 test: {
