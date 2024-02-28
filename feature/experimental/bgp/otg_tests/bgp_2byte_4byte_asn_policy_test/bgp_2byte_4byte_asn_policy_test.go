@@ -432,7 +432,7 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 		network2.Addresses().Add().SetAddress(subnetAddr2).SetPrefix(subnetLen2).SetCount(1)
 		network2.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 7700})
-		network2.Communities().Add().SetAsNumber(200).SetAsCustom(1)
+		network2.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER).SetAsNumber(200).SetAsCustom(1)
 
 		network3 := srcBgpPeer.V4Routes().Add().SetName("bgpNeti3")
 		network3.SetNextHopIpv4Address(ateSrc.IPv4).
@@ -471,7 +471,7 @@ func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefix
 			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 		network2.Addresses().Add().SetAddress(prefixArr2[0]).SetPrefix(uint32(mask2)).SetCount(1)
 		network2.AsPath().Segments().Add().SetAsNumbers([]uint32{55000, 7700})
-		network2.Communities().Add().SetAsNumber(200).SetAsCustom(1)
+		network2.Communities().Add().SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER).SetAsNumber(200).SetAsCustom(1)
 
 		network3 := srcBgpPeer.V6Routes().Add().SetName("bgpNeti3")
 		network3.SetNextHopIpv6Address(ateSrc.IPv6).
