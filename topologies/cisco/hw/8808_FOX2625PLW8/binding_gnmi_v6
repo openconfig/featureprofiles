@@ -175,37 +175,46 @@ ates {
   ports {
     id: "port1"
     name: "9/9"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port2"
     name: "9/16"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port3"
     name: "9/11"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port4"
     name: "9/12"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port5"
     name: "9/13" # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port6"
     name: "9/14"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port7"
     name: "9/15"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
    id: "port8"
    name: "9/10"  # Change this to the actual port name.
+   speed: S_10GB       
   }
   ports {
    id: "port9"
    name: "9/26"  # Change this to the actual port name.
-  }  
+   speed: S_10GB       
+  }
 }
