@@ -389,7 +389,7 @@ test: {
 test: {
   id: "RT-2.13"
   description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/Weighted-ECMP/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
 test: {
@@ -1047,7 +1047,7 @@ test: {
 test: {
   id: "TRANSCEIVER-2"
   description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_pre_fec_ber_test/README.md"
   exec: " "
 }
 test: {
