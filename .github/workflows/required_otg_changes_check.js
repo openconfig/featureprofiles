@@ -36,7 +36,7 @@ module.exports = async ({github, context, core}) => {
     }
   });
   if (addedATEFiles.size != 0) {
-    core.warning('Cannot add new ATE test files: ' + [...addedATEFiles].join(','));
+    core.setFailed('Cannot add new ATE test files: ' + [...addedATEFiles].join(','));
   }
   changedATEFiles.forEach(file => {
     console.log('Found changed ATE file: ' + file);
