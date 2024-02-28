@@ -109,42 +109,42 @@ func TestBgpSession(t *testing.T) {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal, prefixV4, 2),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal, 2),
 		}, {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal, prefixV6, 2),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal, 2),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal, prefixV4, 4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal, 4),
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal, prefixV6, 4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal, prefixV4, 2),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal, 2),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal, prefixV6, 4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal, prefixV4, 4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal, 4),
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
-			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal, prefixV6, 4),
+			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal, 4),
 		},
 	}
 
@@ -387,7 +387,7 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 	verifyPrefixesTelemetry(t, dut, 3, nbr.isV4)
 }
 
-func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, prefixes []string, asWidth int) gosnappi.Config {
+func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, asWidth int) gosnappi.Config {
 	t.Helper()
 	t.Log("Create otg configuration")
 	ate := ondatra.ATE(t, "ate")
