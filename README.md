@@ -27,9 +27,9 @@ or by opening a GitHub
 # Running Tests on Virtual Devices
 
 > **Warning:** Though we are trying to use RFC defined non-globally routable
-> space in the test, there might be tests (e.g. scaling tests) that are still
-> using public routable ranges. Users who run the tests own the responsibility
-> of not leaking test traffic to internet.
+> space in tests, there might be tests (e.g. scaling tests) that are still using
+> public routable ranges. Users who run the tests own the responsibility of not
+> leaking test traffic to internet.
 
 Tests may be run on virtual devices using the
 [Kubernetes Network Emulation](https://github.com/openconfig/kne) binding.
