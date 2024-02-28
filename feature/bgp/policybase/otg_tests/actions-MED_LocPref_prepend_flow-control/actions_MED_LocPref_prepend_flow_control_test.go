@@ -490,7 +490,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config 
 	}
 }
 
-// validateOTGBgpPrefixV6AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
+// validateOTGBgpPrefixV6AndASLocalPrefMED verifies that the IPv6 prefix is received on OTG.
 func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t,
