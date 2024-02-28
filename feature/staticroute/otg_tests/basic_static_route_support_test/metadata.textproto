@@ -20,4 +20,12 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+} 
 tags: TAGS_DATACENTER_EDGE

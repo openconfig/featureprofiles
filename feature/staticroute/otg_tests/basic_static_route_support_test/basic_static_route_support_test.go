@@ -284,6 +284,11 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
 		t.Fatal(err)
 	}
+	// Enable static route recursive next hop
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+
+	gnmi.BatchReplace(b, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Recurse().Config(), true)
+	gnmi.BatchReplace(b, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Recurse().Config(), true)
 
 	b.Set(t, td.dut)
 
@@ -1012,7 +1017,11 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 	g.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
-	isis.GetOrCreateLevel(2).SetMetricStyle(oc.Isis_MetricStyle_WIDE_METRIC)
+	isisLevel2 := isis.GetOrCreateLevel(2)
+	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(td.dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 
 	p1Name := td.dut.Port(t, "port1").Name()
 	p2Name := td.dut.Port(t, "port2").Name()
