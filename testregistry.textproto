@@ -454,8 +454,8 @@ test: {
 }
 test: {
   id: "RT-5.6"
-  description: "Interface IPv6 ND RA disable"
-  readme: ""https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md""
+  description: "Interface Loopback mode"
+  readme: "openconfig/featureprofiles/feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
   exec: " "
 }
 test: {
@@ -468,6 +468,12 @@ test: {
   id: "RT-5.8"
   description: "IPv6 link local"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.9"
+  description: "Interface IPv6 ND RA disable"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md""
   exec: " "
 }
 test: {
