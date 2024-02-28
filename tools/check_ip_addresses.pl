@@ -43,7 +43,11 @@ if (/\b(\d{1,3}(\.\d{1,3}){3,})(\/\d+)?\b/) {
   next if $ip =~ /192\.0\.2\./;         # TEST-NET-1 (RFC 5737)
   next if $ip =~ /198\.51\.100\./;      # TEST-NET-2 (RFC 5737)
   next if $ip =~ /203\.0\.113\./;       # TEST-NET-3 (RFC 5737)
-  next if $ip =~ /198\.(18|19)\./;      # BMWG (RFC 2544)
+  next if $ip =~ /100\.(6[4-9])\./;       # 64-69, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.([789][0-9])\./;       # 70-99, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.(1[01][0-9])\./;       # 100 - 119, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.(12[0-7])\./;       # 120 - 127, CGN Shared Space (RFC 6598)
+  next if $ip =~ /198\.(18|19)\./;      # Device Benchmark Testing (RFC 2544)
   next if $ip =~ /20\.0\./;             # 20.0.0.1/15
   next if $ip =~ /30\.0\./;             # 30.0.0.1/15
   next if $ip =~ /100\.0\./;            # 100.0.0.1/12
