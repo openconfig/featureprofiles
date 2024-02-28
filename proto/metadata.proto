@@ -419,6 +419,8 @@ message Metadata {
     bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
+    // Devices do not support BGP conditions match-community-set
+    bool bgp_conditions_match_community_set_unsupported = 148;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
