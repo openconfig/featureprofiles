@@ -786,3 +786,8 @@ func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
 func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
 }
+
+// BGPConditionsMatchCommunitySetUnsupported returns true if device doesn't support bgp-conditions/match-community-set leaf
+func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
+}
