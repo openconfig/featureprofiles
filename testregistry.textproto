@@ -387,6 +387,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.13"
+  description: "Weighted-ECMP for IS-IS"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/Weighted-ECMP/README.md"
+  exec: " "
+}
+test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
@@ -453,9 +459,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-9"
-  description: "Interface IPv6 ND RA disable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
+  id: "RT-5.6"
+  description: "Interface Loopback mode"
+  readme: "openconfig/featureprofiles/feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
   exec: " "
 }
 test: {
@@ -468,6 +474,12 @@ test: {
   id: "RT-5.8"
   description: "IPv6 link local"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.9"
+  description: "Interface IPv6 ND RA disable"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md""
   exec: " "
 }
 test: {
@@ -534,12 +546,6 @@ test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9"
-  description: "Weighted-ECMP for IS-IS"
-  readme: ""
   exec: " "
 }
 test: {
