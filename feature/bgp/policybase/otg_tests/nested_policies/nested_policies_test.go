@@ -267,9 +267,10 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure the nested policy
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).Statement(v4LPStatement).Conditions()
-	rpDefPath.GetOrCreateCallPolicy().SetPolicy(v4PrefixPolicy)
-	gnmi.Replace(t, dut, rpDefPath.Config(), rpDefPath)
+	rpPolicy := root.GetOrCreateRoutingPolicy()
+	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetConditions()
+	statPath.SetCallPolicy(v4PrefixPolicy)
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
 	// Configure the parent BGP import policy
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
@@ -332,9 +333,10 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure the nested policy
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4ASPPolicy).Statement(v4ASPStatement).Conditions()
-	rpDefPath.GetOrCreateCallPolicy().SetPolicy(v4MedPolicy)
-	gnmi.Replace(t, dut, rpDefPath.Config(), rpDefPath)
+	rpPolicy := root.GetOrCreateRoutingPolicy()
+	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetConditions()
+	statPath.SetCallPolicy(v4MedPolicy)
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
 	// Configure the parent BGP import policy
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
@@ -416,9 +418,10 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure the nested policy
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6LPPolicy).Statement(v6LPStatement).Conditions()
-	rpDefPath.GetOrCreateCallPolicy().SetPolicy(v6PrefixPolicy)
-	gnmi.Replace(t, dut, rpDefPath.Config(), rpDefPath)
+	rpPolicy := root.GetOrCreateRoutingPolicy()
+	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetConditions()
+	statPath.SetCallPolicy(v6PrefixPolicy)
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
 	// Configure the parent BGP import policy
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -480,9 +483,10 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configure the nested policy
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).Statement(v6ASPStatement).Conditions()
-	rpDefPath.GetOrCreateCallPolicy().SetPolicy(v6MedPolicy)
-	gnmi.Replace(t, dut, rpDefPath.Config(), rpDefPath)
+	rpPolicy := root.GetOrCreateRoutingPolicy()
+	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetConditions()
+	statPath.SetCallPolicy(v6MedPolicy)
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
 	// Configure the parent BGP export policy
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -694,10 +698,10 @@ func (td *testData) verifyOTGBGPEstablished(t *testing.T) {
 }
 
 // Verify that the parent import policy (v4LPPolicy) has a child policy attached
-func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).Statement(v4LPStatement).Conditions()
 
-	subResponse, err := gnmi.Subscribe(ctx, td.dut, gnmi.Subscribe().Mode(gnmi.Subscribe_ONCE), rpDefPath)
+func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
+	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).State()
+	subResponse, err := gnmi.Get(td.dut, rpDefPath)
 	if err != nil {
 		t.Fatalf("Subscription for policy definition failed: %v", err)
 	}
@@ -724,9 +728,8 @@ func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
 // Verify that the parent export policy (v4ASPPolicy) has a child policy attached
 
 func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4ASPPolicy).Statement(v4ASPStatement).Conditions()
-
-	subResponse, err := gnmi.Subscribe(ctx, td.dut, gnmi.Subscribe().Mode(gnmi.Subscribe_ONCE), rpDefPath)
+	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4ASPPolicy).State()
+	subResponse, err := gnmi.Get(td.dut, rpDefPath)
 	if err != nil {
 		t.Fatalf("Subscription for policy definition failed: %v", err)
 	}
@@ -752,9 +755,8 @@ func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
 
 // Verify that the parent import policy (v6LPPolicy) has a child policy attached
 func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6LPPolicy).Statement(v6LPStatement).Conditions()
-
-	subResponse, err := gnmi.Subscribe(ctx, td.dut, gnmi.Subscribe().Mode(gnmi.Subscribe_ONCE), rpDefPath)
+	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6LPPolicy).State()
+	subResponse, err := gnmi.Get(td.dut, rpDefPath)
 	if err != nil {
 		t.Fatalf("Subscription for policy definition failed: %v", err)
 	}
@@ -781,9 +783,8 @@ func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
 // Verify that the parent export policy (v6ASPPolicy) has a child policy attached
 
 func (td *testData) verifyNestedExportPolicyAttachedv6(t *testing.T) {
-	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).Statement(v6ASPStatement).Conditions()
-
-	subResponse, err := gnmi.Subscribe(ctx, td.dut, gnmi.Subscribe().Mode(gnmi.Subscribe_ONCE), rpDefPath)
+	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).State()
+	subResponse, err := gnmi.Get(td.dut, rpDefPath)
 	if err != nil {
 		t.Fatalf("Subscription for policy definition failed: %v", err)
 	}
