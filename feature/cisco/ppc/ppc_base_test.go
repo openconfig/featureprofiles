@@ -624,8 +624,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	atePorts := sortPorts(ate.Ports())
 	top := ate.Topology().New()
 
-	atesrc := atePorts[0]
-	i1 := top.AddInterface(ateSrc.Name).WithPort(atesrc)
+	ateSource := atePorts[0]
+	i1 := top.AddInterface(ateSrc.Name).WithPort(ateSource)
 	i1.IPv4().
 		WithAddress(ateSrc.IPv4CIDR()).
 		WithDefaultGateway(dutSrc.IPv4)
@@ -639,7 +639,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i2.WithLAG(lag)
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	if atesrc.PMD() == ondatra.PMD100GBASEFR {
+	if ateSource.PMD() == ondatra.PMD100GBASEFR {
 		i1.Ethernet().FEC().WithEnabled(false)
 	}
 	is100gfr := false
@@ -664,60 +664,53 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// addAteISISL2 configures ISIS L2 ATE config
-func addAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, network_name string, metric uint32, v4prefix string, count uint32) {
-
+// configAteIsisL2 configures ISIS L2 ATE config
+func configAteIsisL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, networkName string, metric uint32, v4prefix string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	network.ISIS().WithIPReachabilityMetric(metric + 1)
 	network.IPv4().WithAddress(v4prefix).WithCount(count)
-	rnetwork := intfs[atePort].AddNetwork("recursive")
-	rnetwork.ISIS().WithIPReachabilityMetric(metric + 1)
-	rnetwork.IPv4().WithAddress("100.100.100.100/32")
+	rNetwork := intfs[atePort].AddNetwork("recursive")
+	rNetwork.ISIS().WithIPReachabilityMetric(metric + 1)
+	rNetwork.IPv4().WithAddress("100.100.100.100/32")
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
-// addAteEBGPPeer configures EBGP ATE config
-func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, network_name, nexthop, prefix string, count uint32, useLoopback bool) {
+// configAteEbgpPeer configures EBGP ATE config
+func configAteEbgpPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, networkName, nextHop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
 		t.Fatal("There are no interfaces in the Topology")
 	}
-	//
 
-	network := intfs[atePort].AddNetwork(network_name)
+	network := intfs[atePort].AddNetwork(networkName)
 	bgpAttribute := network.BGP()
-	bgpAttribute.WithActive(true).WithNextHopAddress(nexthop)
+	bgpAttribute.WithActive(true).WithNextHopAddress(nextHop)
 
-	//Add prefixes, Add network instance
+	// Add prefixes, Add network instance
 	if prefix != "" {
-
 		network.IPv4().WithAddress(prefix).WithCount(count)
 	}
-	//Create BGP instance
+	// Create BGP instance
 	bgp := intfs[atePort].BGP()
 	bgpPeer := bgp.AddPeer().WithPeerAddress(peerAddress).WithLocalASN(localAsn).WithTypeExternal()
 	bgpPeer.WithOnLoopback(useLoopback)
 
-	//Update bgpCapabilities
+	// Update BGP Capabilities
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
-// addPrototoAte calls ISIS/BGP api
-func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
-
+// configAteRoutingProtocols calls ISIS/BGP api
+func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
 	intfs["ateDst"].WithIPv4Loopback("100.100.100.100/32")
-
-	addAteISISL2(t, top, "ateDst", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
-
-	addAteEBGPPeer(t, top, "ateDst", dutDst.IPv4, 64001, "bgp_recursive", ateDst.IPv4, innerdstpfxminBgp+"/"+v4mask, totalBgpPfx, true)
-
+	configAteIsisL2(t, top, "ateDst", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
+	configAteEbgpPeer(t, top, "ateDst", dutDst.IPv4, 64001, "bgp_recursive", ateDst.IPv4, innerdstpfxminBgp+"/"+v4mask, totalBgpPfx, true)
 	top.Push(t).StartProtocols(t)
 }
 
@@ -868,7 +861,6 @@ var (
 		IPv6:    "2000::100:121:1:1",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	ateSrc = attrs.Attributes{
 		Name:    "ateSrc",
 		IPv4:    "100.121.1.2",
@@ -876,7 +868,6 @@ var (
 		IPv6:    "2000::100:121:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	dutDst = attrs.Attributes{
 		Desc:    "dutDst",
 		IPv4:    "100.122.1.1",
@@ -884,7 +875,6 @@ var (
 		IPv6:    "2000::100:122:1:1",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	ateDst = attrs.Attributes{
 		Name:    "ateDst",
 		IPv4:    "100.122.1.2",
@@ -892,7 +882,6 @@ var (
 		IPv6:    "2000::100:122:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-
 	// dutPort2Vlan10 = attrs.Attributes{
 	// 	Desc:    "dutPort2Vlan10",
 	// 	IPv4:    "100.128.10.1",
@@ -933,36 +922,28 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutPorts := sortPorts(dut.Ports())
 	d := gnmi.OC()
 
-	//incoming interface is bundler-120 with only 1 member (port1)
+	// incoming interface is Bundle-Ether120 with only 1 member (port1)
 	incoming := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
 	gnmi.Replace(t, dut, d.Interface(*incoming.Name).Config(), configInterfaceDUT(incoming, &dutSrc))
-	srcPorts := dutPorts[0]
-	dutsrc := generateBundleMemberInterfaceConfig(t, srcPorts.Name(), *incoming.Name)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(srcPorts.Name()).Config(), dutsrc)
+	srcPort := dutPorts[0]
+	dutSource := generateBundleMemberInterfaceConfig(t, srcPort.Name(), *incoming.Name)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(srcPort.Name()).Config(), dutSource)
 
-	//outing interface is bundle-121 with 7 members (port2, port 3, port4, port5, port6, port7)
+	// outgoing interface is bundle-121 with 7 members (port2, port 3, port4, port5, port6, port7, port8)
 	// lacp := &oc.Lacp_Interface{Name: ygot.String("Bundle-Ether121")}
 	// lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
 	// lacpPath := d.Lacp().Interface("Bundle-Ether121")
 	// gnmi.Replace(t, dut, lacpPath.Config(), lacp)
 
 	outgoing := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
-	outgoing_data := configInterfaceDUT(outgoing, &dutDst)
-	g := outgoing_data.GetOrCreateAggregation()
+	outgoingData := configInterfaceDUT(outgoing, &dutDst)
+	g := outgoingData.GetOrCreateAggregation()
 	g.LagType = oc.IfAggregate_AggregationType_LACP
 	gnmi.Replace(t, dut, d.Interface(*outgoing.Name).Config(), configInterfaceDUT(outgoing, &dutDst))
 	for _, port := range dutPorts[1:] {
-		dutdest := generateBundleMemberInterfaceConfig(t, port.Name(), *outgoing.Name)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), dutdest)
+		dutDest := generateBundleMemberInterfaceConfig(t, port.Name(), *outgoing.Name)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), dutDest)
 	}
-	//Configure VLANs on Bundle-Ether127
-	// for i := 1; i <= vlans; i++ {
-	// 	//Create VRFs and VRF enabled subinterfaces
-	// 	createNameSpace(t, dut, fmt.Sprintf("VRF%d", i+9), "Bundle-Ether127", uint32(i))
-	// 	//Add IPv4/IPv6 address on VLANs
-	// 	subint := getSubInterface(fmt.Sprintf("100.128.%d.1", i+9), 24, fmt.Sprintf("2000::100:128:%d:1", i+10), 126, uint16(i+10), uint32(i))
-	// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether121").Subinterface(uint32(i)).Config(), subint)
-	// }
 }
 
 // func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
@@ -998,6 +979,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // }
 
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
+	t.Helper()
 	i := &oc.Interface{Name: ygot.String(name)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	e := i.GetOrCreateEthernet()
@@ -1006,7 +988,7 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 	return i
 }
 
-// configRoutePolicy, configures route_policy for BGP
+// configRoutePolicy configures route_policy for BGP
 func configRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateRoutingPolicy()
@@ -1019,8 +1001,8 @@ func configRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// addISISOC, configures ISIS on DUT
-func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
+// configIsis configures ISIS on DUT
+func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(policyTypeIsis, isisName)
@@ -1031,7 +1013,7 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf := isis.GetOrCreateInterface(ifaceName)
+	intf := isis.GetOrCreateInterface(intfName)
 	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	intf.Enabled = ygot.Bool(true)
 	intf.HelloPadding = 1
@@ -1046,8 +1028,8 @@ func addISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// addBGPOC, configures ISIS on DUT
-func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
+// configBgp configures ISIS on DUT
+func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(policyTypeBgp, *ciscoFlags.DefaultNetworkInstance)
@@ -1076,26 +1058,24 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// configVRF
 func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
-	for _, vrf_name := range vrfs {
+	for _, vrfName := range vrfs {
 		vrf := &oc.NetworkInstance{
-			Name: ygot.String(vrf_name),
+			Name: ygot.String(vrfName),
 			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF,
 		}
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf_name).Config(), vrf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), vrf)
 	}
 }
 
-// configbasePBR, creates class map, policy and configures under source interface
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
-
+// configbasePBR creates class map, policy and configures them under source interface
+func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
 	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
-	if iptype == "ipv4" {
+	if ipType == "ipv4" {
 		if len(opts) != 0 {
 			for _, opt := range opts {
 				if opt.SrcIP != "" {
@@ -1110,21 +1090,24 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 				Protocol: protocol,
 			}
 		}
-		if len(dscpset) > 0 {
-			r.Ipv4.DscpSet = dscpset
+		if len(dscpSet) > 0 {
+			r.Ipv4.DscpSet = dscpSet
 		}
-	} else if iptype == "ipv6" {
+	} else if ipType == "ipv6" {
 		r.Ipv6 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv6{
 			Protocol: protocol,
 		}
-		if len(dscpset) > 0 {
-			r.Ipv6.DscpSet = dscpset
+		if len(dscpSet) > 0 {
+			r.Ipv6.DscpSet = dscpSet
 		}
 	}
 	pf := oc.NetworkInstance_PolicyForwarding{}
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
-	p.AppendRule(&r)
+	err := p.AppendRule(&r)
+	if err != nil {
+		t.Error(err)
+	}
 	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)

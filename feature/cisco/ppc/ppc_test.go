@@ -188,17 +188,10 @@ func TestOcPpc(t *testing.T) {
 	var vrfs = []string{vrf1}
 	configVRF(t, dut, vrfs)
 	configureDUT(t, dut)
-
-	// configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-
 	configRoutePolicy(t, dut)
-
-	// configure ISIS on DUT
-	addISISOC(t, dut, "Bundle-Ether121")
-
-	// configure BGP on DUT
-	addBGPOC(t, dut, "100.100.100.100")
+	configIsis(t, dut, "Bundle-Ether121")
+	configBgp(t, dut, "100.100.100.100")
 
 	// Configure the ATE
 	// port 1 is source port
@@ -206,7 +199,7 @@ func TestOcPpc(t *testing.T) {
 	// port 3 and port 4 are additional destination ports
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-	addPrototoAte(t, top)
+	configAteRoutingProtocols(t, top)
 	time.Sleep(120 * time.Second)
 
 	args := &testArgs{
