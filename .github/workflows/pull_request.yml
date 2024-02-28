@@ -15,7 +15,9 @@ jobs:
       uses: actions/checkout@v3
     - name: IP Addresses Assignment
       run: |
-        find . -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
+        git diff --name-only main | while read l; do
+          ./tools/check_ip_addresses.pl $l;
+        done
 
   check_style:
     name: Check style against CONTRIBUTING.md
