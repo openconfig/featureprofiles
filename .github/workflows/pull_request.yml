@@ -27,6 +27,12 @@ jobs:
       uses: actions/checkout@v3
     - name: Allowed File Types
       run: ./tools/allowed_file_types.sh
+    - name: Block hyphenated directory names
+      run: |
+        if ! find ./feature -type d -name '*-*' -print -exec false {} +; then
+          echo "Hyphenated directories are not allowed.  Please use a different separator like underscore."
+          exit 1
+        fi
     - name: Enum
       run: |
         fail=0
