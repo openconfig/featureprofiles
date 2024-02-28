@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "139f3ee1-d0d0-45cf-8c92-4957c868d30a"
-plan_id: "TE-11.2"
-description: "Backup NHG: Multiple NH"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "a993eb24-40f8-4b86-bc6b-02c19f6a0d53"
+plan_id: "RT-1.24"
+description: "BGP 2-Byte and 4-Byte ASN support with policy"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -18,6 +18,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -28,11 +29,10 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    interface_config_vrf_before_address: true
-    backup_nhg_requires_vrf_with_decap: true
   }
 }
-tags: TAGS_TRANSIT
+tags: TAGS_AGGREGATION

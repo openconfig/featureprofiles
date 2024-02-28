@@ -1,8 +1,8 @@
-# TE-11.3: Backup NHG: Actions
+# TE-11.31: Backup NHG: Actions with PBF
 
 ## Summary
 
-Validate gRIBI Backup NHG actions.
+Validate gRIBI Backup NHG actions with PBF.
 
 ## Topology
 
@@ -19,6 +19,11 @@ Validate gRIBI Backup NHG actions.
 *   `ATEPort2IP`: testbed assigned interface IP to ATE port 2
 *   `ATEPort3IP`: testbed assigned interface IP to ATE port 3
 *   All the NHG and NH objects injected by gRIBI are in the DEFAULT VRF.
+*   Add an empty decap VRF, `DECAP_TE_VRF`.
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C`
+    and `ENCAP_TE_VRF_D`.
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
+    in <https://github.com/openconfig/featureprofiles/pull/2217>
 
 ## Setups
 
