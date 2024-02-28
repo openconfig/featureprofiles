@@ -1,4 +1,4 @@
-# TE-3.3: Hierarchical weight resolution
+# TE-3.31: Hierarchical weight resolution with PBF
 
 ## Summary
 
@@ -29,6 +29,14 @@ Configure ATE and DUT:
 
 *   On DUT, create a policy-based forwarding rule to redirect all traffic
     received from DUT port-1 into VRF-1 (based on src. IP match criteria).
+
+*   Add an empty decap VRF, `DECAP_TE_VRF`.
+
+*   Add 4 empty encap VRFs, `ENCAP_TE_VRF_A`, `ENCAP_TE_VRF_B`, `ENCAP_TE_VRF_C`
+    and `ENCAP_TE_VRF_D`.
+
+*   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
+    in <https://github.com/openconfig/featureprofiles/pull/2217>
 
 Test case for basic hierarchical weight:
 
@@ -139,4 +147,3 @@ TODO:
 ## Minimum DUT platform requirement
 
 vRX
-

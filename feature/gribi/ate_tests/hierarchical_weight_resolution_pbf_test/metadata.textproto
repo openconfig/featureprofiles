@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "93695155-2898-47d4-9bbb-ac40611d3882"
-plan_id: "TE-3.3"
-description: "Hierarchical weight resolution"
+uuid: "bf5df0ee-79b7-460b-8146-3a1351fd56d7"
+plan_id: "TE-3.31"
+description: "Hierarchical weight resolution with PBF"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -47,4 +47,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE
