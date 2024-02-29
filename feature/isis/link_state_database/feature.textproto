@@ -1,5 +1,5 @@
 id {
-  name: "isis_link-state-database"
+  name: "isis_link_state_database"
   version: 1
 }
 
