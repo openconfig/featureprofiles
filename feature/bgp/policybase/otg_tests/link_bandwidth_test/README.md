@@ -117,11 +117,11 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
     * Expected community values for each policy
-      |              | zero_linkbw                            | not_match_100_set_linkbw_1M                 |
-      | ------------ | -------------------------------------- | ------------------------------------------- |
-      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | [none]                                      |
-      | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
-      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]                  |
+      |              | zero_linkbw                            | not_match_100_set_linkbw_1M |
+      | ------------ | -------------------------------------- | --------------------------- |
+      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | [none]                      |
+      | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100" ]               |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]  |
 
       |              | match_100_set_linkbw_2G                         | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
       | ------------ | ----------------------------------------------- | ------------- | ---------------------------- |
@@ -136,9 +136,13 @@ communities to routes based on a prefix match.
 
       * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
         * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
-        * The DUT evaluates a match for "regex_nomatch_as100".  This does not match
-          because the regex pattern does not include the link-bandwidth community type.
+        * The DUT evaluates a match for "regex_nomatch_as100".  This does not match because the regex pattern does not include the link-bandwidth community type.
         * Community linkbw_2G should be added.
+
+      * Regarding policy-definition "match_linkbw_0_remove_and_set_localpref_5"
+        * The link-bandwidth value 0 is interpreted by some implementation as weight "0" in WCMP group. In these implementations the remaining members distribute traffic according to weights.
+        * Other implementations consider value 0 invalid or not having link-bandwidth. These implementations create ECMP group with all routes including this one, and ignores link-bandwidth of all members - distribute traffic equally.
+        * This policy intention is to overcome this implementation difference, by deprefering (LocPref) routes with link-bandwidth 0 (only this routes) to prevent them becoming part of multipath, and remove link-bandwidth community so route will not be treated with WCMP behavior.
 
 ## Config Parameter Coverage
 
