@@ -88,6 +88,8 @@ const (
 	acceptPolicy             = "PERMIT-ALL"
 	setLocalPrefPolicy       = "SET-LOCAL-PREF"
 	localPrefValue           = 100
+	setMEDPolicy             = "SET-MED-PREF"
+	medValue                 = 100
 	setAspathPrependPolicy   = "SET-ASPATH-PREPEND"
 	asPathRepeatValue        = 3
 	aclStatement1            = "10"
@@ -230,7 +232,7 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 }
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
-// Additonally, it configures LocalPreference and ASPathprepend as part of the BGP policy.
+// Additionally, it configures LocalPreference, ASPathprepend and MED as part of the BGP policy.
 func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
@@ -281,6 +283,15 @@ func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	aspend.Asn = ygot.Uint32(ateAS)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	pdef6 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
+	stmt, err = pdef6.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	actions6 := stmt.GetOrCreateActions()
+	actions6.GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+	actions6.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	return rp, nil
 }
@@ -691,6 +702,13 @@ func TestBGPPolicy(t *testing.T) {
 	}, {
 		desc:      "Configure Set AS Path prepend Policy",
 		policy:    setAspathPrependPolicy,
+		installed: routeCount,
+		received:  routeCount,
+		sent:      0,
+		wantLoss:  false,
+	}, {
+		desc:      "Configure Set MED Policy",
+		policy:    setMEDPolicy,
 		installed: routeCount,
 		received:  routeCount,
 		sent:      0,

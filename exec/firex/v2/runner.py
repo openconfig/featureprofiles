@@ -34,7 +34,6 @@ logger = get_task_logger(__name__)
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
 TBLOCK_BIN = '/auto/tftpboot-ottawa/b4/bin/tblock'
-IXIA_RELEASE_BIN = '/auto/tftpboot-ottawa/b4/bin/ixia_release'
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -53,6 +52,8 @@ whitelist_arguments([
     'test_fail_skipped',
     'test_show_skipped',
     'test_repo_url',
+    'sim_use_mtls',
+    'collect_dut_info'
 ])
 
 def _get_go_root_path(ws=None):
@@ -214,14 +215,10 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
-def _cli_to_gnmi_set_file(cli_file, gnmi_file, extra_conf=[]):
-    with open(cli_file, 'r') as cli:
-        lines = []
-        for l in cli.read().splitlines():
-            if l.strip() == 'end':
-                lines.extend(extra_conf)
-            lines.append(l)
-        gnmi_set = _gnmi_set_file_template(lines)
+def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
+    gnmi_set = _gnmi_set_file_template(cli_lines)
+    with open(gnmi_file, 'w') as gnmi:
+        gnmi.write(gnmi_set)
 
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
@@ -335,9 +332,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
                         collect_tb_info=False,
-                        install_image=False,
+                        install_image=True,
                         force_install=False,
                         force_reboot=False,
+                        sim_use_mtls=False,
                         smus=None):
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
@@ -384,6 +382,10 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
+    if using_sim and sim_use_mtls:
+        c |= GenerateCertificates.s()
+        c |= SimEnableMTLS.s()
+        
     if install_image and not using_sim:
         c |= SoftwareUpgrade.s(force_install=force_install)
         force_reboot = False
@@ -411,10 +413,10 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
         _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
 
 def max_testbed_requests():
-    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '1'))
+    return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
 
 def decommission_testbed_after_tests():
-    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '0') == '1'
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '1') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id, cflow,
@@ -505,7 +507,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
-        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, collect_dut_info=True,
         override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
@@ -549,6 +551,9 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
     if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
+            
+    if not collect_dut_info:
+        test_args += f' -collect_dut_info=false'
 
     inactivity_timeout = 1800
     if test_timeout == 0: test_timeout = inactivity_timeout
@@ -580,41 +585,21 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
                             cwd=test_repo_dir)
         stop_time = self.get_current_time()
     finally:
-        # if self.console_output_file and Path(self.console_output_file).is_file():
-        #     shutil.copyfile(self.console_output_file, json_results_file)
-        logger.debug("After running script")
         suite = _get_testsuite_from_xml(xml_results_file)
-        logger.info(f"suite: {suite}")
         if suite: 
             shutil.copyfile(xml_results_file, xunit_results_filepath)
-            logger.print(f" xml_results_file passing to CollectDebugFiles: {xml_results_file}, xunit_results_filepath: {xunit_results_filepath}, collect_debug_files [{collect_debug_files}], suite.attrib['failures'] = [{suite.attrib['failures']}]")
-            if collect_debug_files and suite.attrib['failures'] != '0':
-                logger.info(f"there were no failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
-                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
-                    ws=ws,
-                    internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, 
-                    test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp,
-                    core=False,
-                    xunit_results_filepath=xunit_results_filepath
-                ))
-                logger.info(res)
-            else:
-                logger.info(f"there were failures detected suite.attrib['failures'] = [{suite.attrib['failures']}]")
-                res = self.enqueue_child_and_get_results(CollectDebugFiles.s(
-                    ws=ws,
-                    internal_fp_repo_dir=internal_fp_repo_dir, 
-                    reserved_testbed=reserved_testbed, 
-                    test_log_directory_path=test_log_directory_path,
-                    timestamp=start_timestamp,
-                    core=True,
-                    xunit_results_filepath=xunit_results_filepath
-                ))
-                logger.info(res)
-
+            test_did_pass = suite.attrib['failures'] == '0'
+            core_files_only = test_did_pass or (not test_did_pass and not collect_debug_files)
+            self.enqueue_child_and_get_results(CollectDebugFiles.s(
+                ws=ws,
+                internal_fp_repo_dir=internal_fp_repo_dir, 
+                reserved_testbed=reserved_testbed, 
+                test_log_directory_path=test_log_directory_path,
+                timestamp=start_timestamp,
+                core_files_only=core_files_only,
+                xunit_results_filepath=xunit_results_filepath
+            ))
         elif test_ignore_aborted or test_skip:
-            logger.debug("elif in ")
             _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
@@ -634,6 +619,7 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
     repo_name = repo_url.split("/")[-1].split(".")[0]
     logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
     try:
+        os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
         repo = git.Repo.clone_from(url=repo_url,
                                    to_path=target_dir,
                                    branch=repo_branch)
@@ -746,23 +732,34 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                 'dut': reserved_testbed['baseconf']
             }
                 
+        reserved_testbed['cli_conf'] = {}
+        reserved_testbed['ondatra_baseconf_path'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
             ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
-            extra_conf = []
         
             mgmt_ip = mgmt_ips[dut]
             logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
             
+            extra_conf = []
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
             if mgmt_vrf:
                 extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
             else:
                 extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
-            _cli_to_gnmi_set_file(ondatra_baseconf_path, ondatra_baseconf_path, extra_conf)
-            check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
+            with open(ondatra_baseconf_path, 'r') as cli:
+                lines = []
+                for l in cli.read().splitlines():
+                    if l.strip() == 'end':
+                        lines.extend(extra_conf)
+                    lines.append(l)
+                reserved_testbed['cli_conf'][dut] = lines
+            
+            _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], ondatra_baseconf_path)
+            check_output("sed -i 's|id:\"" + dut + "\"|id:\"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
@@ -832,11 +829,12 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
             f'./exec/utils/software_upgrade ' \
             f'-timeout 60m ' \
             f'-args ' \
+            f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {reserved_testbed["binding_file"]} ' \
             f'-imagePath "{img}" ' \
             f'-lineup {lineup} ' \
-            f'-efr {efr} '
+            f'-efr {efr} ' \
 
     if force_install:
         su_command += f'-force'
@@ -860,6 +858,7 @@ def ForceReboot(self, ws, internal_fp_repo_dir, reserved_testbed):
             f'./exec/utils/reboot ' \
             f'-timeout 30m ' \
             f'-args ' \
+            f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {reserved_testbed["binding_file"]}'
 
@@ -875,6 +874,7 @@ def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
             f'./exec/utils/smu_install ' \
             f'-timeout 30m ' \
             f'-args ' \
+            f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {reserved_testbed["binding_file"]} ' \
             f'-smus {smus} '
@@ -898,7 +898,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core,xunit_results_filepath) -> str:
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only, xunit_results_filepath):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -906,93 +906,59 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
-    # create a directory here to send all logs as firex has a line limit
-    if core:
-        collect_core_files = f'{GO_BIN} test -v ' \
-                f'./exec/utils/debug ' \
-                f'-timeout 60m ' \
-                f'-args ' \
-                f'-testbed {reserved_testbed["testbed_file"]} ' \
-                f'-binding {tmp_binding_file} ' \
-                f'-outDir {test_log_directory_path}/debug_files ' \
-                f'-timestamp {str(timestamp)} ' \
-                f'-core=true ' \
-                f'-v 5'
-    else:
-        collect_debug_cmd = f'{GO_BIN} test -v ' \
-                f'./exec/utils/debug ' \
-                f'-timeout 60m ' \
-                f'-args ' \
-                f'-testbed {reserved_testbed["testbed_file"]} ' \
-                f'-binding {tmp_binding_file} ' \
-                f'-outDir {test_log_directory_path}/debug_files ' \
-                f'-timestamp {str(timestamp)} ' \
-                f'-core=false ' \
-                f'-v 5'
+    coreFlag = 'false'
+    if core_files_only: coreFlag = 'true'
 
+    collect_debug_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/debug ' \
+            f'-timeout 60m ' \
+            f'-args ' \
+            f'-collect_dut_info=false '\
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-outDir {test_log_directory_path}/debug_files ' \
+            f'-timestamp {str(timestamp)} ' \
+            f'-core={coreFlag} ' \
+            f'-v 5'
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        if core:
-            check_output(collect_core_files, env=env, cwd=internal_fp_repo_dir)
-        else:
-            check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
-    except:
-        logger.warning(f'Failed to collect testbed information. Ignoring...') 
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+    except Exception as error:
+        logger.warning(f'Failed to collect debug files with error: {error}') 
     finally:
-        # collect core files if any
-        if core:
-            res = self.enqueue_child_and_get_results(CollectCoreFiles.s(
-                test_log_directory_path=test_log_directory_path,
-                xunit_results_filepath=xunit_results_filepath
-            ))
-            logger.info(res)
+        self.enqueue_child_and_get_results(AppendCoreFileCheckResult.s(
+            reserved_testbed=reserved_testbed,
+            test_log_directory_path=test_log_directory_path,
+            xunit_results_filepath=xunit_results_filepath
+        ))
         os.remove(tmp_binding_file)
-        return "CollectDebugFiles completed successfully"
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def CollectCoreFiles(self, test_log_directory_path,xunit_results_filepath)->str:
+def AppendCoreFileCheckResult(self, reserved_testbed, test_log_directory_path, xunit_results_filepath):
     try:
-        logger.print(f'xunit_results_filepath: {xunit_results_filepath}')
-        logger.print(f'test_log_directory_path: {test_log_directory_path}')
-        arr = os.listdir(f'{test_log_directory_path}/debug_files/dut/CollectDebugFiles/')
-        r = re.compile(r'core\b',re.IGNORECASE)
-        corefileslist = list(filter(lambda x: r.search(str(x)),arr))
-        logger.print(f'Array of core files if any {corefileslist}')
-        
-        try:
-            if os.path.exists(xunit_results_filepath) and os.path.getsize(xunit_results_filepath) > 0:
-                logger.warn(f'file exists and its not empty')
-                tree = ET.parse(xunit_results_filepath)
-                testsuite = tree.find("testsuite")
-                prop = testsuite[0] 
-                if len(corefileslist) == 0:
-                    nsub = ET.SubElement(prop, "property",attrib={"name": "corefile"})
-                    nsub.set("value","no corefile(s) found")
-                else:
-                    for file in corefileslist:
-                        nsub = ET.SubElement(prop, "property",attrib={"name":"corefile"})
-                        nsub.set("value",file)
-                    logger.print(f"setting corefile failure {str(len(corefileslist))}")
-                    fe = ET.SubElement(testsuite, "testcase",attrib = {'classname': "",'name':"CoreFileCheck", "time":"1"})
-                    ET.SubElement(fe,"failure",attrib={"message":"Failed"}).text = "Core files were found"
-                    tree.write(xunit_results_filepath,encoding="utf-8")
-                return "CollectCoreFiles exited"
-            else:
-                if os.path.exists(xunit_results_filepath) == True:
-                    logger.warn("File exists but its empty")
-                    return "CollectCoreFiles exited"
-                else:
-                    logger.error("File does not exists")
-                    return "CollectCoreFiles exited"
-        except Exception as error:
-            logger.error(f"XML find was not able to find './testsuite/properties/ with the error: {error}'")
-            return "CollectCoreFiles exited with exception"
-    except Exception as error:
-        logger.warning(f'Failed to collect testbed information. Ignoring... with error: {error}') 
-        return "CollectCoreFiles exited with exception"
+        duts = ['dut']
+        if type(reserved_testbed['baseconf']) is dict: 
+            duts = [k for k in reserved_testbed['baseconf']]
 
+        core_files = []
+        r = re.compile(r'core\b', re.IGNORECASE)        
+        for dut in duts:
+            arr = os.listdir(os.path.join(test_log_directory_path, 'debug_files', dut))
+            dut_core_files = list(filter(lambda x: r.search(str(x)),arr))
+            core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
+            
+        logger.print(f'Core files found if any {core_files}')
+        
+        if len(core_files) > 0:
+            tree = ET.parse(xunit_results_filepath)
+            testsuite = tree.find("testsuite")
+            fe = ET.SubElement(testsuite, "testcase", attrib = {"classname": "", "name": "CoreFileCheck", "time": "1"})
+            ET.SubElement(fe, "failure", attrib={"message": "Failed"}).text = "Found core files:\n" + '\n'.join(core_files)
+            tree.write(xunit_results_filepath, encoding="utf-8")
+    except Exception as error:
+        logger.warning(f"Failed to collect core files with error: {error}") 
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -1005,6 +971,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
             f'./exec/utils/testbed ' \
             f'-timeout 10m ' \
             f'-args ' \
+            f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
             f'-binding {reserved_testbed["binding_file"]} ' \
             f'-outFile {reserved_testbed["testbed_info_file"]}'
@@ -1012,9 +979,154 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
         env = dict(os.environ)
         env.update(_get_go_env(ws))
         check_output(testbed_info_cmd, env=env, cwd=internal_fp_repo_dir)
-        logger.print(f'Testbed info file: {testbed_info_path}')
     except:
         logger.warning(f'Failed to collect testbed information. Ignoring...')
+
+# noinspection PyPep8Naming
+@app.task(bind=True, returns=('certs_dir'))
+def GenerateCertificates(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Generating Certificates...")
+    
+    certs_dir = os.path.join(ws, "certificates")
+    gen_command = f'{GO_BIN} test -v ' \
+            f'./exec/utils/certgen ' \
+            f'-args ' \
+            f'-collect_dut_info=false ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-outDir "{certs_dir}" '
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(gen_command, env=env, cwd=internal_fp_repo_dir)
+    return certs_dir
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
+    # parser_cmd = f'{PYTHON_BIN} exec/utils/confparser/sim_add_mtls_conf.py ' \
+    #     f'{" ".join(reserved_testbed["baseconf"].values())}'
+    # logger.print(f'Executing confparser cmd {parser_cmd}')
+    # logger.print(
+    #     check_output(parser_cmd, cwd=internal_fp_repo_dir)
+    # )
+    
+    # convert binding to json and adjust for mtls
+    with tempfile.NamedTemporaryFile() as of:
+        out_file = of.name
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/tojson ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-out {out_file}'
+
+        env = dict(os.environ)
+        env.update(_get_go_env(ws))
+        
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        with open(out_file, 'r') as fp:
+            j = json.load(fp)
+
+    logger.print(json.dumps(j))
+    
+    glob_username = j.get('options', {}).get('username', "") 
+    glob_password = j.get('options', {}).get('password', "")   
+    j['options'] = {}
+    
+    dut_map = {}
+    for dut in j.get('duts', []):
+        dut_id = dut['id']
+        dut_map[dut_id] = dut
+
+        dut_username = dut.get('options', {}).get('username', glob_username)
+        dut_password = dut.get('options', {}).get('password', glob_password)
+        dut['options'] = {}
+
+        dut['config'] = {
+            'gnmi_set_file': [reserved_testbed['ondatra_baseconf_path'][dut_id]]
+        }
+        
+        for s in ['gnmi', 'gnoi', 'gnsi', 'gribi', 'p4rt']:
+            target = dut.get(s, {}).get('target', '')
+            if target:
+                username = dut[s].get('username', dut_username)
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
+                    'mutual_tls': True,
+                    'trust_bundle_file': os.path.join(certs_dir, dut_id, 'ca.cert.pem'),
+                    'cert_file': os.path.join(certs_dir, dut_id, f'ems.cert.pem'),
+                    'key_file': os.path.join(certs_dir, dut_id, f'ems.key.pem')
+                }
+        
+        for s in ['ssh']:
+            target = dut.get(s, {}).get('target', '')
+            if target:
+                username = dut[s].get('username', dut_username)
+                password = dut[s].get('password', dut_password)
+                dut[s] = {
+                    'target': target,
+                    'username': username,
+                    'password': password,
+                    'skip_verify': True,
+                }
+    
+    
+    # add mtls params to cli conf
+    for dut, cli_conf in reserved_testbed['cli_conf'].items():
+        gnmi_username = dut_map[dut]['gnmi']['username']
+        new_conf = []
+        
+        for l in cli_conf:
+            if l == 'grpc':
+                new_conf.append('aaa accounting commands default start-stop local')
+                new_conf.append(f'aaa map-to username {gnmi_username} spiffe-id any')
+                new_conf.append(l)
+                new_conf.append('  tls-mutual')
+                new_conf.append('  certificate-authentication')
+            else:
+                new_conf.append(l)
+        reserved_testbed['cli_conf'][dut] = new_conf
+        
+        # apply new cli conf on duts using non-mtls binding
+        with tempfile.NamedTemporaryFile() as of:
+            cli_conf_file = of.name
+            with open(cli_conf_file, 'w') as fp:
+                fp.write('\n'.join(reserved_testbed['cli_conf'][dut]) + '\n')
+    
+            cmd = f'{GO_BIN} test -v ' \
+                f'./exec/utils/setconf ' \
+                f'-args ' \
+                f'-collect_dut_info=false ' \
+                f'-testbed {reserved_testbed["testbed_file"]} ' \
+                f'-binding {reserved_testbed["binding_file"]} ' \
+                f'-dut {dut} ' \
+                f'-conf {cli_conf_file} ' \
+                f'-ignore_set_err=true ' \
+
+            env = dict(os.environ)
+            env.update(_get_go_env(ws))
+            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+    
+    # update gnmi conf set file from cli_conf
+    for dut, baseconf in reserved_testbed['ondatra_baseconf_path'].items():
+        _cli_to_gnmi_set_file(reserved_testbed['cli_conf'][dut], baseconf)
+
+    # convert binding to prototext
+    with tempfile.NamedTemporaryFile() as f:
+        tmp_binding_file = f.name
+        with open(tmp_binding_file, "w") as outfile:
+            outfile.write(json.dumps(j))
+        
+        logger.print(json.dumps(j))
+        
+        cmd = f'{GO_BIN} run ' \
+            f'./exec/utils/binding/fromjson ' \
+            f'-binding {tmp_binding_file} ' \
+            f'-out {reserved_testbed["binding_file"]}'
+
+        check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
@@ -1027,34 +1139,38 @@ def GoTidy(self, ws, repo):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def InstallGoDelve(self, ws, repo):
+def InstallGoDelve(self, ws, internal_fp_repo_dir):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
     logger.print(
-        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=repo)
+        check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=internal_fp_repo_dir)
     )
         
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def ReleaseIxiaPorts(self, ws, binding_file):
+def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
-    with tempfile.NamedTemporaryFile() as f:
-        #FIXME: remove once release script is updated to new binding proto
-        tmp_binding_file = f.name
-        shutil.copyfile(binding_file, tmp_binding_file)
-        cmd = "sed -i 's|mutual_tls|#mutual_tls|g;"
-        cmd += "s|trust_bundle_file|#trust_bundle_file|g;"
-        cmd += "s|cert_file|#cert_file|g;"
-        cmd += "s|key_file|#key_file|g' "
-        cmd += f"{tmp_binding_file}"
-        check_output(cmd)
-        
-        try:
+    venv_path = os.path.join(ws, 'ixia_venv')
+    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
+    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+    
+    try:
+        if not os.path.exists(venv_python_bin):
             logger.print(
-                check_output(f'{IXIA_RELEASE_BIN} {tmp_binding_file}')
+                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
             )
-        except:
-            logger.warning(f'Failed to release ixia ports. Ignoring...')
+            
+            ixia_release_req = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
+            logger.print(
+                check_output(f'{venv_pip_bin} install -r {ixia_release_req}')
+            )
+
+        ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
+        logger.print(
+            check_output(f'{venv_python_bin} {ixia_release_bin} {binding_file}')
+        )
+    except:
+        logger.warning(f'Failed to release ixia ports. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])

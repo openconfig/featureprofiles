@@ -100,6 +100,7 @@ tests:
     skip: false
     mustpass: true
     priority: 3
+    pr: 2648
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -126,6 +127,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2648   
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -133,13 +135,22 @@ tests:
     mustpass: true
     priority: 3
     internal: false
+    pr: 2648
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
-    pr: 2548
+    pr: 2648
+  - name: TE-11.4 (Gribi Programming with reload)
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
+    timeout: 7200
+    pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
@@ -307,6 +318,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
+    pr: 2622
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
@@ -440,6 +452,7 @@ tests:
     mustpass: true
     priority: 53
     skip: false
+    pr: 2623
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -715,3 +728,18 @@ tests:
     owners:
       - mananpat
     mustpass: false
+  - name: RT-1.26 (Basic static route support)
+    path: feature/staticroute/otg_tests/basic_static_route_support_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
+    path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
+    owners:
+      - arvbaska
+    mustpass: true
+  - name: TE-16.1 (DCGate - basic encap test)
+    path: feature/gribi/otg_tests/basic_encap_test
+    owners:
+      - arvbaska
+    mustpass: true

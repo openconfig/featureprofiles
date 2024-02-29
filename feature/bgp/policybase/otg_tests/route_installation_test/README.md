@@ -15,7 +15,7 @@ Base BGP policy configuration and route installation.
         *   Default accept for policies.
         *   Default deny for policies.
         *   Explicitly specifying local preference.
-        *   TODO: Explicitly specifying MED value.
+        *   Explicitly specifying MED value.
         *   Explicitly prepending AS for advertisement with a specified AS
             number.
     *   Validate that traffic can be forwarded to **all** installed routes
