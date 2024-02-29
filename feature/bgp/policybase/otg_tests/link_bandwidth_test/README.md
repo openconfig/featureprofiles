@@ -98,8 +98,6 @@ communities to routes based on a prefix match.
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any_0'
       * actions/bgp-actions/set-ext-community/config/method = 'REFERENCE'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
-      * actions/config/policy-result = NEXT_STATEMENT
-    * statement[name='set_LocPref_5']/
       * actions/bgp-actions/config/set-local-pref = 5
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
