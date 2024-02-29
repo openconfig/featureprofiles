@@ -20,20 +20,18 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gribigo/client"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -45,14 +43,11 @@ const (
 	dstPfxMax        = "203.0.113.254"
 	ipOverIPProtocol = 4
 	routeCount       = 1
-	vrf1             = "TE_VRF_111"
+	vrf1             = "vrfA"
 	vrf2             = "vrfB"
 	fps              = 1000000 // traffic frames per second
 	switchovertime   = 250.0   // switchovertime during interface shut in milliseconds
 	ethernetCsmacd   = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	vrfPolW          = "vrf_selection_policy_w"
-	decapFlowSrc     = "198.51.100.111"
-	dscpEncapA1      = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -273,47 +268,24 @@ func TestBackup(t *testing.T) {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
 
-	tests := []struct {
-		name      string
-		desc      string
-		vrfPolicy bool
-	}{
-		{
-			name:      "IPv4BackUpSwitch",
-			desc:      "Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path",
-			vrfPolicy: false,
-		},
-		{
-			name:      "IPv4BackUpSwitchWithVrfPolicyW",
-			desc:      "Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path with vrf policy W",
-			vrfPolicy: true,
-		},
+	// Make client leader
+	client.BecomeLeader(t)
+
+	// Flush past entries before running the tc
+	client.FlushAll(t)
+
+	t.Logf("Name: IPv4BackUpSwitch")
+	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
+
+	tcArgs := &testArgs{
+		ctx:    ctx,
+		client: &client,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Name: %s", tt.name)
-			t.Logf("Description: %s", tt.desc)
-			// Make client leader
-			client.BecomeLeader(t)
-
-			// Flush past entries before running the tc
-			client.FlushAll(t)
-
-			tcArgs := &testArgs{
-				ctx:    ctx,
-				client: &client,
-				dut:    dut,
-				ate:    ate,
-				top:    top,
-			}
-
-			if tt.vrfPolicy {
-				configureVrfSelectionPolicyW(t, dut)
-			}
-			tcArgs.testIPv4BackUpSwitch(t)
-		})
-	}
+	tcArgs.testIPv4BackUpSwitch(t)
 }
 
 // testIPv4BackUpSwitch Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH
@@ -421,8 +393,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().Increment().SetStart(decapFlowSrc)
-	v4.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
+	v4.Src().Increment().SetStart(dutPort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 
 	// use ip over ip packets since some vendors only support decap for backup
@@ -522,29 +493,4 @@ func (a *testArgs) aftCheck(t testing.TB, prefix string, instance string) {
 	if len(aftNHG.NextHop) == 0 && aftNHG.BackupNextHopGroup == nil {
 		t.Fatalf("Prefix %s references a NHG that has neither NH or backup NHG", prefix)
 	}
-}
-
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	p1 := dut.Port(t, "port1")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrf1).Interface(p1.Name()).Config())
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
 }

@@ -100,6 +100,8 @@ class DUT(Device):
         e = super().to_binding_entry()  
         e.update({
             'name': self.hostname,
+            'vendor': DUT.Vendor.CISCO,
+            'hardware_model': self.get_model(),
             'options': {
                 'username': self.username,
                 'password': self.password,
