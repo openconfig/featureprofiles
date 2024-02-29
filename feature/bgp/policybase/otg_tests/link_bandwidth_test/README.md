@@ -58,8 +58,8 @@ communities to routes based on a prefix match.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named 'not_match_100_set_linkbw_1M' with the following `statements`
     * statement[name='1-megabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_1M'
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
@@ -68,8 +68,8 @@ communities to routes based on a prefix match.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named 'match_100_set_linkbw_2G' with the following `statements`
     * statement[name='2-gigabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_2G'
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
