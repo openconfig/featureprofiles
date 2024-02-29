@@ -78,6 +78,7 @@ communities to routes based on a prefix match.
     * statement[name='del_linkbw']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
+       * actions/bgp-actions/set-ext-community/config/method = 'REFERENCE'
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any'
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
