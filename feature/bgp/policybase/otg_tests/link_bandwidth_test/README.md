@@ -25,6 +25,7 @@ communities to routes based on a prefix match.
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
   * Generate traffic from ATE port-2 to ATE port-1.
+  * Verify traffic is received on ATE port 1 for accepted prefixes.
   * Validate that traffic can be received on ATE port-1 for all installed
     routes.
 
@@ -39,13 +40,13 @@ communities to routes based on a prefix match.
       * ext-community-member = [ "link-bandwidth:100:2G" ]
     * Create an community-set named 'regex_match_as100' with members as follows:
       * community-member = [ "^100:.*$" ]
-    * Create an community-set named 'regex_nomatch_as100' with members as follows:
-      * ext-community-member = [ "^100:.*$" ]
     * Create an ext-community-set named 'linkbw_any' with members as follows:
       * ext-community-member = [ "^link-bandwidth:.*:.*$" ]
+    * Create an ext-community-set named 'linkbw_any_0' with members as follows:
+      * ext-community-member = [ "^link-bandwidth:.*:.0" ]
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'set_linkbw_0' with the following `statements`
+    named **'set_linkbw_0'** with the following `statements`
     * statement[name='zero_linkbw']/
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
       * actions/bgp-actions/set-ext-community/config/options = ADD
@@ -74,7 +75,7 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'del_linkbw' with the following `statements`
+    named **'del_linkbw'** with the following `statements`
     * statement[name='del_linkbw']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
