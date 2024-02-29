@@ -63,6 +63,10 @@ const (
 	peerGrpName1v6              = "iBGP-PEER-GROUP1-V6"
 	peerGrpName2v4              = "eBGP-PEER-GROUP2-V4"
 	peerGrpName2v6              = "eBGP-PEER-GROUP2-V6"
+	nxtMED                      = 70
+	nxtLocalPref                = 70
+	setNxtPolicy                = "flow-control-policy"
+	matchStatement2             = "match-statement-2"
 )
 
 var (
@@ -204,8 +208,8 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
-// configureMEDLocalPrefPolicy configures MED, Local Pref, AS prepend etc
-func configureMEDLocalPrefPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
+// configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
+func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
 	dutOcRoot := &oc.Root{}
 	batchConfig := &gnmi.SetBatch{}
@@ -235,6 +239,18 @@ func configureMEDLocalPrefPolicy(t *testing.T, dut *ondatra.DUTDevice, policyTyp
 		asPrepend.Asn = ygot.Uint32(ASN)
 		asPrepend.RepeatN = ygot.Uint8(uint8(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	case setNxtPolicy:
+		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+		metric, _ := strconv.Atoi(policyValue)
+		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+
+		stmt2, err := pdef.AppendNewStatement(matchStatement2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actions2 := stmt2.GetOrCreateActions()
+		actions2.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
+		actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	default:
 		rp = nil
 	}
@@ -449,6 +465,19 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config 
 					} else {
 						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
 					}
+				case setNxtPolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
+					if !strings.Contains(peerName, atePort2.Name) {
+						if bgpPrefix.GetLocalPreference() != metric {
+							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+						} else {
+							t.Logf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+						}
+					}
 				default:
 					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
@@ -498,6 +527,19 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config 
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
 					} else {
 						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+					}
+				case setNxtPolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
+					if !strings.Contains(peerName, atePort2.Name) {
+						if bgpPrefix.GetLocalPreference() != metric {
+							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+						} else {
+							t.Logf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
+						}
 					}
 				default:
 					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
@@ -757,12 +799,52 @@ func TestBGPPolicy(t *testing.T) {
 		deleteNbrv4:     atePort1.IPv4,
 		deleteNbrv6:     atePort1.IPv6,
 		asn:             23456,
+	}, {
+		desc:            "Configure iBGP set NEXT-STATEMENT Import Export Policy",
+		rpPolicy:        setNxtPolicy,
+		policyTypePort1: setNxtPolicy,
+		policyValue:     "70",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defRejectRoute,
+		defPolicyPort2:  defAcceptRoute,
+		policyTypePort2: "",
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     70,
+		polNbrv4:        atePort1.IPv4,
+		polNbrv6:        atePort1.IPv6,
+		isDeletePolicy:  false,
+		deleteNbrv4:     atePort2.IPv4,
+		deleteNbrv6:     atePort2.IPv6,
+		asn:             dutAS,
+	}, {
+		desc:            "Configure eBGP set NEXT-STATEMENT Import Export Policy",
+		rpPolicy:        setNxtPolicy,
+		policyTypePort1: "",
+		policyValue:     "70",
+		policyStatement: matchStatement1,
+		defPolicyPort1:  defAcceptRoute,
+		defPolicyPort2:  defRejectRoute,
+		policyTypePort2: setNxtPolicy,
+		port1v4Prefix:   advertisedRoutesv4Net2,
+		port1v6Prefix:   advertisedRoutesv6Net2,
+		port2v4Prefix:   advertisedRoutesv4Net1,
+		port2v6Prefix:   advertisedRoutesv6Net1,
+		metricValue:     70,
+		polNbrv4:        atePort2.IPv4,
+		polNbrv6:        atePort2.IPv6,
+		isDeletePolicy:  true,
+		deleteNbrv4:     atePort1.IPv4,
+		deleteNbrv6:     atePort1.IPv6,
+		asn:             dutAS,
 	}}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
 			// Configure Routing Policy on the DUT.
-			configureMEDLocalPrefPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
+			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
 			// Configure BGP default import export policy on Port1
 			configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
 			// Configure BGP default import export policy on Port1

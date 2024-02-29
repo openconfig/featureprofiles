@@ -17,6 +17,7 @@ package bgp_isis_redistribution_test
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 const (
 	bgpName        = "BGP"
 	maskLenExact   = "exact"
+	dummyAS        = uint32(64655)
 	dutAS          = uint32(65656)
 	ateAS          = uint32(65657)
 	v4Route        = "203.10.113.0"
@@ -60,12 +62,10 @@ const (
 )
 
 var (
-	advertisedIPv4    ipAddr         = ipAddr{address: v4Route, prefix: v4RoutePrefix}
-	advertisedIPv6    ipAddr         = ipAddr{address: v6Route, prefix: v6RoutePrefix}
-	nonAdvertisedIPv4 ipAddr         = ipAddr{address: v4DummyRoute, prefix: v4RoutePrefix}
-	nonAdvertisedIPv6 ipAddr         = ipAddr{address: v6DummyRoute, prefix: v6RoutePrefix}
-	nonCommMember     oc.UnionString = "65655:200"
-	commMember        oc.UnionString = "65657:100"
+	advertisedIPv4    ipAddr = ipAddr{address: v4Route, prefix: v4RoutePrefix}
+	advertisedIPv6    ipAddr = ipAddr{address: v6Route, prefix: v6RoutePrefix}
+	nonAdvertisedIPv4 ipAddr = ipAddr{address: v4DummyRoute, prefix: v4RoutePrefix}
+	nonAdvertisedIPv6 ipAddr = ipAddr{address: v6DummyRoute, prefix: v6RoutePrefix}
 )
 
 func TestMain(m *testing.M) {
@@ -237,17 +237,17 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	// configure emulated IPv4 and IPv6 networks
 	netv4 := bgp4Peer.V4Routes().Add().SetName("v4-bgpNet-dev1")
 	netv4.Addresses().Add().SetAddress(advertisedIPv4.address).SetPrefix(advertisedIPv4.prefix)
-	commv4 := netv4.ExtCommunities().Add()
-	commv4.SetType(gosnappi.BgpExtCommunityType.ADMINISTRATOR_AS_2OCTET)
-	commv4.SetSubtype(gosnappi.BgpExtCommunitySubtype.COLOR)
-	commv4.SetValue(fmt.Sprintf("%04x%04x", ateAS, 100))
+	commv4 := netv4.Communities().Add()
+	commv4.SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	commv4.SetAsNumber(ateAS)
+	commv4.SetAsCustom(100)
 
 	netv6 := bgp6Peer.V6Routes().Add().SetName("v6-bgpNet-dev1")
 	netv6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix)
-	commv6 := netv6.ExtCommunities().Add()
-	commv6.SetType(gosnappi.BgpExtCommunityType.ADMINISTRATOR_AS_2OCTET)
-	commv6.SetSubtype(gosnappi.BgpExtCommunitySubtype.COLOR)
-	commv6.SetValue(fmt.Sprintf("%04x%04x", ateAS, 100))
+	commv6 := netv6.Communities().Add()
+	commv6.SetType(gosnappi.BgpCommunityType.MANUAL_AS_NUMBER)
+	commv6.SetAsNumber(ateAS)
+	commv6.SetAsCustom(100)
 
 	ts.ATE.OTG().PushConfig(t, ts.ATETop)
 	ts.ATE.OTG().StartProtocols(t)
@@ -310,9 +310,14 @@ func nonMatchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v4CommunitySet)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{nonCommMember})
+	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", dummyAS, 200))})
+	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
-	stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v4CommunitySet)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(v4CommunitySet)
+	} else {
+		stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v4CommunitySet)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
@@ -320,7 +325,7 @@ func matchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v4CommunitySet)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{commMember})
+	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", ateAS, 100))})
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v4CommunitySet).Config(), communitySet)
 }
 
@@ -409,8 +414,9 @@ func verifyNonMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, a
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
-	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(nonCommMember)) {
-		t.Errorf("Community set member: %v, want: %s", commSetMember, nonCommMember)
+	cm, _ := strconv.ParseInt(fmt.Sprintf("%04x%04x", dummyAS, 200), 16, 0)
+	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(oc.UnionUint32(cm))) {
+		t.Errorf("Community set member: %v, want: %d", commSetMember, cm)
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(advertisedIPv4.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
@@ -427,8 +433,9 @@ func verifyMatchingCommunityTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate 
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
-	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(commMember)) {
-		t.Errorf("Community set member: %v, want: %s", commSetMember, commMember)
+	cm, _ := strconv.ParseInt(fmt.Sprintf("%04x%04x", ateAS, 100), 16, 0)
+	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(oc.UnionUint32(cm))) {
+		t.Errorf("Community set member: %v, want: %v", commSetMember, cm)
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(advertisedIPv4.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
@@ -495,9 +502,14 @@ func nonMatchingCommunityRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v6CommunitySet)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{nonCommMember})
+	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", dummyAS, 200))})
+	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
-	stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v6CommunitySet)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(v6CommunitySet)
+	} else {
+		stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v6CommunitySet)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
@@ -505,7 +517,7 @@ func matchingCommunityRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v6CommunitySet)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{commMember})
+	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", ateAS, 100))})
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().BgpDefinedSets().CommunitySet(v6CommunitySet).Config(), communitySet)
 }
 
@@ -594,8 +606,9 @@ func verifyNonMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice,
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
-	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(nonCommMember)) {
-		t.Errorf("Community set member: %v, want: %s", commSetMember, nonCommMember)
+	cm, _ := strconv.ParseInt(fmt.Sprintf("%04x%04x", dummyAS, 200), 16, 0)
+	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(oc.UnionUint32(cm))) {
+		t.Errorf("Community set member: %v, want: %d", commSetMember, cm)
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
@@ -612,8 +625,9 @@ func verifyMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 	if commSet == nil {
 		t.Errorf("Community set is nil, want non-nil")
 	}
-	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(commMember)) {
-		t.Errorf("Community set member: %v, want: %s", commSetMember, commMember)
+	cm, _ := strconv.ParseInt(fmt.Sprintf("%04x%04x", ateAS, 100), 16, 0)
+	if commSetMember := commSet.GetCommunityMember(); len(commSetMember) == 0 || !containsValue(commSetMember, oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union(oc.UnionUint32(cm))) {
+		t.Errorf("Community set member: %v, want: %v", commSetMember, cm)
 	}
 
 	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(advertisedIPv6.address).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
