@@ -421,6 +421,8 @@ message Metadata {
     bool skip_setting_disable_metric_propagation = 147;
     // Devices do not support BGP conditions match-community-set
     bool bgp_conditions_match_community_set_unsupported = 148;
+    // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 149;       
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
