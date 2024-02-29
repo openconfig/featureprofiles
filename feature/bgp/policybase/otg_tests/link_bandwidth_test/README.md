@@ -125,7 +125,7 @@ communities to routes based on a prefix match.
 
       |              | match_100_set_linkbw_2G                         | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
       | ------------ | ----------------------------------------------- | ------------- | ---------------------------- |
-      | prefix-set-1 | [ none ]                                        | none          | none                         |
+      | prefix-set-1 | [ none ]                                        | [none]        | [none]                       |
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:2000000000" ] | [ "100:100" ] | [ "100:100" ]                |
       | prefix-set-3 | [ "link-bandwidth:100:0" ]                      | [ none ]      | [ none ], localpref=5        |
 
