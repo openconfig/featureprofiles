@@ -86,11 +86,14 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'match_locpref5_del_bandwidth_0' with the following `statements`
-    * statement[name='match_locpref5_del_bandwidth_0']/
-      * conditions/bgp-conditions/config/local-pref-eq = 5
+    named 'match_linkbw_0_remove_and_set_localpref_5' with the following `statements`
+    * statement[name='match_and_remove_linkbw_any_0']/
+      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any_0'
+      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any_0'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
+      * actions/config/policy-result = NEXT_STATEMENT
+    * statement[name='set_LocPref_5']/
+      * actions/bgp-actions/config/set-local-pref = 5
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
