@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ func (args *testArgs) testOcPpcDropBlock(t *testing.T) {
 					}
 					sa.multipleSubscriptions(t, query)
 				}
-				// TODO - add a loop over all the diff sub modes;
+
 				// aggregate pre counters for a path across all the destination NPUs
 				for path, query := range data {
 					pre, _ := getData(t, path, query) //
