@@ -32,8 +32,7 @@ communities to routes based on a prefix match.
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
   * Generate traffic from ATE port-2 to ATE port-1.
-  * Verify traffic is received on ATE port 1 for accepted prefixes.
-  * Validate that traffic can be received on ATE port-1 for all installed
+  * Verify traffic is received on ATE port 1 for advertised prefixes.
     routes.
 
 * RT-7.5.2 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
