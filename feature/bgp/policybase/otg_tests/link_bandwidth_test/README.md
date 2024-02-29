@@ -119,7 +119,7 @@ communities to routes based on a prefix match.
     * Expected community values for each policy
       |              | zero_linkbw                            | not_match_100_set_linkbw_1M                 |
       | ------------ | -------------------------------------- | ------------------------------------------- |
-      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | none                                        |
+      | prefix-set-1 | [ "link-bandwidth:100:0" ]             | [none]                                      |
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
       | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]                  |
 
