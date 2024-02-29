@@ -2,17 +2,13 @@
 
 ## Summary
 
-Combine multiple match criteria and actions for BGP import and export policies.
-
-Add list of combinations to be covered here:
-
-* one
-* two
-* three
+The purpose of this test is to verify a combination of bgp conditions using matching and policy nesting as well as and actions in a single BGP import policy.  Additional combinations may be added in the future as subtests.
 
 ## Testbed type
 
 * [2 port ATE to DUT](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
+## Testbed common configuration
 
 * Testbed configuration - Setup BGP sessions and prefixes
   * Generate config for 2 DUT and ATE ports where
@@ -20,307 +16,112 @@ Add list of combinations to be covered here:
     * DUT port 2 to ATE port 2.
   * Configure ATE port 1 with an external type BGP session to DUT port 1
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
-    * prefix-set-1 with 2 routes with communities `[100:95000, 200000:2, 300000:300000]`
-    * prefix-set-2 with 2 routes with communities `[100000:1, 101000:1, 200000:1]`
-    * prefix-set-3 with 2 routes with communities `[109000:1]`
-    * prefix-set-4 with 2 routes with communities `[400000:1]`
-    * prefix-set-5 with 2 routes with communities `[400000:1, link-bandwidth:100:1500000`
-    * prefix-set-6 with 2 routes with communities `[400000:1, link-bandwidth:100:1M`
+    * prefix-set-1 with 2 routes with communities `[100:1]`
+    * prefix-set-2 with 2 routes with communities `[200:1]`
+    * prefix-set-3 with 2 routes with communities `[300:1]`
+    * prefix-set-4 with 2 routes with communities `[400:1]`
+    * prefix-set-5 with 2 routes with communities `[500:1]`
 
-## Subtests
-
-* RT-7.10.1 - Validate bgp sessions and traffic
+* Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
   * Generate traffic from ATE port-2 to ATE port-1.
   * Validate that traffic can be received on ATE port-1 for all installed
     routes.
 
-* RT-7.10.2 - Validate ext-community-sets and routing-policy using OC
-  release 2.x or earlier
+* Configure ext-community-sets on DUT using OC
   * Configure the following community sets
     (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
     on the DUT.
-    * Create a community-set named 'any_my_3_ext_comms' with members as follows:
-      * community-member = [ "100:95000", "200000:2", "300000:300000" ]
-      * match-set-options = ANY
-    * Create a community-set named 'all_3_ext_comms' with members as follows:
-      * community-member = [ "100:95000", "200000:2", "300000:300000" ]
-      * match-set-options = ALL
-    * Create a community-set named 'no_3_ext_comms' with members as follows:
-      * community-member = [ "100000:99", "200000:2", "300000:300000" ]
-      * match-set-options = INVERT
-    * Create a community-set named 'any_my_regex_ext_comms' with members as follows:
-      * community-member = [ "10[0-9]000:1" ]
-      * match-set-options = ANY
-    * Create a community-set named 'any_ext_comms' with members as follows:
-      * community-member = [ "^.*$" ]
-      * match-set-options = ANY
+    * Create a community-set named 'reject-communities' with members as follows:
+      * community-member = [ "100:1" ]
+    * Create a community-set named 'accept-communities' with members as follows:
+      * community-member = [ "200:1" ]
+    * Create a community-set named 'regex-community' with members as follows:
+      * community-member = [ "^300:.*$" ]
+    * Create a community-set named 'add-communities' with members as follows:
+      * community-member = [ "400:1", "400:2" ]
+    * Create a community-set named 'my_community' with members as follows:
+      * community-member = [ "500:1" ]
+    * Create a community-set named 'add_comm_one' with members as follows:
+      * community-member = [ "600:1" ]
+    * Create a community-set named 'add_comm_two' with members as follows:
+      * community-member = [ "700:1" ]
 
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'any_3_comms' with the following `statements`
-    * statement[name='any_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_my_3_ext_comms'
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * actions/config/policy-result = REJECT_ROUTE
+## Subtests
 
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'all_3_comms' with the following `statements`
-    * statement[name='all_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'all_3_ext_comms'
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * actions/config/policy-result = REJECT_ROUTE
+RT-7.11.3 Create a single bgp policy containing the following conditions and actions:
 
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'no_3_comms' with the following `statements`
-    * statement[name='no_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'no_3_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
+* Reject route matching any communities in a community-set.
+* Reject route matching another policy (nested) and not matching a community-set.
+* Add a community-set if missing that same community-set.
+* Add two communities if matching a community and prefix-set.
+* Reject route matching another policy (nested) and matching a community-set.
 
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'any_my_regex_comms' with the following `statements`
-    * statement[name='any_my_regex_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_my_regex_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
+[ TODO: Clean up formatting for below policies ]
 
-  * For each policy-definition created
+  "policy-definitions/policy-definition/config/name: "core_from_cluster_dual_stacked_v4"
+        "statements/statement"
+  
+          config/name: "reject_route_community"
+              actions/config/policy-result: "REJECT_ROUTE"
+              conditions/bgp-conditions/match-community-set/config
+                  "community-set": "reject-communities"
+                  "match-set-options": "ANY"
+
+          config/name: "nested_reject_route_community"
+              actions/config/policy-result: "REJECT_ROUTE"
+              conditions/config/call-policy: "nested_policy_accept_regex"
+              bgp-conditions/match-community-set/config/community-set: "accept-communities"
+                      "match-set-options": "INVERT"
+
+          config/name: "add_communities_if_missing"
+              actions/config/policy-result: "NEXT_STATEMENT"
+                bgp-actions/set-community/config/method: "REFERENCE"
+                      "option": "ADD",
+                      "community-set-refs": [
+                        "add-communities"
+              conditions/bgp-conditions/match-community-set/config": {
+                      "community-set": "add-communities"
+                      "match-set-options": "INVERT"
+
+          config/name: "add_2_community_sets"
+              actions/config/policy-result: "NEXT_STATEMENT"
+              bgp-actions/set-community/config: 
+                      method: "REFERENCE",
+                      option: "ADD",
+                      community-set-refs: "add_comm_one", "add_comm_two"
+
+              conditions/bgp-conditions/match-community-set/config:
+                "community-set": "my_community"
+                "match-set-options": "ANY"
+              conditions/bgp-conditions/match-prefix-set/config: 
+                "prefix-set": "prefix-set-5"
+                "match-set-options": "ANY"
+
+
+  policy-definitions/policy-definition/config/name: "nested_policy_accept_regex"
+        statements/statement:
+            config/name: "accept-community-regex"
+              actions/config/policy-result: "ACCEPT_ROUTE"
+              conditions/bgp-conditions/match-community-set/config/community-set: "regex-community"
+                  match-set-options: "ANY"
+
+
+  * For each policy-definition created, run a subtest (RT-7.11.3.x-<policy_name_here>) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
       * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to configure the policy on the DUT to the ATE port 1 bgp neighbor
-    * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
-    * Verify traffic is received on ATE port 1 for accepted prefixes.
-    * Verify traffic is not received on ATE port 1 for rejected prefixes.
-    * Stop traffic
+        to apply the policy on the DUT bgp neighbor to the ATE port 1.
+    * Verify expected communities are present in ATE.
+    * Verify expected communities are present in DUT state.
+      * Do not fail test if this path is not supported, only log results
+      * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
+      * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
-    * Expected matches for each policy
-      |              | any_my_3_comms | all_3_comms | no_3_comms | any_my_regex_comms |
-      | ------------ | -------------- | ----------- | ---------- | ------------------ |
-      | prefix-set-1 | accept         | accept      | reject     | accept             |
-      | prefix-set-2 | accept         | reject      | reject     | accept             |
-      | prefix-set-3 | reject         | reject      | accept     | accept             |
-      | prefix-set-4 | reject         | reject      | accept     | reject             |
+    * [ TODO: Add Expected routes and communities for each policy ]
 
-* RT-7.10.3 - Validate ext-community-sets and routing-policy using OC release 3.x
-  * Note, this is the same at RT-7.9.2, but with a change in the location of the
-    `match-set-options` leaf which moved to
-    `/routing-policy/policy-definitions/policy-definition/policy-definition/bgp-conditions/match-ext-community-set/config/match-set-options`
-  * Configure the following community sets
-    (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
-    on the DUT.
-    * Create a community-set named 'any_my_3_ext_comms' with members as follows:
-      * community-member = [ "100:95000", "200000:2", "300000:300000" ]
-    * Create a community-set named 'all_3_ext_comms' with members as follows:
-      * community-member = [ "100:95000", "200000:2", "300000:300000" ]
-    * Create a community-set named 'no_3_ext_comms' with members as follows:
-      * community-member = [ "100000:99", "200000:2", "300000:300000" ]
-    * Create a community-set named 'any_my_regex_ext_comms' with members as follows:
-      * community-member = [ "10[0-9]000:1" ]
-    * Create a community-set named 'any_ext_comms' with members as follows:
-      * community-member = [ "^.*$" ]
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'any_3_comms' with the following `statements`
-    * statement[name='any_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_my_3_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'all_3_comms' with the following `statements`
-    * statement[name='all_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'all_3_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ALL
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'no_3_comms' with the following `statements`
-    * statement[name='no_3_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'no_3_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = INVERT
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'any_my_regex_comms' with the following `statements`
-    * statement[name='any_my_regex_comms']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_my_regex_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * conditions/bgp-conditions/match-ext-community-set/config/ext-community-set = 'any_ext_comms'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * For each policy-definition
-    * Use gnmi Set REPLACE option for:
-      * `/routing-policy/policy-definitions` to configure the policy
-      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to configure the policy on the DUT to the ATE port 1 bgp neighbor
-    * Send traffic from ATE port-2 to all prefix-sets-1,2,3,4.
-    * Verify traffic is received on ATE port 1 for accepted prefixes.
-    * Verify traffic is not received on ATE port 1 for rejected prefixes.
-    * Stop traffic
-
-    * Expected matches for each policy
-      |              | any_my_3_comms | all_3_comms | no_3_comms | any_my_regex_comms |
-      | ------------ | -------------- | ----------- | ---------- | ------------------ |
-      | prefix-set-1 | accept         | accept      | reject     | accept             |
-      | prefix-set-2 | accept         | reject      | reject     | accept             |
-      | prefix-set-3 | reject         | reject      | accept     | accept             |
-      | prefix-set-4 | reject         | reject      | accept     | reject             |
-
-* RT-7.10.4 - Validate link-bandwidth ext-community-sets and matching policy
-  using OC model revision 2.x
-  * Add prefixes with link-bandwidth community to ATE port 1 to advertise ipv4
-    and ipv6 prefixes to DUT port 1 using the following communities:
-    * prefix-set-5 with 2 routes with communities `[ link-bandwidth:500000:0, ]`
-    * prefix-set-6 with 2 routes with communities `[ link-bandwidth:600000:1M, ]`
-
-  * Configure the following community sets
-    (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
-    on the DUT.
-    * Create an ext-community-set named 'linkbw_ext_comms_0' with:
-      * ext-community-member = [ "^link-bandwidth:.*:0$" ]
-      * match-set-options = ANY
-    * Create an ext-community-set named 'linkbw_ext_comms_1M' with members as follows:
-      * ext-community-member = [ "^link-bandwidth:.*:1M$" ]
-      * config/match-set-options = ANY
-    * Create an ext-community-set named 'linkbw_ext_comms_2G' with members as follows:
-      * ext-community-member = [ "^link-bandwidth:.*:2G$" ]
-      * match-set-options = ANY
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'zero-bandwidth-reject' with the following `statements`
-    * statement[name='zero-bandwidth-reject']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_0'
-      * actions/config/policy-result = REJECT_ROUTE
-    * statement[name='accept_all']/
-      * actions/config/policy-result = ACCEPT_ROUTE
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named '1-megabit-match' with the following `statements`
-    * statement[name='1-megabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_1M'
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'link-bandwidth-match' with the following `statements`
-    * statement[name='2-gigabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_2G'
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * For each policy-definition
-    * Use gnmi Set REPLACE option for:
-      * `/routing-policy/policy-definitions` to configure the policy
-      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to configure the policy on the DUT to the ATE port 1 bgp neighbor
-    * Send traffic from ATE port-2 to all prefix-sets-5,6.
-    * Verify traffic is received on ATE port 1 for accepted prefixes.
-    * Verify traffic is not received on ATE port 1 for rejected prefixes.
-    * Stop traffic
-
-    * Expected matches for each policy
-      |              | zero-bandwidth-reject | 1-megabit | 2-gigabit-match |
-      | ------------ | --------------------- | --------- | --------------- |
-      | prefix-set-5 | reject                | reject    | reject          |
-      | prefix-set-6 | accept                | accept    | reject          |
-
-* RT-7.10.5 - Validate ext-community-sets and matching policy using OC
-  release 3.x
-  * Note, this is the same at RT-7.9.4, but with a change in the location of the
-    `match-set-options` leaf which moved to
-    `/routing-policy/policy-definitions/policy-definition/policy-definition/bgp-conditions/match-ext-community-set/config/match-set-options`
-  * Add prefixes with link-bandwidth community to ATE port 1 to advertise ipv4
-    and ipv6 prefixes to DUT port 1 using the following communities:
-    * prefix-set-5 with 2 routes with communities `[ link-bandwidth:500000:0, ]`
-    * prefix-set-6 with 2 routes with communities `[ link-bandwidth:600000:1M, ]`
-
-  * Configure the following community sets
-    (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
-    on the DUT.
-    * Create a community-set named 'linkbw_ext_comms_0' with members as follows:
-      * `community-member = [ "^link-bandwidth:.*:0$" ]`
-    * Create a community-set named 'linkbw_ext_comms_1M' with members as follows:
-      * `community-member = [ "^link-bandwidth:.*:1M$" ]`
-    * Create a community-set named 'linkbw_ext_comms_2G' with members as follows:
-      * `community-member = [ "^link-bandwidth:.*:2G$" ]`
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'zero-bandwidth-reject' with the following `statements`
-    * statement[name='zero-bandwidth-reject']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_0'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = REJECT_ROUTE
-    * statement[name='accept_all']/
-      * actions/config/policy-result = ACCEPT_ROUTE
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named '1-megabit-match' with the following `statements`
-    * statement[name='1-megabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_1M'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'link-bandwidth-match' with the following `statements`
-    * statement[name='2-gigabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_ext_comms_2G'
-      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
-      * actions/config/policy-result = ACCEPT_ROUTE
-    * statement[name='reject_all']/
-      * actions/config/policy-result = REJECT_ROUTE
-
-  * For each policy-definition
-    * Use gnmi Set REPLACE option for:
-      * `/routing-policy/policy-definitions` to configure the policy
-      * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to configure the policy on the DUT to the ATE port 1 bgp neighbor
-    * Verify expected prefixes are present in DUT.
-      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent`
-      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy`
-      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received`
-      * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed`
-    * Verify expected prefixes are present on ATE.
-    * Send traffic from ATE port-2 to prefix-set-5,6.
-      * Verify traffic is received on ATE port 1 for accepted prefixes.
-      * Verify traffic is not received on ATE port 1 for rejected prefixes.
-      * Stop traffic
-
-    * Expected matches for each policy
-      |              | zero-bandwidth-reject | 1-megabit | 2-gigabit-match |
-      | ------------ | --------------------- | --------- | --------------- |
-      | prefix-set-5 | reject                | reject    | reject          |
-      | prefix-set-6 | accept                | accept    | reject          |
-
+[ TODO: Update expected paths to be used below ]
 ## Config Parameter Coverage
 
 ### Policy definition
