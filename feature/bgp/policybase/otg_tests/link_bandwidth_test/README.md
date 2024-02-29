@@ -15,6 +15,13 @@ communities to routes based on a prefix match.
   * Generate config for 2 DUT and ATE ports where:
     * DUT port 1 to ATE port 1.
     * DUT port 2 to ATE port 2.
+  * Configure dummy accept policies and attach it to both sessions on DUT.
+     * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
+    named 'allow_all' with the following `statements`
+       * statement[name='allow-all']/
+         * actions/config/policy-result = ACCEPT_ROUTE
+     * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
+      to apply the policy on the DUT bgp neighbor to the ATE port 1.
   * Configure ATE port 1 with a BGP session to DUT port 1.
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
       * prefix-set-1 with 2 ipv4 and 2 ipv6 routes without communities.
