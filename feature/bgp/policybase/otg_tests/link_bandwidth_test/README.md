@@ -62,7 +62,7 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'not_match_100_set_linkbw_1M' with the following `statements`
+    named **'not_match_100_set_linkbw_1M'** with the following `statements`
     * statement[name='1-megabit-match']/
       * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_as100'
       * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
