@@ -11,7 +11,7 @@ communities to routes based on a prefix match.
 
 ## Procedure
 
-* Testbed configuration - Setup BGP sessions and prefixes.
+* Testbed configuration - Setup external BGP sessions and prefixes.
   * Generate config for 2 DUT and ATE ports where:
     * DUT port 1 to ATE port 1.
     * DUT port 2 to ATE port 2.
