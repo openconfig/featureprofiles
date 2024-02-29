@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -128,12 +129,22 @@ type subscriptionArgs struct {
 // subMode represents type of STREAMING subscription mode
 // TODO - support levels and sub modes
 func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
-	// once, poll, stream
-	// sample, on-change, target-defined
+	// once, poll, stream are subscription types
+	// sample, on-change, target-defined are streaming subscription types
+	//for i := 1; i <= subscriptionCount; i++ {
+	//	gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
+	//}
+	var wg sync.WaitGroup
 	for i := 1; i <= subscriptionCount; i++ {
-		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime*time.Minute)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode)), query, multipleSubscriptionRuntime)
+		}()
 	}
+	wg.Wait()
 }
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
@@ -272,7 +283,7 @@ func (triggerArgs triggerProcessRestart) restartProcessBackground(t *testing.T, 
 	dut := ondatra.DUT(t, "dut")
 	for _, process := range triggerArgs.processes {
 
-		//patch for CLIviaSSH failing, else pattern to use is #
+		// patch for CLIviaSSH failing, else pattern to use is #
 		var acp string
 		if withRpfo {
 			acp = ".*Last switch-over.*ago"
@@ -704,7 +715,7 @@ func configAteEbgpPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAdd
 	bgpPeer.Capabilities().WithIPv4UnicastEnabled(true).WithIPv6UnicastEnabled(true).WithGracefulRestart(true)
 }
 
-// configAteRoutingProtocols calls ISIS/BGP api
+// configAteRoutingProtocols configures routing protocol configurations on the ATE
 func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
@@ -782,33 +793,33 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 	//close(stopClients)
 	//<-doneMonitor
 	//<-doneClients
-
+	// TODO - uncomment after cleanup
 	// Space to add trigger code
-	for _, tt := range triggers {
-		t.Logf("Name: %s", tt.name)
-		t.Logf("Description: %s", tt.desc)
-		if triggerAction, ok := tt.triggerType.(*triggerProcessRestart); ok {
-			triggerAction.restartProcessBackground(t, args.ctx)
-		}
-		if chassisType == "distributed" && withRpfo {
-			if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
-				// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
-				triggerAction.rpfo(t, args.ctx, false)
-			}
-		} else if chassisType == "fixed" && withRpfo {
-			if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
-				// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
-				triggerAction.rpfo(t, args.ctx, true)
-				tolerance = uint64(triggerAction.tolerance)
-			}
-		}
-		if chassisType == "distributed" && withLcReload {
-			if triggerAction, ok := tt.triggerType.(*triggerLcReload); ok {
-				triggerAction.lcReload(t)
-				tolerance = uint64(triggerAction.tolerance)
-			}
-		}
-	}
+	//for _, tt := range triggers {
+	//	t.Logf("Name: %s", tt.name)
+	//	t.Logf("Description: %s", tt.desc)
+	//	if triggerAction, ok := tt.triggerType.(*triggerProcessRestart); ok {
+	//		triggerAction.restartProcessBackground(t, args.ctx)
+	//	}
+	//	if chassisType == "distributed" && withRpfo {
+	//		if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
+	//			// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
+	//			triggerAction.rpfo(t, args.ctx, false)
+	//		}
+	//	} else if chassisType == "fixed" && withRpfo {
+	//		if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
+	//			// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
+	//			triggerAction.rpfo(t, args.ctx, true)
+	//			tolerance = uint64(triggerAction.tolerance)
+	//		}
+	//	}
+	//	if chassisType == "distributed" && withLcReload {
+	//		if triggerAction, ok := tt.triggerType.(*triggerLcReload); ok {
+	//			triggerAction.lcReload(t)
+	//			tolerance = uint64(triggerAction.tolerance)
+	//		}
+	//	}
+	//}
 	// TODO - uncomment
 	//// restart goroutines
 	//if chassisType == "distributed" {
@@ -842,7 +853,7 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 		if op.drop {
 			in := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
 			out := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
-			return uint64(out - in)
+			return out - in
 		}
 	}
 	return 0

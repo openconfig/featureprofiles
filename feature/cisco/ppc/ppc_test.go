@@ -57,12 +57,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func (args *testArgs) testOcDropBlock(t *testing.T) {
+func (args *testArgs) testOcPpcDropBlock(t *testing.T) {
 	testcases := []Testcase{
 		{
 			name:      "drop/lookup-block/state/acl-drops",
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
-			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true},
+			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true}, // todo - how to cleanup while exiting the function?
 		},
 		//{
 		//	name:      "drop/lookup-block/state/no-route",
@@ -104,15 +104,13 @@ func (args *testArgs) testOcDropBlock(t *testing.T) {
 
 	npus := args.interfaceToNPU(t)                       // collecting all the destination NPUs
 	data := make(map[string]ygnmi.WildcardQuery[uint64]) // holds a path and its query information
-	sampleInterval := 30 * time.Second
-
+	//sampleInterval := 30 * time.Second
 	for _, tt := range testcases {
-		// loop over different subscription modes
+		// loop over different streaming modes // todo - other SubscriptionList_Mode's
 		for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_SAMPLE, gpb.SubscriptionMode_ON_CHANGE} {
 			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode.String()), func(t *testing.T) {
 				t.Logf("Name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
-				// TODO - make sure outer for loop loops over different subscription modes
 				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
 				// TODO - uncomment after processmgr team confirms leaf mapping
@@ -137,8 +135,7 @@ func (args *testArgs) testOcDropBlock(t *testing.T) {
 				// running multiple subscriptions on all the queries while tc is executed
 				for _, query := range data {
 					sa := &subscriptionArgs{
-						streamMode:     subMode,
-						sampleInterval: sampleInterval,
+						streamMode: subMode,
 					}
 					sa.multipleSubscriptions(t, query)
 				}
@@ -200,7 +197,7 @@ func TestOcPpc(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	configAteRoutingProtocols(t, top)
-	time.Sleep(120 * time.Second)
+	//time.Sleep(120 * time.Second) --> remove this
 
 	args := &testArgs{
 		dut: dut,
@@ -208,8 +205,7 @@ func TestOcPpc(t *testing.T) {
 		top: top,
 		ctx: ctx,
 	}
-
 	t.Run("Test drop block", func(t *testing.T) {
-		args.testOcDropBlock(t)
+		args.testOcPpcDropBlock(t)
 	})
 }
