@@ -66,9 +66,10 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'nomatch_100_set_linkbw_2G' with the following `statements`
+    named 'match_100_set_linkbw_2G' with the following `statements`
     * statement[name='2-gigabit-match']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_nomatch_as100'
+      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-ext-community-set/config/match-set-options = ANY
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_2G'
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
@@ -85,14 +86,11 @@ communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'rm_any_zero_bw_set_LocPref_5' with the following `statements`
-    * statement[name='match_zero_bw_and_remove']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_0'
+    named 'match_locpref5_del_bandwidth_0' with the following `statements`
+    * statement[name='match_locpref5_del_bandwidth_0']/
+      * conditions/bgp-conditions/config/local-pref-eq = 5
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
-      * actions/config/policy-result = NEXT_STATEMENT
-    * statement[name='set_LocPref_5']/
-      * actions/bgp-actions/config/set-local-pref = 5
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
@@ -115,11 +113,11 @@ communities to routes based on a prefix match.
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100", "link-bandwidth:100:1000000" ] |
       | prefix-set-3 | [ "link-bandwidth:100:0" ]             | [ "link-bandwidth:100:0" ]                  |
 
-      |              | nomatch_100_set_linkbw_2G           | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
-      | ------------ | ----------------------------------- | ------------- | ----------------------------- |
-      | prefix-set-1 | [ "link-bandwidth:100:2000000000" ] | none          | none                          |
-      | prefix-set-2 | [  "100:100" ]                      | [ "100:100" ] | [ "100:100" ]                 |
-      | prefix-set-3 | [ "link-bandwidth:100:2000000000" ] | [ none ]      | [ none ], localpref=5         |
+      |              | match_100_set_linkbw_2G                         | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
+      | ------------ | ----------------------------------------------- | ------------- | ---------------------------- |
+      | prefix-set-1 | [ none ]                                        | none          | none                         |
+      | prefix-set-2 | [  "100:100", "link-bandwidth:100:2000000000" ] | [ "100:100" ] | [ "100:100" ]                |
+      | prefix-set-3 | [ "link-bandwidth:100:0" ]                      | [ none ]      | [ none ], localpref=5        |
 
       * LocalPreference
         The prefixes of "prefix-set-3" matching policy "rm_any_zero_bw_set_LocPref_5" should have Local Preference value 5.\
