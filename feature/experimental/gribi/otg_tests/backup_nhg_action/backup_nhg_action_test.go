@@ -1,3 +1,17 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package backup_nhg_action_test
 
 import (
@@ -7,19 +21,17 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -34,7 +46,7 @@ const (
 	innerSrcIP1        = "198.18.0.255"
 	vip1               = "198.18.1.1"
 	vip2               = "198.18.1.2"
-	vrfA               = "TE_VRF_111"
+	vrfA               = "VRF-A"
 	vrfB               = "VRF-B"
 	vrfC               = "VRF-C"
 	nh1ID              = 1
@@ -51,7 +63,7 @@ const (
 	nhg103ID           = 103
 	nh104ID            = 104
 	nhg104ID           = 104
-	baseSrcFlowFilter  = "0x0f" // hexadecimal value of last 5 bits of src 198.51.100.111
+	baseSrcFlowFilter  = "0x02" // hexadecimal value of last 5 bits of src 198.51.100.2
 	baseDstFlowFilter  = "0x18" // hexadecimal value of first 5 bits of dst 198.51.100.1
 	encapSrcFlowFilter = "0x02" // hexadecimal value of last 5 bits of src 203.0.113.2
 	encapDstFlowFilter = "0x19" // hexadecimal value of first 5 bits of dst 203.0.113.1
@@ -62,9 +74,6 @@ const (
 	ipOverIPProtocol   = 4
 	srcTrackingName    = "ipSrcTracking"
 	dstTrackingName    = "ipDstTracking"
-	vrfPolW            = "vrf_selection_policy_w"
-	decapFlowSrc       = "198.51.100.111"
-	dscpEncapA1        = 10
 )
 
 // testArgs holds the objects needed by a test case.
@@ -271,16 +280,6 @@ func TestBackupNHGAction(t *testing.T) {
 			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap",
 			fn:   testDecapEncap,
 		},
-		{
-			name: "testBackupDecapWithVrfPolW",
-			desc: "Usecase with 2 NHOP Groups - Backup Pointing to Decap with vrf policy W",
-			fn:   testBackupDecapWithVrfPolW,
-		},
-		{
-			name: "testDecapEncapWithVrfPolW",
-			desc: "Usecase with 3 NHOP Groups - Redirect pointing to back up DecapEncap and its Backup Pointing to Decap with vrf policy W",
-			fn:   testDecapEncapWithVrfPolW,
-		},
 	}
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -480,16 +479,6 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 	})
 }
 
-func testBackupDecapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
-	testBackupDecap(ctx, t, args)
-}
-
-func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
-	testDecapEncap(ctx, t, args)
-}
-
 // createFlow returns a flow name from atePort1 to the dstPfx.
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name string, dst *attrs.Attributes) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(name)
@@ -498,9 +487,8 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	outerIPHeader := flow.Packet().Add().Ipv4()
-	outerIPHeader.Src().SetValue(decapFlowSrc)
+	outerIPHeader.Src().SetValue(outerSrcIP1)
 	outerIPHeader.Dst().Increment().SetStart(outerDstIP1).SetCount(1)
-	outerIPHeader.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
 	innerIPHeader := flow.Packet().Add().Ipv4()
 	innerIPHeader.Src().SetValue(innerSrcIP1)
 	innerIPHeader.Dst().Increment().SetStart(innerDstIP1).SetCount(1)
@@ -584,29 +572,4 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good []gosnappi.
 			t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
 		}
 	}
-}
-
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	p1 := dut.Port(t, "port1")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrfA).Interface(p1.Name()).Config())
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
 }

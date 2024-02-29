@@ -50,9 +50,6 @@ case ${platform} in
   arista_ceos)
     vendor_creds=ARISTA/admin/admin
     ;;
-  juniper_cptx)
-    vendor_creds=JUNIPER/root/Google123
-    ;;
   juniper_ncptx)
     vendor_creds=JUNIPER/root/Google123
     ;;
@@ -114,7 +111,6 @@ for dut_test in ${dut_tests}; do
   test_badge=$(echo "${dut_test}" | awk '{split($0,a,",");print a[2]}')
   kne_topology=$(metadata_kne_topology "${test_path}")
   sed -i "s/ceos:latest/us-west1-docker.pkg.dev\/gep-kne\/arista\/ceos:ga/g" /tmp/kne/"${kne_topology}"
-  sed -i "s/cptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/cptx:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/ncptx:latest/us-west1-docker.pkg.dev\/gep-kne\/juniper\/ncptx:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/8000e:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/8000e:ga/g" /tmp/kne/"${kne_topology}"
   sed -i "s/xrd:latest/us-west1-docker.pkg.dev\/gep-kne\/cisco\/xrd:ga/g" /tmp/kne/"${kne_topology}"

@@ -1,0 +1,13 @@
+[Unit]
+Description="CNTR"
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+User=root
+ExecStart=/usr/bin/cntrsrv
+StandardOutput=append:/var/log/cntr.log
+
+[Install]
+WantedBy=multi-user.target

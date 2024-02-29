@@ -16,6 +16,7 @@ package binding
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/binding"
+	"github.com/openconfig/ondatra/binding/introspect"
 	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -152,11 +154,16 @@ func TestReservation_Error(t *testing.T) {
 		Duts: []*opb.Device{{
 			Id: "dut.tb", // only in testbed.
 		}, {
-			Id: "dut.both",
+			Id:                   "dut.both",
+			Vendor:               opb.Device_CIENA,                                         // only in testbed
+			HardwareModelValue:   &opb.Device_HardwareModel{HardwareModel: "modelA"},       // differs from binding
+			SoftwareVersionValue: &opb.Device_SoftwareVersion{SoftwareVersion: "versionB"}, // matches binding
 			Ports: []*opb.Port{{
 				Id: "port1",
 			}, {
-				Id: "port2",
+				Id:       "port2",
+				Speed:    opb.Port_S_100GB,                                // only in testbed
+				PmdValue: &opb.Port_Pmd_{Pmd: opb.Port_PMD_100GBASE_CLR4}, // differs in binding
 			}},
 		}},
 		Ates: []*opb.Device{{
@@ -164,7 +171,8 @@ func TestReservation_Error(t *testing.T) {
 		}, {
 			Id: "ate.both",
 			Ports: []*opb.Port{{
-				Id: "port1",
+				Id:    "port1",
+				Speed: opb.Port_S_10GB, // matches binding
 			}, {
 				Id: "port2",
 			}},
@@ -176,22 +184,28 @@ func TestReservation_Error(t *testing.T) {
 			Id:   "dut.b", // only in binding.
 			Name: "dut.b.name",
 		}, {
-			Id:   "dut.both",
-			Name: "dut.both.name",
+			Id:              "dut.both",
+			Name:            "dut.both.name",
+			HardwareModel:   "modelB",   // differs in testbed
+			SoftwareVersion: "versionB", // differs in binding
 			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
 				Id:   "port2",
 				Name: "Ethernet2",
+				Pmd:  opb.Port_PMD_400GBASE_DR4, // differs in testbed
 			}, {
 				Id:   "port3",
 				Name: "Ethernet3",
 			}},
 		}},
 		Ates: []*bindpb.Device{{
-			Id:   "ate.both",
-			Name: "ate.name",
-			Ports: []*bindpb.Port{{ // port1 missing, port3 extra
-				Id:   "port2",
-				Name: "1/2",
+			Id:     "ate.both",
+			Name:   "ate.name",
+			Vendor: opb.Device_IXIA, // only in binding
+			Ports: []*bindpb.Port{{ // port2 missing, port3 extra
+				Id:    "port1",
+				Name:  "1/1",
+				Speed: opb.Port_S_10GB,          // matches testbed
+				Pmd:   opb.Port_PMD_40GBASE_SR4, // only in binding
 			}, {
 				Id:   "port3",
 				Name: "1/3",
@@ -199,25 +213,27 @@ func TestReservation_Error(t *testing.T) {
 		}},
 	}
 
-	_, err := reservation(tb, resolver{b})
-	if err == nil {
-		t.Fatalf("Error building reservation: %v", err)
+	r, errs := reservation(tb, resolver{b})
+	if len(errs) == 0 {
+		t.Fatalf("reservation() unexpectedly succeeded: %v", r)
 	}
-	t.Logf("Got reservation errors: %v", err)
 
 	wants := []string{
 		`missing binding for DUT "dut.tb"`,
-		`error binding DUT "dut.both"`,
-		`binding DUT "dut.b" not found in testbed`,
+		`binding vendor`,
+		`binding hardware model`,
+		`missing binding for port "port1" on "dut.both"`,
+		`binding port speed`,
+		`binding port PMD`,
 		`missing binding for ATE "ate.tb"`,
-		`error binding ATE "ate.both"`,
-		`testbed port "port1" is missing in binding`,
+		`missing binding for port "port2" on "ate.both"`,
 	}
-	errText := err.Error()
-
-	for _, want := range wants {
-		if !strings.Contains(errText, want) {
-			t.Errorf("Want error not found: %s", want)
+	if got, want := len(errs), len(wants); got != want {
+		t.Errorf("reservation() got %d errors, want %d: %v", got, want, errs)
+	}
+	for i, err := range errs {
+		if got, want := err.Error(), wants[i]; !strings.Contains(got, want) {
+			t.Errorf("reservation() got error %q, want: %q", got, want)
 		}
 	}
 }
@@ -225,11 +241,8 @@ func TestReservation_Error(t *testing.T) {
 func TestDialOTGTimeout(t *testing.T) {
 	const timeoutSecs = 42
 	a := &staticATE{
-		AbstractATE: &binding.AbstractATE{Dims: &binding.Dims{Name: "my_ate"}},
-		r:           resolver{&bindpb.Binding{}},
-		dev: &bindpb.Device{Otg: &bindpb.Options{
-			Timeout: timeoutSecs,
-		}},
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Otg: &bindpb.Options{Timeout: timeoutSecs}},
 	}
 	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, nil
@@ -255,4 +268,37 @@ type captureAPI struct {
 func (a *captureAPI) NewGrpcTransport() gosnappi.GrpcTransport {
 	a.gotTransport = a.Api.NewGrpcTransport()
 	return a.gotTransport
+}
+
+func TestDialer(t *testing.T) {
+	const (
+		wantDevName = "mydev"
+		wantDevPort = 1234
+	)
+	fakeSvc := introspect.Service("fake")
+	dutSvcParams[fakeSvc] = &svcParams{
+		port:   wantDevPort,
+		optsFn: func(d *bindpb.Device) *bindpb.Options { return nil },
+	}
+	d := &staticDUT{
+		r:   resolver{&bindpb.Binding{}},
+		dev: &bindpb.Device{Name: wantDevName},
+	}
+
+	dialer, err := d.Dialer(fakeSvc)
+	if err != nil {
+		t.Fatalf("Dialer() got err: %v", err)
+	}
+	if dialer.DevicePort != wantDevPort {
+		t.Errorf("Dialer() got DevicePort %v, want %v", dialer.DevicePort, wantDevPort)
+	}
+	if dialer.DialFunc == nil {
+		t.Errorf("Dialer() got nil DialFunc, want non-nil DialFunc")
+	}
+	if len(dialer.DialOpts) == 0 {
+		t.Errorf("Dialer() got empty DialOpts, want non-empty DialOpts")
+	}
+	if wantTarget := fmt.Sprintf("%v:%v", wantDevName, wantDevPort); dialer.DialTarget != wantTarget {
+		t.Errorf("Dialer() got Target %v, want %v", dialer.DialTarget, wantTarget)
+	}
 }

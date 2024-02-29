@@ -745,3 +745,44 @@ func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
 }
+
+// SkipSettingAllowMultipleAS return true if device needs to skip setting allow-multiple-as while configuring eBGP
+func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
+}
+
+// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
+func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
+}
+
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// GribiDecapMixedPlenUnsupported returns true if devices does not support
+// programming with mixed prefix length.
+func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
+}
+
+// SkipIsisSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
+func SkipIsisSetLevel(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetLevel()
+}
+
+// SkipIsisSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
+}
+
+// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
+}
+
+// SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
+func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
+}
