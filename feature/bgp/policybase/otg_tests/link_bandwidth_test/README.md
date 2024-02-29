@@ -96,6 +96,7 @@ communities to routes based on a prefix match.
     * statement[name='match_and_remove_linkbw_any_0']/
       * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any_0'
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any_0'
+      * actions/bgp-actions/set-ext-community/config/method = 'REFERENCE'
       * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
       * actions/config/policy-result = NEXT_STATEMENT
     * statement[name='set_LocPref_5']/
