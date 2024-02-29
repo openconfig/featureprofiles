@@ -35,7 +35,7 @@ communities to routes based on a prefix match.
   * Verify traffic is received on ATE port 1 for advertised prefixes.
     routes.
 
-* RT-7.5.2 - Validate adding link-bandwidth ext-community-sets using OC model release 3.x
+* RT-7.5.2 - Validate adding and removing link-bandwidth ext-community-sets using OC model release 3.x
   * Configure the following extended community sets on the DUT:
     (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
     * Create an ext-community-set named 'linkbw_0' with:
