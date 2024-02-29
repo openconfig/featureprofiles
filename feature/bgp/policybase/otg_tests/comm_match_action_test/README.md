@@ -84,7 +84,7 @@ criteria.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/community-index`
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/community-index`
 
-    * Expected communities
+    * Expected result - communities
       |              | add_std_comms                                 | match_and_add_std_comms           |
       | ------------ | --------------------------------------------- | --------------------------------- |
       | prefix-set-1 | [ 10:10, 20:20, 30:30 ]                       | none                              |
