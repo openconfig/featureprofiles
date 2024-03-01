@@ -97,15 +97,16 @@ class DUT(Device):
         return e
 
     def to_binding_entry(self):
-        e = super().to_binding_entry()
+        e = super().to_binding_entry()  
         e.update({
             'name': self.hostname,
+            'vendor': DUT.Vendor.CISCO,
+            'hardware_model': self.get_model(),
             'options': {
                 'username': self.username,
                 'password': self.password,
                 'insecure': self.insecure,
                 'skip_verify': not self.mtls,
-                'mutual_tls': self.mtls,           
             },
             'ssh': {
                 'target': self.get_host_agent() + ':' + str(self.get_port_redir(22)),
@@ -114,6 +115,7 @@ class DUT(Device):
         
         if self.mtls:
             e['options'].update({
+                'mutual_tls': self.mtls,
                 'trust_bundle_file': self.trust_bundle_file,
                 'cert_file': self.cert_file,
                 'key_file': self.key_file,
@@ -313,4 +315,3 @@ with open(args.testbed_file, "w") as fp:
     
 with open(args.binding_file, "w") as fp:
     fp.write(ProtoPrinter().dict_to_proto(binding))
-
