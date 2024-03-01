@@ -1207,3 +1207,12 @@ def GenerateSimTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+# noinspection PyPep8Naming
+@app.task(base=FireX, bind=True)
+@returns('test_report_text_file', 'report_text')
+def ConvertXunit2Text(self, xunit_results, uid, lineup=None, tag=None, efr=None):
+    logger.print(f"In custom ConvertXunit2Text")
+    c = InjectArgs(**self.abog) | self.orig.s()
+    test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
+    return test_report_text_file, report_text  
