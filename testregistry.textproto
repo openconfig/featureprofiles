@@ -74,18 +74,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "CNTR-1"
-  description: "gNOI.Containerz"
-  readme: " "
-  exec: " "
-}
-test: {
-  id: "CNTR-2"
-  description: "Container networking"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "DP-1.10"
   description: "Mixed strict priority and WRR traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/mixed_sp_wrr_traffic_test/README.md"
@@ -496,7 +484,7 @@ test: {
 }
 test: {
   id: "RT-7.2"
-  description: "BGP Policy Community Set"
+  description: "BGP Policy Community Match and Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/community_test/README.md"
   exec: " "
 }
@@ -508,14 +496,14 @@ test: {
 }
 test: {
   id: "RT-7.4"
-  description: "BGP Policy AS Path Set and Community Set"
+  description: "BGP Policy AS Path and Community Match and Import/Export Policy"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/aspath_and_community_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-7.5"
-  description: "RT-7.5: BGP Link Bandwidth Community Forwarding"
-  readme: ""
+  description: "RT-7.5: BGP Policy - Set Link Bandwidth Community"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
   exec: " "
 }
 test: {
@@ -525,21 +513,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7.7"
-  description: "RT-7.7: BGP Link Bandwidth Community - Set Bandwidth"
-  readme: " "
-  exec: " "
-}
-test: {
   id: "RT-7.8"
-  description: "RT-7.8: BGP Policy - Ext Community Matching"
-  readme: " "
+  description: "BGP Policy Match and Set Standard Communities Import/Export Policy"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-7.9"
-  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
-  readme: " "
+  description: "BGP Import/Export Policy Action Using Extended Communities"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/extcomm_action_test/README.md"
   exec: " "
 }
 test: {
