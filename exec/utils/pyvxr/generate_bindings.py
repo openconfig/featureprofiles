@@ -1,7 +1,6 @@
 from enum import Enum
 import argparse
 import yaml
-import json
 import os
 import re
 
@@ -21,6 +20,9 @@ class Device():
     
     def add_data_port(self, name):
         self.data_ports[name] = 'port' + str(len(self.data_ports) + 1)
+
+    def has_data_port(self, name):
+        return name in self.data_ports
 
     def get_data_port_abstract_name(self, p):
         return self.data_ports[p]
@@ -87,14 +89,6 @@ class DUT(Device):
         if platform == 'spitdire_d':
             return 'CISCO-8808'
         return 'CISCO-8201'
-    
-    def to_testbed_entry(self):
-        e = super().to_testbed_entry()
-        e.update({
-            'vendor': DUT.Vendor.CISCO,
-            'hardware_model': self.get_model(),
-        })
-        return e
 
     def to_binding_entry(self):
         e = super().to_binding_entry()  
@@ -248,7 +242,7 @@ class ProtoPrinter():
             elif isinstance(v, dict):
                 s += self._to_dict_entry(k, v)
             else:
-                s += str(k) + ':' + self._to_proto_generic(k, v) + '\n'
+                s += str(k) + ': ' + self._to_proto_generic(k, v) + '\n'
         return s.strip()
     
 def parse_connection_end(devices, c):
@@ -299,6 +293,11 @@ for name, entry in vxr_conf.get('connections', {}).get('hubs', {}).items():
     connections.append(Connection(parse_connection_end(devices, entry[0]), 
                                     parse_connection_end(devices, entry[1])))
 
+for name, entry in vxr_conf.get('devices', {}).items():
+    for p in entry.get('data_ports', []):
+        if not devices[name].has_data_port(p):
+            devices[name].add_data_port(p)
+        
 testbed = {
     'duts': [d.to_testbed_entry() for d in devices.values() if isinstance(d, DUT)],
     'ates': [d.to_testbed_entry() for d in devices.values() if isinstance(d, ATE)],
