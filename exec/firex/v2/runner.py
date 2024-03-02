@@ -1223,37 +1223,18 @@ def GenerateSimTestbedFile(self,
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PushResultsToInflux(self, ws, uid, xunit_results, lineup=None, efr=None, group=None):
+def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None, group=None):
     logger.print("Pushing results to influxdb...")
-    venv_path = os.path.join(ws, 'influx_venv')
-    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
-    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
-    internal_fp_repo_dir = _get_internal_fp_repo_dir(ws)
-    
     try:
-        if not os.path.exists(venv_python_bin):
-            logger.print(
-                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
-            )
-            
-            pip_requirements = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/influx/requirements.txt')
-            logger.print(
-                check_output(f'{venv_pip_bin} install -r {pip_requirements}')
-            )
-
-        influx_reporter_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/influx/reporter.py')
-        cmd = f'{venv_python_bin} {influx_reporter_bin} {uid} {xunit_results}'
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/reporting/influx/firex2influx"
+        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
         if lineup: 
             cmd += f' --lineup {lineup}'
         if efr: 
             cmd += f' --efr {lineup}'
         if group: 
             cmd += f' --group {group}'
-        
-        logger.print(
-            check_output(cmd)
-        )
-
+        logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to push results to influxdb. Ignoring...')
 
