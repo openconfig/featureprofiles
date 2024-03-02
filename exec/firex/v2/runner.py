@@ -323,6 +323,21 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         logger.warn(f'Cannot release testbed {id}')
         return False
 
+def _get_fp_repo_path():
+    return os.path.join('openconfig', 'featureprofiles')
+
+def _get_pkgs_dir(ws):
+    return os.path.join(ws, 'go_pkgs')
+
+def _get_fp_repo_dir(ws):
+    return os.path.join(_get_pkgs_dir(ws), _get_fp_repo_path())
+
+def _get_internal_pkgs_dir(ws):
+    return os.path.join(ws, 'internal_go_pkgs')
+
+def _get_internal_fp_repo_dir(ws):
+    return os.path.join(_get_internal_pkgs_dir(ws), _get_fp_repo_path())
+
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
@@ -338,9 +353,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         sim_use_mtls=False,
                         smus=None):
     
-    internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
-    internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
-
+    internal_fp_repo_dir = _get_internal_fp_repo_dir(ws)
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
                     repo_branch=internal_fp_repo_branch,
@@ -443,7 +456,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         testbed=None,
                         **kwargs):
     
-    test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
+    test_repo_dir = _get_fp_repo_dir(ws)
     if internal_test:
         test_repo_url = internal_fp_repo_url
 
@@ -1209,10 +1222,47 @@ def GenerateSimTestbedFile(self,
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
 
 # noinspection PyPep8Naming
+@app.task(bind=True)
+def PushResultsToInflux(self, ws, uid, xunit_results, lineup=None, efr=None, group=None):
+    logger.print("Pushing results to influxdb...")
+    venv_path = os.path.join(ws, 'influx_venv')
+    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
+    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+    internal_fp_repo_dir = _get_internal_fp_repo_dir(ws)
+    
+    try:
+        if not os.path.exists(venv_python_bin):
+            logger.print(
+                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
+            )
+            
+            pip_requirements = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/influx/requirements.txt')
+            logger.print(
+                check_output(f'{venv_pip_bin} install -r {pip_requirements}')
+            )
+
+        influx_reporter_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/influx/reporter.py')
+        cmd = f'{venv_python_bin} {influx_reporter_bin} {uid} {xunit_results}'
+        if lineup: 
+            cmd += f' --lineup {lineup}'
+        if efr: 
+            cmd += f' --efr {lineup}'
+        if group: 
+            cmd += f' --group {group}'
+        
+        logger.print(
+            check_output(cmd)
+        )
+
+    except:
+        logger.warning(f'Failed to push results to influxdb. Ignoring...')
+
+
+# noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
 @returns('test_report_text_file', 'report_text')
-def ConvertXunit2Text(self, xunit_results, uid, lineup=None, tag=None, efr=None):
-    logger.print(f"In custom ConvertXunit2Text")
-    c = InjectArgs(**self.abog) | self.orig.s()
+def ConvertXunit2Text(self):
+    logger.print(f"In ConvertXunit2Text override")
+    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
     test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
     return test_report_text_file, report_text  
