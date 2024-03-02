@@ -1226,7 +1226,7 @@ def GenerateSimTestbedFile(self,
 def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None, group=None):
     logger.print("Pushing results to influxdb...")
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/reporting/influx/firex2influx"
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2influx"
         cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
         if lineup: 
             cmd += f' --lineup {lineup}'
