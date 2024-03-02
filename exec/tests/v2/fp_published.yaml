@@ -738,10 +738,8 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 2698
   - name: TE-16.1 (DCGate - basic encap test)
     path: feature/gribi/otg_tests/basic_encap_test
     owners:
       - arvbaska
-    mustpass: false
-    pr: 2456    
+    mustpass: true
