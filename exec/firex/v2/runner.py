@@ -1218,7 +1218,7 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None, group=N
         if lineup: 
             cmd += f' --lineup {lineup}'
         if efr: 
-            cmd += f' --efr {lineup}'
+            cmd += f' --efr {efr}'
         if group: 
             cmd += f' --group {group}'
         logger.print(check_output(cmd))
