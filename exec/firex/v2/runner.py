@@ -1210,7 +1210,7 @@ def GenerateSimTestbedFile(self,
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None, group=None):
+def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
     logger.print("Pushing results to influxdb...")
     try:
         influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2influx"
@@ -1219,8 +1219,6 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None, group=N
             cmd += f' --lineup {lineup}'
         if efr: 
             cmd += f' --efr {efr}'
-        if group: 
-            cmd += f' --group {group}'
         logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to push results to influxdb. Ignoring...')
