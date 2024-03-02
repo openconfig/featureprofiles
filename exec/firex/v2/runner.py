@@ -1207,3 +1207,28 @@ def GenerateSimTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
+    logger.print("Pushing results to influxdb...")
+    try:
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2influx"
+        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        if lineup: 
+            cmd += f' --lineup {lineup}'
+        if efr: 
+            cmd += f' --efr {efr}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to push results to influxdb. Ignoring...')
+
+
+# noinspection PyPep8Naming
+@app.task(base=FireX, bind=True)
+@returns('test_report_text_file', 'report_text')
+def ConvertXunit2Text(self):
+    logger.print(f"In ConvertXunit2Text override")
+    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
+    test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
+    return test_report_text_file, report_text  
