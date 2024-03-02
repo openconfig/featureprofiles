@@ -323,21 +323,6 @@ def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         logger.warn(f'Cannot release testbed {id}')
         return False
 
-def _get_fp_repo_path():
-    return os.path.join('openconfig', 'featureprofiles')
-
-def _get_pkgs_dir(ws):
-    return os.path.join(ws, 'go_pkgs')
-
-def _get_fp_repo_dir(ws):
-    return os.path.join(_get_pkgs_dir(ws), _get_fp_repo_path())
-
-def _get_internal_pkgs_dir(ws):
-    return os.path.join(ws, 'internal_go_pkgs')
-
-def _get_internal_fp_repo_dir(ws):
-    return os.path.join(_get_internal_pkgs_dir(ws), _get_fp_repo_path())
-
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
@@ -353,7 +338,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         sim_use_mtls=False,
                         smus=None):
     
-    internal_fp_repo_dir = _get_internal_fp_repo_dir(ws)
+    internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
+    internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
+
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
                     repo_branch=internal_fp_repo_branch,
@@ -456,7 +443,7 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         testbed=None,
                         **kwargs):
     
-    test_repo_dir = _get_fp_repo_dir(ws)
+    test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
     if internal_test:
         test_repo_url = internal_fp_repo_url
 
