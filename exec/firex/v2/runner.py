@@ -313,6 +313,17 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     except:
         return None
 
+def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
+    logger.print('Reserving testbed...')
+    reserved_testbed = None
+    while not reserved_testbed:
+        for t in testbeds:
+            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
+            if reserved_testbed: break
+        time.sleep(5)
+    logger.print(f'Reserved testbed {reserved_testbed["id"]}')
+    return reserved_testbed
+
 def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
     id = testbed.get('hw', testbed_id)
@@ -803,18 +814,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
-    return reserved_testbed
-
-
-def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
-    logger.print('Reserving testbed...')
-    reserved_testbed = None
-    while not reserved_testbed:
-        for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
-            if reserved_testbed: break
-        time.sleep(5)
-    logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
 # noinspection PyPep8Naming
