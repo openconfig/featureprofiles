@@ -610,7 +610,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
-@app.task(bind=True, max_retries=5, autoretry_for=[git.GitCommandError])
+@app.task(bind=True, max_retries=3, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
     if Path(target_dir).exists():
         logger.warning(f'The target directory "{target_dir}" already exists; removing first')
@@ -818,7 +818,7 @@ def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     return reserved_testbed
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=2, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60)
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
     logger.print("Performing Software Upgrade...")
@@ -867,7 +867,7 @@ def ForceReboot(self, ws, internal_fp_repo_dir, reserved_testbed):
     check_output(reboot_command, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def InstallSMUs(self, ws, internal_fp_repo_dir, reserved_testbed, smus):
     logger.print("Installing SMUs...")
     smu_install_cmd = f'{GO_BIN} test -v ' \
