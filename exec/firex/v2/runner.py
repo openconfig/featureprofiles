@@ -781,6 +781,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
+        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
