@@ -356,13 +356,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
-
-    if not os.path.exists(internal_fp_repo_dir):
-        c = CloneRepo.s(repo_url=internal_fp_repo_url,
-                    repo_branch=internal_fp_repo_branch,
-                    repo_rev=internal_fp_repo_rev,
-                    target_dir=internal_fp_repo_dir)
-        self.enqueue_child_and_get_results(c)
+    c = CloneRepo.s(repo_url=internal_fp_repo_url,
+                repo_branch=internal_fp_repo_branch,
+                repo_rev=internal_fp_repo_rev,
+                target_dir=internal_fp_repo_dir)
+    self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
     reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
