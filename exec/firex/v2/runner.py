@@ -324,9 +324,11 @@ def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
-def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
-    testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
-    id = testbed.get('hw', testbed_id)
+def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
+    if reserved_testbed.get('sim', False): 
+        return True
+            
+    id = reserved_testbed.get('hw', reserved_testbed['id'])
     logger.print(f'Releasing testbed {id}')
     try:
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
@@ -363,9 +365,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
-    reserved_testbed = _reserve_testbed(testbed_logs_dir=testbed_logs_dir, 
-                                        internal_fp_repo_dir=internal_fp_repo_dir, 
-                                        testbeds=testbeds)
+    reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
     if not reserved_testbed:
         raise Exception(f'Could not reserve testbed')
     
@@ -407,7 +407,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
-    result = self.enqueue_child_and_get_results(c)
+    try:
+        result = self.enqueue_child_and_get_results(c)
+    except Exception as e:
+        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        raise e
+
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
@@ -421,8 +426,8 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
             self.orig.s(**self.abog),
             block=True
         )
-    else:
-        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
+    elif reserved_testbed:
+        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
 
 def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
