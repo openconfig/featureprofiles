@@ -71,11 +71,11 @@ duts {
   options {
     username: "cafyauto"
     password: "cisco123"
-    # skip_verify: true
-    mutual_tls: true
-    trust_bundle_file: "$TRUST_BUNDLE_FILE"
-    cert_file: "$CERT_FILE"
-    key_file:  "$KEY_FILE"
+    skip_verify: true
+    #mutual_tls: true
+    #trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    #cert_file: "$CERT_FILE"
+    #key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
