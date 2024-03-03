@@ -141,7 +141,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 	}
 }
 
-func configureFlow(bs *cfgplugins.BGPSession, prefixPairV4 []string, prefixPairV6 []string) {
+func configureFlow(bs *cfgplugins.BGPSession, prefixPair []string, prefixType string) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
@@ -150,9 +150,17 @@ func configureFlow(bs *cfgplugins.BGPSession, prefixPairV4 []string, prefixPairV
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().
-		SetTxNames([]string{bs.ATEPorts[1].Name + ".IPv4"}).
-		SetRxNames(rxNames)
+
+	if prefixType == "ipv4" {
+		flow.TxRx().Device().
+			SetTxNames([]string{bs.ATEPorts[1].Name + ".IPv4"}).
+			SetRxNames(rxNames)
+	} else {
+		flow.TxRx().Device().
+			SetTxNames([]string{bs.ATEPorts[1].Name + ".IPv6"}).
+			SetRxNames(rxNames)
+	}
+
 	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
@@ -160,13 +168,15 @@ func configureFlow(bs *cfgplugins.BGPSession, prefixPairV4 []string, prefixPairV
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[1].MAC)
 
-	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(bs.ATEPorts[1].IPv4)
-	v4.Dst().SetValues(prefixPairV4)
-
-	v6 := flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(bs.ATEPorts[1].IPv6)
-	v6.Dst().SetValues(prefixPairV6)
+	if prefixType == "ipv4" {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(bs.ATEPorts[1].IPv4)
+		v4.Dst().SetValues(prefixPair)
+	} else {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(bs.ATEPorts[1].IPv6)
+		v6.Dst().SetValues(prefixPair)
+	}
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
@@ -211,6 +221,15 @@ func TestCommunitySet(t *testing.T) {
 	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
+	bs.PushAndStart(t)
+
+	t.Log("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+	t.Log("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
+
+	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
+	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
 	testCases := []testCase{
 		{
@@ -244,29 +263,26 @@ func TestCommunitySet(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
+			sleepTime := time.Duration(totalPackets/trafficPps) + 5
+
 			for index, prefixPairV4 := range prefixesV4 {
-				t.Logf("Running traffic test for prefixes: [%s, %s] and [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
 
-				ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
-				ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
-
-				configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
-				configureFlow(bs, prefixPairV4, prefixesV6[index])
-				bs.PushAndStart(t)
-
-				t.Log("Verify DUT BGP sessions up")
-				cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-
-				t.Log("Verify OTG BGP sessions up")
-				cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-				sleepTime := time.Duration(totalPackets/trafficPps) + 5
+				t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], tc.testResults[index])
+				configureFlow(bs, prefixPairV4, "ipv4")
 				bs.ATE.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				bs.ATE.OTG().StopTraffic(t)
-
 				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
 
+				t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], tc.testResults[index])
+				configureFlow(bs, prefixesV6[index], "ipv6")
+				bs.ATE.OTG().StartTraffic(t)
+				time.Sleep(sleepTime * time.Second)
+				bs.ATE.OTG().StopTraffic(t)
+				otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 				verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), tc.testResults[index])
 			}
 		})
