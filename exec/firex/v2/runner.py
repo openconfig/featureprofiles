@@ -831,7 +831,7 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
     else: img = images[0]
     su_command = f'{GO_BIN} test -v ' \
             f'./exec/utils/software_upgrade ' \
-            f'-timeout 5m ' \
+            f'-timeout 60m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
