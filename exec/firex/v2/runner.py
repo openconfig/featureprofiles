@@ -302,6 +302,9 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
 def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
         testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+        if testbed.get('sim', False): 
+            return testbed
+
         id = testbed.get('hw', testbed_id)
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
         if output['status'] == 'ok':
@@ -346,19 +349,19 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                     repo_branch=internal_fp_repo_branch,
                     repo_rev=internal_fp_repo_rev,
                     target_dir=internal_fp_repo_dir)
-
         self.enqueue_child_and_get_results(c)
 
-    reserved_testbed = None
-    if isinstance(testbeds, str):
-        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds)
-    elif len(testbeds) == 1:
-        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds[0])
-
+    if not isinstance(testbeds, list): testbeds = [testbeds]
+    reserved_testbed = _reserve_testbed(testbed_logs_dir=testbed_logs_dir, 
+                                        internal_fp_repo_dir=internal_fp_repo_dir, 
+                                        testbeds=testbeds)
+    if not reserved_testbed:
+        raise Exception(f'Could not reserve testbed')
+    
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
                 reserved_testbed=reserved_testbed, **self.abog)
 
-    using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
+    using_sim = reserved_testbed.get('sim', False) 
     if using_sim:
         topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
         with open(topo_file, "r") as fp:
@@ -378,8 +381,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
-    elif not reserved_testbed:
-        c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
     if using_sim and sim_use_mtls:
@@ -804,16 +805,15 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
 
-@app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
-    soft_time_limit=12*60*60, time_limit=12*60*60)
-def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
+
+def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
             reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
-        time.sleep(1)
+        time.sleep(5)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
