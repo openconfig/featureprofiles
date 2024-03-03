@@ -735,6 +735,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
+    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
@@ -811,6 +812,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
+    reserved_testbed['install_lock_file'] = install_lock_file
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
@@ -825,6 +827,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
+    if os.path.exists(reserved_testbed['install_lock_file']):
+        return
+    
     logger.print("Performing Software Upgrade...")
     
     if image_url: img = image_url
@@ -853,6 +858,8 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
             internal_fp_repo_dir=internal_fp_repo_dir, 
             reserved_testbed=reserved_testbed,
         ))
+
+    Path(reserved_testbed['install_lock_file']).touch()
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
