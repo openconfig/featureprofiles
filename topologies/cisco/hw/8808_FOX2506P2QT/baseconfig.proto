@@ -26,6 +26,8 @@ replace: {
 "aaa map-to username cafyauto spiffe-id any \n"
 "grpc\n"
 " vrf mgmt\n"
+" tls-mutual\n"
+" certificate-authentication\n"
 " service-layer\n"
 " gnmi\n"
 " gribi\n"

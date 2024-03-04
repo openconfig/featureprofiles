@@ -46,11 +46,6 @@
 ## Management interface RP1:
 # ipv4 address 5.78.26.28 
 
-## Copy certificates
-# scp -P 47722 internal/cisco/security/cert/keys/CA/ca.cert.pem cafyauto@10.85.84.159:/misc/config/grpc/ca.cert
-# scp -P 47722 internal/cisco/security/cert/keys/clients/cafyauto.key.pem cafyauto@10.85.84.159:/misc/config/grpc/ems.key
-# scp -P 47722 internal/cisco/security/cert/keys/clients/cafyauto.cert.pem cafyauto@10.85.84.159:/misc/config/grpc/ems.pem
-
 duts {
   id: "dut"
   name: "SF-D"  # Change this to the device hostname.
@@ -71,11 +66,11 @@ duts {
   options {
     username: "cafyauto"
     password: "cisco123"
-    skip_verify: true
-    #mutual_tls: true
-    #trust_bundle_file: "$TRUST_BUNDLE_FILE"
-    #cert_file: "$CERT_FILE"
-    #key_file:  "$KEY_FILE"
+    # skip_verify: true
+    mutual_tls: true
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
