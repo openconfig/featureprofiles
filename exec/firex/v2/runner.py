@@ -302,6 +302,9 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
 def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
         testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
+        if testbed.get('sim', False): 
+            return testbed
+
         id = testbed.get('hw', testbed_id)
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
         if output['status'] == 'ok':
@@ -310,9 +313,22 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     except:
         return None
 
-def _release_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
-    testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
-    id = testbed.get('hw', testbed_id)
+def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
+    logger.print('Reserving testbed...')
+    reserved_testbed = None
+    while not reserved_testbed:
+        for t in testbeds:
+            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
+            if reserved_testbed: break
+        time.sleep(5)
+    logger.print(f'Reserved testbed {reserved_testbed["id"]}')
+    return reserved_testbed
+
+def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
+    if reserved_testbed.get('sim', False): 
+        return True
+            
+    id = reserved_testbed.get('hw', reserved_testbed['id'])
     logger.print(f'Releasing testbed {id}')
     try:
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
@@ -340,25 +356,21 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     
     internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
     internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
+    c = CloneRepo.s(repo_url=internal_fp_repo_url,
+                repo_branch=internal_fp_repo_branch,
+                repo_rev=internal_fp_repo_rev,
+                target_dir=internal_fp_repo_dir)
+    self.enqueue_child_and_get_results(c)
 
-    if not os.path.exists(internal_fp_repo_dir):
-        c = CloneRepo.s(repo_url=internal_fp_repo_url,
-                    repo_branch=internal_fp_repo_branch,
-                    repo_rev=internal_fp_repo_rev,
-                    target_dir=internal_fp_repo_dir)
-
-        self.enqueue_child_and_get_results(c)
-
-    reserved_testbed = None
-    if isinstance(testbeds, str):
-        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds)
-    elif len(testbeds) == 1:
-        reserved_testbed = _get_testbed_by_id(internal_fp_repo_dir, testbeds[0])
-
+    if not isinstance(testbeds, list): testbeds = [testbeds]
+    reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
+    if not reserved_testbed:
+        raise Exception(f'Could not reserve testbed')
+    
     c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
                 reserved_testbed=reserved_testbed, **self.abog)
 
-    using_sim = reserved_testbed and reserved_testbed.get('sim', False) 
+    using_sim = reserved_testbed.get('sim', False) 
     if using_sim:
         topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
         with open(topo_file, "r") as fp:
@@ -378,8 +390,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         with open(topo_file, "w") as fp:
             fp.write(yaml.dump(topo_yaml))
         c |= self.orig.s(plat='8000', topo_file=topo_file)
-    elif not reserved_testbed:
-        c |= ReserveTestbed.s()
 
     c |= GenerateOndatraTestbedFiles.s()
     if using_sim and sim_use_mtls:
@@ -395,7 +405,12 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         c |= ForceReboot.s()
     if collect_tb_info:
         c |= CollectTestbedInfo.s()
-    result = self.enqueue_child_and_get_results(c)
+    try:
+        result = self.enqueue_child_and_get_results(c)
+    except Exception as e:
+        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        raise e
+
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
             result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
             result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
@@ -409,8 +424,8 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
             self.orig.s(**self.abog),
             block=True
         )
-    else:
-        _release_testbed(internal_fp_repo_dir, reserved_testbed['id'], testbed_logs_dir)
+    elif reserved_testbed:
+        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
 
 def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
@@ -718,6 +733,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_binding_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.binding')
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
+    install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
@@ -763,6 +779,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     else:
         testbed_info_path = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_info.txt')
+        install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_install.lock')
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
@@ -794,6 +812,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
+    reserved_testbed['install_lock_file'] = install_lock_file
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
@@ -804,23 +823,13 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
 
-@app.task(base=FireX, bind=True, returns=('reserved_testbed'), 
-    soft_time_limit=12*60*60, time_limit=12*60*60)
-def ReserveTestbed(self, testbed_logs_dir, internal_fp_repo_dir, testbeds):
-    logger.print('Reserving testbed...')
-    reserved_testbed = None
-    while not reserved_testbed:
-        for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
-            if reserved_testbed: break
-        time.sleep(1)
-    logger.print(f'Reserved testbed {reserved_testbed["id"]}')
-    return reserved_testbed
-
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
+    if os.path.exists(reserved_testbed['install_lock_file']):
+        return
+    
     logger.print("Performing Software Upgrade...")
     
     if image_url: img = image_url
@@ -849,6 +858,8 @@ def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_di
             internal_fp_repo_dir=internal_fp_repo_dir, 
             reserved_testbed=reserved_testbed,
         ))
+
+    Path(reserved_testbed['install_lock_file']).touch()
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60)
