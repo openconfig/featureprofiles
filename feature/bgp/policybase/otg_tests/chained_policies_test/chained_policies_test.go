@@ -43,13 +43,14 @@ const (
 	v42Route          = "198.51.100.0"
 	v42TrafficStart   = "198.51.100.1"
 	v4RoutePrefix     = uint32(24)
-	v61Route          = "2001:db8:128:128::0"
+	v61Route          = "2001:db8:128:128::"
 	v61TrafficStart   = "2001:db8:128:128::1"
-	v62Route          = "2001:db8:128:129::0"
+	v62Route          = "2001:db8:128:129::"
 	v62TrafficStart   = "2001:db8:128:129::1"
 	v6RoutePrefix     = uint32(64)
 	dutAS             = uint32(65656)
-	ateAS             = uint32(65657)
+	ateAS1            = uint32(65657)
+	ateAS2            = uint32(65658)
 	bgpName           = "BGP"
 	maskLenExact      = "exact"
 	localPref         = 200
@@ -624,17 +625,17 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
-	nV41.SetPeerAs(ateAS)
+	nV41.SetPeerAs(ateAS1)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
-	nV42.SetPeerAs(ateAS)
+	nV42.SetPeerAs(ateAS2)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
-	nV61.SetPeerAs(ateAS)
+	nV61.SetPeerAs(ateAS1)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
-	nV62.SetPeerAs(ateAS)
+	nV62.SetPeerAs(ateAS2)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	if deviations.BGPNeighborUnderPeerGroup(td.dut) {
@@ -654,11 +655,13 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	ipv41 := td.otgP1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dev1BGP := td.otgP1.Bgp().SetRouterId(atePort1.IPv4)
 	bgp4Peer1 := dev1BGP.Ipv4Interfaces().Add().SetIpv4Name(ipv41.Name()).Peers().Add().SetName(td.otgP1.Name() + ".BGP4.peer")
-	bgp4Peer1.SetPeerAddress(dutPort1.IPv4).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp4Peer1.SetPeerAddress(dutPort1.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp4Peer1.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	ipv61 := td.otgP1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	bgp6Peer1 := dev1BGP.Ipv6Interfaces().Add().SetIpv6Name(ipv61.Name()).Peers().Add().SetName(td.otgP1.Name() + ".BGP6.peer")
-	bgp6Peer1.SetPeerAddress(dutPort1.IPv6).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	bgp6Peer1.SetPeerAddress(dutPort1.IPv6).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	bgp6Peer1.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// configure emulated network on ATE port1
 	netv41 := bgp4Peer1.V4Routes().Add().SetName("v4-bgpNet-dev1")
@@ -670,11 +673,13 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	ipv42 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dev2BGP := td.otgP2.Bgp().SetRouterId(atePort2.IPv4)
 	bgp4Peer2 := dev2BGP.Ipv4Interfaces().Add().SetIpv4Name(ipv42.Name()).Peers().Add().SetName(td.otgP2.Name() + ".BGP4.peer")
-	bgp4Peer2.SetPeerAddress(dutPort2.IPv4).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp4Peer2.SetPeerAddress(dutPort2.IPv4).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp4Peer2.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	ipv62 := td.otgP2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	bgp6Peer2 := dev2BGP.Ipv6Interfaces().Add().SetIpv6Name(ipv62.Name()).Peers().Add().SetName(td.otgP2.Name() + ".BGP6.peer")
-	bgp6Peer2.SetPeerAddress(dutPort2.IPv6).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	bgp6Peer2.SetPeerAddress(dutPort2.IPv6).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	bgp6Peer2.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// configure emulated network on ATE port2
 	netv42 := bgp4Peer2.V4Routes().Add().SetName("v4-bgpNet-dev2")
