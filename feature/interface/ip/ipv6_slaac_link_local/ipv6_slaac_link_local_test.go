@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ygot/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra"
 )
 
 var (
@@ -46,7 +46,7 @@ func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) 
 				allIPv6 = append(allIPv6, fmt.Sprintf("%s/%d", v6.GetIp(), v6.GetPrefixLength()))
 			}
 		}
-		if len(allIPv6) > 0 {
+	        if hasSLAACGeneratedAddress(allIPv6) {
 			break
 		}
 	}
