@@ -10,27 +10,35 @@ duts {
   hardware_model: "CISCO-8808"
   ports {
     id: "port1"
+    speed: S_100GB 
   }
   ports {
     id: "port2"
+    speed: S_100GB 
   }
   ports {
     id: "port3"
+    speed: S_100GB 
   }
   ports {
     id: "port4"
+    speed: S_100GB 
   }
   ports {
     id: "port5"
+    speed: S_100GB 
   }
   ports {
     id: "port6"
+    speed: S_100GB 
   }
   ports {
     id: "port7"
+    speed: S_100GB 
   }
   ports {
     id: "port8"
+    speed: S_100GB 
   }
 }
 
@@ -38,27 +46,35 @@ ates {
   id: "ate"
   ports {
     id: "port1"
+    speed: S_100GB 
   }
   ports {
     id: "port2"
+    speed: S_100GB 
   }
   ports {
     id: "port3"
+    speed: S_100GB 
   }
   ports {
     id: "port4"
+    speed: S_100GB 
   }
   ports {
     id: "port5"
+    speed: S_100GB 
   }
   ports {
     id: "port6"
+    speed: S_100GB 
   }
   ports {
     id: "port7"
+    speed: S_100GB 
   }
   ports {
     id: "port8"
+    speed: S_100GB 
   }
 }
 
