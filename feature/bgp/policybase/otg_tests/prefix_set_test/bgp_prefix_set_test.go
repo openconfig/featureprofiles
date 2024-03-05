@@ -393,10 +393,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
 	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
-		if gotInstalled == wantInstalled {
-			return true
-		}
-		return false
+		return gotInstalled == wantInstalled
 	}).Await(t)
 	if !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
@@ -406,10 +403,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 		// Waiting for Received count to get updated after session comes up or policy is applied
 		gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, _ := val.Val()
-			if gotRx == wantRx {
-				return true
-			}
-			return false
+			return gotRx == wantRx
 		}).Await(t)
 		if !ok {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
@@ -419,10 +413,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
 	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotSent, _ := val.Val()
-		if gotSent == wantSent {
-			return true
-		}
-		return false
+		return gotSent == wantSent
 	}).Await(t)
 	if !ok {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)

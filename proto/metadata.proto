@@ -37,6 +37,7 @@ message Metadata {
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
     TESTBED_DUT_ATE_8LINKS = 7;
+    TESTBED_DUT_400ZR = 8;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -419,8 +420,12 @@ message Metadata {
     bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
+    // Devices do not support BGP conditions match-community-set
+    bool bgp_conditions_match_community_set_unsupported = 148;
+    // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 149;       
     // Skip setting prefix-set mode while configuring prefix-set routing-policy
-    bool skip_prefix_set_mode = 148;
+    bool skip_prefix_set_mode = 150;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
