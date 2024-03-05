@@ -17,3 +17,12 @@ platform_exceptions: {
     skip_set_rp_match_set_options: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_neighbor_under_peer_group: true
+    bgp_rib_oc_path_unsupported:  true
+  }
+}
