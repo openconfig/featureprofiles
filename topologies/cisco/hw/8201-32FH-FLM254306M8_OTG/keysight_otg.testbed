@@ -9,15 +9,19 @@ duts {
   hardware_model: '8201'
   ports {
     id: "port1"
+    speed: S_10GB
   }
   ports {
     id: "port2"
+    speed: S_10GB
   }
   ports {
     id: "port3"
+    speed: S_10GB
   }
   ports {
     id: "port4"
+    speed: S_10GB
   }
 }
 
