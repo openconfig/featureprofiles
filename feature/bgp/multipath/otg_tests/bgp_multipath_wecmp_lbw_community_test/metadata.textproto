@@ -1,0 +1,39 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f76a89e9-a2f1-4160-b6e6-e762dc10219a"
+plan_id: "RT-1.52"
+description: "BGP multipath UCMP support with Link Bandwidth Community"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+    skip_setting_allow_multiple_as: false
+  }
+}
+tags: TAGS_DATACENTER_EDGE
