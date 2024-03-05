@@ -24,6 +24,8 @@ duts {
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
     }
+  vendor: CISCO
+  hardware_model: '8201'
   options {
     insecure: false 
     skip_verify: true
@@ -54,18 +56,22 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/0/0/27/0"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port2"
     name: "TenGigE0/0/0/27/1"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port3"
     name: "TenGigE0/0/0/27/2" # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port4"
     name: "TenGigE0/0/0/27/3"  # Change this to the actual port name.
+    speed: S_10GB
   }
 }
 
@@ -89,17 +95,21 @@ ates {
   ports {
     id: "port1"
     name: "3/9"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
   }
   ports {
     id: "port2"
     name: "3/10"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
   }
   ports {
     id: "port3"
     name: "3/11"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
   }
   ports {
     id: "port4"
     name: "3/12"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
   }
 }
