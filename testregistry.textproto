@@ -467,7 +467,7 @@ test: {
 test: {
   id: "RT-5.9"
   description: "Interface IPv6 ND RA disable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md"
   exec: " "
 }
 test: {
