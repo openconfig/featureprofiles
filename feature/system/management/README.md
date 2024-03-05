@@ -65,14 +65,14 @@ For each section of configuration below, prepare a gnmi.SetBatch with all the co
 	*   /network-instances/network-instance[name=mgmt]/protocols/protocol[identifier=STATIC, name=static]/static-routes/static/config/next-hops/next-hop[index=1]/config/next-hop = <VRRP Virtual IP>
 	*   /network-instances/network-instance[name=mgmt]/protocols/protocol[identifier=STATIC, name=static]/static-routes/static/config/next-hops/next-hop[index=1]/config/admin-distance = 220
 
-### MGT-1.1 [TODO: https://github.com/openconfig/featureprofiles/issues/]
+### MGT-1.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2762]
 #### Testing reachability to the DUT loopback with no failures in the network
 ---
 
 *   Generate ICMP echo (ping) sourced from the ```ateNet``` network destined towards the DUT loopback0 IPv6 address
 *   Validate ICMP echo-reply is received by the ATE on Port-1 or Port-2
 
-### MGT-1.2 [TODO: https://github.com/openconfig/featureprofiles/issues/]
+### MGT-1.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2762]
 #### Testing BGP redundancy
 ---
 
@@ -83,7 +83,7 @@ For each section of configuration below, prepare a gnmi.SetBatch with all the co
 *   Generate ICMP echo (ping) sourced from the ```ateNet``` network destined towards the DUT loopback0 IPv6 address
 *   Validate ICMP echo-reply is received by the ATE on Port-1
 
-### MGT-1.3 [TODO: https://github.com/openconfig/featureprofiles/issues/]
+### MGT-1.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2762]
 #### Testing failover between BGP and Static route
 ---
 
@@ -94,7 +94,7 @@ For each section of configuration below, prepare a gnmi.SetBatch with all the co
 *   Generate ICMP echo (ping) sourced from the ```ateNet``` network destined towards the DUT loopback0 IPv6 address
 *   Validate ICMP echo-reply is received by the ATE on Port-1 or Port-2
 
-### MGT-1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/]
+### MGT-1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2762]
 #### Testing VRRP redundancy
 ---
 
