@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot/ygot"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -46,7 +46,7 @@ func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) 
 				allIPv6 = append(allIPv6, fmt.Sprintf("%s/%d", v6.GetIp(), v6.GetPrefixLength()))
 			}
 		}
-	        if hasSLAACGeneratedAddress(allIPv6) {
+		if hasSLAACGeneratedAddress(allIPv6) {
 			break
 		}
 	}
