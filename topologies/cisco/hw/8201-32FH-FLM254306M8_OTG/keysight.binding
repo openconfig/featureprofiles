@@ -24,6 +24,8 @@ duts {
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
     }
+  vendor: CISCO
+  hardware_model: '8201'
   options {
     insecure: false 
     skip_verify: true
