@@ -333,10 +333,6 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, d)
 	gnmi.Replace(t, d, defNIPath.PolicyForwarding().Config(), configurePBF(d))
 
-	if deviations.ExplicitGRIBIUnderNetworkInstance(d) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, nonDefaultVRF)
-		fptest.EnableGRIBIUnderNetworkInstance(t, d, deviations.DefaultNetworkInstance(d))
-	}
 }
 
 // assignSubifsToDefaultNetworkInstance assign subinterfaces to the default network instance when ExplicitInterfaceInDefaultVRF is enabled.
@@ -370,17 +366,19 @@ func applyForwardingPolicy(t *testing.T, ingressPort string) {
 	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
 	d := &oc.Root{}
 	dut := ondatra.DUT(t, "dut")
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(ingressPort)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(ingressPort)
-	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	if deviations.ExplicitInterfaceRefDefinition(dut) {
-		pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-		pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		if deviations.InterfaceRefConfigUnsupported(dut) {
-			pfCfg.InterfaceRef = nil
-		}
-		gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
+	interfaceID := ingressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = ingressPort + ".0"
 	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
+	}
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
 // configureATE configures Ethernet + IPv4 on the ATE. If the number of
@@ -446,7 +444,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	dut := ondatra.DUT(t, "dut")
 	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	top.Flows().Clear().Items()
-	flowipv4 := top.Flows().Add().SetName("Flow")
+	flowipv4 := top.Flows().Add().SetName("flow")
 	flowipv4.Metrics().SetEnable(true)
 	flowipv4.TxRx().Port().SetTxName(atePort1.Name).SetRxNames([]string{atePort2.Name})
 	flowipv4.Size().SetFixed(100)
@@ -485,7 +483,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	}
 
 	// Compare traffic distribution with the wanted results.
-	results := filterPacketReceived(t, "Flow", ate)
+	results := filterPacketReceived(t, "flow", ate)
 	t.Logf("Filters: %v", results)
 	return results
 }
