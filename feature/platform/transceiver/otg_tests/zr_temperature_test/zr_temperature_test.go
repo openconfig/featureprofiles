@@ -17,8 +17,9 @@ package zr_temperature_test
 import (
 	"fmt"
 	"reflect"
-        "testing"
-        "time"
+	"testing"
+	"time"
+
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
