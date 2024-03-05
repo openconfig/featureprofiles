@@ -276,6 +276,10 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 }
 
 func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+	if r.Dynamic {
+		return dynamicReservation(tb, r)
+	}
+
 	var errs []error
 
 	bduts := make(map[string]*bindpb.Device)
@@ -323,6 +327,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
 		DUTs: duts,
 		ATEs: ates,
 	}, errs
+}
+
+func dynamicReservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+	return nil, []error{fmt.Errorf("dynamic solving not implemented yet")}
 }
 
 func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
