@@ -1,10 +1,15 @@
 steps:
+  - id: fetch-secrets
+    name: gcr.io/cloud-builders/gcloud
+    script: |
+      gcloud secrets versions access latest --secret=featureprofiles-ci-ssh > builder-key
+      gcloud secrets versions access latest --secret=featureprofiles-ci-ssh-pub > builder-key.pub
   - id: fp-presubmit
     name: gcr.io/${PROJECT_ID}/remote-builder
     waitFor: ["-"]
     env:
       - USERNAME=user
-      - SSH_ARGS=--internal-ip --ssh-key-expire-after=1d
+      - SSH_ARGS=--internal-ip
       - INSTANCE_NAME=fp-presubmit-${BUILD_ID}
       - INSTANCE_ARGS=--network cloudbuild-workers --image-project gep-kne --image-family kne --machine-type ${_MACHINE_TYPE} ${_MACHINE_ARGS} --boot-disk-size 200GB --service-account=fp-kne@disco-idea-817.iam.gserviceaccount.com --scopes=default,compute-rw
       - ZONE=us-west1-a
