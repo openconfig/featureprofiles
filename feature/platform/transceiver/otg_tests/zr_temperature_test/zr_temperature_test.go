@@ -25,8 +25,8 @@ import (
         "github.com/openconfig/ondatra/gnmi/oc"
         "github.com/openconfig/ygnmi/ygnmi"
         "github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/featureprofiles/internal/samplestream/samplestream"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 )
 
 const (
