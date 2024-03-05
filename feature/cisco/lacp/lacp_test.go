@@ -1,14 +1,28 @@
-package basetest
+package lacp_test
 
 import (
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
+
+const inputFile = "testdata/interface.yaml"
+
+var (
+	testInput = ipb.LoadInput(inputFile)
+	device1   = "dut"
+	observer  = fptest.NewObserver("LACP").AddCsvRecorder("ocreport").AddCsvRecorder("LACP")
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
 
 func TestLacpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
@@ -36,6 +50,7 @@ func TestLacpCfgs(t *testing.T) {
 	t.Cleanup(func() {
 		gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(iut.Name()).Config())
 	})
+	setInterfaceName(t, dut, iut.Name())
 
 	t.Run("Update//lacp/interfaces/interface/config/interval", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).Interval()
@@ -43,7 +58,6 @@ func TestLacpCfgs(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), oc.Lacp_LacpPeriodType_SLOW)
 
 	})
-
 	t.Run("Update//lacp/interfaces/interface/config/system-priority", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).SystemPriority()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -60,10 +74,9 @@ func TestLacpCfgs(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).LacpMode()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), oc.Lacp_LacpActivityType_ACTIVE)
-
 	})
-
 }
+
 func TestLacpState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
@@ -78,24 +91,30 @@ func TestLacpState(t *testing.T) {
 	member := iut.Members()[0]
 	systemIDMac := "00:03:00:04:00:05"
 	priority := uint16(100)
+
+	setInterfaceName(t, dut, iut.Name())
+
+	t.Run("Update//lacp/interfaces/interface/config/interval", func(t *testing.T) {
+		path := gnmi.OC().Lacp().Interface(iut.Name()).Interval()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		gnmi.Update(t, dut, path.Config(), oc.Lacp_LacpPeriodType_SLOW)
+	})
 	t.Run("Update//lacp/interfaces/interface/config/system-priority", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).SystemPriority()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), priority)
-
 	})
 	t.Run("Update//lacp/interfaces/interface/config/system-id-mac", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).SystemIdMac()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), systemIDMac)
-
 	})
 	t.Run("Update//lacp/interfaces/interface/config/lacp-mode", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).LacpMode()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), oc.Lacp_LacpActivityType_ACTIVE)
-
 	})
+
 	t.Run("Subscribe//lacp/interfaces/interface/members/member/state/oper-key", func(t *testing.T) {
 		state := gnmi.OC().Lacp().Interface(iut.Name()).Member(member).OperKey()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -104,7 +123,6 @@ func TestLacpState(t *testing.T) {
 			t.Errorf("Lacp OperKey: got %d, want !=%d", val, 0)
 
 		}
-
 	})
 	t.Run("Subscribe//lacp/interfaces/interface/members/member/state/system-id", func(t *testing.T) {
 		state := gnmi.OC().Lacp().Interface(iut.Name()).Member(member).SystemId()
@@ -114,7 +132,6 @@ func TestLacpState(t *testing.T) {
 			t.Errorf("Lacp SystemId: got %s, want !=%s", val, "''")
 
 		}
-
 	})
 	t.Run("Subscribe//lacp/interfaces/interface/members/member/state/port-num", func(t *testing.T) {
 		state := gnmi.OC().Lacp().Interface(iut.Name()).Member(member).PortNum()
@@ -124,7 +141,6 @@ func TestLacpState(t *testing.T) {
 			t.Errorf("Lacp PortNum: got %d, want !=%d", val, 0)
 
 		}
-
 	})
 	t.Run("Subscribe//lacp/interfaces/interface/members/member/state/partner-id", func(t *testing.T) {
 		state := gnmi.OC().Lacp().Interface(iut.Name()).Member(member).PartnerId()
@@ -134,9 +150,7 @@ func TestLacpState(t *testing.T) {
 			t.Errorf("Lacp PartnerId: got %s, want !=%s", val, "''")
 
 		}
-
 	})
-
 }
 
 func TestLacpCountersState(t *testing.T) {
@@ -149,6 +163,12 @@ func TestLacpCountersState(t *testing.T) {
 	member := iut.Members()[0]
 	systemIDMac := "00:03:00:04:00:05"
 	priority := uint16(100)
+	setInterfaceName(t, dut, iut.Name())
+	t.Run("Update//lacp/interfaces/interface/config/interval", func(t *testing.T) {
+		path := gnmi.OC().Lacp().Interface(iut.Name()).Interval()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		gnmi.Update(t, dut, path.Config(), oc.Lacp_LacpPeriodType_SLOW)
+	})
 	t.Run("Update//lacp/interfaces/interface/config/system-priority", func(t *testing.T) {
 		path := gnmi.OC().Lacp().Interface(iut.Name()).SystemPriority()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -228,7 +248,6 @@ func TestLacpCountersState(t *testing.T) {
 		}
 
 	})
-
 }
 
 func TestLacpTelemetry(t *testing.T) {
@@ -244,18 +263,17 @@ func TestLacpTelemetry(t *testing.T) {
 	systemPriority1 := uint16(100)
 	systemPriority2 := uint16(200)
 
-	//Default susbcription rate is 30 seconds.
+	// Default subscription rate is 30 seconds.
 	subscriptionDuration := 50 * time.Second
 	triggerDelay := 15 * time.Second
 	expectedEntries := 2
 
-	t.Run("Subscribe///lacp/interfaces/interface/state/system-id-mac", func(t *testing.T) {
-
-		//initialise system-id-mac
+	t.Run("Subscribe//lacp/interfaces/interface/state/system-id-mac", func(t *testing.T) {
+		// initialise system-id-mac
 		gnmi.Update(t, dut, gnmi.OC().Lacp().Interface(iut.Name()).SystemIdMac().Config(), systemIDMac1)
 		t.Logf("Updated SystemIdMac :%s", gnmi.Lookup(t, dut, gnmi.OC().Lacp().Interface(iut.Name()).SystemIdMac().State()))
 
-		//delay triggering system-id-mac change
+		// delay triggering system-id-mac change
 		go func(t *testing.T) {
 			time.Sleep(triggerDelay)
 			gnmi.Update(t, dut, gnmi.OC().Lacp().Interface(iut.Name()).SystemIdMac().Config(), systemIDMac2)
@@ -302,3 +320,10 @@ func TestLacpTelemetry(t *testing.T) {
 
 	})
 }
+
+func setInterfaceName(t *testing.T, dev *ondatra.DUTDevice, name string) {
+	ifPath := gnmi.OC().Lacp().Interface(name).Name().Config()
+	gnmi.Update(t, dev, ifPath, name)
+}
+
+// TODO - future enhancement - state testcases should check for streaming telemetry rather than gnmi.Get i.e ONCE subscription
