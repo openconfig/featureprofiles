@@ -27,6 +27,9 @@ message Binding {
 
   // Dial options across all devices, unless overridden by the device.
   Options options = 3;
+
+  // Enable dynamic solving of this binding.
+  bool dynamic = 4;
 }
 
 // Config for resetting the device before the test run.

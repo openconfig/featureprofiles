@@ -572,6 +572,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntf.Af = nil
+		}
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevelAfi.Enabled = nil
+		}
 	}
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
