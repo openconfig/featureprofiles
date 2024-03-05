@@ -295,7 +295,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
-	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.GetConfig(t, d, intfPath.Config()))
+	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -326,7 +326,7 @@ func configureNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	}
 	dni := gnmi.OC().NetworkInstance(nonDefaultVRF)
 	gnmi.Replace(t, d, dni.Config(), ni)
-	fptest.LogQuery(t, "NI", dni.Config(), gnmi.GetConfig(t, d, dni.Config()))
+	fptest.LogQuery(t, "NI", dni.Config(), gnmi.Get(t, d, dni.Config()))
 
 	// configure PBF in DEFAULT vrf
 	defNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
@@ -452,7 +452,7 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) map[
 	flowipv4.Size().SetFixed(100)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().SetValue(ipv4FlowIP)
