@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygnmi/ygnmi"
+
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -245,7 +246,6 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			}
 			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
 			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
-
 			for _, inputPower := range inputPowers {
 				inPower, ok := inputPower.Val()
 				if !ok {
