@@ -37,5 +37,6 @@ platform_exceptions:  {
   deviations:  {
     transceiver_thresholds_unsupported:  true
     temperature_sensor_check: true
+    use_transceiver_name: true
   }
 }

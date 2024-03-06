@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -236,7 +237,12 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
-			channels := gnmi.OC().Component(transceiverName).Transceiver().ChannelAny()
+			var channels *platform.Component_Transceiver_ChannelPathAny
+			if deviations.UseTransceiverName(dut) {
+				channels = gnmi.OC().Component(transceiverName).Transceiver().ChannelAny()
+			} else {
+				channels = gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
+			}
 			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
 			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
 
@@ -250,7 +256,19 @@ func TestOpticsPowerUpdate(t *testing.T) {
 					t.Errorf("Get inputPower for port %q): got %.2f, want within [%f, %f]", dp.Name(), inPower, minOpticsPower, maxOpticsPower)
 				}
 			}
-			for _, outputPower := range outputPowers {
+			for index, outputPower := range outputPowers {
+				if deviations.UseTransceiverName(dut) {
+					// For Cisco, componenet is the transceiver which can hold multiple breakout interfaces hence we need to match the index
+					interface_index := strings.Split(dp.Name(), "GigE")[1]
+					transceiver_index := strings.Split(transceiverName, "GigE")[1]
+					if len(interface_index) > len(transceiver_index) {
+						lastchar := interface_index[len(interface_index)-1]
+						intValue := int(lastchar - '0')
+						if index != intValue {
+							continue
+						}
+					}
+				}
 				outPower, ok := outputPower.Val()
 				if !ok {
 					t.Errorf("Get outputPower for port %q: got 0, want > 0", dp.Name())

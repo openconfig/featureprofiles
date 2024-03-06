@@ -425,7 +425,9 @@ message Metadata {
     // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
     bool pf_require_match_default_rule = 149;
     // Check is transceiver subcomponent should look for the temperature sensor
-    bool temperature_sensor_check = 150;    
+    bool temperature_sensor_check = 150;
+    // Use transceiver name for collecting component information
+    bool use_transceiver_name = 151;    
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
