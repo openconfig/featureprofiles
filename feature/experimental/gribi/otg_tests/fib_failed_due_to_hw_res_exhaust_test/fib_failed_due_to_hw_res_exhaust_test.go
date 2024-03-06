@@ -356,6 +356,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	var lossPct uint64
+	trafficPassed := true
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
 	} else {
@@ -368,7 +369,8 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			tags := et.Tags
 			for _, tag := range tags {
 				if tag.GetTagName() == dstTracking && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
-					t.Errorf("Traffic received for Failed FIB Route")
+					trafficPassed = false
+					break
 				}
 			}
 		}
@@ -378,6 +380,12 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 		} else {
 			t.Logf("Traffic Test Passed!")
 		}
+	}
+
+	if !trafficPassed {
+		t.Errorf("Traffic received on Failed FIB")
+	} else {
+		t.Logf("Traffic Test Passed!")
 	}
 }
 
