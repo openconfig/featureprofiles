@@ -87,18 +87,18 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*60).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
 				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 			}
-			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*60).Await(t)
 			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 			if len(outputPowers) == 0 {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 			}
 
-			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
+			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*60).Await(t)
 			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)

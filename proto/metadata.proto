@@ -427,7 +427,7 @@ message Metadata {
     // Check is transceiver subcomponent should look for the temperature sensor
     bool temperature_sensor_check = 150;
     // Use transceiver name for collecting component information
-    bool use_transceiver_name = 151;    
+    bool use_transceiver_name = 151;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
