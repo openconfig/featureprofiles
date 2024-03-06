@@ -8,7 +8,6 @@ duts {
   id: "dut"
   vendor: CISCO
   hardware_model: "CISCO-8000"
-  software_version: "IOSXR"
   ports {
     id: "port1"
   }
