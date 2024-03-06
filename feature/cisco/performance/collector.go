@@ -1,10 +1,13 @@
 package main
 
 import (
+	// "context"
+	// "encoding/json"
 	"sync"
 	"testing"
 	"time"
 
+	// gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -57,13 +60,13 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 		ticker := time.NewTicker(freq)
 		timer := time.NewTimer(dur)
 		done := false
+		defer close(cpuChan)
 		for !done {
 			select {
 			case <-ticker.C:
 				data := gnmi.GetAll[*oc.System_Cpu](t, dut, gnmi.OC().System().CpuAny().State())
 				cpuChan <- data
 			case <-timer.C:
-				close(cpuChan)
 				done = true
 			}
 		}
@@ -81,13 +84,13 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 		ticker := time.NewTicker(freq)
 		timer := time.NewTimer(dur)
 		done := false
+		defer close(memChan)
 		for !done {
 			select {
 			case <-ticker.C:
 				data := gnmi.Get[*oc.System_Memory](t, dut, gnmi.OC().System().Memory().State())
 				memChan <- data
 			case <-timer.C:
-				close(memChan)
 				done = true
 			}
 		}
@@ -101,7 +104,7 @@ func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Coll
 	defer collector.Done()
 	for cpuData := range cpuChan {
 		// change from log to capture
-		t.Logf("\nCPU INFO:, t: %d\n%s\n", time.Now().Unix(), PrettyPrint(cpuData))
+		t.Logf("\nCPU INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(cpuData))
 		collector.CpuLogs = append(collector.CpuLogs, cpuData)
 	}
 }
@@ -111,7 +114,7 @@ func receiveMemData(t *testing.T, memChan chan *oc.System_Memory, collector *Col
 	defer collector.Done()
 	for memData := range memChan {
 		// change from log to capture
-		t.Logf("\nMemory INFO:, t: %d\n%s\n", time.Now().Unix(), PrettyPrint(memData))
+		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(memData))
 		collector.MemLogs = append(collector.MemLogs, memData)
 	}
 }
