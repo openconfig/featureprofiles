@@ -21,6 +21,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -394,11 +395,11 @@ func (tc *testCase) verifyLACPTelemetry(t *testing.T) {
 			t.Errorf("DUT LAG %s: ATE partner-key (%d) did not match DUT oper-key (%d)", tc.aggID, ateLACP.PartnerKey, dutLACP.OperKey)
 		}
 
-		if ateLACP.PartnerId == nil || dutLACP.SystemId == nil || *ateLACP.PartnerId != *dutLACP.SystemId {
+		if ateLACP.PartnerId == nil || dutLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
 			t.Errorf("DUT LAG %s: ATE partner-id (%s) did not match DUT system-id (%s)", tc.aggID, *ateLACP.PartnerId, *dutLACP.SystemId)
 		}
 
-		if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || *dutLACP.PartnerId != *ateLACP.SystemId {
+		if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
 			t.Errorf("DUT LAG %s: ATE system-id (%s) did not match DUT partner-id (%s)", tc.aggID, *ateLACP.SystemId, *dutLACP.PartnerId)
 		}
 	}
