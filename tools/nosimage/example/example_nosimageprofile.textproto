@@ -37,29 +37,23 @@ ocpaths: {
 }
 ocrpcs: {
   oc_protocols: {
-    key: "gnmi.gNMI"
+    key: "gnmi"
     value: {
-      method_name: "Set"
-      method_name: "Subscribe"
+      method_name: "gnmi.gNMI.Set"
+      method_name: "gnmi.gNMI.Subscribe"
       version: "0.10.0"
     }
   }
   oc_protocols: {
-    key: "gnoi.bgp.BGP"
+    key: "gnoi"
     value: {
-      method_name: "ClearBGPNeighbor"
-      version: "0.1.0"
-    }
-  }
-  oc_protocols: {
-    key: "gnoi.healthz.Healthz"
-    value: {
-      method_name: "Acknowledge"
-      method_name: "Artifact"
-      method_name: "Check"
-      method_name: "Get"
-      method_name: "List"
-      version: "1.3.0"
+      method_name: "gnoi.bgp.BGP.ClearBGPNeighbor"
+      method_name: "gnoi.healthz.Healthz.Acknowledge"
+      method_name: "gnoi.healthz.Healthz.Artifact"
+      method_name: "gnoi.healthz.Healthz.Check"
+      method_name: "gnoi.healthz.Healthz.Get"
+      method_name: "gnoi.healthz.Healthz.List"
+      version: "0.3.0"
     }
   }
 }

@@ -35,3 +35,4 @@ platform_exceptions: {
     backup_nhg_requires_vrf_with_decap: true
   }
 }
+tags: TAGS_TRANSIT

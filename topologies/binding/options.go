@@ -23,18 +23,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// IANA assigns 9339 for gNxI, and 9559 for P4RT.  There hasn't been a
-// port assignment for gRIBI, so using Arista's default which is 6040.
+// IANA assigns 9339 for gNxI, 9559 for P4RT and 9340 for gRIBI.
 var (
 	gnmiPort    = flag.Int("gnmi_port", 9339, "default gNMI port")
 	gnoiPort    = flag.Int("gnoi_port", 9339, "default gNOI port")
 	gnsiPort    = flag.Int("gnsi_port", 9339, "default gNSI port")
-	gribiPort   = flag.Int("gribi_port", 6040, "default gRIBI port")
+	gribiPort   = flag.Int("gribi_port", 9340, "default gRIBI port")
 	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
 	ateGNMIPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
-	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE gRPC port for running OTG test")
+	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE OTG port")
 
-	serviceToParams = map[introspect.Service]*svcParams{
+	dutSvcParams = map[introspect.Service]*svcParams{
 		introspect.GNMI: {
 			port:   *gnmiPort,
 			optsFn: (*bindpb.Device).GetGnmi,
@@ -54,6 +53,17 @@ var (
 		introspect.P4RT: {
 			port:   *p4rtPort,
 			optsFn: (*bindpb.Device).GetP4Rt,
+		},
+	}
+
+	ateSvcParams = map[introspect.Service]*svcParams{
+		introspect.GNMI: {
+			port:   *ateGNMIPort,
+			optsFn: (*bindpb.Device).GetGnmi,
+		},
+		introspect.OTG: {
+			port:   *ateOTGPort,
+			optsFn: (*bindpb.Device).GetOtg,
 		},
 	}
 )
@@ -78,28 +88,7 @@ type resolver struct {
 	*bindpb.Binding
 }
 
-// dutByID looks up the *bindpb.Device with the given dutID.
-func (r *resolver) dutByID(dutID string) *bindpb.Device {
-	for _, dut := range r.Duts {
-		if dut.Id == dutID {
-			return dut
-		}
-	}
-	return nil
-}
-
-// ateByID looks up the *bindpb.Device with the given ateID.
-func (r *resolver) ateByID(ateID string) *bindpb.Device {
-	for _, ate := range r.Ates {
-		if ate.Id == ateID {
-			return ate
-		}
-	}
-	return nil
-}
-
-func (r *resolver) grpc(dev *bindpb.Device, svc introspect.Service) *bindpb.Options {
-	params := serviceToParams[svc]
+func (r *resolver) grpc(dev *bindpb.Device, params *svcParams) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, params.port)}
 	return merge(targetOpts, r.Options, dev.Options, params.optsFn(dev))
 }
@@ -107,16 +96,6 @@ func (r *resolver) grpc(dev *bindpb.Device, svc introspect.Service) *bindpb.Opti
 func (r *resolver) ssh(dev *bindpb.Device) *bindpb.Options {
 	targetOpts := &bindpb.Options{Target: dev.Name}
 	return merge(targetOpts, r.Options, dev.Options, dev.Ssh)
-}
-
-func (r *resolver) ateGNMI(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *ateGNMIPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Gnmi)
-}
-
-func (r *resolver) ateOTG(dev *bindpb.Device) *bindpb.Options {
-	targetOpts := &bindpb.Options{Target: fmt.Sprintf("%s:%d", dev.Name, *ateOTGPort)}
-	return merge(targetOpts, r.Options, dev.Options, dev.Otg)
 }
 
 func (r *resolver) ixnetwork(dev *bindpb.Device) *bindpb.Options {
