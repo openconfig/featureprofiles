@@ -743,3 +743,41 @@ tests:
     owners:
       - arvbaska
     mustpass: true
+  - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
+    path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
+    owners:
+      - arvbaska
+    mustpass: false
+  - name: TE-16.2 (DCGate - encap FRR test)
+    path: feature/gribi/otg_tests/encap_frr
+    owners:
+      - arvbaska
+    mustpass: false
+  - name: TE-14.2 (DCGate - encap and decap scale)
+    path: feature/gribi/encap_decap_scale
+    owners:
+      - arvbaska
+    mustpass: false  
+  - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
+    path: feature/gribi/otg_tests/backup_ngp_multiple_nh_pbf_test
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 3
+    internal: false
+    pr: 2648    
+  - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
+    path: feature/experimental/gribi/otg_tests/backup_nhg_action_pbf
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 3
+    pr: 2648
+  - name: TE-3.31 (DCGate - Hierarchical weight resolution with PBF)
+    path: feature/gribi/ate_tests/hierarchical_weight_resolution_pbf_test
+    owners:
+      - arvbaska
+    skip: false
+    mustpass: true
+    priority: 3
+    pr: 2648    
