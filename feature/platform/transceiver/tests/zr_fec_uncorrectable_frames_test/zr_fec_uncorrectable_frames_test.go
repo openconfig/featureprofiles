@@ -32,6 +32,8 @@ const (
 	transceiverType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
 	ethernetPMD        = oc.TransportTypes_ETHERNET_PMD_TYPE_ETH_400GBASE_ZR
 	expectedCentreFreq = 193000000
+	subscribeTimeout   = 30 * time.Second
+	sampleInterval     = 10 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -48,9 +50,6 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnm
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
-
-	subscribeTimeout := 30 * time.Second
-	sampleInterval := 1 * time.Second
 
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 

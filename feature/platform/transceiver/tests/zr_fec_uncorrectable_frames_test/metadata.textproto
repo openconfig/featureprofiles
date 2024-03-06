@@ -4,4 +4,4 @@
 uuid: "6f9059c8-e49c-4ff6-8bd2-f474cd4fcfce"
 plan_id: "TRANSCEIVER-10"
 description: "Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_400ZR
