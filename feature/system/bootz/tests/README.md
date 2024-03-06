@@ -34,9 +34,9 @@ bootserver can initialize the devices configuration into the provided configurat
 | --------- | ------------- | --- |
 | bootz-1.1 | Missing configuration  | Device fails with status invalid parameter  |
 | bootz-1.2 |Invalid configuration  | Device fails with status invalid parameter  |
-| bootz-1.3 |Valid configuration  | Device succeded with status ok  |
+| bootz-1.3 |Valid configuration  | Device succeeded with status ok  |
 
-1. Provide bootstrap reponse configured as prescribed.
+1. Provide bootstrap response configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()
 3. Validate device sends bootz request to bootserver
 4. Validate device telemetry
@@ -57,11 +57,11 @@ This test validates the bootz behavior based changes to software version.
 
 | ID        | Case  | Result |
 | --------- | ------------- | --- |
-| bootz-2.1 | Software version is different  | Device is upgraded to the new version  |
-| bootz-2.2 | Invalid software image  | Device fails with status invalid parameter  |
+| bootz-2.1 | Invalid software image  | Device fails with status invalid parameter  |
+| bootz-2.2 | Software version is different  | Device is upgraded to the new version  |
 
 1. Validate the device is on a different version from the expected new version.
-2. Provide bootstrap reponse configured as prescribed.
+2. Provide bootstrap response configured as prescribed.
 3. Initiate bootz boot on device via gnoi.FactoryReset()
 4. Validate device sends bootz request to bootserver
 5. Validate the progress periodically by polling `/system/bootz/state/status`
@@ -100,7 +100,7 @@ be sent to the device and properly handled.
 | bootz-3.3 | OV fails | Device fails with status invalid parameter |
 | bootz-3.4 | OV valid | Device boots with OV installed |
 
-1. Provide bootstrap reponse configured as prescribed.
+1. Provide bootstrap response configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()
 3. Validate device sends bootz request to bootserver
 4. Validate the progress periodically by polling `/system/bootz/state/status`
@@ -131,12 +131,12 @@ bootz mode.
 
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
-| bootz-4.1 | no OS provided  | Device boots with existing image  |
-| bootz-4.2 | Invalid OS image provided  | Device fails with status invalid parameter  |
-| bootz-4.3 | failed to fetch image from remote URL | Device fails with status invalid parameter |
-| bootz-4.4 | OS checksum doesn't match | Device fails with invalid parameter |
+| bootz-4.1 | Invalid OS image provided  | Device fails with status invalid parameter  |
+| bootz-4.2 | failed to fetch image from remote URL | Device fails with status invalid parameter |
+| bootz-4.3 | OS checksum doesn't match | Device fails with invalid parameter |
+| bootz-4.4 | no OS provided  | Device boots with existing image  |
 
-1. Provide bootstrap reponse configured as prescribed.
+1. Provide bootstrap response configured as prescribed.
 2. Initiate bootz boot on device via gnoi.FactoryReset()
 3. Validate device sends bootz request to bootserver
 4. Validate the progress periodically by polling `/system/bootz/state/status`
