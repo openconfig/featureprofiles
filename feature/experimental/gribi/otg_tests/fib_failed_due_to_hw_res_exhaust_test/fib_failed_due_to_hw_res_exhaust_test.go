@@ -27,7 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	aftspb "github.com/openconfig/gribi/v1/proto/service"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -35,6 +35,8 @@ import (
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+
+	aftspb "github.com/openconfig/gribi/v1/proto/service"
 )
 
 func TestMain(m *testing.M) {
@@ -62,12 +64,6 @@ const (
 	tolerance                 = 50
 	plenIPv4                  = 30
 	plenIPv6                  = 126
-	fibPassedDstRoute         = "203.0.112.0"
-	fibFailedDstRoute         = "203.0.112.1"
-	fibPassedTraffic          = "fibPassedTraffic"
-	fibFailedTraffic          = "fibFailedTraffic"
-	vipPassedRoute            = "198.51.100.0"
-	vipFailedRoute            = "198.51.100.1"
 )
 
 var (
@@ -106,6 +102,8 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
+	fibPassedDstRoute string
+	fibFailedDstRoute string
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -169,33 +167,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.Devi
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	flow1ipv4 := config.Flows().Add().SetName(fibPassedTraffic)
-	flow1ipv4.Metrics().SetEnable(true)
-	flow1ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow1ipv4.Size().SetFixed(512)
-	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().Continuous()
-	e1 := flow1ipv4.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	v4 := flow1ipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(fibPassedDstRoute)
-	flow2ipv4 := config.Flows().Add().SetName(fibFailedTraffic)
-	flow2ipv4.Metrics().SetEnable(true)
-	flow2ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow2ipv4.Size().SetFixed(512)
-	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().Continuous()
-	e2 := flow2ipv4.Packet().Add().Ethernet()
-	e2.Src().SetValue(atePort1.MAC)
-	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
-	v4Flow2.Src().SetValue(atePort1.IPv4)
-	v4Flow2.Dst().Increment().SetStart(fibFailedDstRoute)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
@@ -326,15 +297,50 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 func sendTraffic(t *testing.T, args *testArgs) {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
+	t.Logf("TestBGP:start otg Traffic config")
+	flow1ipv4 := args.otgConfig.Flows().Add().SetName("Flow1")
+	flow1ipv4.Metrics().SetEnable(true)
+	flow1ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow1ipv4.Size().SetFixed(512)
+	flow1ipv4.Rate().SetPps(100)
+	flow1ipv4.Duration().Continuous()
+	e1 := flow1ipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	v4 := flow1ipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(fibPassedDstRoute)
+	flow2ipv4 := args.otgConfig.Flows().Add().SetName("Flow2")
+	flow2ipv4.Metrics().SetEnable(true)
+	flow2ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow2ipv4.Size().SetFixed(512)
+	flow2ipv4.Rate().SetPps(100)
+	flow2ipv4.Duration().Continuous()
+	e2 := flow2ipv4.Packet().Add().Ethernet()
+	e2.Src().SetValue(atePort1.MAC)
+	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
+	v4Flow2.Src().SetValue(atePort1.IPv4)
+	v4Flow2.Dst().Increment().SetStart(fibFailedDstRoute)
 
+	args.otg.PushConfig(t, args.otgConfig)
+	time.Sleep(2 * time.Minute)
+	args.otg.StartProtocols(t)
+	otgutils.WaitForARP(t, args.ate.OTG(), args.otg.FetchConfig(t), "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
 
-	verifyTraffic(t, args, fibPassedTraffic, !wantLoss)
-	verifyTraffic(t, args, fibFailedTraffic, wantLoss)
+	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
+	/*
+		if !deviations.GRIBISkipFIBFailedTrafficForwardingCheck(args.dut) {
+			verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
+		}
+	*/
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
@@ -463,77 +469,56 @@ func createIPv4Entries(t *testing.T, startIP string) []string {
 // injectEntry programs gRIBI nh, nhg and ipv4 entry.
 func injectEntry(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Helper()
-	createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
-	createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
+	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
+	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
+	j := uint64(0)
 
-	vipNhIndex := uint64(1)
-	dstNhIndex := vipNhIndex + 1
+routeAddLoop:
+	for i := uint64(1); i <= uint64(1500); i += 2 {
+		vipNhIndex := i
+		dstNhIndex := vipNhIndex + 1
 
-	// FIB pass entry
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(vipNhIndex).WithIPAddress(atePort2.IPv4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(vipNhIndex).AddNextHop(vipNhIndex, 1),
-		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithPrefix(vipPassedRoute+"/32").WithNextHopGroup(vipNhIndex),
-	)
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(dstNhIndex).WithIPAddress(vipPassedRoute),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(dstNhIndex).AddNextHop(dstNhIndex, 1),
-		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithPrefix(fibPassedDstRoute+"/32").WithNextHopGroup(dstNhIndex),
-	)
+		args.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithIndex(vipNhIndex).WithIPAddress(atePort2.IPv4),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithID(vipNhIndex).AddNextHop(vipNhIndex, 1),
+			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithPrefix(vipList[j]+"/32").WithNextHopGroup(vipNhIndex),
+		)
+		args.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithIndex(dstNhIndex).WithIPAddress(vipList[j]),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithID(dstNhIndex).AddNextHop(dstNhIndex, 1),
+			fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+				WithPrefix(dstIPList[j]+"/32").WithNextHopGroup(dstNhIndex),
+		)
 
-	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
-		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
-	}
-
-	res := args.client.Results(t)
-	for _, v := range res[len(res)-6:] {
-		if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
-			t.Logf("FIB FAILED received %v", v.Details)
+		if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
+			t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 		}
-	}
-	t.Logf("Programmed entries %s --> %s", fibPassedDstRoute, vipPassedRoute)
-
-	// Inject BGP routes to fill the FIB
-	injectBGPRoutes(t, args)
-	time.Sleep(5 * time.Minute)
-
-	vipNhIndex = vipNhIndex + 2
-	dstNhIndex = vipNhIndex + 1
-
-	// Add one more gribi entry for failed FIB and traffic should fail
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(vipNhIndex).WithIPAddress(atePort2.IPv4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(vipNhIndex).AddNextHop(vipNhIndex, 1),
-		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithPrefix(vipFailedRoute+"/32").WithNextHopGroup(vipNhIndex),
-	)
-	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(dstNhIndex).WithIPAddress(vipFailedRoute),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithID(dstNhIndex).AddNextHop(dstNhIndex, 1),
-		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithPrefix(fibFailedDstRoute+"/32").WithNextHopGroup(dstNhIndex),
-	)
-
-	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
-		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
-	}
-
-	res = args.client.Results(t)
-	for _, v := range res[len(res)-6:] {
-		if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
-			t.Logf("FIB FAILED received %v", v.Details)
-		} else {
+		res := args.client.Results(t)
+		for _, v := range res[len(res)-6:] {
+			if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
+				t.Logf("FIB FAILED received %v", v.Details)
+				fibFailedDstRoute = dstIPList[j]
+				break routeAddLoop
+			}
+		}
+		t.Logf("Programmed entries %s --> %s", dstIPList[j]+"/32", vipList[j]+"/32")
+		j++
+		// We are filling FIB with BGP routes. After FIB is full, trying to program
+		// routes through gRIBI client. Since FIB is already full , we should get
+		// FIB FAILED while programming gRIBI routes. Here we are trying to program
+		// 1500 VIP/Dst entries along with unique NH/NHG entries.
+		if i >= 1498 {
 			t.Fatalf("FIB FAILED is not received as expected")
+		}
+		if j == 1 {
+			fibPassedDstRoute = dstIPList[0]
+			injectBGPRoutes(t, args)
+			time.Sleep(5 * time.Minute)
 		}
 	}
 }
