@@ -356,7 +356,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	var lossPct uint64
-	trafficPassed := true
+	trafficPassed := false
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
 	} else {
@@ -369,10 +369,15 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			tags := et.Tags
 			for _, tag := range tags {
 				if tag.GetTagName() == dstTracking && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
-					trafficPassed = false
+					trafficPassed = true
 					break
 				}
 			}
+		}
+		if trafficPassed {
+			t.Errorf("Traffic received on Failed FIB")
+		} else {
+			t.Logf("Traffic Test Passed!")
 		}
 	} else {
 		if lossPct > tolerancePct {
@@ -382,11 +387,6 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 		}
 	}
 
-	if !trafficPassed {
-		t.Errorf("Traffic received on Failed FIB")
-	} else {
-		t.Logf("Traffic Test Passed!")
-	}
 }
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
