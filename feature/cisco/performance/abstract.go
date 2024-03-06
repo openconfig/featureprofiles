@@ -11,9 +11,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/gnoi/system"
-	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
+	gnoisys "github.com/openconfig/gnoi/system"
+	gnoitype "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -26,10 +25,10 @@ type ProcessState struct {
 	IsMandatory    bool   `json:"is-mandatory"`
 	InstanceId     uint64 `json:"instance-id"`
 	Jid            uint64 `json:"jid"`
-	Name		   string `json:"name"`
+	Name           string `json:"name"`
 	State          string `json:"state"`
 	RespawnCount   uint64 `json:"respawn-count"`
-	LastStarted	   string `json:"last-started"`
+	LastStarted    string `json:"last-started"`
 	PlacementState string `json:"placement-state"`
 }
 
@@ -38,17 +37,17 @@ func RestartEmsd(t *testing.T, dut *ondatra.DUTDevice) error {
 }
 
 func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) error {
-	
+
 	psInit := getProcessState(t, dut, processName)
 
 	if psInit == nil {
 		t.Fatalf("Could not get process state info for \"%s\"", processName)
 	}
-	
-	resp, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &system.KillProcessRequest{
+
+	resp, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnoisys.KillProcessRequest{
 		Name:    processName,
 		Restart: true,
-		Signal:  system.KillProcessRequest_SIGNAL_TERM,
+		Signal:  gnoisys.KillProcessRequest_SIGNAL_TERM,
 	})
 	if err != nil {
 		return err
@@ -58,20 +57,20 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 	}
 
 	psFinal := getProcessState(t, dut, processName)
-	
-	if psFinal.RespawnCount != psInit.RespawnCount + 1 {
+
+	if psFinal.RespawnCount != psInit.RespawnCount+1 {
 		t.Errorf("process %s respawn count increment failed: %d -> %d", processName, psInit.RespawnCount, psInit.RespawnCount)
 	}
 
 	t.Logf("Process State Response: %v", PrettyPrint(psFinal))
-	 
+
 	return nil
 }
 
 func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 	gnoiClient := dut.RawAPIs().GNOI(t)
-	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-		Method:  spb.RebootMethod_COLD,
+	_, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
+		Method:  gnoisys.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis without delay",
 		Force:   true,
@@ -119,24 +118,24 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 		}
 		if removable := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); !removable {
 			t.Logf("Linecard Component %s is non-removable, skipping", lc)
-		}	
+		}
 		oper := gnmi.Get(t, dut, gnmi.OC().Component(lc).OperStatus().State())
-		
+
 		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
 			t.Logf("Linecard Component %s is already INACTIVE, skipping", lc)
 		}
-		
+
 		// useNameOnly := deviations.GNOISubcomponentPath(dut)
 		lineCardPath := components.GetSubcomponentPath(lc, false)
 
-		resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-			Method:  spb.RebootMethod_COLD,
+		resp, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
+			Method:  gnoisys.RebootMethod_COLD,
 			Delay:   0,
 			Message: "Reboot line card without delay",
-			Subcomponents: []*tpb.Path{
+			Subcomponents: []*gnoitype.Path{
 				lineCardPath,
 			},
-			Force:   true,
+			Force: true,
 		})
 		if err == nil {
 			wg.Add(1)
@@ -172,10 +171,9 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
-
 // TODO: Not a trigger, move to utils
 func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *ProcessState {
-	
+
 	timeout := time.Second * 30
 	req := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
@@ -192,18 +190,17 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 		Type:     gnmipb.GetRequest_STATE,
 		Encoding: gnmipb.Encoding_JSON_IETF,
 	}
-	
+
 	var responseRawObj ProcessState
 
 	for stay, timeout := true, time.After(timeout); stay; {
 		restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
-		select  {
+		select {
 		case <-timeout:
 			if err != nil {
 				t.Errorf("Raw GNMI Query failed, timeout with response error: %s", err)
 			}
 			stay = false
-			break
 		default:
 			if err != nil {
 				time.Sleep(time.Second)
@@ -212,15 +209,17 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 			}
 			jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
 			err = json.Unmarshal(jsonIetfData, &responseRawObj)
+			if err != nil {
+				t.Errorf("Process %s state response serialization failed. Yang model may have non-backward compatible changes.", processName)
+			}
 			t.Logf("ProcessState %s response received: state: %s, respawn-count: %d", processName, responseRawObj.State, responseRawObj.RespawnCount)
-			
+
 			return &responseRawObj
 		}
 	}
 
 	return nil
-	
-	
+
 	// subscribe implementation below
 	// emsd process should be restarted on active LC
 
@@ -263,18 +262,17 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 	// 		},
 	// 	},
 	// }
-	// 
+	//
 	// subClient, err := dut.RawAPIs().GNMI(t).Subscribe(context.Background())
 	//
 	// subClient.Send(sr)
-	// 
+	//
 	// subClient.RecvMsg()
 
 	// if !watcher {
 	// 	t.Errorf("Could not verify restart after %v", timeout)
 	// }
 }
-
 
 // TODO: Move these functions are they are not triggers
 
@@ -286,7 +284,7 @@ func BatchSet(t *testing.T, dut *ondatra.DUTDevice, batchSet *gnmi.SetBatch, lea
 	// resp := gnmi.SetBatch(t, dut, )
 	resp := batchSet.Set(t, dut)
 	t.Logf("Batch Set result: %v\n", resp)
-	
+
 	// if err != nil {
 	// 	fmt.Printf("BatchSet is failed %v\n", err)
 	// 	os.Exit(1)

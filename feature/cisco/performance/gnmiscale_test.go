@@ -39,7 +39,7 @@ func TestGNMIBigSetRequest(t *testing.T) {
 
 	t.Logf("Starting collector at %s", time.Now())
 	colletor := CollectAllData(t, dut, 5*time.Second, 5*time.Minute)
-	
+
 	t.Logf("Starting batch programming of %d leaves at %s", numLeaves, time.Now())
 	BatchSet(t, dut, set, numLeaves)
 	t.Logf("Finished batch programming of %d leaves at %s", numLeaves, time.Now())
@@ -54,7 +54,7 @@ func TestCpuCollector(t *testing.T) {
 	collector := CollectCpuData(t, dut, 50*time.Millisecond, 5*time.Second)
 	collector.Wait()
 	t.Logf("Collector finished at %s", time.Now())
-	
+
 	// tabulation
 	// tab := tabulate.New(tabulate.ASCII)
 	// err := tabulate.Reflect(tab, 0, nil, collector.CpuLogs)
@@ -70,7 +70,7 @@ func TestCpuCollector(t *testing.T) {
 	// }
 	// fmt.Print("Memory Logs:\n")
 	// tab2.Print(os.Stdout)
-	// 
+	//
 	// t.Log("CPU data collection finished")
 }
 
@@ -80,7 +80,7 @@ func TestEmsdRestart(t *testing.T) {
 	collector := CollectAllData(t, dut, 1*time.Second, 30*time.Second)
 
 	// guarantee a few timestamps before emsd restart occurs
-	time.Sleep(5*time.Second)
+	time.Sleep(5 * time.Second)
 
 	t.Logf("Restarting emsd at %s", time.Now())
 	RestartEmsd(t, dut)
@@ -94,14 +94,14 @@ func TestReloadLineCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
 	collector := CollectAllData(t, dut, 5*time.Second, 5*time.Minute)
-	
+
 	// guarantee a few timestamps before router reload occurs
-	time.Sleep(15*time.Second)
-	
+	time.Sleep(15 * time.Second)
+
 	t.Logf("Restarting Line Cards at %s", time.Now())
 	ReloadLineCards(t, dut)
 	t.Logf("Line Cards restart finished at %s", time.Now())
-	
+
 	collector.Wait()
 	t.Logf("Collector finished at %s", time.Now())
 }
@@ -112,15 +112,14 @@ func TestReloadRouter(t *testing.T) {
 	// collect a few timestamps before reloading router
 	collector := CollectAllData(t, dut, 1*time.Second, 10*time.Second)
 	collector.Wait()
-	
+
 	t.Logf("Restarting Router at %s", time.Now())
 	ReloadRouter(t, dut)
 	t.Logf("Router restart finished at %s", time.Now())
 
 	collectorPostReboot := CollectAllData(t, dut, 5*time.Second, 2*time.Minute)
-	
+
 	t.Log("Waiting on main thread")
 	collectorPostReboot.Wait()
 	t.Logf("Collector finished at %s", time.Now())
 }
-

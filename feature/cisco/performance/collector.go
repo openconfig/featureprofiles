@@ -29,7 +29,7 @@ func CollectAllData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duratio
 	collector.Add(2)
 	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
 	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
-	return collector 
+	return collector
 }
 
 func CollectCpuData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
@@ -49,14 +49,14 @@ func CollectMemData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duratio
 	}
 	collector.Add(1)
 	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
-	return collector 
+	return collector
 }
 
 func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan []*oc.System_Cpu {
 	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
 	t.Helper()
 	cpuChan := make(chan []*oc.System_Cpu, 100)
-	
+
 	go func() {
 		ticker := time.NewTicker(freq)
 		timer := time.NewTimer(dur)
@@ -78,7 +78,7 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 			}
 		}
 	}()
-	
+
 	return cpuChan
 }
 
@@ -86,7 +86,7 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
 	t.Helper()
 	memChan := make(chan *oc.System_Memory, 100)
-	
+
 	go func() {
 		ticker := time.NewTicker(freq)
 		timer := time.NewTimer(dur)
