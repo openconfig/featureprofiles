@@ -50,9 +50,7 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	// transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-	// OCcomponent := transceiverName + "-Optical0"
-	OCcomponent := opticalChannelFromPort(t, dut1, dp)
+	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp)
 	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
@@ -197,7 +195,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	}
 }
 
-func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
 		switch dut.Vendor() {
