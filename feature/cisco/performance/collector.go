@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 type Collector struct {
@@ -64,7 +65,13 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 		for !done {
 			select {
 			case <-ticker.C:
-				data := gnmi.GetAll[*oc.System_Cpu](t, dut, gnmi.OC().System().CpuAny().State())
+				var data []*oc.System_Cpu
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					data = gnmi.GetAll[*oc.System_Cpu](t, dut, gnmi.OC().System().CpuAny().State())
+				}); errMsg != nil {
+					t.Logf("CPU collector failed: %s", *errMsg)
+					continue
+				}
 				cpuChan <- data
 			case <-timer.C:
 				done = true
@@ -88,7 +95,13 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 		for !done {
 			select {
 			case <-ticker.C:
-				data := gnmi.Get[*oc.System_Memory](t, dut, gnmi.OC().System().Memory().State())
+				var data *oc.System_Memory
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					data = gnmi.Get[*oc.System_Memory](t, dut, gnmi.OC().System().Memory().State())
+				}); errMsg != nil {
+					t.Logf("Memory collector failed: %s", *errMsg)
+					continue
+				}
 				memChan <- data
 			case <-timer.C:
 				done = true

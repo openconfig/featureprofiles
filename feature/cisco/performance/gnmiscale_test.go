@@ -46,7 +46,6 @@ func TestGNMIBigSetRequest(t *testing.T) {
 
 	colletor.Wait()
 	t.Logf("Collector finished at %s", time.Now())
-	
 }
 
 func TestCpuCollector(t *testing.T) {
@@ -91,6 +90,22 @@ func TestEmsdRestart(t *testing.T) {
 	t.Logf("Collector finished at %s", time.Now())
 }
 
+func TestReloadLineCards(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Starting CPU data collection at %s", time.Now())
+	collector := CollectAllData(t, dut, 5*time.Second, 5*time.Minute)
+	
+	// guarantee a few timestamps before router reload occurs
+	time.Sleep(15*time.Second)
+	
+	t.Logf("Restarting Line Cards at %s", time.Now())
+	ReloadLineCards(t, dut)
+	t.Logf("Line Cards restart finished at %s", time.Now())
+	
+	collector.Wait()
+	t.Logf("Collector finished at %s", time.Now())
+}
+
 func TestReloadRouter(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
@@ -109,18 +124,3 @@ func TestReloadRouter(t *testing.T) {
 	t.Logf("Collector finished at %s", time.Now())
 }
 
-func TestReloadLineCards(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	t.Logf("Starting CPU data collection at %s", time.Now())
-	collector := CollectAllData(t, dut, 5*time.Second, 5*time.Minute)
-	
-	// guarantee a few timestamps before router reload occurs
-	time.Sleep(15*time.Second)
-	
-	t.Logf("Restarting Line Cards at %s", time.Now())
-	ReloadLineCards(t, dut)
-	t.Logf("Line Cards restart finished at %s", time.Now())
-	
-	collector.Wait()
-	t.Logf("Collector finished at %s", time.Now())
-}

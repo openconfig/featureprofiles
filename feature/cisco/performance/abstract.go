@@ -173,6 +173,7 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 }
 
 
+// TODO: Not a trigger, move to utils
 func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *ProcessState {
 	
 	timeout := time.Second * 30
@@ -273,6 +274,9 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 	// 	t.Errorf("Could not verify restart after %v", timeout)
 	// }
 }
+
+
+// TODO: Move these functions are they are not triggers
 
 // func pushConfig(batchSet *ygnmi.SetBatch, ygnmiCli *ygnmi.Client, leavesCnt int) {
 func BatchSet(t *testing.T, dut *ondatra.DUTDevice, batchSet *gnmi.SetBatch, leavesCnt int) {
