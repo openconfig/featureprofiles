@@ -796,3 +796,8 @@ func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
 func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
+
+// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+}
