@@ -59,7 +59,7 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 func verifyTemperatureSensorValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
 	temperatureSample := pStream.Next(t)
 	if temperatureSample == nil {
-		t.Fatalf("Temperature telemetry %s is not present", sensorName)
+		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", sensorName)
 	}
 	temperatureVal, ok := temperatureSample.Val()
 	if !ok {
@@ -119,7 +119,7 @@ func TestZRTemperatureState(t *testing.T) {
 	if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
 		t.Logf("The average is between the maximum and minimum values")
 	} else {
-		t.Fatalf("The average is not between the maximum and minimum values")
+		t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", temperatureAvg, temperatureMax, temperatureMin)
 	}
 	p1StreamMin.Close()
 	p1StreamMax.Close()
