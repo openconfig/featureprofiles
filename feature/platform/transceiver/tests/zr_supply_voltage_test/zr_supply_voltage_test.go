@@ -16,96 +16,105 @@ package zr_supply_voltage_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
-	transceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-	ethernetPMD     = oc.TransportTypes_ETHERNET_PMD_TYPE_ETH_400GBASE_ZR
+	samplingInterval  = 10 * time.Second
+	targetOutputPower = -10
+	targetFrequency   = 193100000
+	intUpdateTime     = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(
-		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-		ygnmi.WithSampleInterval(interval),
-	)
+func verifyVoltageValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], path string) float64 {
+	voltageSample := pStream.Next(t)
+	if voltageSample == nil {
+		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", path)
+	}
+	voltageVal, ok := voltageSample.Val()
+	if !ok {
+		t.Fatalf("Temperature %q telemetry is not present", voltageSample)
+	}
+	// Check voltage return value of correct type
+	if reflect.TypeOf(voltageVal).Kind() != reflect.Float64 {
+		t.Fatalf("Return value is not type float64")
+	}
+	t.Logf("Temperature sample value %s: %v", path, voltageVal)
+	return voltageVal
 }
 
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	transceivers := components.FindComponentsByType(t, dut, transceiverType)
-	t.Logf("Found transceiver list: %v", transceivers)
-	if len(transceivers) == 0 {
-		t.Fatalf("Got transceiver list for %q: got 0, want > 0", dut.Model())
-	}
+	for _, port := range []string{"port1", "port2"} {
+		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
+			dp := dut.Port(t, port)
 
-	// Create slice of transceivers with required PMD.
-	zrTransceivers := make([]string, 0)
-	for _, tx := range transceivers {
-		if txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State()); txPmd == ethernetPMD {
-			zrTransceivers = append(zrTransceivers, tx)
-		}
-	}
-	if len(zrTransceivers) == 0 {
-		t.Fatalf("Got ZR transceiver list for %q: got 0, want > 0", dut.Model())
-	}
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
-	subscribeTimeout := 30 * time.Second
-	sampleInterval := 1 * time.Second
+			// Derive transceiver names from ports.
+			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+			component := gnmi.OC().Component(tr)
 
-	for _, tx := range zrTransceivers {
-		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
-			txComponent := gnmi.OC().Component(tx)
-
-			avgVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Avg().State(), subscribeTimeout).Await(t)
-			minVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Min().State(), subscribeTimeout).Await(t)
-			instVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Instant().State(), subscribeTimeout).Await(t)
-			maxVS := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), txComponent.Transceiver().SupplyVoltage().Max().State(), subscribeTimeout).Await(t)
-
-			if len(avgVS) < 2 || len(minVS) < 2 || len(instVS) < 2 || len(maxVS) < 2 {
-				t.Fatalf("did not get enough samples: avgVoltage: %s minVoltage: %s maxVoltage: %s instVoltage: %s",
-					avgVS, minVS, maxVS, instVS)
+			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
+			if outputPower != targetOutputPower {
+				t.Logf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
 			}
 
-			for i := 0; i < len(avgVS); i++ {
-				avgV, avgOk := avgVS[i].Val()
-				minV, minOk := minVS[i].Val()
-				instV, instOk := instVS[i].Val()
-				maxV, maxOk := maxVS[i].Val()
-
-				if !avgOk || !minOk || !instOk || !maxOk {
-					t.Fatalf("Expected all true but got: avgOk: %v minOk: %v instOk: %v maxOk: %v", avgOk, minOk, instOk, maxOk)
-				}
-
-				if avgV < minV {
-					t.Errorf("Want minV < avgV for tx %q: got minVoltage %f, avgV %f", tx, minV, avgV)
-				}
-				if avgV > maxV {
-					t.Errorf("Want maxV > avgV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, avgV)
-				}
-				if instV < minV {
-					t.Errorf("Want minV < instV for tx %q: got minVoltage %f, avgV %f", tx, minV, instV)
-				}
-				if instV > maxV {
-					t.Errorf("Want maxV > instV for tx %q: got maxVoltage %f, avgV %f", tx, maxV, instV)
-				}
+			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
+			if frequency != targetFrequency {
+				t.Logf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
 			}
 
+			streamInst := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Instant().State(), samplingInterval)
+			streamAvg := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Avg().State(), samplingInterval)
+			streamMin := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Min().State(), samplingInterval)
+			streamMax := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Max().State(), samplingInterval)
+
+			volInst := verifyVoltageValue(t, dut, streamInst, "Instant")
+			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
+			volAvg := verifyVoltageValue(t, dut, streamAvg, "Avg")
+			t.Logf("Port %s average voltage: %v", dp.Name(), volAvg)
+			volMin := verifyVoltageValue(t, dut, streamMin, "Min")
+			t.Logf("Port %s minimum voltage: %v", dp.Name(), volMin)
+			volMax := verifyVoltageValue(t, dut, streamMax, "Max")
+			t.Logf("Port %s maximum voltage: %v", dp.Name(), volMax)
+
+			if volAvg >= volMin && volAvg <= volMax {
+				t.Logf("The average is between the maximum and minimum values")
+			} else {
+				t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvg, volMax, volMin)
+			}
+
+			// Wait 120 sec cooling off period
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+
+			volInstNew := verifyVoltageValue(t, dut, streamInst, "Instant")
+			t.Logf("Port %s instant voltage post status down: %v", dp.Name(), volInstNew)
+			volAvgNew := verifyVoltageValue(t, dut, streamAvg, "Avg")
+			t.Logf("Port %s average voltage post status down: %v", dp.Name(), volAvgNew)
+			volMinNew := verifyVoltageValue(t, dut, streamMin, "Min")
+			t.Logf("Port %s minimum voltage post status down: %v", dp.Name(), volMinNew)
+			volMaxNew := verifyVoltageValue(t, dut, streamMax, "Max")
+			t.Logf("Port %s maximum voltage post status down: %v", dp.Name(), volMaxNew)
+
+			if volAvgNew >= volMinNew && volAvgNew <= volMaxNew {
+				t.Logf("The average post status down is between the maximum and minimum values")
+			} else {
+				t.Fatalf("The average post status down is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvgNew, volMaxNew, volMinNew)
+			}
 		})
 	}
 
