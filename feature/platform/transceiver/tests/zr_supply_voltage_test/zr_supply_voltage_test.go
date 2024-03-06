@@ -70,12 +70,12 @@ func TestZrSupplyVoltage(t *testing.T) {
 
 			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
 			if outputPower != targetOutputPower {
-				t.Logf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
+				t.Fatalf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
 			}
 
 			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
 			if frequency != targetFrequency {
-				t.Logf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
+				t.Fatalf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
 			}
 
 			streamInst := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Instant().State(), samplingInterval)
