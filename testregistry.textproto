@@ -15,57 +15,50 @@ test: {
 }
 test: {
   id: "ACCTZ-1.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Record Subscribe Full"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeFull/README.md"
+}
+test: {
+  id: "ACCTZ-1.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeFull/README.md"
 }
 test: {
   id: "ACCTZ-2.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Record Subscribe Partial"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribePartial/README.md:"
 }
 test: {
   id: "ACCTZ-3.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Record Subscribe Non-gRPC"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeNongrpc/README.md"
 }
 test: {
   id: "ACCTZ-4.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Record History Truncation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordHistoryTruncation/README.md"
 }
 test: {
   id: "ACCTZ-4.2"
-  description: "gNSI.acctz.v1 (Accounting) Test Record Payload Truncation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordPayloadTruncation/README.md"
 }
 test: {
   id: "ACCTZ-5.1"
-  description: "gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeIdleTimeout/README.md"
 }
 test: {
   id: "ACCTZ-6.1"
-  description: "gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - DoA client"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeIdleTimeoutDoA/README.md"
 }
 test: {
   id: "ACCTZ-7.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/AccountingAuthenFailMulti/README.md"
 }
 test: {
   id: "ACCTZ-8.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/AccountingAuthenFailUni/README.md"
 }
 test: {
   id: "ACCTZ-9.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/AccountingPrivEscalation/README.md"
 }
 test: {
   id: "ACCTZ-10.1"
-  description: "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/AccountingAuthenErrorMulti/README.md"
 }
 test: {
@@ -130,72 +123,62 @@ test: {
 }
 test: {
   id: "bootz-1.1"
-  description: "Missing configuration - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-1.2"
-  description: "Invalid configuration - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-1.3"
-  description: "Valid configuration - Device succeded with status ok"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-2.1"
-  description: "Software version is different - Device is upgraded to the new version"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-2.2"
-  description: "Invalid software image - Device fails with status invalid parameter"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-3"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-3.1"
-  description: "No ownership voucher - Device boots without OV present"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-3.2"
-  description: "Invalid OV - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-3.3"
-  description: "OV fails - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-3.4"
-  description: "OV valid - Device boots with OV installed"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-4.1"
-  description: "no OS provided - Device boots with existing image"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-4.2"
-  description: "Invalid OS image provided - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-4.3"
-  description: "failed to fetch image from remote URL - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-4.4"
-  description: "OS checksum doesn't match - Device fails with invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
   id: "bootz-5"
-  description: "Validate gNSI components in bootz configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
@@ -282,7 +265,6 @@ test: {
 }
 test: {
   id: "DP-1.4"
-  description: "QoS Interface Output Queue Counters"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/qos_output_queue_counters_test/README.md"
 }
 test: {
@@ -317,7 +299,6 @@ test: {
 }
 test: {
   id: "FP-1.1"
-  description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
 }
 test: {
@@ -603,13 +584,7 @@ test: {
 test: {
   id: "RT-2.12"
   description: "Static route to IS-IS redistribution"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static_route_isis_redistribution/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-2.13"
-  description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/static-route_isis_redistribution/README.md"
   exec: " "
 }
 test: {
@@ -679,9 +654,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.6"
-  description: "Interface Loopback mode"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
+  id: "RT-9"
+  description: "Interface IPv6 ND RA disable"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
 }
 test: {
@@ -694,12 +669,6 @@ test: {
   id: "RT-5.8"
   description: "IPv6 link local"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-5.9"
-  description: "Interface IPv6 ND RA disable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test/README.md"
   exec: " "
 }
 test: {
@@ -738,8 +707,8 @@ test: {
 }
 test: {
   id: "RT-7.5"
-  description: "BGP Policy - Set Link Bandwidth Community"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
+  description: "RT-7.5: BGP Link Bandwidth Community Forwarding"
+  readme: ""
   exec: " "
 }
 test: {
@@ -756,14 +725,14 @@ test: {
 }
 test: {
   id: "RT-7.8"
-  description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/comm_match_action_test/README.md"
+  description: "RT-7.8: BGP Policy - Ext Community Matching"
+  readme: " "
   exec: " "
 }
 test: {
   id: "RT-7.9"
-  description: "BGP Policy - Import/Export Policy Action Using Extended Communities"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/extcomm_action_test/README.md"
+  description: "RT-7.9: BGP Policy - Import/Export Policy Action Using Communities "
+  readme: " "
   exec: " "
 }
 test: {
@@ -773,15 +742,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-9.1"
-  description: "Equal distribution of traffic"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9.2"
-  description: "Equal distribution of traffic"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
+  id: "RT-9"
+  description: "Weighted-ECMP for IS-IS"
+  readme: ""
   exec: " "
 }
 test: {
@@ -1198,7 +1161,7 @@ test: {
 }
 test: {
   id: "gNMI-1.21"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
 }
 test: {
   id: "gNMI-1.4"
