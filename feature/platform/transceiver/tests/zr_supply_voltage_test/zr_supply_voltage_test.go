@@ -79,9 +79,13 @@ func TestZrSupplyVoltage(t *testing.T) {
 			}
 
 			streamInst := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Instant().State(), samplingInterval)
+			defer streamInst.Close()
 			streamAvg := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Avg().State(), samplingInterval)
+			defer streamAvg.Close()
 			streamMin := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Min().State(), samplingInterval)
+			defer streamMin.Close()
 			streamMax := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Max().State(), samplingInterval)
+			defer streamMax.Close()
 
 			volInst := verifyVoltageValue(t, dut, streamInst, "Instant")
 			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
