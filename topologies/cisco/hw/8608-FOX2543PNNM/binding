@@ -17,7 +17,7 @@ duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
   vendor: CISCO
-  hardware_model: "CISCO-8608"
+  hardware_model: "CISCO-8000"
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
