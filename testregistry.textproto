@@ -19,6 +19,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeFull/README.md"
 }
 test: {
+  id: "ACCTZ-1.1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribeFull/README.md"
+}
+test: {
   id: "ACCTZ-2.1"
   description: "gNSI.acctz.v1 (Accounting) Test Record Subscribe Partial"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/acctz/RecordSubscribePartial/README.md:"
@@ -154,6 +158,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
+  id: "bootz-3"
+  description: "bootz-3: Validate Ownership Voucher in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
   id: "bootz-3.1"
   description: "No ownership voucher - Device boots without OV present"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
@@ -171,6 +180,11 @@ test: {
 test: {
   id: "bootz-3.4"
   description: "OV valid - Device boots with OV installed"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-4"
+  description: "bootz-4: Validate device properly resets if provided invalid image"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
@@ -610,7 +624,6 @@ test: {
   id: "RT-2.13"
   description: "Weighted-ECMP for IS-IS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
-  exec: " "
 }
 test: {
   id: "RT-2.14"
@@ -688,6 +701,11 @@ test: {
   id: "RT-5.6"
   description: "Interface Loopback mode"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
+}
+test: {
+  id: "RT-9"
+  description: "Interface IPv6 ND RA disable"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
 }
 test: {
@@ -746,7 +764,6 @@ test: {
   id: "RT-7.5"
   description: "BGP Policy - Set Link Bandwidth Community"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
-  exec: " "
 }
 test: {
   id: "RT-7.6"
@@ -786,7 +803,12 @@ test: {
 }
 test: {
   id: "RT-9.2"
-  description: "Equal distribution of traffic"
+  description: "Unequal distribution of traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
+}
+test: {
+  id: "RT-9"
+  description: "Weighted-ECMP for IS-IS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
@@ -1204,6 +1226,7 @@ test: {
 }
 test: {
   id: "gNMI-1.21"
+  description: "Integrated Circuit Hardware Resource Utilization Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
 }
 test: {
