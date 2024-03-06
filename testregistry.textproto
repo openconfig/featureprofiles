@@ -613,6 +613,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.14"
+  description: "ISIS Drain Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/isis_drain_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
