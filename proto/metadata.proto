@@ -427,6 +427,8 @@ message Metadata {
     // Devices missing component tree mapping from hardware port
     // to optical channel.
     bool missing_port_to_optical_channel_component_mapping = 150;
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 151;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

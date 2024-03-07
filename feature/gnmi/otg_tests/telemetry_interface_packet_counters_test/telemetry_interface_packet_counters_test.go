@@ -244,6 +244,22 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.
 	return inPkts, outPkts
 }
 
+func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath,
+	target uint64) (map[string]uint64, map[string]uint64) {
+	inPktsV, ok := gnmi.Watch(t, dut, i1.Counters().InUnicastPkts().State(), time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+		got, present := v.Val()
+		return present && got >= target
+	}).Await(t)
+
+	if !ok {
+		t.Fatalf("Counters did not update in time")
+	}
+
+	inPkts, _ := inPktsV.Val()
+	outPkts := gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State())
+	return map[string]uint64{"parent": inPkts}, map[string]uint64{"parent": outPkts}
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -378,7 +394,13 @@ func TestIntfCounterUpdate(t *testing.T) {
 		}
 	}
 
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, i1, i2)
+	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic map[string]uint64
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		target := dutInPktsBeforeTraffic["parent"] + ateInPkts["parent"]
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, i1, i2, target)
+	} else {
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, i1, i2)
+	}
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {
