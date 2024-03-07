@@ -16,93 +16,75 @@ package zr_fec_uncorrectable_frames_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
-	transceiverType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-	ethernetPMD        = oc.TransportTypes_ETHERNET_PMD_TYPE_ETH_400GBASE_ZR
-	expectedCentreFreq = 193000000
-	subscribeTimeout   = 30 * time.Second
-	sampleInterval     = 10 * time.Second
+	sampleInterval    = 10 * time.Second
+	targetOutputPower = -10
+	targetFrequency   = 193100000
+	intUpdateTime     = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(
-		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
-		ygnmi.WithSampleInterval(interval),
-	)
+func validateFecUncorrectableBlocks(t *testing.T, dut *ondatra.DUTDevice, stream *samplestream.SampleStream[uint64]) {
+	fecStream := stream.Next(t)
+	if fecStream == nil {
+		t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
+	}
+	fec, ok := fecStream.Val()
+	if !ok {
+		t.Fatalf("Error capturing streaming Fec value")
+	}
+	if reflect.TypeOf(fec).Kind() != reflect.Int64 {
+		t.Fatalf("fec value is not type int64")
+	}
+	if fec != 0 {
+		t.Fatalf("Got FecUncorrectableBlocks got %d, want 0", fec)
+	}
 }
 
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	p1 := dut.Port(t, "port1")
 
-	transceivers := components.FindComponentsByType(t, dut, transceiverType)
+	for _, port := range []string{"port1", "port2"} {
+		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
+			dp := dut.Port(t, "port1")
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
-	t.Logf("Found transceiver list: %v", transceivers)
-	if len(transceivers) == 0 {
-		t.Fatalf("Got transceiver list for %q: got 0, want > 0", dut.Model())
-	}
+			// Derive transceiver names from ports.
+			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+			component := gnmi.OC().Component(tr)
 
-	zrTransceivers := make([]string, 0)
-	for _, tx := range transceivers {
-		txPmd := gnmi.Get(t, dut, gnmi.OC().Component(tx).Transceiver().EthernetPmd().State())
-		if txPmd == ethernetPMD {
-			t.Logf("!! Got expected ethernetPMD %q for tx %q: got %q", ethernetPMD, tx, txPmd)
-			zrTransceivers = append(zrTransceivers, tx)
-		} else {
-			t.Logf("Want ethernetPMD %q for tx %q: got %q", ethernetPMD, tx, txPmd)
-		}
-
-	}
-	if len(zrTransceivers) == 0 {
-		t.Fatalf("Got ZR transceiver list for %q: got 0, want > 0", dut.Model())
-	}
-	t.Logf("Found ZR transceiver list: %v", zrTransceivers)
-
-	for _, tx := range zrTransceivers {
-		t.Run(fmt.Sprintf("Transceiver:%s", tx), func(t *testing.T) {
-			txComponent := gnmi.OC().Component(tx)
-
-			centreFreq := gnmi.Get(t, dut, txComponent.Transceiver().Channel(0).OutputFrequency().State())
-
-			if centreFreq != expectedCentreFreq {
-				t.Errorf("Got centre frequency %d, want %d", centreFreq, expectedCentreFreq)
+			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
+			if outputPower != targetOutputPower {
+				t.Fatalf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
 			}
+
+			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
+			if frequency != targetFrequency {
+				t.Fatalf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
+			}
+
+			streamFec := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+			defer streamFec.Close()
+			validateFecUncorrectableBlocks(t, dut, streamFec)
+
+			// Toggle interface enabled
+			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(false))
+			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(true))
+
+			validateFecUncorrectableBlocks(t, dut, streamFec)
 		})
-	}
-
-	// There will be a single logical channel of type OTN for each optical channel.
-	fec := gnmi.Get(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State())
-	if fec != 0 {
-		t.Errorf("Got FecUncorrectableBlocks for got %d, want 0", fec)
-	}
-	gnmi.Update(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), bool(false))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), bool(true))
-
-	streamedFec := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), subscribeTimeout).Await(t)
-
-	for _, f := range streamedFec {
-		v, ok := f.Val()
-		if !ok {
-			t.Fatalf("Error capturing streaming Fec value")
-		}
-		if v != 0 {
-			t.Errorf("Got FecUncorrectableBlocks got %d, want 0", v)
-		}
 	}
 }
