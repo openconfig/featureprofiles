@@ -53,7 +53,7 @@ func TestReserveRelease(t *testing.T) {
 	}
 }
 
-func TestReservation(t *testing.T) {
+func TestStaticReservation(t *testing.T) {
 	tb := &opb.Testbed{
 		Duts: []*opb.Device{{
 			Id: "dut",
@@ -98,7 +98,7 @@ func TestReservation(t *testing.T) {
 		}},
 	}
 
-	got, err := reservation(tb, resolver{b})
+	got, err := staticReservation(tb, resolver{b})
 	if err != nil {
 		t.Fatalf("Error building reservation: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestReservation(t *testing.T) {
 	}
 }
 
-func TestReservation_Error(t *testing.T) {
+func TestStaticReservation_Error(t *testing.T) {
 	tb := &opb.Testbed{
 		Duts: []*opb.Device{{
 			Id: "dut.tb", // only in testbed.
@@ -213,9 +213,9 @@ func TestReservation_Error(t *testing.T) {
 		}},
 	}
 
-	r, errs := reservation(tb, resolver{b})
+	r, errs := staticReservation(tb, resolver{b})
 	if len(errs) == 0 {
-		t.Fatalf("reservation() unexpectedly succeeded: %v", r)
+		t.Fatalf("staticReservation() unexpectedly succeeded: %v", r)
 	}
 
 	wants := []string{
@@ -229,11 +229,11 @@ func TestReservation_Error(t *testing.T) {
 		`missing binding for port "port2" on "ate.both"`,
 	}
 	if got, want := len(errs), len(wants); got != want {
-		t.Errorf("reservation() got %d errors, want %d: %v", got, want, errs)
+		t.Errorf("staticReservation() got %d errors, want %d: %v", got, want, errs)
 	}
 	for i, err := range errs {
 		if got, want := err.Error(), wants[i]; !strings.Contains(got, want) {
-			t.Errorf("reservation() got error %q, want: %q", got, want)
+			t.Errorf("staticReservation() got error %q, want: %q", got, want)
 		}
 	}
 }
