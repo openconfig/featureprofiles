@@ -442,6 +442,8 @@ tests:
     mustpass: true
     priority: 47
     skip: false
+    testbeds_exclude:
+      - 8808_FOX2506P2QT
   - name: RT-2.2 (IS-IS LSP Updates)
     path: feature/experimental/isis/otg_tests/lsp_updates_test
     owners:
@@ -670,6 +672,8 @@ tests:
       - mbagherz
     mustpass: true
     pr: 2202
+    testbeds_exclude:
+      - 8808_FOX2506P2QT
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
