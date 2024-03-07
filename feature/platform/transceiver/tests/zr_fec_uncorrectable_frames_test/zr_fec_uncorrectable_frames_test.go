@@ -73,7 +73,7 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			}
 
 			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequency {
+			if frequency != targetFrequencyHz {
 				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
 			}
 
