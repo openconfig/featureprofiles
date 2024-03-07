@@ -620,8 +620,8 @@ func runMultipleClientBackground(t *testing.T, stop <-chan struct{}, done chan<-
 	}()
 }
 
-// TGNoptions are optional parameters to a validate traffic function.
-type TGNoptions struct {
+// TgnOptions are optional parameters to a validate traffic function.
+type TgnOptions struct {
 	drop, mpls, ipv4, ttl bool
 	traffic_timer         int
 	fps                   uint64
@@ -726,7 +726,7 @@ func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
-func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TGNoptions) *ondatra.Flow {
+func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TgnOptions) *ondatra.Flow {
 	srcEndPoint := args.top.Interfaces()[ateSrc.Name]
 	var flow *ondatra.Flow
 	var header []ondatra.Header
@@ -772,7 +772,7 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 }
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TGNoptions) uint64 {
+func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TgnOptions) uint64 {
 	args.ate.Traffic().Start(t, flow)
 	// run traffic for 30 seconds, before introducing fault
 	time.Sleep(time.Duration(30) * time.Second)

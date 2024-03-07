@@ -57,39 +57,39 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func (args *testArgs) testOcPpcDropBlock(t *testing.T) {
+func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 	testcases := []Testcase{
 		{
 			name:      "drop/lookup-block/state/acl-drops",
-			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
 			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true}, // todo - how to cleanup while exiting the function?
 		},
 		//{
 		//	name:      "drop/lookup-block/state/no-route",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
 		//	eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
 		//},
 		//{
 		//	name:      "drop/lookup-block/state/no-nexthop",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true}),
+		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
 		//	eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
 		//},
 		//{
 		//	name:      "drop/lookup-block/state/no-label",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
+		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
 		//	eventType: &eventEnableMplsLdp{config: true},
 		//},
 		//{
 		//	name: "drop/lookup-block/state/incorrect-software-state",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{mpls: true}),
+		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
 		//},
 		//{
 		//	name: "drop/lookup-block/state/invalid-packet",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, ttl: true}),
+		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, ttl: true}),
 		//},
 		//{
 		//	name:      "drop/lookup-block/state/fragment-total-drops",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, frame_size: 1400}),
+		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, frame_size: 1400}),
 		//	eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
 		//},
 		//{
@@ -98,7 +98,7 @@ func (args *testArgs) testOcPpcDropBlock(t *testing.T) {
 		//},
 		//{ rate-limit need to check how to automate
 		//	name: "drop/lookup-block/state/lookup-aggregate", // waiting for Muthu to advise - https://miggbo.atlassian.net/browse/XR-56749
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TGNoptions{ipv4: true, fps: 1000000000}),
+		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, fps: 1000000000}),
 		//},
 	}
 
@@ -146,7 +146,7 @@ func (args *testArgs) testOcPpcDropBlock(t *testing.T) {
 					preCounters = preCounters + pre
 				}
 
-				tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TGNoptions{traffic_timer: 120, drop: true, event: tt.eventType}))
+				tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TgnOptions{traffic_timer: 120, drop: true, event: tt.eventType}))
 
 				// aggregate post counters for a path across all the destination NPUs
 				for path, query := range data {
@@ -206,6 +206,6 @@ func TestOcPpc(t *testing.T) {
 		ctx: ctx,
 	}
 	t.Run("Test drop block", func(t *testing.T) {
-		args.testOcPpcDropBlock(t)
+		args.OcPpcDropBlock(t)
 	})
 }
