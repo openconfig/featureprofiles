@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import (
 
 const (
 	samplingInterval  = 10 * time.Second
-	targetOutputPower = -10
-	targetFrequency   = 193100000
+	targetOutputPowerdBm = -10
+	targetFrequencyHz   = 193100000
 	intUpdateTime     = 2 * time.Minute
 )
 
@@ -69,13 +69,13 @@ func TestZrSupplyVoltage(t *testing.T) {
 			component := gnmi.OC().Component(tr)
 
 			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPower {
-				t.Fatalf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
+			if outputPower != targetOutputPowerdBm {
+				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
 			}
 
 			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequency {
-				t.Fatalf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
+			if frequency != targetFrequencyHz {
+				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
 			}
 
 			streamInst := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Instant().State(), samplingInterval)
@@ -102,17 +102,17 @@ func TestZrSupplyVoltage(t *testing.T) {
 				t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvg, volMax, volMin)
 			}
 
-			// Wait 120 sec cooling off period
+			// Wait for the cooling off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			volInstNew := verifyVoltageValue(t, dut, streamInst, "Instant")
-			t.Logf("Port %s instant voltage post status down: %v", dp.Name(), volInstNew)
+			t.Logf("Port %s instant voltage after port down: %v", dp.Name(), volInstNew)
 			volAvgNew := verifyVoltageValue(t, dut, streamAvg, "Avg")
-			t.Logf("Port %s average voltage post status down: %v", dp.Name(), volAvgNew)
+			t.Logf("Port %s average voltage after port down: %v", dp.Name(), volAvgNew)
 			volMinNew := verifyVoltageValue(t, dut, streamMin, "Min")
-			t.Logf("Port %s minimum voltage post status down: %v", dp.Name(), volMinNew)
+			t.Logf("Port %s minimum voltage after port down: %v", dp.Name(), volMinNew)
 			volMaxNew := verifyVoltageValue(t, dut, streamMax, "Max")
-			t.Logf("Port %s maximum voltage post status down: %v", dp.Name(), volMaxNew)
+			t.Logf("Port %s maximum voltage after port down: %v", dp.Name(), volMaxNew)
 
 			if volAvgNew >= volMinNew && volAvgNew <= volMaxNew {
 				t.Logf("The average post status down is between the maximum and minimum values")
