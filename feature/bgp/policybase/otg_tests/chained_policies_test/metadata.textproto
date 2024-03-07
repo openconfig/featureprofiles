@@ -22,7 +22,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    bgp_neighbor_under_peer_group: true
     bgp_rib_oc_path_unsupported:  true
   }
 }

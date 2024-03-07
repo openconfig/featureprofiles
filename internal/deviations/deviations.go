@@ -797,11 +797,6 @@ func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
 
-// BGNeighborUnderPeerGroup returns true if device requires bgp peer config for configuring bgp neighbor.
-func BGPNeighborUnderPeerGroup(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpNeighborUnderPeerGroup()
-}
-
 // BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
