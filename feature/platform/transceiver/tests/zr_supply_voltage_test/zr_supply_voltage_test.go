@@ -115,9 +115,9 @@ func TestZrSupplyVoltage(t *testing.T) {
 			t.Logf("Port %s maximum voltage after port down: %v", dp.Name(), volMaxNew)
 
 			if volAvgNew >= volMinNew && volAvgNew <= volMaxNew {
-				t.Logf("The average post status down is between the maximum and minimum values")
+				t.Logf("The average voltage after port down is between the maximum and minimum values")
 			} else {
-				t.Fatalf("The average post status down is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvgNew, volMaxNew, volMinNew)
+				t.Fatalf("The average voltage after port down is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvgNew, volMaxNew, volMinNew)
 			}
 		})
 	}
