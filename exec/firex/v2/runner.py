@@ -626,27 +626,38 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
+def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
+    repo.git.reset('--hard')
+    repo.git.clean('-xdf')
+
+    if repo_rev:
+        logger.print(f'Checking out revision {repo_rev}...')
+        repo.git.checkout(repo_rev)
+    elif repo_pr:
+        logger.print(f'Checking out pr {repo_pr}...')
+        branch_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(6))
+        repo.remotes.origin.fetch(f'pull/{repo_pr}/head:firex_{branch_suffix}_pr_{repo_pr}')
+        repo.git.checkout(f'firex_{branch_suffix}_pr_{repo_pr}')
+    elif repo_branch:
+        logger.print(f'Checking out branch {repo_branch}...')
+        repo.git.checkout(repo_branch)
+        
 @app.task(bind=True, max_retries=3, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
-    if Path(target_dir).exists():
-        logger.warning(f'The target directory "{target_dir}" already exists; removing first')
-        shutil.rmtree(target_dir)
-
-    repo_name = repo_url.split("/")[-1].split(".")[0]
-    logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
     try:
         os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
-        repo = git.Repo.clone_from(url=repo_url,
-                                   to_path=target_dir,
-                                   branch=repo_branch)
-        if repo_rev:
-            logger.print(f'Checking out revision {repo_rev} from {repo_url}...')
-            repo.git.checkout(repo_rev)
-        elif repo_pr:
-            logger.print(f'Pulling PR#{repo_pr} from {repo_url}...')
-            repo.remotes.origin.fetch(f'pull/{repo_pr}/head:pr_{repo_pr}')
-            logger.print(f'Checking out branch pr_{repo_pr}...')
-            repo.git.checkout(f'pr_{repo_pr}')
+        repo_name = repo_url.split("/")[-1].split(".")[0]
+        
+        if not os.path.exists(target_dir):
+            logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
+            repo = git.Repo.clone_from(url=repo_url,
+                                    to_path=target_dir,
+                                    branch=repo_branch)
+            if repo_rev or repo_pr:
+              _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)  
+        else:
+            repo = git.Repo(target_dir)
+            _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
 
     except git.GitCommandError as e:
         err = e.stderr or ''

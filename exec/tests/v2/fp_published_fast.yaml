@@ -30,6 +30,8 @@ tests:
       - '-mgbl_path="/ws/ncorran-sjc/yang-coverage/"'
       - '-rawLogs_path="/ws/ncorran-sjc/yang-coverage/rawlogs/"'
   - name: gNOI-3.1 (Complete Chassis Reboot)
+    testbeds: 
+      - 8201-1DUT
     path: feature/gnoi/system/tests/complete_chassis_reboot
     owners:
       - arvbaska
@@ -175,6 +177,8 @@ tests:
     mustpass: true
     priority: 3
   - name: gNOI-4.1 (Software Upgrade)
+    testbeds: 
+      - 8808-1DUT
     path: feature/gnoi/os/tests/osinstall
     owners:
       - agvarghe
@@ -184,8 +188,9 @@ tests:
     args:
       - '-osfile="$IMAGE_PATH"'
       - '-osver="$IMAGE_VERSION"'
-    skip: true
   - name: gNOI-5.1 (Ping Test)
+    testbeds: 
+      - 8201-1DUT
     path: feature/gnoi/system/tests/ping_test
     owners:
       - arvbaska
@@ -209,12 +214,16 @@ tests:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
   - name: P4RT-2.1 (P4RT Election)
+    testbeds: 
+      - 8201-1DUT
     path: feature/experimental/p4rt/tests/p4rt_election
     owners:
       - sprem
     priority: 5
     mustpass: true
   - name: P4RT-2.2 (P4RT Metadata Validation)
+    testbeds: 
+      - 8201-1DUT
     path: feature/experimental/p4rt/tests/metadata_validation_test
     owners:
       - sprem
@@ -264,12 +273,16 @@ tests:
     priority: 5
     mustpass: true    
   - name: gNMI-1.1 (cli Origin)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/gnmi/cliorigin/tests/cli_origin_test
     owners:
       - agvarghe
     mustpass: true
     priority: 6
   - name: gNMI-1.12 (Mixed OpenConfig or CLI Origin)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
     owners:
       - agvarghe
@@ -358,6 +371,8 @@ tests:
     skip: false
     timeout: 4200
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
       - kjahed
@@ -372,6 +387,8 @@ tests:
     priority: 41
     skip: false
   - name: gNOI-5.2 (Traceroute Test)
+    testbeds: 
+      - 8201-1DUT
     path: feature/gnoi/system/tests/traceroute_test
     owners:
       - agvarghe
@@ -379,6 +396,8 @@ tests:
     priority: 41
     skip: false
   - name: gNOI-3.4 (Chassis Reboot Status and Reboot Cancellation)
+    testbeds: 
+      - 8201-1DUT
     path: feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
     owners:
       - arvbaska
@@ -392,18 +411,24 @@ tests:
     skip: true # requires KNE
     priority: 43
   - name: gNMI-1.9 (Get requests)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/gnmi/get/tests/system_gnmi_get_test
     owners:
       - agvarghe
     mustpass: true
     priority: 44
   - name: OC-26.1 (NTP in Management Network Instance)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/ntp/tests/system_ntp_test
     owners:
       - agvarghe
     mustpass: true
     priority: 45
   - name: OC-1.1 (System Configuration)
+    testbeds: 
+      - 8201-1DUT
     path: feature/system/tests/system_base_test
     owners:
       - agvarghe
@@ -432,12 +457,13 @@ tests:
     priority: 49
     skip: false
   - name: RT-6.1 (Core LLDP TLV Population)
+    testbeds: 
+      - 8808-2DUT
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
     mustpass: true
     priority: 51
-    skip: true # requires 2 dut
   - name: RT-1.3 (BGP Route Propagation)
     path: feature/bgp/addpath/otg_tests/route_propagation_test
     owners:
@@ -461,12 +487,13 @@ tests:
     priority: 54
     skip: false
   - name: RT-1.7 (Local BGP Test)
+    testbeds: 
+      - 8808-2DUT
     path: feature/bgp/tests/local_bgp_test
     owners:
       - sprem
     mustpass: true
     priority: 55
-    skip: true # requires 2 dut
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -523,6 +550,8 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNOI-3.3 (Supervisor Switchover)
+    testbeds: 
+      - 8808-1DUT
     path: feature/gnoi/system/tests/supervisor_switchover_test
     owners:
       - arvbaska
@@ -565,12 +594,16 @@ tests:
     mustpass: true
     priority: 801
   - name: DP-1.2 (QoS policy feature config)
+    testbeds: 
+      - 8201-1DUT
     path: feature/qos/tests/qos_policy_config_test
     owners:
       - saarvind
     mustpass: true
     priority: 802
   - name: DP-1.3 (QoS ECN feature config)
+    testbeds: 
+      - 8201-1DUT
     path: feature/qos/tests/qos_ecn_config_test
     owners:
       - saarvind
@@ -657,14 +690,18 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2552
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
+    testbeds: 
+      - 8201-1DUT
     path: feature/security/gnsi/authz/tests/authz
     args:
       - '-test_infra_id="cafyauto"'
     mustpass: true
     timeout: 21000
-    owners:
-      - harikri4
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
     
   #?
   - name: Health-1.1 (Generic Health Check)
@@ -743,6 +780,8 @@ tests:
     owners:
       - arvbaska
     mustpass: true
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
@@ -764,7 +803,6 @@ tests:
       - arvbaska
     mustpass: true
     priority: 3
-    internal: false
     pr: 2648    
   - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action_pbf
@@ -777,7 +815,6 @@ tests:
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_pbf_test
     owners:
       - arvbaska
-    skip: false
     mustpass: true
     priority: 3
-    pr: 2648    
+    pr: 2648
