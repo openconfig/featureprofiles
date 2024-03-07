@@ -41,17 +41,17 @@ func TestMain(m *testing.M) {
 func verifyVoltageValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], path string) float64 {
 	voltageSample := pStream.Next(t)
 	if voltageSample == nil {
-		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", path)
+		t.Fatalf("Voltage telemetry %s was not streamed in the most recent subscription interval", path)
 	}
 	voltageVal, ok := voltageSample.Val()
 	if !ok {
-		t.Fatalf("Temperature %q telemetry is not present", voltageSample)
+		t.Fatalf("Voltage %q telemetry is not present", voltageSample)
 	}
 	// Check voltage return value of correct type
 	if reflect.TypeOf(voltageVal).Kind() != reflect.Float64 {
 		t.Fatalf("Return value is not type float64")
 	}
-	t.Logf("Temperature sample value %s: %v", path, voltageVal)
+	t.Logf("Voltage sample value %s: %v", path, voltageVal)
 	return voltageVal
 }
 
