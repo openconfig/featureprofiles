@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import (
 
 const (
 	sampleInterval    = 10 * time.Second
-	targetOutputPower = -10
-	targetFrequency   = 193100000
+	targetOutputPowerdBm = -10
+	targetFrequencyHz   = 193100000
 	intUpdateTime     = 2 * time.Minute
 )
 
@@ -68,13 +68,13 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			component := gnmi.OC().Component(tr)
 
 			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPower {
-				t.Fatalf("Output power does not match output power, got: %v want :%v", outputPower, targetOutputPower)
+			if outputPower != targetOutputPowerdBm {
+				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
 			}
 
 			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
 			if frequency != targetFrequency {
-				t.Fatalf("Frequency does not match frequency, got: %v want :%v", frequency, frequency)
+				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
 			}
 
 			streamFec := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), sampleInterval)
