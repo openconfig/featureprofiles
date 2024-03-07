@@ -797,6 +797,11 @@ func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
 
+// MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
+func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
+}
+
 // SkipContainerOp returns true if gNMI container OP needs to be skipped.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
 func SkipContainerOp(dut *ondatra.DUTDevice) bool {
