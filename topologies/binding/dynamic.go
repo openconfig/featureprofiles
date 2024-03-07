@@ -35,12 +35,10 @@ func dynamicReservation(ctx context.Context, tb *opb.Testbed, r resolver) (*bind
 	if err != nil {
 		return nil, fmt.Errorf("could not solve for specified testbed: %w", err)
 	}
-	fmt.Println("*** A")
 	assign, err := portgraph.Solve(ctx, abstractGraph, superGraph)
 	if err != nil {
 		return nil, fmt.Errorf("could not solve for specified testbed: %w", err)
 	}
-	fmt.Println("*** B")
 	res, err := assignmentToReservation(assign, r, tb, absNode2Dev, conNode2Dev, absPort2BindPort, conPort2BindPort)
 	if err != nil {
 		return nil, fmt.Errorf("could not solve for specified testbed: %w", err)
