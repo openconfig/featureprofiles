@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	samplingInterval  = 10 * time.Second
+	samplingInterval     = 10 * time.Second
 	targetOutputPowerdBm = -10
-	targetFrequencyHz   = 193100000
-	intUpdateTime     = 2 * time.Minute
+	targetFrequencyHz    = 193100000
+	intUpdateTime        = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
