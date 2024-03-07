@@ -796,3 +796,15 @@ func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
 func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
+
+// TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
+// Default value is false.
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
+
+// UseTransceiverName returns true if /components/component/transceiver should use trasceiver name instead of interface name
+// Default value is false.
+func UseTransceiverName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseTransceiverName()
+}
