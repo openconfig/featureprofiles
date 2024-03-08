@@ -1,13 +1,10 @@
 package main
 
 import (
-	// "context"
-	// "encoding/json"
 	"sync"
 	"testing"
 	"time"
 
-	// gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -116,7 +113,7 @@ func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Coll
 	t.Helper()
 	defer collector.Done()
 	for cpuData := range cpuChan {
-		// change from log to capture
+		// TODO: change from log to capture
 		t.Logf("\nCPU INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(cpuData))
 		collector.CpuLogs = append(collector.CpuLogs, cpuData)
 	}
@@ -126,31 +123,8 @@ func receiveMemData(t *testing.T, memChan chan *oc.System_Memory, collector *Col
 	t.Helper()
 	defer collector.Done()
 	for memData := range memChan {
-		// change from log to capture
+		// TODO: change from log to capture
 		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(memData))
 		collector.MemLogs = append(collector.MemLogs, memData)
 	}
 }
-
-// func AsyncVerify[T func()ygnmi.SingletonQuery[T]](ygnmiCli *ygnmi.Client) chan *ygnmi.Collector[T] {
-//
-// 	collectorChan := make(chan *ygnmi.Collector[*oc.System_Cpu], 100)
-// 	go func() {
-// 		for {
-// 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-// 			//defer cancel()
-// 			// data, err := ygnmi.CollectAll(ctx, ygnmiCli, gnmi.OC().System().CpuAny().State()).Await()
-// 			data := ygnmi.Get(ctx, ygnmiCli, reflect.ValueOf(T).Call().(T))
-// 			// gnmi.OC().System().CpuAny().State()
-// 			// if cancel != nil {
-// 			// 	fmt.Printf("Error %v /n", err)
-// 			// }
-// 			// if err != nil {
-// 			// 	fmt.Printf("Error %v /n", err)
-// 			// }
-// 			collectorChan <- data
-// 		}
-// 	}()
-//
-// 	return collectorChan
-// }

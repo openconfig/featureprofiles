@@ -125,7 +125,6 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 			t.Logf("Linecard Component %s is already INACTIVE, skipping", lc)
 		}
 
-		// useNameOnly := deviations.GNOISubcomponentPath(dut)
 		lineCardPath := components.GetSubcomponentPath(lc, false)
 
 		resp, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
@@ -219,76 +218,15 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 	}
 
 	return nil
-
-	// subscribe implementation below
-	// emsd process should be restarted on active LC
-
-	// _, watcher := gnmi.WatchAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State(), timeout, func(v *ygnmi.Value[*oc.System_Process]) bool {
-	// 	val, ok := v.Val()
-	// 	return ok && val.GetName() == processName
-	// }).Await(t)
-	//
-	// sr := &gnmipb.SubscribeRequest{
-	// 	Request: &gnmipb.SubscribeRequest_Subscribe{
-	// 		Subscribe: &gnmipb.SubscriptionList{
-	// 			Prefix: &gnmipb.Path{
-	// 				Origin: "Cisco-IOS-XR-sysmgr-oper",
-	// 				Elem: []*gnmipb.PathElem{
-	// 					{Name: "system-process"},
-	// 					{Name: "node-table"},
-	// 					{Name: "node", Key: map[string]string{"node-name": "*"}},
-	// 					{Name: "processes"},
-	// 					{Name: "process"},
-	// 					{Name: "state"},
-	// 				},
-	// 			},
-	// 			Subscription: []*gnmipb.Subscription{
-	// 				{
-	// 					Path: &gnmipb.Path{
-	// 						Origin: "Cisco-IOS-XR-sysmgr-oper",
-	// 						Elem: []*gnmipb.PathElem{
-	// 							{Name: "system-process"},
-	// 							{Name: "node-table"},
-	// 							{Name: "node", Key: map[string]string{"node-name": "*"}},
-	// 							{Name: "processes"},
-	// 							{Name: "process"},
-	// 							{Name: "state"},
-	// 						},
-	// 					},
-	// 				},
-	// 			},
-	// 			Mode:         gnmipb.SubscriptionList_Mode(gnmipb.SubscriptionMode_ON_CHANGE),
-	// 			Encoding:     gnmipb.Encoding_PROTO,
-	// 		},
-	// 	},
-	// }
-	//
-	// subClient, err := dut.RawAPIs().GNMI(t).Subscribe(context.Background())
-	//
-	// subClient.Send(sr)
-	//
-	// subClient.RecvMsg()
-
-	// if !watcher {
-	// 	t.Errorf("Could not verify restart after %v", timeout)
-	// }
 }
 
 // TODO: Move these functions are they are not triggers
 
-// func pushConfig(batchSet *ygnmi.SetBatch, ygnmiCli *ygnmi.Client, leavesCnt int) {
 func BatchSet(t *testing.T, dut *ondatra.DUTDevice, batchSet *gnmi.SetBatch, leavesCnt int) {
 	startTime := time.Now()
 	t.Logf("Started GNMI Replace for %d leaves at %s\n", leavesCnt, time.Now().String())
-	// _, err := batchSet.Set(context.Background(), ygnmiCli)
-	// resp := gnmi.SetBatch(t, dut, )
 	resp := batchSet.Set(t, dut)
 	t.Logf("Batch Set result: %v\n", resp)
-
-	// if err != nil {
-	// 	fmt.Printf("BatchSet is failed %v\n", err)
-	// 	os.Exit(1)
-	// }
 	t.Logf("Finished GNMI Replace for %d leaves at %s, (%v)\n", leavesCnt, time.Now(), time.Since(startTime))
 }
 
