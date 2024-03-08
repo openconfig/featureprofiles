@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 //   dut:port1 <--> port2:dut
 //
 
-func verifyLaserBiasCurrent(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string) {
+func verifyLaserBiasCurrent(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
 	laserBias := pStream.Next(t)
 	if laserBias == nil {
 		t.Fatalf("laserBias telemetry %q  was not streamed in the most recent subscription interval", sensorName)
@@ -59,6 +59,23 @@ func verifyLaserBiasCurrent(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samp
 		t.Errorf("The laser bias value is not between 0 and 131")
 	}
 	t.Logf("laserBias value: %f", laserBiasVal)
+	return laserBiasVal
+}
+
+func verifyLaserBiasCurrentAll(t *testing.T, dut1 *ondatra.DUTDevice, pStreamInstant *samplestream.SampleStream[float64], pStreamAvg *samplestream.SampleStream[float64], pStreamMax *samplestream.SampleStream[float64], pStreamMin *samplestream.SampleStream[float64]) {
+	laserbiasInstant := verifyLaserBiasCurrent(t, dut1, pStreamInstant, "laserbiasInstant")
+	t.Logf("laserBias Instant value: %f", laserbiasInstant)
+	laserbiasMin := verifyLaserBiasCurrent(t, dut1, pStreamMin, "laserbiasMin")
+	t.Logf("laserBias Min value: %f", laserbiasMin)
+	laserbiasMax := verifyLaserBiasCurrent(t, dut1, pStreamMax, "laserbiasMax")
+	t.Logf("laserBias Max value: %f", laserbiasMax)
+	laserbiasAvg := verifyLaserBiasCurrent(t, dut1, pStreamAvg, "laserbiasAvg")
+	t.Logf("laserBias Avg value: %f", laserbiasAvg)
+	if laserbiasAvg >= laserbiasMin && laserbiasAvg <= laserbiasMax {
+		t.Logf("The average is between the maximum and minimum values")
+	} else {
+		t.Fatalf("The average is not between the maximum and minimum values Avg:%f Min:%f Max:%f", laserbiasAvg, laserbiasMin, laserbiasMax)
+	}
 }
 func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 	d := &oc.Root{}
@@ -89,17 +106,14 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp1)
 	component1 := gnmi.OC().Component(OCcomponent)
 	p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Instant().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
-	defer p1StreamInstant.Close()
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
-	defer p1StreamMin.Close()
 	p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Max().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
-	defer p1StreamMax.Close()
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	defer p1StreamAvg.Close()
+	defer p1StreamMax.Close()
+	defer p1StreamMin.Close()
+	defer p1StreamInstant.Close()
 }
 func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
@@ -126,27 +140,18 @@ func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp1)
 	component1 := gnmi.OC().Component(OCcomponent)
 	p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Instant().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
 	p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Max().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	// Wait 120 sec cooling off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	// Enable interface
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	i.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	defer p1StreamInstant.Close()
 	defer p1StreamMin.Close()
 	defer p1StreamMax.Close()
@@ -175,17 +180,11 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
 	// Disable interface transceiver power off
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), false)
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	// Enable interface transceiver power on
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	verifyLaserBiasCurrent(t, dut1, p1StreamInstant, "laserbiasInstant")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMin, "laserbiasMin")
-	verifyLaserBiasCurrent(t, dut1, p1StreamMax, "laserbiasMax")
-	verifyLaserBiasCurrent(t, dut1, p1StreamAvg, "laserbiasAvg")
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	defer p1StreamInstant.Close()
 	defer p1StreamMin.Close()
 	defer p1StreamMax.Close()
