@@ -305,8 +305,7 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         if testbed.get('sim', False): 
             return testbed
 
-        id = testbed.get('hw', testbed_id)
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
@@ -328,7 +327,7 @@ def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     if reserved_testbed.get('sim', False): 
         return True
             
-    id = reserved_testbed.get('hw', reserved_testbed['id'])
+    id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
