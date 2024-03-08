@@ -362,6 +362,8 @@ tests:
       - agvarghe
     priority: 35
     mustpass: true
+    internal: true
+    pr: 1058
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -543,7 +545,8 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    internal: false
+    internal: true
+    pr: 1054
     priority: 80
     timeout: 7200
     args:
@@ -779,6 +782,8 @@ tests:
     owners:
       - arvbaska
     mustpass: true
+    internal: true
+    pr: 1057
   - name: TE-16.1 (DCGate - basic encap test)
     path: feature/gribi/otg_tests/basic_encap_test
     owners:
