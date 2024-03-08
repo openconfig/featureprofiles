@@ -22,6 +22,8 @@ import shutil
 import random
 import string
 import tempfile
+import hashlib
+import uuid
 import time
 import json
 import yaml
@@ -62,7 +64,6 @@ def _get_go_root_path(ws=None):
         return p
     return ws
         
-
 def _get_go_path():
     return os.path.join(_get_go_root_path(), 'go')
 
@@ -91,6 +92,10 @@ def _resolve_path_if_needed(dir, path):
         return os.path.join(dir, path)
     return path
 
+def _uuid_from_str(s):
+    hex_string = hashlib.md5(s.encode("UTF-8")).hexdigest()
+    return uuid.UUID(hex=hex_string)
+    
 def _gnmi_set_file_template(conf):
     return """
     replace: {
@@ -353,8 +358,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         sim_use_mtls=False,
                         smus=None):
     
-    internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
-    internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
+    internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
                     repo_branch=internal_fp_repo_branch,
@@ -458,9 +462,11 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         testbed=None,
                         **kwargs):
     
-    test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
     if internal_test:
         test_repo_url = internal_fp_repo_url
+
+    test_repo_uuid = str(_uuid_from_str(test_repo_url))
+    test_repo_dir = os.path.join(ws, 'go_test_pkgs', test_repo_uuid, 'openconfig', 'featureprofiles')
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
