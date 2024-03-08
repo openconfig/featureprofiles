@@ -751,11 +751,6 @@ func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
 }
 
-// Devices does not support bgp max multipaths.
-func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
-}
-
 // TTLCopyUnsupported returns true for devices which does not support TTL copy.
 func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
@@ -787,7 +782,6 @@ func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
 }
 
-
 // SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
 func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
@@ -806,4 +800,9 @@ func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 // MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
 func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
+}
+
+// Devices does not support bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }

@@ -420,9 +420,6 @@ message Metadata {
     bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring table-connection
     bool skip_setting_disable_metric_propagation = 147;
-    // Devices does not support bgp max multipaths
-    // Juniper: b/319301559
-    bool bgp_max_multipath_paths_unsupported = 148;
     // Devices do not support BGP conditions match-community-set
     bool bgp_conditions_match_community_set_unsupported = 148;
     // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
@@ -430,6 +427,11 @@ message Metadata {
     // Devices missing component tree mapping from hardware port
     // to optical channel.
     bool missing_port_to_optical_channel_component_mapping = 150;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 151;
+    
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
