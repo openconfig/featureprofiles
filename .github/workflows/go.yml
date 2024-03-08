@@ -111,27 +111,27 @@ jobs:
       run: |
         ls -la /
         echo du -sh /tmp
-        du -sh /tmp
+        du -sh /tmp || true
         echo ls -la /tmp
-        ls -la /tmp
+        ls -la /tmp || true
         echo du -sh .
-        du -sh .
+        du -sh . || true
         echo df -h
-        df -h
+        df -h || true
         echo du -sh ../
-        du -sh ../
+        du -sh ../ || true
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
     - name: print disk usage
       run: |
         ls -la /
         echo du -sh /tmp
-        du -sh /tmp
+        du -sh /tmp || true
         echo ls -la /tmp
-        ls -la /tmp
+        ls -la /tmp || true
         echo du -sh .
-        du -sh .
+        du -sh . || true
         echo df -h
-        df -h
+        df -h || true
         echo du -sh ../
-        du -sh ../
+        du -sh ../ || true
