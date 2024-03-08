@@ -65,6 +65,8 @@ jobs:
         sudo rm -rf /opt/hostedtoolcache/CodeQL
         WORKSPACE_OWNER="$(stat -c '%U:%G' "${GITHUB_WORKSPACE}")"
         sudo mkdir /mnt/cache && sudo chown "${WORKSPACE_OWNER}" /mnt/cache
+        echo HOME=${HOME}
+        ls -la ${HOME} || true
         ln -s /mnt/cache "${HOME}/.cache"
     - name: Checkout code
       uses: actions/checkout@v3
