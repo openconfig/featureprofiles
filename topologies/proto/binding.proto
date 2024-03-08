@@ -164,6 +164,6 @@ message Port {
 // Link between two ports.
 // Links are only relevant if dynamic solving is enabled.
 message Link {
-  string a = 1;  // First port in the format "<device-id>:<port-id>".
-  string b = 2;  // Second port in the format "<device-id>:<port-id>".
+  string a = 1;  // First port in the format "<device-name>:<port-name>".
+  string b = 2;  // Second port in the format "<device-name>:<port-name>".
 }
