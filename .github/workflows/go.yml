@@ -144,6 +144,16 @@ jobs:
         echo du -sh /home/runner/.cache/*
         du -sh /home/runner/.cache/* || true
         echo ls -la /home
-        ls -la /home
+        ls -la /home  || true
         echo ls -la /home/runner
-        ls -la /home/runner
+        ls -la /home/runner  || true
+        echo pwd
+        pwd  || true
+        echo ls -la /home/runner/work
+        ls -la /home/runner/work  || true
+        echo ls -la /home/runner/work/featureprofiles/
+        ls -la /home/runner/work/featureprofiles/ || true
+        echo du -sh /home/runner/work/
+        du -sh /home/runner/work/ || true
+        echo ls -laR /mnt
+        ls -laR /mnt || true
