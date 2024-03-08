@@ -135,4 +135,3 @@ jobs:
         df -h
         echo du -sh ../
         du -sh ../
-    - name: print disk usage
