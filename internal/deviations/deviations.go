@@ -797,6 +797,11 @@ func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
 
+// MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
+func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
+}
+
 // SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
 func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()

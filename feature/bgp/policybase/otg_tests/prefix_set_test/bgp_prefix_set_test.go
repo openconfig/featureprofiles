@@ -25,7 +25,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -386,9 +385,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	t.Logf("Validating prefix count for peer %v", nbr.nbrAddr)
-
-	var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
-	prefixPath = statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
+	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
 	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
