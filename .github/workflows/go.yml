@@ -63,6 +63,9 @@ jobs:
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        WORKSPACE_OWNER="$(stat -c '%U:%G' "${GITHUB_WORKSPACE}")"
+        sudo mkdir /mnt/cache && sudo chown "${WORKSPACE_OWNER}" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     - name: Checkout code
       uses: actions/checkout@v3
     - name: Cache
