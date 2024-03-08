@@ -90,7 +90,7 @@ func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChId
 		RateClass:          oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: &oc.TerminalDevice_Channel_Assignment{
+			1: {
 				Index:          ygot.Uint32(1),
 				LogicalChannel: ygot.Uint32(coherentChIdx),
 				Description:    ygot.String("ETH to Coherent"),
@@ -107,7 +107,7 @@ func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChId
 		Description:        ygot.String("Coherent Logical Channel"),
 		Index:              ygot.Uint32(coherentChIdx),
 		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: &oc.TerminalDevice_Channel_Assignment{
+			1: {
 				Index:          ygot.Uint32(1),
 				OpticalChannel: ygot.String(opticalChannel),
 				Description:    ygot.String("Coherent to Optical"),
