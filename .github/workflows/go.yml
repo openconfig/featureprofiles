@@ -107,5 +107,32 @@ jobs:
       run: revive ./...
     - name: Get staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
+    - name: print disk usage
+      run: |
+        ls -la /
+        echo du -sh /tmp
+        du -sh /tmp
+        echo ls -la /tmp
+        ls -la /tmp
+        echo du -sh .
+        du -sh .
+        echo df -h
+        df -h
+        echo du -sh ../
+        du -sh ../
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
+    - name: print disk usage
+      run: |
+        ls -la /
+        echo du -sh /tmp
+        du -sh /tmp
+        echo ls -la /tmp
+        ls -la /tmp
+        echo du -sh .
+        du -sh .
+        echo df -h
+        df -h
+        echo du -sh ../
+        du -sh ../
+    - name: print disk usage
