@@ -66,8 +66,10 @@ jobs:
         WORKSPACE_OWNER="$(stat -c '%U:%G' "${GITHUB_WORKSPACE}")"
         sudo mkdir /mnt/cache && sudo chown "${WORKSPACE_OWNER}" /mnt/cache
         echo HOME=${HOME}
-        ls -la ${HOME} || true
+        ls -laR ${HOME}/.cache || true
+        rm -rf ${HOME}/.cache
         ln -s /mnt/cache "${HOME}/.cache"
+        ls -la ${HOME} || true
     - name: Checkout code
       uses: actions/checkout@v3
     - name: Cache
