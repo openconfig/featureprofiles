@@ -30,6 +30,8 @@ message Binding {
 
   // Enable dynamic solving of this binding.
   bool dynamic = 4;
+  // Links only need if dynamic solving is enabled.
+  repeated Link links = 5;
 }
 
 // Config for resetting the device before the test run.
@@ -51,6 +53,7 @@ message Configs {
 // A device binding.
 message Device {
   // Device ID as it appears in the testbed.
+  // Set this value if and only dynamic solving is disabled.
   string id = 1;
 
   // The actual device hostname to be used for the binding.
@@ -145,6 +148,7 @@ message Options {
 // Port binding.
 message Port {
   // Port ID as it appears in the testbed.
+  // Set this value if and only dynamic solving is disabled.
   string id = 1;
 
   // The actual port name to be used for the binding.
@@ -155,4 +159,11 @@ message Port {
 
   // PMD type of the port.
   ondatra.Port.Pmd pmd = 4;
+}
+
+// Link between two ports.
+// Links are only relevant if dynamic solving is enabled.
+message Link {
+  string a = 1;  // First port in the format "<device-id>:<port-id>".
+  string b = 2;  // Second port in the format "<device-id>:<port-id>".
 }
