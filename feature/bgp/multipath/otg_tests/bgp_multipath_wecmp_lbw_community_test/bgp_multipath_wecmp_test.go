@@ -69,7 +69,8 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 		routeAddress.SetPrefix(prefixP4Len)
 		routeAddress.SetCount(prefixesCount)
 		bgp4PeerRoute.AddPath().SetPathId(pathID)
-		bgp4PeerRoute.ExtendedCommunities().Items()[0].NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
+		bgpExtCom := bgp4PeerRoute.ExtendedCommunities().Add()
+		bgpExtCom.NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
 	}
 
 	configureFlow(bs)
@@ -79,7 +80,7 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
-	for i := 1; i < len(bs.ATEPorts); i++ {
+	for i := 2; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
@@ -151,7 +152,6 @@ func TestBGPSetup(t *testing.T) {
 	if !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 		gEBGP.AllowMultipleAs = ygot.Bool(true)
 	}
-
 	configureOTG(t, bs)
 	bs.PushAndStart(t)
 
@@ -165,8 +165,10 @@ func TestBGPSetup(t *testing.T) {
 	prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
 	ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
 	hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-	if got, want := len(hopGroup.NextHop), 2; got != want {
-		t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+	if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
+		if got, want := len(hopGroup.NextHop), 2; got != want {
+			t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+		}
 	}
 
 	sleepTime := time.Duration(totalPackets/trafficPps) + 5
@@ -176,5 +178,7 @@ func TestBGPSetup(t *testing.T) {
 
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	checkPacketLoss(t, bs.ATE)
-	verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
+	if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
+		verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
+	}
 }
