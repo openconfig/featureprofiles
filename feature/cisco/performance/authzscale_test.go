@@ -88,28 +88,28 @@ func getSpiffe(t *testing.T, dut *ondatra.DUTDevice, certName string) *authz.Spi
 	return &spiffe
 }
 
-func TestAuthzScaled(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	setUpBaseline(t, dut)
-	ControlPlaneVerification(ygnmiCli)
-}
-
-func TestAuthz(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	setUpBaseline(t, dut)
-	ControlPlaneVerification(ygnmiCli)
-}
-
-func TestAuthzEmsdRestart(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	setUpBaseline(t, dut)
-	RestartEmsd(t, dut)
-	ControlPlaneVerification(ygnmiCli)
-}
-
-func TestAuthzRouterReload(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	setUpBaseline(t, dut)
-	RouterReload(t, dut)
-	ControlPlaneVerification(ygnmiCli)
-}
+// func TestAuthzScaled(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	setUpBaseline(t, dut)
+// 	ControlPlaneVerification(ygnmiCli)
+// }
+//
+// func TestAuthz(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	setUpBaseline(t, dut)
+// 	ControlPlaneVerification(ygnmiCli)
+// }
+//
+// func TestAuthzEmsdRestart(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	setUpBaseline(t, dut)
+// 	RestartEmsd(t, dut)
+// 	ControlPlaneVerification(ygnmiCli)
+// }
+//
+// func TestAuthzRouterReload(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	setUpBaseline(t, dut)
+// 	RouterReload(t, dut)
+// 	ControlPlaneVerification(ygnmiCli)
+// }

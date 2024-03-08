@@ -1,192 +1,124 @@
 package main
 
 import (
-	"context"
-	"crypto/tls"
-	"flag"
-	"fmt"
-	"os"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
-
-	//"github.com/openconfig/ondatra/gnmi"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
-
-// var (
-// 	grpcStub *grpc.ClientConn
-// )
-
-var (
-	addr = flag.String("addr", "172.26.228.170:9867", "address of the gRIBI server in the format hostname:port")
-	//addr       = flag.String("addr", "10.85.84.159:57900", "address of the gRIBI server in the format hostname:port")
-	insec      = flag.Bool("insecure", false, "dial insecure gRPC (no TLS)")
-	skipVerify = flag.Bool("skip_verify", true, "allow self-signed TLS certificate; not needed for -insecure")
-	username   = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")
-	password   = flag.String("password", "cisco123", "password to be sent as gRPC metadata")
-	grpcStub   *grpc.ClientConn
-)
-
-// flagCred implements credentials.PerRPCCredentials by populating the
-// username and password metadata from flags.
-type flagCred struct{}
-
-// GetRequestMetadata is needed by credentials.PerRPCCredentials.
-func (flagCred) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": *username,
-		"password": *password,
-	}, nil
-}
-
-// RequireTransportSecurity is needed by credentials.PerRPCCredentials.
-func (flagCred) RequireTransportSecurity() bool {
-	return false
-}
-
-func init() {
-	flag.Parse()
-	dialOpts := []grpc.DialOption{grpc.WithBlock()}
-	if *insec {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	} else if *skipVerify {
-		tlsc := credentials.NewTLS(&tls.Config{
-			InsecureSkipVerify: *skipVerify,
-		})
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(tlsc))
-	}
-
-	if *password != "" {
-		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(flagCred{}))
-	}
-	retryOpt := grpc_retry.WithPerRetryTimeout(60 * time.Second)
-	dialOpts = append(dialOpts,
-		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
-		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
-	)
-	ctx := context.Background()
-	var err error
-	grpcStub, err = grpc.DialContext(ctx, *addr, dialOpts...)
-	if err != nil {
-		fmt.Printf("Could not dial gRPC: %v", err)
-		os.Exit(2)
-	}
-
-}
 
 func TestMain(m *testing.M) {
-	fptest.RunTests(m)
+	ondatra.RunTests(m, binding.New)
 }
 
-// func TestGNMIUpdateScale(t *testing.T) {
-// 	dut := ondatra.DUT(t, "dut")
-// 	beforeTime := time.Now()
-// 	for i := 0; i <= 10; i++ {
-// 		gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test"+strconv.Itoa(i))
-// 	}
-// 	t.Logf("Time to do 100 gnmi uodate is %s", time.Since(beforeTime).String())
-// 	if int(time.Since(beforeTime).Seconds()) >= 180 {
-// 		t.Fatalf("GNMI Scale Took too long")
-// 	}
-// }
+func TestGNMIUpdateScale(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	beforeTime := time.Now()
+	for i := 0; i <= 10; i++ {
+		gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test"+strconv.Itoa(i))
+	}
+	t.Logf("Time to do 100 gnmi update is %s", time.Since(beforeTime).String())
+	if int(time.Since(beforeTime).Seconds()) >= 180 {
+		t.Fatalf("GNMI Scale Took too long")
+	}
+}
 
-// func TestGNMIBigSetRequest(t *testing.T) {
-// 	// Perform a gNMI Set Request with 20 MB of Data
-// 	dut := ondatra.DUT(t, "dut")
-// 	RestartEmsd(t, dut)
-// 	ControlPlaneVerification(ygnmiCli)
-// }
+func TestGNMIBigSetRequest(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	numLeaves := 400000
+
+	replace := true
+	// Perform a gNMI Set Request with 13 MB of Data
+	set := CreateInterfaceSetFromOCRoot(LoadJSONOC(t, "./big_set.json"), replace)
+
+	t.Logf("Starting collector at %s", time.Now())
+	colletor := CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
+
+	t.Logf("Starting batch programming of %d leaves at %s", numLeaves, time.Now())
+	BatchSet(t, dut, set, numLeaves)
+	t.Logf("Finished batch programming of %d leaves at %s", numLeaves, time.Now())
+
+	colletor.Wait()
+	t.Logf("Collector finished at %s", time.Now())
+}
+
+func TestCpuCollector(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Starting CPU data collection at %s", time.Now())
+	CollectCpuData(t, dut, 50*time.Millisecond, 5*time.Second).Wait()
+	t.Logf("Collector finished at %s", time.Now())
+
+	// TODO: tabulate once correct yang model is provided
+
+	// tabulation
+	// tab := tabulate.New(tabulate.ASCII)
+	// err := tabulate.Reflect(tab, 0, nil, collector.CpuLogs)
+	// if err != nil {
+	// 	t.Errorf("Error tabulating data: %s", err)
+	// }
+	// fmt.Print("CPU Logs:\n")
+	// tab.Print(os.Stdout)
+	// tab2 := tabulate.New(tabulate.ASCII)
+	// err = tabulate.Reflect(tab2, 0, nil, collector.MemLogs)
+	// if err != nil {
+	// 	t.Errorf("Error tabulating data: %s", err)
+	// }
+	// fmt.Print("Memory Logs:\n")
+	// tab2.Print(os.Stdout)
+	//
+	// t.Log("CPU data collection finished")
+}
 
 func TestEmsdRestart(t *testing.T) {
-	gnmiC := gpb.NewGNMIClient(grpcStub)
-	//isRunning := true
-	ygnmiCli, err := ygnmi.NewClient(gnmiC)
-	if err != nil {
-		fmt.Printf("Could not connect to GNMI service: %v", err)
-		os.Exit(2)
-	}
-	//dut := ondatra.DUT(t, "dut")
-	//RestartEmsd(t, dut)
-	//ControlPlaneVerification(ygnmiCli)
-	//ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
-	//b, err := gnmi.GetAll(ctx, t, dut, gnmi.OC().System().CpuAny().Total().State())
-	// t.Log(b)
-	// if err != nil {
-	// 	fmt.Printf("Error /n")
-	// }
-	// if cancel != nil {
-	// 	fmt.Printf("Error /n")
-	// }
-	//GetCpuInfoEvery60Seconds(t, &isRunning)
-	//CpuVerify(gNMI, &isRunning)
-	//MemoryVerify(t, ygnmiCli, &isRunning)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	t.Log(ygnmiCli)
-	t.Log(ctx)
-	data, err := ygnmi.CollectAll(ctx, ygnmiCli, gnmi.OC().System().CpuAny().State()).Await()
-	t.Log("hi there")
-	t.Log(data)
-	if cancel != nil {
-		fmt.Printf("Error %v /n", err)
-	}
-	if err != nil {
-		fmt.Printf("Error %v /n", err)
-	}
-	//time.Sleep(150 * time.Second)
-	//isRunning = false
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Starting CPU data collection at %s", time.Now())
+	collector := CollectAllData(t, dut, 4*time.Second, 30*time.Second)
+
+	// guarantee a few timestamps before emsd restart occurs
+	time.Sleep(5 * time.Second)
+
+	t.Logf("Restarting emsd at %s", time.Now())
+	RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+
+	collector.Wait()
+	t.Logf("Collector finished at %s", time.Now())
 }
 
-// func TestRouterReload(t *testing.T) {
-// 	dut := ondatra.DUT(t, "dut")
-// 	RestartEmsd(t, dut)
-// 	ControlPlaneVerification(ygnmiCli)
-// }
+func TestReloadLineCards(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Starting CPU data collection at %s", time.Now())
 
-func MemoryVerify(t *testing.T, ygnmiCli *ygnmi.Client, isRunning *bool) {
-	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
-	go func() {
-		for *isRunning {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			//defer cancel()
-			data, err := ygnmi.CollectAll(ctx, ygnmiCli, gnmi.OC().System().CpuAny().State()).Await()
-			t.Log("hi there")
-			t.Log(data)
-			if cancel != nil {
-				fmt.Printf("Error %v /n", err)
-			}
-			if err != nil {
-				fmt.Printf("Error %v /n", err)
-			}
-			for _, memUse := range data {
-				usedMem, _ := memUse.Val()
-				fmt.Printf("Cpu info at %v : %v\n", memUse.Timestamp, PrettyPrint(usedMem))
-			}
-		}
-	}()
+	// synchronous snapshot before router reload begins
+	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+
+	// background concurrent collection
+	collector := CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
+
+	t.Logf("Restarting Line Cards at %s", time.Now())
+	ReloadLineCards(t, dut)
+	t.Logf("Line Cards restart finished at %s", time.Now())
+
+	collector.Wait()
+	t.Logf("Collector finished at %s", time.Now())
 }
 
-func GetCpuInfoEvery60Seconds(t *testing.T, isRunning *bool) {
-	go func() {
-		for *isRunning {
-			dut := ondatra.DUT(t, "dut")
-			b := gnmi.GetAll(t, dut, gnmi.OC().System().CpuAny().Total().State())
-			t.Log("hello there")
-			t.Log(b)
-			time.Sleep(30 * time.Second) // Wait for 60 seconds before the next call
-			// for _, memUse := range b {
-			// 	usedMem, _ := memUse.()
-			// 	fmt.Printf("Cpu info at %v : %v\n", memUse.Timestamp, PrettyPrint(usedMem))
-			// }
-		}
-	}()
+func TestReloadRouter(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Starting CPU data collection at %s", time.Now())
+
+	// example of synchronous snapshot of cpu usage
+	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+
+	t.Logf("Restarting Router at %s", time.Now())
+	ReloadRouter(t, dut)
+	t.Logf("Router restart finished at %s", time.Now())
+
+	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+
+	t.Log("Waiting on main thread")
+	t.Logf("Collector finished at %s", time.Now())
 }
