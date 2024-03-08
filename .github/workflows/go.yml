@@ -120,6 +120,12 @@ jobs:
         df -h || true
         echo du -sh ../
         du -sh ../ || true
+        echo du -sh /home/runner/.cache/*
+        du -sh /home/runner/.cache/* || true
+        echo ls -la /home
+        ls -la /home
+        echo ls -la /home/runner
+        ls -la /home/runner
     - name: Run staticcheck
       run: GOGC=30 staticcheck ./...
     - name: print disk usage
@@ -135,3 +141,9 @@ jobs:
         df -h || true
         echo du -sh ../
         du -sh ../ || true
+        echo du -sh /home/runner/.cache/*
+        du -sh /home/runner/.cache/* || true
+        echo ls -la /home
+        ls -la /home
+        echo ls -la /home/runner
+        ls -la /home/runner
