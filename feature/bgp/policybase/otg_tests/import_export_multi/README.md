@@ -10,17 +10,44 @@ The purpose of this test is to verify a combination of bgp conditions using matc
 
 ## Testbed common configuration
 
-* Testbed configuration - Setup BGP sessions and prefixes
+* Testbed configuration - Setup eBGP sessions and prefixes
   * Generate config for 2 DUT and ATE ports where
-    * DUT port 1 to ATE port 1.
-    * DUT port 2 to ATE port 2.
+    * DUT port 1 connects to ATE port 1.
+    * DUT port 2 connects to ATE port 2.
   * Configure ATE port 1 with an external type BGP session to DUT port 1
-    * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
-    * prefix-set-1 with 2 routes with communities `[100:1]`
-    * prefix-set-2 with 2 routes with communities `[200:1]`
-    * prefix-set-3 with 2 routes with communities `[300:1]`
-    * prefix-set-4 with 2 routes with communities `[400:1]`
-    * prefix-set-5 with 2 routes with communities `[500:1]`
+    * DUT ASN 65000
+    * ATE port 1 ASN 65100
+    * ATE port 2 ASN 65200
+    * Advertise ipv4 and ipv6 prefixes from ATE port 1 to DUT port 1 using
+      the following communities:
+    * prefix-set-1 with 2 routes with communities [ "100:1" ]
+    * prefix-set-2 with 2 routes with communities [ "200:1" ]
+    * prefix-set-3 with 2 routes with communities [ "300:1" ]
+    * prefix-set-4 with 2 routes with communities [ "200:1", "300:3" ]
+    * prefix-set-5 with 2 routes with communities [ "400:1" ]
+    * prefix-set-6 with 2 routes with communities [ "500:1" ]
+
+* Configure the following community sets on the DUT:
+  * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config
+    * name = "reject_communities"
+      * community-member = [ "100:1" ]
+    * name = "accept_communities"
+      * community-member = [ "200:1" ]
+    * name = "regex_community"
+      * community-member = [ "^300:.*$" ]
+    * name = "add_communities"
+      * community-member = [ "400:1", "400:2" ]
+    * name "my_community"
+      * community-member = [ "500:1" ]
+    * name = "add_comm_one"
+      * community-member = [ "600:1" ]
+    * name = "add_comm_two"
+      * community-member = [ "700:1" ]
+
+* Create an as-path-set on the DUT as follows
+  * /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/
+    * as-path-set-name = "my_aspath"
+    * as-path-set-member = "65100"
 
 * Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
@@ -29,113 +56,113 @@ The purpose of this test is to verify a combination of bgp conditions using matc
   * Validate that traffic can be received on ATE port-1 for all installed
     routes.
 
-* Configure ext-community-sets on DUT using OC
-  * Configure the following community sets
-    (prefix: `routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set`)
-    on the DUT.
-    * Create a community-set named 'reject-communities' with members as follows:
-      * community-member = [ "100:1" ]
-    * Create a community-set named 'accept-communities' with members as follows:
-      * community-member = [ "200:1" ]
-    * Create a community-set named 'regex-community' with members as follows:
-      * community-member = [ "^300:.*$" ]
-    * Create a community-set named 'add-communities' with members as follows:
-      * community-member = [ "400:1", "400:2" ]
-    * Create a community-set named 'my_community' with members as follows:
-      * community-member = [ "500:1" ]
-    * Create a community-set named 'add_comm_one' with members as follows:
-      * community-member = [ "600:1" ]
-    * Create a community-set named 'add_comm_two' with members as follows:
-      * community-member = [ "700:1" ]
+## Procedure
 
-## Subtests
+### RT-7.11.2 - Create a bgp policy containing the following conditions and actions
 
-RT-7.11.3 Create a single bgp policy containing the following conditions and actions:
+* Summary of this policy
+  * Reject route matching any communities in a community-set.
+  * Reject route matching another policy (nested) and not matching a community-set.
+  * Add a community-set if missing that same community-set.
+  * Add two communities and set localpref if matching a community and prefix-set.
+  * Set MED if matching an aspath
 
-* Reject route matching any communities in a community-set.
-* Reject route matching another policy (nested) and not matching a community-set.
-* Add a community-set if missing that same community-set.
-* Add two communities if matching a community and prefix-set.
-* Reject route matching another policy (nested) and matching a community-set.
+* Create policy-definitions/policy-definition/config/name = "reject_route_nested_communities"
+  * statements/statement/config/name = "reject_route_community"
+    * conditions/bgp-conditions/match-community-set/config
+      * community-set = "reject_communities"
+      * match-set-options = "ANY"
+    * actions/config/policy-result = "REJECT_ROUTE"
 
-[ TODO: Clean up formatting for below policies ]
+  * statements/statement/config/name = "if_300:.*_and_not_200:1_nested_reject_route_community"
+    * conditions/config/call-policy = "match_community_regex"
+    * conditions/bgp-conditions/match-community-set/config/
+      * community-set = "accept_communities"
+      * match-set-options = "INVERT"
+    * actions/config/policy-result = "REJECT_ROUTE"
 
-  "policy-definitions/policy-definition/config/name: "core_from_cluster_dual_stacked_v4"
-        "statements/statement"
-  
-          config/name: "reject_route_community"
-              actions/config/policy-result: "REJECT_ROUTE"
-              conditions/bgp-conditions/match-community-set/config
-                  "community-set": "reject-communities"
-                  "match-set-options": "ANY"
+  * statements/statement/config/name = "add_communities_if_missing"
+    * conditions/bgp-conditions/match-community-set/config/
+      * community-set-refs = "add-communities"
+      * match-set-options: "INVERT"
+    * actions/bgp-actions/set-community/reference/config/
+      * community-set-refs = "add-communities"
+      * method = "REFERENCE"
+      * option = "ADD"
+    * actions/config/policy-result = "NEXT_STATEMENT"
 
-          config/name: "nested_reject_route_community"
-              actions/config/policy-result: "REJECT_ROUTE"
-              conditions/config/call-policy: "nested_policy_accept_regex"
-              bgp-conditions/match-community-set/config/community-set: "accept-communities"
-                      "match-set-options": "INVERT"
+  * statements/statement/config/name: "match_comm_and_prefix_add_2_community_sets"
+    * conditions/bgp-conditions/match-community-set/config
+      * community-set = "my_community"
+      * match-set-options = "ANY"
+    * conditions/bgp-conditions/match-prefix-set/config
+      * prefix-set = "prefix-set-5"
+      * match-set-options = "ANY"
+    * actions/bgp-actions/set-community/config
+      * method = "REFERENCE"
+      * option = "ADD"
+      * community-set-refs = "add_comm_one", "add_comm_two"
+    * actions/bgp-actions/config/set-local-pref = 5
+    * actions/config/policy-result = "NEXT_STATEMENT"
 
-          config/name: "add_communities_if_missing"
-              actions/config/policy-result: "NEXT_STATEMENT"
-                bgp-actions/set-community/config/method: "REFERENCE"
-                      "option": "ADD",
-                      "community-set-refs": [
-                        "add-communities"
-              conditions/bgp-conditions/match-community-set/config": {
-                      "community-set": "add-communities"
-                      "match-set-options": "INVERT"
+  * statements/statement/config/name: "match_aspath_set_med"
+    * conditions/bgp-conditions/match-as-path-set/config/
+      * as-path-set = "my_aspath"
+      * match-set-options = "ANY"
+    * actions/bgp-actions/config/
+      * set-med = 100
+    * actions/config/policy-result = "NEXT_STATEMENT"
 
-          config/name: "add_2_community_sets"
-              actions/config/policy-result: "NEXT_STATEMENT"
-              bgp-actions/set-community/config: 
-                      method: "REFERENCE",
-                      option: "ADD",
-                      community-set-refs: "add_comm_one", "add_comm_two"
+* policy-definitions/policy-definition/config/name: "match_community_regex"
+  * statements/statement/config/name: "match_community_regex"
+    * conditions/bgp-conditions/match-community-set/config/
+      * community-set: "regex-community"
+      * match-set-options: "ANY"
 
-              conditions/bgp-conditions/match-community-set/config:
-                "community-set": "my_community"
-                "match-set-options": "ANY"
-              conditions/bgp-conditions/match-prefix-set/config: 
-                "prefix-set": "prefix-set-5"
-                "match-set-options": "ANY"
-
-  policy-definitions/policy-definition/config/name: "nested_policy_accept_regex"
-        statements/statement:
-            config/name: "accept-community-regex"
-              actions/config/policy-result: "ACCEPT_ROUTE"
-              conditions/bgp-conditions/match-community-set/config/community-set: "regex-community"
-                  match-set-options: "ANY"
-
-* For each policy-definition created, run a subtest (RT-7.11.3.x-<policy_name_here>) to
+* For each policy-definition created, run a subtest (RT-7.11.2.x-import_<policy_name_here>) to
   * Use gnmi Set REPLACE option for:
     * `/routing-policy/policy-definitions` to configure the policy
     * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
         to apply the policy on the DUT bgp neighbor to the ATE port 1.
-  * Verify expected communities are present in ATE.
-  * Verify expected communities are present in DUT state.
-    * Do not fail test if this path is not supported, only log results
-    * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
-    * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
+  * Verify expected attributes are present in ATE.
 
-[ TODO: Add Expected routes and communities for each policy ]
+[ TODO add export policy ]
 
-[ TODO: Update expected paths to be used below ]
+[ TODO: Add Expected routes and attributes (aspath, community, med, localpref) for each policy ]
 
-## Config Parameter Coverage
+## OpenConfig Path Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
 config_paths:
-  #policy_definition
+  # Policy definition
   - /routing-policy/policy-definitions/policy-definition/config/name
   - /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 
   # Policy for community-set configuration
-  - /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name
+  - /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/community-set-name
   - /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/community-member
 
-  # Policy for community-set match configuration
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/match-set-options
+  # Policy for match configuration
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/match-set-options
+
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
+
+  # Policy for bgp actions
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/options
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+
+  # Policy for bgp attachment
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
 
