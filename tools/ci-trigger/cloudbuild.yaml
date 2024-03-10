@@ -11,3 +11,5 @@ steps:
     args: ['run', 'deploy', 'featureprofiles-ci-trigger', '--image', 'us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger:$COMMIT_SHA', '--region', 'us-west1']
 images:
   - us-west1-docker.pkg.dev/$PROJECT_ID/featureprofiles-ci/featureprofiles-ci-trigger
+options:
+  logging: CLOUD_LOGGING_ONLY

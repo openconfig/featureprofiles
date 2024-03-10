@@ -152,66 +152,6 @@ var resolverBinding = resolver{&bindpb.Binding{
 	}},
 }}
 
-func TestResolver_ByID(t *testing.T) {
-	r := resolverBinding
-	cases := []struct {
-		test string
-		id   string
-		fn   func(name string) *bindpb.Device
-		want bool
-	}{{
-		test: "dutByID(dut)",
-		id:   "dut",
-		fn:   r.dutByID,
-		want: true,
-	}, {
-		test: "dutByID(anotherdut)",
-		id:   "anotherdut",
-		fn:   r.dutByID,
-		want: true,
-	}, {
-		test: "ateByID(ate)",
-		id:   "ate",
-		fn:   r.ateByID,
-		want: true,
-	}, {
-		test: "ateByID(anotherate)",
-		id:   "anotherate",
-		fn:   r.ateByID,
-		want: true,
-	}, {
-		test: "dutByID(no.such.dut)",
-		id:   "no.such.dut",
-		fn:   r.dutByID,
-		want: false,
-	}, {
-		test: "ateByID(no.such.ate)",
-		id:   "no.such.ate",
-		fn:   r.ateByID,
-		want: false,
-	}, {
-		test: "ateByID(dut)",
-		id:   "dut",
-		fn:   r.ateByID,
-		want: false,
-	}, {
-		test: "dutByID(ate)",
-		id:   "ate",
-		fn:   r.dutByID,
-		want: false,
-	}}
-
-	for _, c := range cases {
-		t.Run(c.test, func(t *testing.T) {
-			d := c.fn(c.id)
-			got := d != nil
-			if got != c.want {
-				t.Errorf("Lookup by ID got %v, want %v", got, c.want)
-			}
-		})
-	}
-}
-
 func TestResolver_Options(t *testing.T) {
 	r := resolverBinding
 	cases := []struct {

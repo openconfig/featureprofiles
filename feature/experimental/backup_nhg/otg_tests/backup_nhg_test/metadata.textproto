@@ -34,3 +34,4 @@ platform_exceptions: {
     interface_config_vrf_before_address: true
   }
 }
+tags: TAGS_TRANSIT
