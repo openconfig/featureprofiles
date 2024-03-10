@@ -78,6 +78,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    pr: 2648    
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
