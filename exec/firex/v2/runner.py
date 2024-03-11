@@ -228,29 +228,84 @@ def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
-def _get_dummy_suite_xml(test_name, fail):
-    if fail: 
-        failures = 1
-        body = '<failure message="Failed"></failure>'
+def _get_fixes_from_testbed_info(testbed_info_file):
+    ddts_re = r'CSC[a-z][a-z]\d{5}'
+    with open(testbed_info_file, 'r') as fp:
+        info = fp.read()
+        return re.findall(ddts_re, info)
+
+def _add_extra_properties_to_xml(ts, test_name, reserved_testbed, core_files=[]):
+    props = ts.find('./properties')
+    if not props:
+        props = ET.SubElement(ts, 'properties')
+
+    has_test_plan_id = False
+    for p in props:
+        has_test_plan_id = p.get('name', '') == 'test.plan_id'
+        if has_test_plan_id: break
+
+    if not has_test_plan_id:
+        ET.SubElement(props, 'property', attrib={
+            'name': 'test.plan_id',
+            'value': test_name
+        })
+
+    fixes = []
+    if os.path.exists(reserved_testbed['testbed_info_file']):
+        fixes = _get_fixes_from_testbed_info(reserved_testbed['testbed_info_file'])
+
+    ET.SubElement(props, 'property', attrib={
+        'name': 'b4.fixes_active',
+        'value': ','.join(fixes)
+    })
+    
+    ET.SubElement(props, 'property', attrib={
+        'name': 'b4.num_core_files',
+        'value': str(len(core_files))
+    })
+    
+    if len(core_files) > 0:
+        e = ET.SubElement(ts, 'testcase', attrib = {
+            'classname': '', 
+            'name': 'CoreFileCheck', 
+            'time': '1'
+        })
+        ET.SubElement(e, 'failure', attrib={
+            'message': 'Failed'
+        }).text = 'Found core files:\n' + '\n'.join(core_files)
+
+def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
+    ts = ET.Element('testsuite', attrib={
+        'name': test_name,
+        'tests': '1',
+        'failures': str(int(fail)),
+        'errors': str(int(abort)),
+        'skipped': '0'
+    })
+    
+    tc = ET.SubElement(ts, 'testcase', attrib={
+        'name': 'dummy',
+        'time': '1'
+    })
+
+    if fail:
+        ET.SubElement(tc, 'failure', attrib={
+            'message': 'Failed'
+        })
+    elif abort:
+        ET.SubElement(tc, 'error')
     else:
-        failures = 0
-        body = "<system-out></system-out>"
+        ET.SubElement(tc, 'system-out')
+    
+    return ts
 
-    return f"""<?xml version='1.0' encoding='UTF-8'?>
-<testsuites>
-    <!-- This dummy xunit result has been automatically generated since the test was aborted. -->
-    <!-- Check test logs for error details. -->
-    <testsuite name="{test_name}" tests="1" failures="{failures}" errors="0" skipped="0">
-        <testcase name="dummy">
-            {body}
-        </testcase>
-    </testsuite>
-</testsuites>
-    """
+def _write_xml_suite(ts, xml_file):
+    root = ET.Element("testsuites")
+    root.append(ts)
 
-def _write_dummy_xml_output(test_name, xml_file, fail):
-    with open(xml_file, 'w') as fp:
-        fp.write(_get_dummy_suite_xml(test_name, fail))
+    tree = ET.ElementTree(root)
+    with open(xml_file, 'wb') as fp:
+        tree.write(fp)
 
 def _get_testsuite_from_xml(file_name):
     try:
@@ -260,7 +315,7 @@ def _get_testsuite_from_xml(file_name):
         return None
     except:
         return None
-
+    
 def _extract_env_var_from_arg(arg):
     m = re.findall('\$[0-9a-zA-Z_]+', arg)
     if len(m) > 0: return m[0]
@@ -528,8 +583,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
-        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, collect_dut_info=True,
-        override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        collect_dut_info=True, override_test_args_from_env=True, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
@@ -553,7 +608,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
-        
+    
     go_args = ''
     test_args = test_args or ''
 
@@ -607,24 +662,28 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         stop_time = self.get_current_time()
     finally:
         suite = _get_testsuite_from_xml(xml_results_file)
-        if suite: 
-            shutil.copyfile(xml_results_file, xunit_results_filepath)
-            test_did_pass = suite.attrib['failures'] == '0'
-            core_files_only = test_did_pass or (not test_did_pass and not collect_debug_files)
-            self.enqueue_child_and_get_results(CollectDebugFiles.s(
-                ws=ws,
-                internal_fp_repo_dir=internal_fp_repo_dir, 
-                reserved_testbed=reserved_testbed, 
-                test_log_directory_path=test_log_directory_path,
-                timestamp=start_timestamp,
-                core_files_only=core_files_only,
-                xunit_results_filepath=xunit_results_filepath
-            ))
-        elif test_ignore_aborted or test_skip:
-            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
+        test_did_pass = suite and suite.attrib['failures'] == '0'
+        if not suite: 
+            if test_ignore_aborted or test_skip:
+                suite = _generate_dummy_suite(test_name, reserved_testbed, fail=test_skip and test_fail_skipped)
+            else:
+                suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
+
+        core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
+            ws=ws,
+            internal_fp_repo_dir=internal_fp_repo_dir, 
+            reserved_testbed=reserved_testbed, 
+            test_log_directory_path=test_log_directory_path,
+            timestamp=start_timestamp,
+            core_files_only=test_did_pass or (not test_did_pass and not collect_debug_files),
+        )).get('core_files', [])
+        
+        _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+        _write_xml_suite(suite, xunit_results_filepath)
+            
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-       
+
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
@@ -925,8 +984,8 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only, xunit_results_filepath):
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -955,38 +1014,19 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     except Exception as error:
         logger.warning(f'Failed to collect debug files with error: {error}') 
     finally:
-        self.enqueue_child_and_get_results(AppendCoreFileCheckResult.s(
-            reserved_testbed=reserved_testbed,
-            test_log_directory_path=test_log_directory_path,
-            xunit_results_filepath=xunit_results_filepath
-        ))
         os.remove(tmp_binding_file)
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def AppendCoreFileCheckResult(self, reserved_testbed, test_log_directory_path, xunit_results_filepath):
-    try:
+        
+        core_files = []
         duts = ['dut']
         if type(reserved_testbed['baseconf']) is dict: 
             duts = [k for k in reserved_testbed['baseconf']]
 
-        core_files = []
         r = re.compile(r'core\b', re.IGNORECASE)        
         for dut in duts:
             arr = os.listdir(os.path.join(test_log_directory_path, 'debug_files', dut))
-            dut_core_files = list(filter(lambda x: r.search(str(x)),arr))
+            dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
             core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
-            
-        logger.print(f'Core files found if any {core_files}')
-        
-        if len(core_files) > 0:
-            tree = ET.parse(xunit_results_filepath)
-            testsuite = tree.find("testsuite")
-            fe = ET.SubElement(testsuite, "testcase", attrib = {"classname": "", "name": "CoreFileCheck", "time": "1"})
-            ET.SubElement(fe, "failure", attrib={"message": "Failed"}).text = "Found core files:\n" + '\n'.join(core_files)
-            tree.write(xunit_results_filepath, encoding="utf-8")
-    except Exception as error:
-        logger.warning(f"Failed to collect core files with error: {error}") 
+        return core_files
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
