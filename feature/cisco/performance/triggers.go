@@ -1,5 +1,5 @@
 // Abstract Trigger Space to have Routines that could be re-usable for any Test Suite
-package main
+package performance
 
 import (
 	"context"

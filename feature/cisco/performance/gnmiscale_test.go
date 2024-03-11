@@ -1,10 +1,11 @@
-package main
+package performance_test
 
 import (
 	"strconv"
 	"testing"
 	"time"
 
+	perf "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -32,13 +33,13 @@ func TestGNMIBigSetRequest(t *testing.T) {
 
 	replace := true
 	// Perform a gNMI Set Request with 13 MB of Data
-	set := CreateInterfaceSetFromOCRoot(LoadJSONOC(t, "./big_set.json"), replace)
+	set := perf.CreateInterfaceSetFromOCRoot(perf.LoadJSONOC(t, "./big_set.json"), replace)
 
 	t.Logf("Starting collector at %s", time.Now())
-	colletor := CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
+	colletor := perf.CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
 
 	t.Logf("Starting batch programming of %d leaves at %s", numLeaves, time.Now())
-	BatchSet(t, dut, set, numLeaves)
+	perf.BatchSet(t, dut, set, numLeaves)
 	t.Logf("Finished batch programming of %d leaves at %s", numLeaves, time.Now())
 
 	colletor.Wait()
@@ -48,7 +49,7 @@ func TestGNMIBigSetRequest(t *testing.T) {
 func TestCpuCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
-	CollectCpuData(t, dut, 50*time.Millisecond, 5*time.Second).Wait()
+	perf.CollectCpuData(t, dut, 50*time.Millisecond, 5*time.Second).Wait()
 	t.Logf("Collector finished at %s", time.Now())
 
 	// TODO: tabulate once correct yang model is provided
@@ -75,13 +76,13 @@ func TestCpuCollector(t *testing.T) {
 func TestEmsdRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
-	collector := CollectAllData(t, dut, 4*time.Second, 30*time.Second)
+	collector := perf.CollectAllData(t, dut, 4*time.Second, 30*time.Second)
 
 	// guarantee a few timestamps before emsd restart occurs
 	time.Sleep(5 * time.Second)
 
 	t.Logf("Restarting emsd at %s", time.Now())
-	RestartEmsd(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	collector.Wait()
@@ -93,13 +94,13 @@ func TestReloadLineCards(t *testing.T) {
 	t.Logf("Starting CPU data collection at %s", time.Now())
 
 	// synchronous snapshot before router reload begins
-	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+	perf.CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
 
 	// background concurrent collection
-	collector := CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
+	collector := perf.CollectAllData(t, dut, 25*time.Second, 5*time.Minute)
 
 	t.Logf("Restarting Line Cards at %s", time.Now())
-	ReloadLineCards(t, dut)
+	perf.ReloadLineCards(t, dut)
 	t.Logf("Line Cards restart finished at %s", time.Now())
 
 	collector.Wait()
@@ -111,13 +112,13 @@ func TestReloadRouter(t *testing.T) {
 	t.Logf("Starting CPU data collection at %s", time.Now())
 
 	// example of synchronous snapshot of cpu usage
-	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+	perf.CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
 
 	t.Logf("Restarting Router at %s", time.Now())
-	ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 	t.Logf("Router restart finished at %s", time.Now())
 
-	CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
+	perf.CollectAllData(t, dut, 2500*time.Millisecond, 6*time.Second).Wait()
 
 	t.Log("Waiting on main thread")
 	t.Logf("Collector finished at %s", time.Now())
