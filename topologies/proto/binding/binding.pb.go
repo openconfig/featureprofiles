@@ -47,6 +47,8 @@ type Binding struct {
 	Options *Options `protobuf:"bytes,3,opt,name=options,proto3" json:"options,omitempty"`
 	// Enable dynamic solving of this binding.
 	Dynamic bool `protobuf:"varint,4,opt,name=dynamic,proto3" json:"dynamic,omitempty"`
+	// Links only need if dynamic solving is enabled.
+	Links []*Link `protobuf:"bytes,5,rep,name=links,proto3" json:"links,omitempty"`
 }
 
 func (x *Binding) Reset() {
@@ -107,6 +109,13 @@ func (x *Binding) GetDynamic() bool {
 		return x.Dynamic
 	}
 	return false
+}
+
+func (x *Binding) GetLinks() []*Link {
+	if x != nil {
+		return x.Links
+	}
+	return nil
 }
 
 // Config for resetting the device before the test run.
@@ -193,6 +202,7 @@ type Device struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Device ID as it appears in the testbed.
+	// Set this value if and only dynamic solving is disabled.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// The actual device hostname to be used for the binding.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -528,6 +538,7 @@ type Port struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Port ID as it appears in the testbed.
+	// Set this value if and only dynamic solving is disabled.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// The actual port name to be used for the binding.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -597,6 +608,63 @@ func (x *Port) GetPmd() proto.Port_Pmd {
 	return proto.Port_Pmd(0)
 }
 
+// Link between two ports.
+// Links are only relevant if dynamic solving is enabled.
+type Link struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	A string `protobuf:"bytes,1,opt,name=a,proto3" json:"a,omitempty"` // First port in the format "<device-id>:<port-id>".
+	B string `protobuf:"bytes,2,opt,name=b,proto3" json:"b,omitempty"` // Second port in the format "<device-id>:<port-id>".
+}
+
+func (x *Link) Reset() {
+	*x = Link{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_binding_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Link) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Link) ProtoMessage() {}
+
+func (x *Link) ProtoReflect() protoreflect.Message {
+	mi := &file_binding_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Link.ProtoReflect.Descriptor instead.
+func (*Link) Descriptor() ([]byte, []int) {
+	return file_binding_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Link) GetA() string {
+	if x != nil {
+		return x.A
+	}
+	return ""
+}
+
+func (x *Link) GetB() string {
+	if x != nil {
+		return x.B
+	}
+	return ""
+}
+
 var File_binding_proto protoreflect.FileDescriptor
 
 var file_binding_proto_rawDesc = []byte{
@@ -605,7 +673,7 @@ var file_binding_proto_rawDesc = []byte{
 	0x69, 0x6e, 0x67, 0x1a, 0x31, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
 	0x6f, 0x70, 0x65, 0x6e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2f, 0x6f, 0x6e, 0x64, 0x61, 0x74,
 	0x72, 0x61, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x62, 0x65, 0x64,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xba, 0x01, 0x0a, 0x07, 0x42, 0x69, 0x6e, 0x64, 0x69,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xea, 0x01, 0x0a, 0x07, 0x42, 0x69, 0x6e, 0x64, 0x69,
 	0x6e, 0x67, 0x12, 0x2e, 0x0a, 0x04, 0x64, 0x75, 0x74, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
 	0x32, 0x1a, 0x2e, 0x6f, 0x70, 0x65, 0x6e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x74, 0x65,
 	0x73, 0x74, 0x69, 0x6e, 0x67, 0x2e, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x52, 0x04, 0x64, 0x75,
@@ -617,7 +685,10 @@ var file_binding_proto_rawDesc = []byte{
 	0x2e, 0x74, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x67, 0x2e, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73,
 	0x52, 0x07, 0x6f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x64, 0x79, 0x6e,
 	0x61, 0x6d, 0x69, 0x63, 0x18, 0x04, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x64, 0x79, 0x6e, 0x61,
-	0x6d, 0x69, 0x63, 0x22, 0x7b, 0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x73, 0x12, 0x10,
+	0x6d, 0x69, 0x63, 0x12, 0x2e, 0x0a, 0x05, 0x6c, 0x69, 0x6e, 0x6b, 0x73, 0x18, 0x05, 0x20, 0x03,
+	0x28, 0x0b, 0x32, 0x18, 0x2e, 0x6f, 0x70, 0x65, 0x6e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e,
+	0x74, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x67, 0x2e, 0x4c, 0x69, 0x6e, 0x6b, 0x52, 0x05, 0x6c, 0x69,
+	0x6e, 0x6b, 0x73, 0x22, 0x7b, 0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x73, 0x12, 0x10,
 	0x0a, 0x03, 0x63, 0x6c, 0x69, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x03, 0x63, 0x6c, 0x69,
 	0x12, 0x19, 0x0a, 0x08, 0x63, 0x6c, 0x69, 0x5f, 0x66, 0x69, 0x6c, 0x65, 0x18, 0x02, 0x20, 0x03,
 	0x28, 0x09, 0x52, 0x07, 0x63, 0x6c, 0x69, 0x46, 0x69, 0x6c, 0x65, 0x12, 0x22, 0x0a, 0x0d, 0x67,
@@ -702,12 +773,14 @@ var file_binding_proto_rawDesc = []byte{
 	0x72, 0x61, 0x2e, 0x50, 0x6f, 0x72, 0x74, 0x2e, 0x53, 0x70, 0x65, 0x65, 0x64, 0x52, 0x05, 0x73,
 	0x70, 0x65, 0x65, 0x64, 0x12, 0x23, 0x0a, 0x03, 0x70, 0x6d, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28,
 	0x0e, 0x32, 0x11, 0x2e, 0x6f, 0x6e, 0x64, 0x61, 0x74, 0x72, 0x61, 0x2e, 0x50, 0x6f, 0x72, 0x74,
-	0x2e, 0x50, 0x6d, 0x64, 0x52, 0x03, 0x70, 0x6d, 0x64, 0x42, 0x40, 0x5a, 0x3e, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6f, 0x70, 0x65, 0x6e, 0x63, 0x6f, 0x6e, 0x66,
-	0x69, 0x67, 0x2f, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x70, 0x72, 0x6f, 0x66, 0x69, 0x6c,
-	0x65, 0x73, 0x2f, 0x74, 0x6f, 0x70, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x65, 0x73, 0x2f, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2f, 0x62, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x2e, 0x50, 0x6d, 0x64, 0x52, 0x03, 0x70, 0x6d, 0x64, 0x22, 0x22, 0x0a, 0x04, 0x4c, 0x69, 0x6e,
+	0x6b, 0x12, 0x0c, 0x0a, 0x01, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x01, 0x61, 0x12,
+	0x0c, 0x0a, 0x01, 0x62, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x01, 0x62, 0x42, 0x40, 0x5a,
+	0x3e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6f, 0x70, 0x65, 0x6e,
+	0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2f, 0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x70, 0x72,
+	0x6f, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x2f, 0x74, 0x6f, 0x70, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x65,
+	0x73, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x62, 0x69, 0x6e, 0x64, 0x69, 0x6e, 0x67, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -722,40 +795,42 @@ func file_binding_proto_rawDescGZIP() []byte {
 	return file_binding_proto_rawDescData
 }
 
-var file_binding_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_binding_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_binding_proto_goTypes = []interface{}{
 	(*Binding)(nil),          // 0: openconfig.testing.Binding
 	(*Configs)(nil),          // 1: openconfig.testing.Configs
 	(*Device)(nil),           // 2: openconfig.testing.Device
 	(*Options)(nil),          // 3: openconfig.testing.Options
 	(*Port)(nil),             // 4: openconfig.testing.Port
-	(proto.Device_Vendor)(0), // 5: ondatra.Device.Vendor
-	(proto.Port_Speed)(0),    // 6: ondatra.Port.Speed
-	(proto.Port_Pmd)(0),      // 7: ondatra.Port.Pmd
+	(*Link)(nil),             // 5: openconfig.testing.Link
+	(proto.Device_Vendor)(0), // 6: ondatra.Device.Vendor
+	(proto.Port_Speed)(0),    // 7: ondatra.Port.Speed
+	(proto.Port_Pmd)(0),      // 8: ondatra.Port.Pmd
 }
 var file_binding_proto_depIdxs = []int32{
 	2,  // 0: openconfig.testing.Binding.duts:type_name -> openconfig.testing.Device
 	2,  // 1: openconfig.testing.Binding.ates:type_name -> openconfig.testing.Device
 	3,  // 2: openconfig.testing.Binding.options:type_name -> openconfig.testing.Options
-	3,  // 3: openconfig.testing.Device.options:type_name -> openconfig.testing.Options
-	4,  // 4: openconfig.testing.Device.ports:type_name -> openconfig.testing.Port
-	1,  // 5: openconfig.testing.Device.config:type_name -> openconfig.testing.Configs
-	3,  // 6: openconfig.testing.Device.ssh:type_name -> openconfig.testing.Options
-	3,  // 7: openconfig.testing.Device.gnmi:type_name -> openconfig.testing.Options
-	3,  // 8: openconfig.testing.Device.gnoi:type_name -> openconfig.testing.Options
-	3,  // 9: openconfig.testing.Device.gnsi:type_name -> openconfig.testing.Options
-	3,  // 10: openconfig.testing.Device.gribi:type_name -> openconfig.testing.Options
-	3,  // 11: openconfig.testing.Device.p4rt:type_name -> openconfig.testing.Options
-	3,  // 12: openconfig.testing.Device.ixnetwork:type_name -> openconfig.testing.Options
-	3,  // 13: openconfig.testing.Device.otg:type_name -> openconfig.testing.Options
-	5,  // 14: openconfig.testing.Device.vendor:type_name -> ondatra.Device.Vendor
-	6,  // 15: openconfig.testing.Port.speed:type_name -> ondatra.Port.Speed
-	7,  // 16: openconfig.testing.Port.pmd:type_name -> ondatra.Port.Pmd
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	5,  // 3: openconfig.testing.Binding.links:type_name -> openconfig.testing.Link
+	3,  // 4: openconfig.testing.Device.options:type_name -> openconfig.testing.Options
+	4,  // 5: openconfig.testing.Device.ports:type_name -> openconfig.testing.Port
+	1,  // 6: openconfig.testing.Device.config:type_name -> openconfig.testing.Configs
+	3,  // 7: openconfig.testing.Device.ssh:type_name -> openconfig.testing.Options
+	3,  // 8: openconfig.testing.Device.gnmi:type_name -> openconfig.testing.Options
+	3,  // 9: openconfig.testing.Device.gnoi:type_name -> openconfig.testing.Options
+	3,  // 10: openconfig.testing.Device.gnsi:type_name -> openconfig.testing.Options
+	3,  // 11: openconfig.testing.Device.gribi:type_name -> openconfig.testing.Options
+	3,  // 12: openconfig.testing.Device.p4rt:type_name -> openconfig.testing.Options
+	3,  // 13: openconfig.testing.Device.ixnetwork:type_name -> openconfig.testing.Options
+	3,  // 14: openconfig.testing.Device.otg:type_name -> openconfig.testing.Options
+	6,  // 15: openconfig.testing.Device.vendor:type_name -> ondatra.Device.Vendor
+	7,  // 16: openconfig.testing.Port.speed:type_name -> ondatra.Port.Speed
+	8,  // 17: openconfig.testing.Port.pmd:type_name -> ondatra.Port.Pmd
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_binding_proto_init() }
@@ -824,6 +899,18 @@ func file_binding_proto_init() {
 				return nil
 			}
 		}
+		file_binding_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Link); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -831,7 +918,7 @@ func file_binding_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_binding_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
