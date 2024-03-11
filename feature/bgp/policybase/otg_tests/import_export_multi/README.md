@@ -20,29 +20,31 @@ The purpose of this test is to verify a combination of bgp conditions using matc
     * ATE port 2 ASN 65200
     * Advertise ipv4 and ipv6 prefixes from ATE port 1 to DUT port 1 using
       the following communities:
-    * prefix-set-1 with 2 routes with communities [ "100:1" ]
-    * prefix-set-2 with 2 routes with communities [ "200:1" ]
-    * prefix-set-3 with 2 routes with communities [ "300:1" ]
-    * prefix-set-4 with 2 routes with communities [ "200:1", "300:3" ]
-    * prefix-set-5 with 2 routes with communities [ "400:1" ]
-    * prefix-set-6 with 2 routes with communities [ "500:1" ]
+    * prefix-set-1 with 2 ipv4 and 2 ipv6 routes with communities [ "10:1" ]
+    * prefix-set-2 with 2 ipv4 and 2 ipv6 routes with communities [ "20:1" ]
+    * prefix-set-3 with 2 ipv4 and 2 ipv6 routes with communities [ "30:1" ]
+    * prefix-set-4 with 2 ipv4 and 2 ipv6 routes with communities [ "20:2", "30:3" ]
+    * prefix-set-5 with 2 ipv4 and 2 ipv6 routes with communities [ "40:1" ]
+    * prefix-set-6 with 2 ipv4 and 2 ipv6 routes with communities [ "50:1" ]
+    * Configure accept_route policy and apply as an export policy on the DUT
+      eBGP session to ATE port 2.
 
 * Configure the following community sets on the DUT:
   * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config
     * name = "reject_communities"
-      * community-member = [ "100:1" ]
+      * community-member = [ "10:1" ]
     * name = "accept_communities"
-      * community-member = [ "200:1" ]
+      * community-member = [ "20:1" ]
     * name = "regex_community"
-      * community-member = [ "^300:.*$" ]
+      * community-member = [ "^30:.*$" ]
     * name = "add_communities"
-      * community-member = [ "400:1", "400:2" ]
+      * community-member = [ "40:1", "40:2" ]
     * name "my_community"
-      * community-member = [ "500:1" ]
-    * name = "add_comm_one"
-      * community-member = [ "600:1" ]
-    * name = "add_comm_two"
-      * community-member = [ "700:1" ]
+      * community-member = [ "50:1" ]
+    * name = "add_comm_600"
+      * community-member = [ "60:1" ]
+    * name = "add_comm_700"
+      * community-member = [ "70:1" ]
 
 * Create an as-path-set on the DUT as follows
   * /routing-policy/defined-sets/bgp-defined-sets/as-path-sets/as-path-set/config/
@@ -67,14 +69,20 @@ The purpose of this test is to verify a combination of bgp conditions using matc
   * Add two communities and set localpref if matching a community and prefix-set.
   * Set MED if matching an aspath
 
-* Create policy-definitions/policy-definition/config/name = "reject_route_nested_communities"
+* policy-definitions/policy-definition/config/name: "match_community_regex"
+  * statements/statement/config/name: "match_community_regex"
+    * conditions/bgp-conditions/match-community-set/config/
+      * community-set: "regex-community"
+      * match-set-options: "ANY"
+
+* Create policy-definitions/policy-definition/config/name = "multi_policy"
   * statements/statement/config/name = "reject_route_community"
     * conditions/bgp-conditions/match-community-set/config
       * community-set = "reject_communities"
       * match-set-options = "ANY"
     * actions/config/policy-result = "REJECT_ROUTE"
 
-  * statements/statement/config/name = "if_300:.*_and_not_200:1_nested_reject_route_community"
+  * statements/statement/config/name = "if_30:.*_and_not_20:1_nested_reject"
     * conditions/config/call-policy = "match_community_regex"
     * conditions/bgp-conditions/match-community-set/config/
       * community-set = "accept_communities"
@@ -101,7 +109,7 @@ The purpose of this test is to verify a combination of bgp conditions using matc
     * actions/bgp-actions/set-community/config
       * method = "REFERENCE"
       * option = "ADD"
-      * community-set-refs = "add_comm_one", "add_comm_two"
+      * community-set-refs = "add_comm_60", "add_comm_70"
     * actions/bgp-actions/config/set-local-pref = 5
     * actions/config/policy-result = "NEXT_STATEMENT"
 
@@ -113,12 +121,6 @@ The purpose of this test is to verify a combination of bgp conditions using matc
       * set-med = 100
     * actions/config/policy-result = "NEXT_STATEMENT"
 
-* policy-definitions/policy-definition/config/name: "match_community_regex"
-  * statements/statement/config/name: "match_community_regex"
-    * conditions/bgp-conditions/match-community-set/config/
-      * community-set: "regex-community"
-      * match-set-options: "ANY"
-
 * For each policy-definition created, run a subtest (RT-7.11.2.x-import_<policy_name_here>) to
   * Use gnmi Set REPLACE option for:
     * `/routing-policy/policy-definitions` to configure the policy
@@ -126,9 +128,20 @@ The purpose of this test is to verify a combination of bgp conditions using matc
         to apply the policy on the DUT bgp neighbor to the ATE port 1.
   * Verify expected attributes are present in ATE.
 
-[ TODO add export policy ]
+[ TODO: add export policy (Do we want to apply the same policies to export?
+The results should be the same.)]
 
-[ TODO: Add Expected routes and attributes (aspath, community, med, localpref) for each policy ]
+[ TODO: Add Expected routes and attributes (aspath, community, med, localpref)
+for each policy ]
+
+* multi_policy results observed on ATE port 2
+  |              | Accept | Communities                                | as-path      | lpref | med | notes                                                     |
+  | ------------ | ------ | ------------------------------------------ | ------------ | ----- | --- | --------------------------------------------------------- |
+  | prefix-set-1 | False  | n/a                                        | n/a          | n/a   | n/a | rejected by statement reject_route_community              |
+  | prefix-set-2 |        | [ "20:1", "40:1", "40:2" ]                 | 65000, 65100 | n/a   | 100 | accepted                                                  |
+  | prefix-set-3 | False  | n/a                                        | n/a          | n/a   | n/a | rejected by statement if_30:.*_and_not_20:1_nested_reject |
+  | prefix-set-4 | False  | n/a                                        | n/a          | n/a   | n/a | rejected by statement if_30:.*_and_not_20:1_nested_reject |
+  | prefix-set-6 |        | [ "10:1", "40:1", "40:2", "60:1", "70:1" ] | 65000, 65100 | 5     | 100 | accepted and match_comm_and_prefix_add_2_community_sets   |
 
 ## OpenConfig Path Coverage
 
