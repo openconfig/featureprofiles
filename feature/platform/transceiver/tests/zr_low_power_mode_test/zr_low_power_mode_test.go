@@ -45,7 +45,7 @@ func validateStreamOutput(t *testing.T, dut *ondatra.DUTDevice, streams map[stri
 		}
 		value, ok := output.Val()
 		if !ok {
-			t.Fatalf("Error capturing streaming Fec value")
+			t.Fatalf("Error capturing streaming value for %s", key)
 		}
 		if value == "" {
 			t.Fatalf("OC path empty for %s", key)
