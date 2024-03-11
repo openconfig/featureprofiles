@@ -3,21 +3,17 @@ package performance
 
 import (
 	"context"
-	"encoding/json"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	gnoisys "github.com/openconfig/gnoi/system"
 	gnoitype "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygot/ytypes"
 )
 
 type ProcessState struct {
