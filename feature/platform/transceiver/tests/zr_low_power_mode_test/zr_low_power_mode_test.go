@@ -63,11 +63,11 @@ func validateOutputPower(t *testing.T, dut *ondatra.DUTDevice, streams map[strin
 		}
 		outputPower, ok := outputStream.Val()
 		if !ok {
-			t.Fatalf("Error capturing streaming Fec value")
+			t.Fatalf("Error capturing streaming value for %s", key)
 		}
 		// Check output power value is of correct type
 		if reflect.TypeOf(outputPower).Kind() != reflect.Float64 {
-			t.Fatalf("Return value is not type float64")
+			t.Fatalf("Return value is not type float64 for key :%s", key)
 		}
 		t.Logf("Output power for %s: %f", key, outputPower)
 	}
