@@ -41,9 +41,9 @@ The purpose of this test is to verify a combination of bgp conditions using matc
       * community-member = [ "40:1", "40:2" ]
     * name "my_community"
       * community-member = [ "50:1" ]
-    * name = "add_comm_600"
+    * name = "add_comm_60"
       * community-member = [ "60:1" ]
-    * name = "add_comm_700"
+    * name = "add_comm_70"
       * community-member = [ "70:1" ]
 
 * Create an as-path-set on the DUT as follows
