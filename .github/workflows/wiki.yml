@@ -28,7 +28,6 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Build Wiki
       run: |
         pushd featureprofiles.wiki
