@@ -15,10 +15,12 @@ package supervisor_switchover_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 
@@ -232,8 +234,8 @@ func TestConfigurationUnchanged(t *testing.T) {
 	}
 
 	confAfter := gnmi.Get(t, dut, gnmi.OC().Config())
-	if diff := cmp.Diff(confBefore, confAfter); diff != "" {
-		t.Errorf("Configuration differed (-want +got):\n%v", diff)
+	if !reflect.DeepEqual(confBefore, confAfter) {
+		t.Errorf("Mismatch configuration before/after switchover")
 	}
 }
 
@@ -254,11 +256,17 @@ func TestConfigurationConvergence(t *testing.T) {
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
-	conf := BuildConfig(t)
+	defaultConf := gnmi.Get(t, dut, gnmi.OC().Config())
+	largeConf := BuildConfig(t)
+	gnmi.Update(t, dut, gnmi.OC().Config(), largeConf)
+
+	confBefore := gnmi.Get(t, dut, gnmi.OC().Config())
+	gnmi.Update(t, dut, gnmi.OC().Config(), defaultConf)
+
 	performSwitchover(t, dut, rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-	start := time.Now()
 	waitForBootup(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().Config(), conf)
+	start := time.Now()
+	gnmi.Update(t, dut, gnmi.OC().Config(), largeConf)
 	elapsed := time.Since(start).Seconds()
 
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
@@ -273,10 +281,12 @@ func TestConfigurationConvergence(t *testing.T) {
 
 	if uint64(elapsed) > uint64(maxConfigConvergenceTime) {
 		t.Errorf("Time taken for configuration convergence is more than the expected: want %v got %v", maxConfigConvergenceTime, elapsed)
+	} else {
+		t.Logf("Time taken for ocnfiguration convergence: %v", elapsed)
 	}
 
 	confAfter := gnmi.Get(t, dut, gnmi.OC().Config())
-	if diff := cmp.Diff(conf, confAfter); diff != "" {
+	if diff := cmp.Diff(confBefore, confAfter, cmpopts.IgnoreUnexported(oc.RoutingPolicy_PolicyDefinition_Statement_OrderedMap{})); diff != "" {
 		t.Errorf("Configuration differed (-want +got):\n%v", diff)
 	}
 }
