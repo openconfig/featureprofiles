@@ -220,6 +220,19 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
+def _sim_get_data_ports(testbed_logs_dir):
+    vxr_conf_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-config.yaml")
+    with open(vxr_conf_file, "r") as fp:
+        try:
+            vxr_conf = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    data_ports = {}
+    for dut, entry in vxr_conf.get('devices').items():
+        data_ports[dut] = entry.get('data_ports', [])
+    return data_ports
+            
 def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     gnmi_set = _gnmi_set_file_template(cli_lines)
     with open(gnmi_file, 'w') as gnmi:
@@ -819,6 +832,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
+        data_ports = _sim_get_data_ports(testbed_logs_dir)
+        
         if not type(reserved_testbed['baseconf']) is dict:
             reserved_testbed['baseconf'] = {
                 'dut': reserved_testbed['baseconf']
@@ -837,10 +852,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             
             extra_conf = []
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-            if mgmt_vrf:
-                extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
-            else:
-                extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+            else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+
+            # some FP tests (e.g., gNOI-3.1) expects that
+            for d in data_ports.get(dut, []):
+                extra_conf.append(f'interface {d} description {d}')
 
             with open(ondatra_baseconf_path, 'r') as cli:
                 lines = []
