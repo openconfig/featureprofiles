@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+plan_id: "PLT-1.1"
+uuid: "6ac4eed0-9e04-46f5-85d8-ca88ee5fec7d"
+description: "Breakout Config test"
+testbed: TESTBED_DUT_ATE_9LINKS_LAG
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+
+  }
+}
+
