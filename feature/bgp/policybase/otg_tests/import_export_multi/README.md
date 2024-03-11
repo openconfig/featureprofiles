@@ -128,11 +128,12 @@ The purpose of this test is to verify a combination of bgp conditions using matc
         to apply the policy on the DUT bgp neighbor to the ATE port 1.
   * Verify expected attributes are present in ATE.
 
-[ TODO: add export policy (Do we want to apply the same policies to export?
-The results should be the same.)]
-
-[ TODO: Add Expected routes and attributes (aspath, community, med, localpref)
-for each policy ]
+* For each policy-definition created, run a subtest (RT-7.11.2.x-export_<policy_name_here>) to
+  * Use gnmi Set REPLACE option for:
+    * `/routing-policy/policy-definitions` to configure the policy
+    * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy`
+        to apply the policy on the DUT bgp neighbor to the ATE port 1.
+  * Verify expected attributes are present in ATE.
 
 * multi_policy results observed on ATE port 2
   |              | Accept | Communities                                | as-path      | lpref | med | notes                                                     |
