@@ -109,11 +109,11 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
 	p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Max().State(), 10*time.Second)
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
-	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	defer p1StreamAvg.Close()
 	defer p1StreamMax.Close()
 	defer p1StreamMin.Close()
 	defer p1StreamInstant.Close()
+	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 }
 func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
@@ -143,6 +143,10 @@ func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
 	p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Max().State(), 10*time.Second)
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
+	defer p1StreamInstant.Close()
+	defer p1StreamMin.Close()
+	defer p1StreamMax.Close()
+	defer p1StreamAvg.Close()
 	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
 	// Wait 120 sec cooling off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
@@ -152,10 +156,6 @@ func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
-	defer p1StreamInstant.Close()
-	defer p1StreamMin.Close()
-	defer p1StreamMax.Close()
-	defer p1StreamAvg.Close()
 }
 func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
@@ -178,6 +178,10 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
 	p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Max().State(), 10*time.Second)
 	p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Avg().State(), 10*time.Second)
+	defer p1StreamInstant.Close()
+	defer p1StreamMin.Close()
+	defer p1StreamMax.Close()
+	defer p1StreamAvg.Close()
 	// Disable interface transceiver power off
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), false)
 	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
@@ -185,10 +189,6 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	verifyLaserBiasCurrentAll(t, dut1, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
-	defer p1StreamInstant.Close()
-	defer p1StreamMin.Close()
-	defer p1StreamMax.Close()
-	defer p1StreamAvg.Close()
 }
 func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
