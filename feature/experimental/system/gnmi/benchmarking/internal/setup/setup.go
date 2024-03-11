@@ -350,90 +350,42 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) {
 		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 		ip.SetAddress(ATEIPList[dp.ID()].String()).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(uint32(plenIPv4))
 
-		// Add BGP routes and ISIS routes , ate port1 is ingress port.
+		// Add BGP on ATE
+		bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
+		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
 		if dp.ID() == "port1" {
-			// Add BGP on ATE
-			bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
-			bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
 			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		} else {
+			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		}
+		bgpDut1Peer.Capability().SetIpv4Unicast(true)
+		bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
-			bgpDut1Peer.Capability().SetIpv4Unicast(true)
-			bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+		// Add ISIS on ATE
+		devIsis := dev.Isis().SetSystemId(strconv.FormatInt(int64(i), 16)).SetName("devIsis" + dp.Name())
+		devIsis.Basic().SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
+		devIsis.Advanced().SetAreaAddresses([]string{"490002"})
+		devIsisInt := devIsis.Interfaces().Add().
+			SetEthName(eth.Name()).
+			SetName("devIsisInt").
+			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+		devIsisInt.Authentication().SetAuthType("md5")
+		devIsisInt.Authentication().SetMd5(authPassword)
+		devIsisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
-			devIsis := dev.Isis().
-				SetSystemId(strconv.FormatInt(int64(i), 16)).
-				SetName("devIsis" + dp.Name())
-
-			devIsis.Basic().
-				SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
-
-			devIsis.Advanced().
-				SetAreaAddresses([]string{"490002"})
-
-			devIsisInt := devIsis.Interfaces().
-				Add().
-				SetEthName(eth.Name()).
-				SetName("devIsisInt").
-				SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-				SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
-
-			devIsisInt.Authentication().SetAuthType("md5")
-			devIsisInt.Authentication().SetMd5(authPassword)
-
-			devIsisInt.Advanced().
-				SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-
+		if dp.ID() == "port1" {
+			// Add BGP routes and ISIS routes , ate port1 is ingress port.
 			dstBgp4PeerRoutes := bgpDut1Peer.V4Routes().Add().SetName("bgpNeti1")
 			dstBgp4PeerRoutes.SetNextHopIpv4Address(ip.Address()).
 				SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 				SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 			dstBgp4PeerRoutes.Addresses().Add().
-				SetAddress(AdvertiseBGPRoutesv4).
-				SetPrefix(32).
-				SetCount(RouteCount)
-
+				SetAddress(AdvertiseBGPRoutesv4).SetPrefix(32).SetCount(RouteCount)
 			devIsisRoutes := devIsis.V4Routes().Add().SetName("isisnet1").SetLinkMetric(20)
 			devIsisRoutes.Addresses().Add().
-				SetAddress(advertiseISISRoutesv4).
-				SetPrefix(32).
-				SetCount(RouteCount).
-				SetStep(1)
-
-			continue
+				SetAddress(advertiseISISRoutesv4).SetPrefix(32).SetCount(RouteCount).SetStep(1)
 		}
-
-		// Add BGP on ATE
-		bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
-		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
-		bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-
-		bgpDut1Peer.Capability().SetIpv4Unicast(true)
-		bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
-
-		// Add ISIS on ATE
-		devIsis := dev.Isis().
-			SetSystemId(strconv.FormatInt(int64(i), 16)).
-			SetName("devIsis" + dp.Name())
-
-		devIsis.Basic().
-			SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
-
-		devIsis.Advanced().
-			SetAreaAddresses([]string{"490002"})
-
-		devIsisInt := devIsis.Interfaces().
-			Add().
-			SetEthName(eth.Name()).
-			SetName("devIsisInt").
-			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
-
-		devIsisInt.Authentication().SetAuthType("md5")
-		devIsisInt.Authentication().SetMd5(authPassword)
-
-		devIsisInt.Advanced().
-			SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-
 	}
 
 	t.Log("Pushing config to ATE...")
