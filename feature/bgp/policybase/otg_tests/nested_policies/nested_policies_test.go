@@ -109,22 +109,22 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
-	advertisedIPv41 = ipAddr{address: v41Route, prefix: v4RoutePrefix}
-	advertisedIPv42 = ipAddr{address: v42Route, prefix: v4RoutePrefix}
-	advertisedIPv61 = ipAddr{address: v61Route, prefix: v6RoutePrefix}
-	advertisedIPv62 = ipAddr{address: v62Route, prefix: v6RoutePrefix}
+	advertisedIPv41 = Prefix{address: v41Route, prefix: v4RoutePrefix}
+	advertisedIPv42 = Prefix{address: v42Route, prefix: v4RoutePrefix}
+	advertisedIPv61 = Prefix{address: v61Route, prefix: v6RoutePrefix}
+	advertisedIPv62 = Prefix{address: v62Route, prefix: v6RoutePrefix}
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-type ipAddr struct {
+type Prefix struct {
 	address string
 	prefix  uint32
 }
 
-func (ip *ipAddr) cidr(t *testing.T) string {
+func (ip *Prefix) cidr(t *testing.T) string {
 	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
 	if err != nil {
 		t.Fatal(err)
