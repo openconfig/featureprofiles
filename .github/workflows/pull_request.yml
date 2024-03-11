@@ -1,10 +1,11 @@
 name: Pull Request
 on: [pull_request]
 jobs:
-  check_style:
-    name: Check style against CONTRIBUTING.md
+  check_ips:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
     - name: Setup Perl
       uses: perl-actions/install-with-cpanm@v1
       with:
@@ -15,6 +16,13 @@ jobs:
     - name: IP Addresses Assignment
       run: |
         find . -name \*.go -exec ./tools/check_ip_addresses.pl \{} +
+
+  check_style:
+    name: Check style against CONTRIBUTING.md
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
     - name: Allowed File Types
       run: ./tools/allowed_file_types.sh
     - name: Enum

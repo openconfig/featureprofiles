@@ -49,6 +49,9 @@
 duts {
   id: "dut"
   name: "SF-D"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -97,35 +100,43 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/0/0/4/0"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "port2"
     name: "TenGigE0/7/0/0/0"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "port3"
     name: "TenGigE0/7/0/14/1" # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "port4"
     name: "TenGigE0/0/0/4/1"  # Change this to the actual port name.
+    speed: S_10GB  
   }
-  # ports {
-  #   id: "port5"
-  #   name: "TenGigE0/7/0/0/1"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port6"
-  #   name: "TenGigE0/0/0/32/0"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port7"
-  #   name: "TenGigE0/0/0/32/1" # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port8"
-  #   name: "TenGigE0/7/0/14/0"  # Change this to the actual port name.
-  # }
+  ports {
+    id: "port5"
+    name: "TenGigE0/7/0/0/1"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port6"
+    name: "TenGigE0/0/0/32/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port7"
+    name: "TenGigE0/0/0/32/1" # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port8"
+    name: "TenGigE0/7/0/14/0"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
 }
 
 ates {
@@ -137,7 +148,7 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-    target: "10.85.84.118"
+    target: "10.85.84.119"
     skip_verify: true
     username: "admin"
     password: "Admin@123"
@@ -159,33 +170,41 @@ ates {
   ports {
     id: "port1"
     name: "10/9"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port2"
     name: "10/13"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port3"
     name: "10/12"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port4"
     name: "10/10"  # Change this to the actual port name.
+    speed: S_10GB
   }
-  # ports {
-  #   id: "port5"
-  #   name: "10/14"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port6"
-  #   name: "10/15"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port7"
-  #   name: "10/16"  # Change this to the actual port name.
-  # }
-  # ports {
-  #   id: "port8"
-  #   name: "10/11"  # Change this to the actual port name.
-  # } 
+  ports {
+    id: "port5"
+    name: "10/14"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port6"
+    name: "10/15"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port7"
+    name: "10/16"  # Change this to the actual port name.
+    speed: S_10GB  
+  }
+  ports {
+    id: "port8"
+    name: "10/11"  # Change this to the actual port name.
+    speed: S_10GB  
+  } 
 }
