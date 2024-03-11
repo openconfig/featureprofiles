@@ -233,7 +233,7 @@ func TestBGPNestedPolicies(t *testing.T) {
 	}
 }
 
-// IPv4 BGP nested import policy test
+// configureImportRoutingPolicy configures the dut for IPv4 BGP nested import policy test.
 func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -310,7 +310,7 @@ func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	}
 }
 
-// IPv4 BGP nested export policy test
+// configureExportRoutingPolicy configures the dut for IPv4 BGP nested export policy test.
 func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -386,7 +386,7 @@ func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	}
 }
 
-// IPv6 BGP nested import policy test
+// configureImportRoutingPolicyV6 configures the dut for IPv6 BGP nested import policy test.
 func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -460,7 +460,7 @@ func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	}
 }
 
-// IPv6 BGP nested export policy test
+// configureExportRoutingPolicyV6 configures the dut for IPv6 BGP nested export policy test.
 func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -665,7 +665,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	netv62.Addresses().Add().SetAddress(advertisedIPv62.address).SetPrefix(advertisedIPv62.prefix)
 }
 
-// VerifyDUTBGPEstablished
+// verifyDUTBGPEstablished verifies on dut for BGP peer establishment.
 func (td *testData) verifyDUTBGPEstablished(t *testing.T) {
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, td.dut, sp, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -681,7 +681,7 @@ func (td *testData) verifyDUTBGPEstablished(t *testing.T) {
 	t.Log("DUT BGP sessions established")
 }
 
-// VerifyOTGBGPEstablished verifies on OTG BGP peer establishment
+// VerifyOTGBGPEstablished verifies on OTG for BGP peer establishment.
 func (td *testData) verifyOTGBGPEstablished(t *testing.T) {
 	sp := gnmi.OTG().BgpPeerAny().SessionState().State()
 	watch := gnmi.WatchAll(t, td.ate.OTG(), sp, 2*time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
@@ -697,8 +697,7 @@ func (td *testData) verifyOTGBGPEstablished(t *testing.T) {
 	t.Log("OTG BGP sessions established")
 }
 
-// Verify that the parent import policy (v4LPPolicy) has a child policy attached
-
+// verifyNestedImportPolicyAttachedv4 verifies on dut for IPV4 BGP parent import policy v4LPPolicy has a child policy attached.
 func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
@@ -709,8 +708,7 @@ func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
 	t.Log("Nested policy 'v4PrefixPolicy' verified successfully")
 }
 
-// Verify that the parent export policy (v4ASPPolicy) has a child policy attached
-
+// verifyNestedExportPolicyAttachedv4 verifies on dut for IPV4 BGP parent export policy v4ASPPolicy has a child policy attached.
 func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4ASPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
@@ -721,8 +719,7 @@ func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
 	t.Log("Nested policy 'v4MedPolicy' verified successfully")
 }
 
-// Verify that the parent import policy (v6LPPolicy) has a child policy attached
-
+// verifyNestedImportPolicyAttachedv6 verifies on dut for IPV6 BGP parent import policy v6LPPolicy has a child policy attached.
 func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6LPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
@@ -733,8 +730,7 @@ func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
 	t.Log("Nested policy 'v6PrefixPolicy' verified successfully")
 }
 
-// Verify that the parent export policy (v6ASPPolicy) has a child policy attached
-
+// verifyNestedExportPolicyAttachedv6 verifies on dut for IPV6 BGP parent export policy v6ASPPolicy has a child policy attached.
 func (td *testData) verifyNestedExportPolicyAttachedv6(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
