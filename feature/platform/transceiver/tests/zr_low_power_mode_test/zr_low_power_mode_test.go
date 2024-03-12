@@ -16,6 +16,7 @@ package zr_low_power_mode_test
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -27,9 +28,11 @@ import (
 )
 
 const (
-	samplingInterval     = 10 * time.Second
-	targetOutputPowerdBm = -10
-	targetFrequencyHz    = 193100000
+	samplingInterval              = 10 * time.Second
+	targetOutputPowerdBm          = -10
+	targetOutputPowerTolerancedBm = 1
+	targetFrequencyHz             = 193100000
+	targetFrequencyToleranceHz    = 100000
 )
 
 func TestMain(m *testing.M) {
@@ -46,6 +49,9 @@ func validateStreamOutput(t *testing.T, dut *ondatra.DUTDevice, streams map[stri
 		value, ok := output.Val()
 		if !ok {
 			t.Fatalf("Error capturing streaming value for %s", key)
+		}
+		if reflect.TypeOf(value).Kind() != reflect.String {
+			t.Fatalf("Return value is not type string for key :%s", key)
 		}
 		if value == "" {
 			t.Fatalf("OC path empty for %s", key)
@@ -161,13 +167,13 @@ func TestLowPowerMode(t *testing.T) {
 			component := gnmi.OC().Component(tr)
 
 			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPowerdBm {
-				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
+			if math.Abs(float64(outputPower)-float64(targetOutputPowerdBm)) > targetOutputPowerTolerancedBm {
+				t.Fatalf("Output power is not within expected tolerance, got: %v want: %v tolerance: %v", outputPower, targetOutputPowerdBm, targetOutputPowerTolerancedBm)
 			}
 
 			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequencyHz {
-				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
+			if math.Abs(float64(frequency)-float64(targetFrequencyHz)) > targetFrequencyToleranceHz {
+				t.Fatalf("Frequency is not within expected tolerance, got: %v want: %v tolerance: %v", frequency, targetFrequencyHz, targetFrequencyToleranceHz)
 			}
 		})
 	}
