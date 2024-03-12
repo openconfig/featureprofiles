@@ -1,4 +1,4 @@
-package performance_test
+package gnmi_scale_test
 
 import (
 	"strconv"
