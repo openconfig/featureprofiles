@@ -26,7 +26,7 @@ def _resolve_path_if_needed(dir, path):
     if path[0] != '/':
         return os.path.join(dir, path)
     return path
-   
+    
 def _get_testbeds_file(fp_repo_dir):
     return _resolve_path_if_needed(fp_repo_dir, TESTBEDS_FILE)
 
@@ -106,15 +106,16 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
-def _replace_binding_placeholders(baseconf_file, tls_ca_file, tls_cert_file, 
-                                  tls_key_file, binding_file):
-    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {binding_file}")
-    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tls_ca_file}|g' {binding_file}")
-    check_output(f"sed -i 's|$CERT_FILE|{tls_cert_file}|g' {binding_file}")
-    check_output(f"sed -i 's|$KEY_FILE|{tls_key_file}|g' {binding_file}")
+def _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file):
+    tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
+    key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
+    cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ate_binding_file}")
     
-def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, otg_binding_file):
+def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
 
     # convert binding to json
@@ -171,14 +172,11 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, tls_ca_file
             f'-out {otg_binding_file}'
             
         check_output(cmd, cwd=fp_repo_dir)        
-        _replace_binding_placeholders(baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, otg_binding_file)
+        _replace_binding_placeholders(fp_repo_dir, baseconf_file, otg_binding_file)
 
-def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, ate_binding_file):
+def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    _replace_binding_placeholders(baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, ate_binding_file)
+    _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file)
         
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
@@ -230,21 +228,12 @@ if command == "bindings":
     ate_binding_file = os.path.join(out_dir, 'ate.binding')
     testbed_file = os.path.join(out_dir, 'dut.testbed')
     baseconf_file = os.path.join(out_dir, 'dut.baseconf')
-    tls_ca_file = os.path.join(out_dir, 'tls.ca')
-    tls_cert_file = os.path.join(out_dir, 'tls.cert')
-    tls_key_file = os.path.join(out_dir, 'tls.key')
     setup_file = os.path.join(out_dir, 'setup.sh')
-    
-    shutil.copy(_resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE), tls_ca_file)
-    shutil.copy(_resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE), tls_cert_file)
-    shutil.copy(_resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE), tls_key_file)
     
     _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file)
     _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
-    _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, ate_binding_file)
-    _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, tls_ca_file, 
-                       tls_cert_file, tls_key_file, otg_binding_file)
+    _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
+    _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
     _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
