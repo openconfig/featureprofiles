@@ -4,18 +4,4 @@
 uuid:  "f5d5c225-8900-42fd-8771-8614895ae036"
 plan_id:  "TRANSCEIVER-6"
 description:  "Telemetry: 400ZR Optics pm streaming."
-testbed:  TESTBED_DUT_400ZR
-platform_exceptions:  {
-  platform:  {
-    vendor:  ARISTA
-  }
-  deviations:  {
-    connect_retry:  true
-    route_policy_under_afi_unsupported:  true
-    omit_l2_mtu:  true
-    network_instance_table_deletion_required:  true
-    missing_value_for_defaults:  true
-    interface_enabled:  true
-    default_network_instance:  "default"
-  }
-}
+testbed:  TESTBED_DUT_400ZRz
