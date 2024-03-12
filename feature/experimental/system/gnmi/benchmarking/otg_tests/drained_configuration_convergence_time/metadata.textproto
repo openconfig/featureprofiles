@@ -1,0 +1,43 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "44ec09b1-d985-4188-9f4a-ae542ad9d3a2"
+plan_id: "gNMI-1.3"
+description: "Benchmarking: Drained Configuration Convergence Time"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    isis_global_authentication_not_required: true
+    isis_explicit_level_authentication_config: true
+    missing_isis_interface_afi_safi_enable: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_isis_interface_afi_safi_enable: true
+    isis_interface_afi_unsupported: true
+    isis_require_same_l1_metric_with_l2_metric: true
+    bgp_set_med_requires_equal_ospf_set_metric: true
+    isis_instance_enabled_required: true      
+  }
+}
