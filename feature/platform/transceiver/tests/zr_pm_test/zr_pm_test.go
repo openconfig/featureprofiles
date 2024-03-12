@@ -58,7 +58,6 @@ func TestPM(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	var (
 		trs        = make(map[string]string)
