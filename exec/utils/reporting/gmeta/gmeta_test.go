@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"text/template"
 
@@ -39,6 +40,10 @@ type templateData struct {
 }
 
 func TestGenerateGoogleImageMetadata(t *testing.T) {
+	if err := os.MkdirAll(*outDir, 0755); err != nil {
+		t.Fatalf("Error creating output directory")
+	}
+
 	dut := ondatra.DUT(t, "dut")
 
 	swVer := gnmi.Lookup(t, dut, gnmi.OC().System().SoftwareVersion().State())
@@ -53,7 +58,10 @@ func TestGenerateGoogleImageMetadata(t *testing.T) {
 		t.Fatalf("Error parsing template: %v", err)
 	}
 
-	imageName := filepath.Base(*imagePath)
+	imgP := strings.TrimPrefix(*imagePath, "['")
+	imgP = strings.TrimSuffix(imgP, "']")
+	imageName := filepath.Base(imgP)
+
 	for _, td := range []templateData{
 		{
 			TargetType:      "hardware",
