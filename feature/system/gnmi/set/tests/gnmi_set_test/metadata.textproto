@@ -10,7 +10,10 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
+    skip_container_op: true
+    reorder_calls_for_vendor_compatibilty: true
+    add_missing_base_config_via_cli: true
+    skip_macaddress_check: true
   }
 }
 platform_exceptions: {
