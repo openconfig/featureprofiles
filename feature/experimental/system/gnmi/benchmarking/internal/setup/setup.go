@@ -330,9 +330,7 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo.StartProtocols(t)
 }
 
-// ConfigureOTG function is to configure ate ports with ipv4 , bgp
-// and isis peers.
-
+// ConfigureOTG function is to configure otg ports with ipv4, bgp and isis peers.
 func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) {
 	otg := ate.OTG()
 	topo := gosnappi.NewConfig()
