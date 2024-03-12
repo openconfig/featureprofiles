@@ -21,8 +21,8 @@ const (
 	maxAllowedQValue    = 14.0
 	minAllowedPreFECBER = 1e-9
 	maxAllowedPreFECBER = 1e-2
-	minESNR             = 10.0
-	maxESNR             = 25.0
+	minAllowedESNR      = 10.0
+	maxAllowedESNR      = 25.0
 	inactiveQValue      = 0.0
 	inactivePreFECBER   = 0.0
 	inactiveESNR        = 0.0
@@ -169,7 +169,7 @@ func validateStream(t *testing.T, data *ygnmi.Value[*oc.TerminalDevice_Channel],
 	if e := otn.GetEsnr(); e == nil {
 		t.Errorf("ESNR data is empty for port %v", portName)
 	} else {
-		validatePMValue(t, portName, "esnr", e.GetMin(), e.GetMax(), e.GetAvg(), e.GetInstant(), minESNR, maxESNR, inactiveESNR, linkState)
+		validatePMValue(t, portName, "esnr", e.GetMin(), e.GetMax(), e.GetAvg(), e.GetInstant(), minAllowedESNR, maxAllowedESNR, inactiveESNR, linkState)
 	}
 	if q := otn.GetQValue(); q == nil {
 		t.Errorf("QValue data is empty for port %v", portName)
