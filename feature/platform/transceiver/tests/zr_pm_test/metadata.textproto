@@ -4,4 +4,4 @@
 uuid:  "f5d5c225-8900-42fd-8771-8614895ae036"
 plan_id:  "TRANSCEIVER-6"
 description:  "Telemetry: 400ZR Optics pm streaming."
-testbed:  TESTBED_DUT_400ZRz
+testbed:  TESTBED_DUT_400ZR
