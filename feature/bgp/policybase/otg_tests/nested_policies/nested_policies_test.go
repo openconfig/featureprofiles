@@ -598,7 +598,7 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > 1 {
-		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flowName)
+		t.Errorf("FAIL- got %v%% packet loss for %s ; want < 1%%", lossPct, flowName)
 	}
 }
 
@@ -703,7 +703,7 @@ func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v4LPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v4PrefixPolicy {
-		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v4PrefixPolicy, callPolicy)
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v4PrefixPolicy)
 	}
 	t.Log("Nested policy 'v4PrefixPolicy' verified successfully")
 }
@@ -714,7 +714,7 @@ func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v4ASPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v4MedPolicy {
-		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v4MedPolicy, callPolicy)
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v4MedPolicy)
 	}
 	t.Log("Nested policy 'v4MedPolicy' verified successfully")
 }
@@ -725,7 +725,7 @@ func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v6LPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v6PrefixPolicy {
-		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v6PrefixPolicy, callPolicy)
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v6PrefixPolicy)
 	}
 	t.Log("Nested policy 'v6PrefixPolicy' verified successfully")
 }
@@ -736,7 +736,7 @@ func (td *testData) verifyNestedExportPolicyAttachedv6(t *testing.T) {
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v6ASPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v6MedPolicy {
-		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v6MedPolicy, callPolicy)
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v6MedPolicy)
 	}
 	t.Log("Nested policy 'v6MedPolicy' verified successfully")
 }
