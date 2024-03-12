@@ -117,7 +117,6 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 	firmwareVersion := verifyFirmwareVersionValue(t, dut1, p1Stream)
 	t.Logf("Port1 dut1 %s Firmware Version: %v", dp1.Name(), firmwareVersion)
-    
 	// Enable interface
 	configInterface(t, dut1, dp1, true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
