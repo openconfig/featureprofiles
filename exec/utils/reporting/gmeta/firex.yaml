@@ -13,7 +13,7 @@ google_img_metadata:
       - google_img_metadata:
           test_name: google_img_metadata
           test_path: exec/utils/reporting/gmeta
-          test_args: -image=($images) -outDir=($test_log_directory_path)
+          test_args: -image=($images) -out=($test_log_directory_path)
           test_branch: master
           internal_test: true
           internal_fp_repo_branch: master
