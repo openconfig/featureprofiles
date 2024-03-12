@@ -2,7 +2,7 @@
 
 ## Summary
 
-BGP policy configuration for AS Paths and Community Sets
+BGP policy configuration for Community Sets
 
 ## Subtests
 
@@ -38,16 +38,16 @@ BGP policy configuration for AS Paths and Community Sets
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_all_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ALL
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_no_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'no_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = INVERT
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'no_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_any_my_regex_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ANY
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Send traffic from ATE port-2 to all prefix-sets.
