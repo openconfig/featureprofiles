@@ -285,6 +285,9 @@ func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *
 	}
 	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 
+	// Remove interface from VRF-1.
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
+
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
 }
