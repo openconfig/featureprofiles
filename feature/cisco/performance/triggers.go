@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	gnoisys "github.com/openconfig/gnoi/system"
 	gnoitype "github.com/openconfig/gnoi/types"
@@ -58,7 +59,7 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 		t.Errorf("process %s respawn count increment failed: %d -> %d", processName, psInit.RespawnCount, psInit.RespawnCount)
 	}
 
-	t.Logf("Process State Response: %v", PrettyPrint(psFinal))
+	t.Logf("Process State Response: %v", util.PrettyPrintJson(psFinal))
 
 	return nil
 }

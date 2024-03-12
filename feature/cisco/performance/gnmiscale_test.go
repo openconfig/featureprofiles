@@ -6,19 +6,20 @@ import (
 	"time"
 
 	perf "github.com/openconfig/featureprofiles/feature/cisco/performance"
-	"github.com/openconfig/featureprofiles/topologies/binding"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
 
 func TestMain(m *testing.M) {
-	ondatra.RunTests(m, binding.New)
+	fptest.RunTests(m)
 }
 
 func TestGNMIUpdateScale(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	beforeTime := time.Now()
-	for i := 0; i <= 10; i++ {
+	for i := 0; i <= 100; i++ {
 		gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test"+strconv.Itoa(i))
 	}
 	t.Logf("Time to do 100 gnmi update is %s", time.Since(beforeTime).String())
@@ -33,7 +34,7 @@ func TestGNMIBigSetRequest(t *testing.T) {
 
 	replace := true
 	// Perform a gNMI Set Request with 13 MB of Data
-	set := perf.CreateInterfaceSetFromOCRoot(perf.LoadJSONOC(t, "./big_set.json"), replace)
+	set := perf.CreateInterfaceSetFromOCRoot(util.LoadJsonFileToOC(t, "./big_set.json"), replace)
 
 	t.Logf("Starting collector at %s", time.Now())
 	colletor := perf.CollectAllData(t, dut, 25*time.Second, 5*time.Minute)

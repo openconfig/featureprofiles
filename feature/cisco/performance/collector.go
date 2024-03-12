@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -114,7 +115,7 @@ func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Coll
 	defer collector.Done()
 	for cpuData := range cpuChan {
 		// TODO: change from log to capture
-		t.Logf("\nCPU INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(cpuData))
+		t.Logf("\nCPU INFO:, t: %s\n%s\n", time.Now(), util.PrettyPrintJson(cpuData))
 		collector.CpuLogs = append(collector.CpuLogs, cpuData)
 	}
 }
@@ -124,7 +125,7 @@ func receiveMemData(t *testing.T, memChan chan *oc.System_Memory, collector *Col
 	defer collector.Done()
 	for memData := range memChan {
 		// TODO: change from log to capture
-		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), PrettyPrint(memData))
+		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), util.PrettyPrintJson(memData))
 		collector.MemLogs = append(collector.MemLogs, memData)
 	}
 }

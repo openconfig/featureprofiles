@@ -3,8 +3,6 @@ package performance
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -12,33 +10,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ytypes"
 )
-
-func PrettyPrint(i interface{}) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
-}
-
-func BenchMark(ygnmiCli *ygnmi.Client) {
-	ctx := context.Background()
-	data, err := ygnmi.CollectAll(ctx, ygnmiCli, gnmi.OC().System().CpuAny().State()).Await()
-	if err != nil {
-		fmt.Printf("Error %v /n", err)
-	}
-	for _, memUse := range data {
-		usedMem, _ := memUse.Val()
-		fmt.Printf("Cpu info at %v : %v\n", memUse.Timestamp, PrettyPrint(usedMem))
-	}
-}
-
-func ControlPlaneVerification(ygnmiCli *ygnmi.Client) {
-	// TODO1:Check for Crash
-	// TODO2: Check for Traces
-	// TODO3: Check for Memory Usage
-	BenchMark(ygnmiCli)
-}
 
 func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *ProcessState {
 
@@ -95,22 +67,6 @@ func BatchSet(t *testing.T, dut *ondatra.DUTDevice, batchSet *gnmi.SetBatch, lea
 	resp := batchSet.Set(t, dut)
 	t.Logf("Batch Set result: %v\n", resp)
 	t.Logf("Finished GNMI Replace for %d leaves at %s, (%v)\n", leavesCnt, time.Now(), time.Since(startTime))
-}
-
-// load oc from a file
-func LoadJSONOC(t *testing.T, path string) *oc.Root {
-	var ocRoot oc.Root
-	jsonConfig, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Cannot load base config: %v", err)
-	}
-	opts := []ytypes.UnmarshalOpt{
-		&ytypes.PreferShadowPath{},
-	}
-	if err := oc.Unmarshal(jsonConfig, &ocRoot, opts...); err != nil {
-		t.Fatalf("Cannot unmarshal base config: %v", err)
-	}
-	return &ocRoot
 }
 
 func CreateInterfaceSetFromOCRoot(ocRoot *oc.Root, replace bool) *gnmi.SetBatch {
