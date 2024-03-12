@@ -53,8 +53,8 @@ power.
     are available for streaming.
 
 *   RX Input and TX output power values must always be of type decimal64.
-    When link interfaces are in down state 0 must be reported as a valid
-    value.
+    When link interfaces are in down state RX Input power of -40 dbm must be
+    reported as a valid value.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
           10 seconds is not supported, the sampling interval used must be
@@ -76,7 +76,7 @@ power.
     *   Verify the ZR optics RX input and TX output power telemetry values are
         updated to the value in the normal range again.
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
-        * Typical min/max value range for TX Output Power -13 to -9 dbm.
+        * Typical min/max value range for TX Output Power -10 to -6 dbm.
 
 ## TRANSCEIVER-4.4
 
@@ -95,7 +95,7 @@ power.
     *   Verify the ZR optics RX input and TX output power telemetry values are
         updated to the value in the normal range again.
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
-        * Typical min/max value range for TX Output Power -13 to -9 dbm.
+        * Typical min/max value range for TX Output Power -10 to -6 dbm.
 
 ## Config Parameter coverage
 

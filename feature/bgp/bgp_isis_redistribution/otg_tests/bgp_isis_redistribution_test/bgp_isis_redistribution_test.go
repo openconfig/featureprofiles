@@ -39,8 +39,8 @@ const (
 	bgpName        = "BGP"
 	maskLenExact   = "exact"
 	dummyAS        = uint32(64655)
-	dutAS          = uint32(65656)
-	ateAS          = uint32(65657)
+	dutAS          = uint32(64656)
+	ateAS          = uint32(64657)
 	v4Route        = "203.10.113.0"
 	v4TrafficStart = "203.10.113.1"
 	v4DummyRoute   = "192.51.100.0"
