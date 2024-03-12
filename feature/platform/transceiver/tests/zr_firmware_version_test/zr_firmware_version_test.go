@@ -53,7 +53,7 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 		Frequency:         ygot.Uint64(frequency),
 	})
 }
-func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) string {
+func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) {
 	firmwareVersionSample := pStream.Next(t)
 	if firmwareVersionSample == nil {
 		t.Fatalf("Firmware telemetry %v was not streamed in the most recent subscription interval", firmwareVersionSample)
@@ -66,8 +66,6 @@ func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *
 	if reflect.TypeOf(firmwareVersionVal).Kind() != reflect.String {
 		t.Fatalf("Return value is not type string")
 	}
-	t.Logf("Firmware version sample value: %v", firmwareVersionVal)
-	return firmwareVersionVal
 }
 
 func TestZRFirmwareVersionState(t *testing.T) {
@@ -88,8 +86,7 @@ func TestZRFirmwareVersionState(t *testing.T) {
 
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
 
-	firmwareVersion := verifyFirmwareVersionValue(t, dut1, p1Stream)
-	t.Logf("Port1 dut1 %s Firmware version: %v", dp1.Name(), firmwareVersion)
+	verifyFirmwareVersionValue(t, dut1, p1Stream)
 
 	p1Stream.Close()
 }
@@ -115,13 +112,12 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 
 	// Wait 60 sec cooling off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
-	firmwareVersion := verifyFirmwareVersionValue(t, dut1, p1Stream)
-	t.Logf("Port1 dut1 %s Firmware Version: %v", dp1.Name(), firmwareVersion)
+	verifyFirmwareVersionValue(t, dut1, p1Stream)
+
 	// Enable interface
 	configInterface(t, dut1, dp1, true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
-	firmwareVersion = verifyFirmwareVersionValue(t, dut1, p1Stream)
-	t.Logf("Port1 dut1 %s Firmware version: %v", dp1.Name(), firmwareVersion)
+	verifyFirmwareVersionValue(t, dut1, p1Stream)
 }
 
 func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
