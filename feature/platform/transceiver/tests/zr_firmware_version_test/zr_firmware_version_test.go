@@ -41,14 +41,14 @@ func TestMain(m *testing.M) {
 
 // Topology: dut:port1 <--> port2:dut
 
-func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
+func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, enable bool) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
-	i.Enabled = ygot.Bool(true)
+	i.Enabled = ygot.Bool(enable)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+	component := opticalChannelComponentFromPort(t, dut1, dp)
+	gnmi.Replace(t, dut1, gnmi.OC().Component(component).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
@@ -76,10 +76,9 @@ func TestZRFirmwareVersionState(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	intUpdateTime := time.Minute
-	interfaceConfig(t, dut1, dp1)
-	interfaceConfig(t, dut1, dp2)
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+	configInterface(t, dut1, dp1, true)
+	configInterface(t, dut1, dp2, true)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
@@ -100,35 +99,28 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	interfaceConfig(t, dut1, dp1)
-	interfaceConfig(t, dut1, dp2)
-	intUpdateTime := time.Minute
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+	configInterface(t, dut1, dp1, true)
+	configInterface(t, dut1, dp2, true)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
 	// Disable interface
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(false)
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
+	configInterface(t, dut1, dp1, false)
 	component1 := gnmi.OC().Component(transceiverName)
 
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
 
 	// Wait 60 sec cooling off period
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 	firmwareVersion := verifyFirmwareVersionValue(t, dut1, p1Stream)
 	t.Logf("Port1 dut1 %s Firmware Version: %v", dp1.Name(), firmwareVersion)
-
-	i = d.GetOrCreateInterface(dp1.Name())
-	i.Enabled = ygot.Bool(true)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+    
 	// Enable interface
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+	configInterface(t, dut1, dp1, true)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	firmwareVersion = verifyFirmwareVersionValue(t, dut1, p1Stream)
 	t.Logf("Port1 dut1 %s Firmware version: %v", dp1.Name(), firmwareVersion)
 }
