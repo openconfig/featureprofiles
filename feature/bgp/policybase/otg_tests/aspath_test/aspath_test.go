@@ -15,7 +15,6 @@
 package aspath_test
 
 import (
-	"sort"
 	"testing"
 	"time"
 
@@ -91,8 +90,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, aspathMembers [][]uint32) {
 	devices := bs.ATETop.Devices().Items()
-	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
-	sort.Slice(devices, byName)
 
 	ipv4 := devices[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	bgp4Peer := devices[1].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
@@ -187,9 +184,8 @@ type testCase struct {
 }
 
 func TestCommunitySet(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2)
-	bs.WithEBGP(t, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true, true)
-	bs.WithEBGP(t, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true, true)
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
+	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
 
 	var aspathMembers = [][]uint32{
 		{100, 200, 300},
