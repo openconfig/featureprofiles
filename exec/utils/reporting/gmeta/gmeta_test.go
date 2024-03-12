@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"text/template"
 
@@ -26,13 +27,15 @@ firmware-version: "{{.SoftwareVersion}}"
 )
 
 var (
-	outDir = flag.String("outDir", "", "Output directory")
+	imagePath = flag.String("image", "", "Image to generate metadata for")
+	outDir    = flag.String("out", "", "Output directory")
 )
 
 type templateData struct {
 	TargetType      string
 	PlatformName    string
 	SoftwareVersion string
+	FileName        string
 }
 
 func TestGenerateGoogleImageMetadata(t *testing.T) {
@@ -50,24 +53,28 @@ func TestGenerateGoogleImageMetadata(t *testing.T) {
 		t.Fatalf("Error parsing template: %v", err)
 	}
 
+	imageName := filepath.Base(*imagePath)
 	for _, td := range []templateData{
 		{
 			TargetType:      "hardware",
 			PlatformName:    "8800",
 			SoftwareVersion: version,
+			FileName:        imageName + ".yaml",
 		},
 		{
 			TargetType:      "software",
 			PlatformName:    "8000e",
 			SoftwareVersion: version,
+			FileName:        "c8202-pvt-" + version + ".tar.yaml",
 		},
 		{
 			TargetType:      "software",
 			PlatformName:    "XRD",
 			SoftwareVersion: version,
+			FileName:        "xrd-control-plane-container-x64.dockerv1-" + version + ".tgz.yaml",
 		},
 	} {
-		outFile, err := os.Create(path.Join(*outDir, td.PlatformName+".yaml"))
+		outFile, err := os.Create(path.Join(*outDir, td.FileName))
 		if err != nil {
 			t.Fatalf("Error creating output file: %v", err)
 		}
