@@ -63,8 +63,6 @@ BGP policy configuration for Community Sets
 | prefix-set-3 | reject         | reject      | accept     | accept             |
 | prefix-set-4 | reject         | reject      | accept     | reject             |
 
-* TODO: add coverage for link-bandwidth community in separate test.
-
 ## Config Parameter Coverage
 
 ### Policy definition
@@ -77,7 +75,9 @@ BGP policy configuration for Community Sets
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
 import-policy
 
