@@ -58,10 +58,7 @@ func TestGenerateGoogleImageMetadata(t *testing.T) {
 		t.Fatalf("Error parsing template: %v", err)
 	}
 
-	imgP := strings.TrimPrefix(*imagePath, "['")
-	imgP = strings.TrimSuffix(imgP, "']")
-	imageName := filepath.Base(imgP)
-
+	imageName := strings.TrimSuffix(filepath.Base(*imagePath), "]")
 	for _, td := range []templateData{
 		{
 			TargetType:      "hardware",
