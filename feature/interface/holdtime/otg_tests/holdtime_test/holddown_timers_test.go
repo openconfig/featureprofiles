@@ -185,9 +185,10 @@ func displaySummaryTable(t *testing.T,
 
 	// Prepare the strings for output.
 	expectedDurationStr := "300ms" // Assuming this is a constant value
-	minToleranceStr := fmt.Sprintf("%dms", minToleranceInMS)
-	maxToleranceStr := fmt.Sprintf("%dms", maxToleranceInMS)
-	actualDurationStr := fmt.Sprintf("%dms", actualDurationInMS)
+
+	minToleranceStr := strconv.Itoa(int(minToleranceInMS)) + "ms"
+	maxToleranceStr := strconv.Itoa(int(maxToleranceInMS)) + "ms"
+	actualDurationStr := strconv.Itoa(int(actualDurationInMS)) + "ms"
 
 	// Create a slice of metrics and corresponding values.
 	metrics := []string{"Pre-action TS",
@@ -250,12 +251,11 @@ func flapOTGInterface(t *testing.T,
 		t.Log("RT-5.5.2: Bring Down OTG Interface")
 		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		otgStateChangeTsStr = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-
 		ate.OTG().SetControlState(t, portStateAction)
 
 		// TC2 Step 3
 		t.Log("Step 3 sleeping 1000ms")
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// Step 4. Read timestamp of last oper-status change  form DUT port-1 (DUT_LAST_CHANGE_TS)
