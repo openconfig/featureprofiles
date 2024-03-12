@@ -500,7 +500,6 @@ func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-
 func PrettyPrintJson(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
