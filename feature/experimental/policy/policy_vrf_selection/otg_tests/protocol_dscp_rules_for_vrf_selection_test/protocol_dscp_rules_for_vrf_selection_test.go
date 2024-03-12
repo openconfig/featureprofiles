@@ -420,7 +420,7 @@ func TestPBR(t *testing.T) {
 
 	// Clear otg config
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	ate.OTG().PushConfig(t, top)
 
 	dut := ondatra.DUT(t, "dut")

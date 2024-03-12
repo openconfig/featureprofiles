@@ -134,7 +134,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 
 	// Clear otg config
 	ate := ondatra.ATE(t, "ate")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 	ate.OTG().PushConfig(t, top)
 
 	dut := ondatra.DUT(t, "dut")
@@ -184,7 +184,7 @@ func TestDirectBackupNexthopGroup(t *testing.T) {
 		client: &client,
 	}
 
-	tcArgs.configureBackupNextHopGroup(t, false)
+	tcArgs.configureBackupNextHopGroup(t)
 
 	baselineFlow := tcArgs.createFlow("Baseline_Path_Flow", ateTop, &atePort2)
 	backupFlow := tcArgs.createFlow("Backup_Path_Flow", ateTop, &atePort3)
@@ -321,7 +321,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // configureBackupNextHopGroup creates gribi nexthops, nexthop
 // groups, and prefixes for evaluating backup next hop forwarding
 // entry.
-func (a *testArgs) configureBackupNextHopGroup(t *testing.T, del bool) {
+func (a *testArgs) configureBackupNextHopGroup(t *testing.T) {
 	t.Logf("Adding NH %d with atePort2 via gRIBI", nh1ID)
 	nh1, op1 := gribi.NHEntry(nh1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 	t.Logf("Adding NH %d with atePort3 and NHGs %d, %d via gRIBI", nh2ID, nhg1ID, nhg2ID)

@@ -197,7 +197,7 @@ func New(t testing.TB) (*TestSession, error) {
 		otg := s.ATE.OTG()
 
 		// otg configuration cleanup
-		s.ATETop = otg.NewConfig(t)
+		s.ATETop = gosnappi.NewConfig()
 		otg.PushConfig(t, s.ATETop)
 	}
 	s.DUT = ondatra.DUT(t, "dut")
