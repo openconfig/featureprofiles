@@ -440,6 +440,9 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool skip_macaddress_check = 154;
     // Reserved field numbers and identifiers.
+    // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 155;
+    
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
 
