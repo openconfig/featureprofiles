@@ -427,6 +427,18 @@ message Metadata {
     // Devices missing component tree mapping from hardware port
     // to optical channel.
     bool missing_port_to_optical_channel_component_mapping = 150;
+    // Skip gNMI container OP tc.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_container_op = 151;
+    // Reorder calls for vendor compatibility.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool reorder_calls_for_vendor_compatibilty = 152;
+    // Add missing base config using cli.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool add_missing_base_config_via_cli = 153;
+    // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_macaddress_check = 154;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
