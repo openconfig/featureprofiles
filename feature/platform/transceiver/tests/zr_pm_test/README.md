@@ -1,4 +1,4 @@
-# TRANSCEIVER-6: Telemetry: 400ZR Optics pm streaming.
+# TRANSCEIVER-6: Telemetry: 400ZR Optics perfromance metrics (pm) streaming.
 
 ## Summary
 
@@ -43,11 +43,11 @@ module CMIS VDM(Versatile Diagnostics Monitor):
     stream any invalid string values like "nil" or "-inf" until valid values
     are available for streaming.
 
-*   Q-value, eSNR and pre-Fec BER must always be of type decimal64.When link
+*   Q-value, eSNR and pre-Fec BER must always be of type decimal64. When link
     interfaces are in down state 0.0 must be reported as a valid default value.
-*   Typical expected value range for eSNR is 13.5 to
-    18 dB +/-0.1 dB.
-*   Typical expected value for Pre-FEC BER should be less than 1.2E-2
+    *   Typical expected value range for eSNR is 13.5 to 18 dB +/-0.1 dB.
+    *   Typical expected value for Pre-FEC BER should be less than 1.2E-2.
+    *   Typical expected Q-value should be greater than 7 dB.
 
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 
@@ -62,12 +62,12 @@ module CMIS VDM(Versatile Diagnostics Monitor):
         seconds.
     *   Verify the ZR optics PMs are in the normal range.
     *   Use /components/component/transceiver/config/enabled to disable the
-        transceiver, wait 20 seconds and then re-enable the transceiver.
+        transceiver, wait 10 seconds and then re-enable the transceiver.
     *   Verify that the PM leafs report '0' during the reboot and no value
         of nil or -inf is reported.
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR optics pre FEC PM is updated to the value in the normal
-        range again. Typical expected value should be greater than 7 dB.
+        range again. 
 
 ## Config Parameter coverage
 
