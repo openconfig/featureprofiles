@@ -109,22 +109,37 @@ var (
 		IPv6Len: ipv6PrefixLen,
 	}
 
+<<<<<<< HEAD
 	advertisedIPv41 = ipAddr{address: v41Route, prefix: v4RoutePrefix}
 	advertisedIPv42 = ipAddr{address: v42Route, prefix: v4RoutePrefix}
 	advertisedIPv61 = ipAddr{address: v61Route, prefix: v6RoutePrefix}
 	advertisedIPv62 = ipAddr{address: v62Route, prefix: v6RoutePrefix}
+=======
+	advertisedIPv41 = Prefix{address: v41Route, prefix: v4RoutePrefix}
+	advertisedIPv42 = Prefix{address: v42Route, prefix: v4RoutePrefix}
+	advertisedIPv61 = Prefix{address: v61Route, prefix: v6RoutePrefix}
+	advertisedIPv62 = Prefix{address: v62Route, prefix: v6RoutePrefix}
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+<<<<<<< HEAD
 type ipAddr struct {
+=======
+type Prefix struct {
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	address string
 	prefix  uint32
 }
 
+<<<<<<< HEAD
 func (ip *ipAddr) cidr(t *testing.T) string {
+=======
+func (ip *Prefix) cidr(t *testing.T) string {
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
 	if err != nil {
 		t.Fatal(err)
@@ -233,12 +248,20 @@ func TestBGPNestedPolicies(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 // IPv4 BGP nested import policy test
+=======
+// configureImportRoutingPolicy configures the dut for IPv4 BGP nested import policy test.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
+<<<<<<< HEAD
 	//Configure a route-policy to set the local preference
+=======
+	// Configure a route-policy to set the local preference.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	pdef1 := rp.GetOrCreatePolicyDefinition(v4LPPolicy)
 	stmt1, err := pdef1.AppendNewStatement(v4LPStatement)
 	if err != nil {
@@ -247,14 +270,22 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
+<<<<<<< HEAD
 	//Configure a route-policy to match the prefix
+=======
+	// Configure a route-policy to match the prefix.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4PrefixPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v4PrefixStatement)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4PrefixStatement, err)
 	}
 	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+<<<<<<< HEAD
 	//Configure a prefix-set for route filtering/matching
+=======
+	// Configure a prefix-set for route filtering/matching.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
 	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
 	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
@@ -265,14 +296,22 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
+<<<<<<< HEAD
 	// Configure the nested policy
+=======
+	// Configure the nested policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	dni := deviations.DefaultNetworkInstance(dut)
 	rpPolicy := root.GetOrCreateRoutingPolicy()
 	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetConditions()
 	statPath.SetCallPolicy(v4PrefixPolicy)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
+<<<<<<< HEAD
 	// Configure the parent BGP import policy
+=======
+	// Configure the parent BGP import policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
@@ -310,7 +349,11 @@ func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	}
 }
 
+<<<<<<< HEAD
 // IPv4 BGP nested export policy test
+=======
+// configureExportRoutingPolicy configures the dut for IPv4 BGP nested export policy test.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -331,14 +374,22 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
+<<<<<<< HEAD
 	// Configure the nested policy
+=======
+	// Configure the nested policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	dni := deviations.DefaultNetworkInstance(dut)
 	rpPolicy := root.GetOrCreateRoutingPolicy()
 	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetConditions()
 	statPath.SetCallPolicy(v4MedPolicy)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
+<<<<<<< HEAD
 	// Configure the parent BGP import policy
+=======
+	// Configure the parent BGP import policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
@@ -386,7 +437,11 @@ func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	}
 }
 
+<<<<<<< HEAD
 // IPv6 BGP nested import policy test
+=======
+// configureImportRoutingPolicyV6 configures the dut for IPv6 BGP nested import policy test.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -416,14 +471,22 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
+<<<<<<< HEAD
 	// Configure the nested policy
+=======
+	// Configure the nested policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	dni := deviations.DefaultNetworkInstance(dut)
 	rpPolicy := root.GetOrCreateRoutingPolicy()
 	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetConditions()
 	statPath.SetCallPolicy(v6PrefixPolicy)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
+<<<<<<< HEAD
 	// Configure the parent BGP import policy
+=======
+	// Configure the parent BGP import policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
@@ -460,7 +523,11 @@ func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	}
 }
 
+<<<<<<< HEAD
 // IPv6 BGP nested export policy test
+=======
+// configureExportRoutingPolicyV6 configures the dut for IPv6 BGP nested export policy test.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -481,14 +548,22 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
+<<<<<<< HEAD
 	// Configure the nested policy
+=======
+	// Configure the nested policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	dni := deviations.DefaultNetworkInstance(dut)
 	rpPolicy := root.GetOrCreateRoutingPolicy()
 	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetConditions()
 	statPath.SetCallPolicy(v6MedPolicy)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 
+<<<<<<< HEAD
 	// Configure the parent BGP export policy
+=======
+	// Configure the parent BGP export policy.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
@@ -598,7 +673,11 @@ func checkTraffic(t *testing.T, td testData, flowName string) {
 	lossPct := lostPackets * 100 / txPackets
 
 	if lossPct > 1 {
+<<<<<<< HEAD
 		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, flowName)
+=======
+		t.Errorf("FAIL- got %v%% packet loss for %s ; want < 1%%", lossPct, flowName)
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	}
 }
 
@@ -632,7 +711,11 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
+<<<<<<< HEAD
 	// configure eBGP on OTG port1
+=======
+	// Configure eBGP on OTG port1.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	ipv41 := td.otgP1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dev1BGP := td.otgP1.Bgp().SetRouterId(atePort1.IPv4)
 	bgp4Peer1 := dev1BGP.Ipv4Interfaces().Add().SetIpv4Name(ipv41.Name()).Peers().Add().SetName(td.otgP1.Name() + ".BGP4.peer")
@@ -642,13 +725,21 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	bgp6Peer1 := dev1BGP.Ipv6Interfaces().Add().SetIpv6Name(ipv61.Name()).Peers().Add().SetName(td.otgP1.Name() + ".BGP6.peer")
 	bgp6Peer1.SetPeerAddress(dutPort1.IPv6).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
+<<<<<<< HEAD
 	// configure emulated network on ATE port1
+=======
+	// Configure emulated network on ATE port1.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	netv41 := bgp4Peer1.V4Routes().Add().SetName("v4-bgpNet-dev1")
 	netv41.Addresses().Add().SetAddress(advertisedIPv41.address).SetPrefix(advertisedIPv41.prefix)
 	netv61 := bgp6Peer1.V6Routes().Add().SetName("v6-bgpNet-dev1")
 	netv61.Addresses().Add().SetAddress(advertisedIPv61.address).SetPrefix(advertisedIPv61.prefix)
 
+<<<<<<< HEAD
 	// configure eBGP on OTG port2
+=======
+	// Configure eBGP on OTG port2.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	ipv42 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	dev2BGP := td.otgP2.Bgp().SetRouterId(atePort2.IPv4)
 	bgp4Peer2 := dev2BGP.Ipv4Interfaces().Add().SetIpv4Name(ipv42.Name()).Peers().Add().SetName(td.otgP2.Name() + ".BGP4.peer")
@@ -658,14 +749,22 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	bgp6Peer2 := dev2BGP.Ipv6Interfaces().Add().SetIpv6Name(ipv62.Name()).Peers().Add().SetName(td.otgP2.Name() + ".BGP6.peer")
 	bgp6Peer2.SetPeerAddress(dutPort2.IPv6).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
+<<<<<<< HEAD
 	// configure emulated network on ATE port2
+=======
+	// Configure emulated network on ATE port2.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	netv42 := bgp4Peer2.V4Routes().Add().SetName("v4-bgpNet-dev2")
 	netv42.Addresses().Add().SetAddress(advertisedIPv42.address).SetPrefix(advertisedIPv42.prefix)
 	netv62 := bgp6Peer2.V6Routes().Add().SetName("v6-bgpNet-dev2")
 	netv62.Addresses().Add().SetAddress(advertisedIPv62.address).SetPrefix(advertisedIPv62.prefix)
 }
 
+<<<<<<< HEAD
 // VerifyDUTBGPEstablished
+=======
+// verifyDUTBGPEstablished verifies on dut for BGP peer establishment.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyDUTBGPEstablished(t *testing.T) {
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, td.dut, sp, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -681,7 +780,11 @@ func (td *testData) verifyDUTBGPEstablished(t *testing.T) {
 	t.Log("DUT BGP sessions established")
 }
 
+<<<<<<< HEAD
 // VerifyOTGBGPEstablished verifies on OTG BGP peer establishment
+=======
+// VerifyOTGBGPEstablished verifies on OTG for BGP peer establishment.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyOTGBGPEstablished(t *testing.T) {
 	sp := gnmi.OTG().BgpPeerAny().SessionState().State()
 	watch := gnmi.WatchAll(t, td.ate.OTG(), sp, 2*time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
@@ -697,50 +800,82 @@ func (td *testData) verifyOTGBGPEstablished(t *testing.T) {
 	t.Log("OTG BGP sessions established")
 }
 
+<<<<<<< HEAD
 // Verify that the parent import policy (v4LPPolicy) has a child policy attached
 
+=======
+// verifyNestedImportPolicyAttachedv4 verifies on dut for IPV4 BGP parent import policy v4LPPolicy has a child policy attached.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyNestedImportPolicyAttachedv4(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v4LPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v4PrefixPolicy {
+<<<<<<< HEAD
 		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v4PrefixPolicy, callPolicy)
+=======
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v4PrefixPolicy)
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	}
 	t.Log("Nested policy 'v4PrefixPolicy' verified successfully")
 }
 
+<<<<<<< HEAD
 // Verify that the parent export policy (v4ASPPolicy) has a child policy attached
 
+=======
+// verifyNestedExportPolicyAttachedv4 verifies on dut for IPV4 BGP parent export policy v4ASPPolicy has a child policy attached.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyNestedExportPolicyAttachedv4(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v4ASPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v4ASPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v4MedPolicy {
+<<<<<<< HEAD
 		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v4MedPolicy, callPolicy)
+=======
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v4MedPolicy)
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	}
 	t.Log("Nested policy 'v4MedPolicy' verified successfully")
 }
 
+<<<<<<< HEAD
 // Verify that the parent import policy (v6LPPolicy) has a child policy attached
 
+=======
+// verifyNestedImportPolicyAttachedv6 verifies on dut for IPV6 BGP parent import policy v6LPPolicy has a child policy attached.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyNestedImportPolicyAttachedv6(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6LPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v6LPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v6PrefixPolicy {
+<<<<<<< HEAD
 		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v6PrefixPolicy, callPolicy)
+=======
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v6PrefixPolicy)
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	}
 	t.Log("Nested policy 'v6PrefixPolicy' verified successfully")
 }
 
+<<<<<<< HEAD
 // Verify that the parent export policy (v6ASPPolicy) has a child policy attached
 
+=======
+// verifyNestedExportPolicyAttachedv6 verifies on dut for IPV6 BGP parent export policy v6ASPPolicy has a child policy attached.
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 func (td *testData) verifyNestedExportPolicyAttachedv6(t *testing.T) {
 	rpDefPath := gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).State()
 	subResponse := gnmi.Get(t, td.dut, rpDefPath)
 	callPolicy := subResponse.GetStatement(v6ASPStatement).Conditions.GetCallPolicy()
 	if callPolicy != v6MedPolicy {
+<<<<<<< HEAD
 		t.Fatalf("Incorrect nested policy. Expected: %s, Got: %s", v6MedPolicy, callPolicy)
+=======
+		t.Fatalf("Incorrect nested policy. got: %s, want: %s", callPolicy, v6MedPolicy)
+>>>>>>> 2589617fdb8fbcdc7d0b0469acd5aadabb52416e
 	}
 	t.Log("Nested policy 'v6MedPolicy' verified successfully")
 }
