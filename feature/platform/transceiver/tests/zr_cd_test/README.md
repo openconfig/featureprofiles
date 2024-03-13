@@ -5,7 +5,7 @@
 Validate 400ZR optics module reports accurate CD telemetry values.
 
 Chromatic Dispersion is frequency dependent change in signal phase velocity due
-to fiber measured in ps/nm 
+to fiber measured in ps/nm
 
 ## Procedure
 
@@ -46,7 +46,7 @@ to fiber measured in ps/nm
     *   Verify the ZR optics CD telemetry values are in the normal range.
     *   Disable or shut down the interface on the DUT.
     *   Verify with interfaces in down state both optics are streaming Decimal64 0
-        value for CD.
+        value for both CD.
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR optics CD telemetry values are updated to the
         value in the normal range again.
@@ -60,7 +60,7 @@ to fiber measured in ps/nm
     *   Simulate a fiber cut using the optical switch that sits in-between the
         DUT ports.
     *   Verify with link in down state due to fiber cut both optics are streaming
-        Decimal64 0 value for CD.
+        Decimal64 0 value for both CD.
     *   Re-enable the optical switch connection to clear the fiber cut fault.
     *   Verify the ZR optics CD telemetry values are updated to the value in the normal
         range again.
