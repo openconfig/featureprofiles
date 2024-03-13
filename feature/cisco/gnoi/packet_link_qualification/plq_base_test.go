@@ -2,16 +2,13 @@ package packet_link_qualification_test
 
 import (
 	"context"
-	"io"
 	"math"
 	"testing"
 	"time"
 
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -90,24 +87,6 @@ func generatorCreateRequest(t *testing.T, testID string, dp *ondatra.Port, capRe
 	return gcr
 }
 
-func reflectorNtpCreateRequest(t *testing.T, testID string, dp *ondatra.Port, timing *plqpb.QualificationConfiguration_Ntp) *plqpb.CreateRequest {
-	t.Helper()
-	qc := &plqpb.QualificationConfiguration{
-		Id:            testID,
-		InterfaceName: dp.Name(),
-		Timing:        timing,
-		EndpointType: &plqpb.QualificationConfiguration_PmdLoopback{
-			PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
-		},
-	}
-
-	rcr := &plqpb.CreateRequest{
-		Interfaces: []*plqpb.QualificationConfiguration{qc},
-	}
-	t.Logf("ReflectorCreateRequest: %v", rcr)
-	return rcr
-}
-
 func reflectorCreateRequest(t *testing.T, testID string, dp *ondatra.Port) *plqpb.CreateRequest {
 	t.Helper()
 	qc := &plqpb.QualificationConfiguration{
@@ -152,21 +131,6 @@ func listAndDeleteResults(t *testing.T, client gnoigo.Clients, dut *ondatra.DUTD
 			t.Fatalf("results found on %v after Delete RPC", dut)
 		}
 
-	}
-}
-
-func fetchResponses(c spb.System_PingClient) ([]*spb.PingResponse, error) {
-	var pingResp []*spb.PingResponse
-	for {
-		resp, err := c.Recv()
-		switch {
-		case err == io.EOF:
-			return pingResp, nil
-		case err != nil:
-			return nil, err
-		default:
-			pingResp = append(pingResp, resp)
-		}
 	}
 }
 
@@ -285,18 +249,4 @@ func basePlqSingleInterface(t *testing.T, dut1, dut2 *ondatra.DUTDevice, gnoiCli
 		portPair := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
 		t.Logf("Packet Link Qualification successful between the ports %v", portPair)
 	}
-}
-
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint32 {
-	t.Helper()
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID := uint32(proc.GetPid())
-			return pID
-		}
-	}
-	t.Fatalf("PID for process %s not found", pName)
-	return 0
 }

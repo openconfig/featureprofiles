@@ -2,6 +2,7 @@ package packet_link_qualification_test
 
 import (
 	"context"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -175,8 +176,10 @@ func TestPlqGeneratorRequest(t *testing.T) {
 				t.Fatalf("Failed to handle generator LinkQualification().Create(): %v", err)
 			}
 			_generatorGetResponse, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{tc.plqID}})
+			if err != nil {
+				t.Fatalf("Failed to handle gnoi LinkQualification().Get() on Generator: %v", err)
+			}
 			t.Logf("PLQ status is %v", _generatorGetResponse.GetResults()[tc.plqID].GetState())
-			//if got, want :=_generatorGetResponse.GetResults()[tc.plqID].GetState(),
 		})
 	}
 }
@@ -420,4 +423,128 @@ func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
 
 	basePlqSingleInterface(t, dut1, dut2, gnoiClient1, gnoiClient2, d1p, d2p, plqID)
 
+}
+
+func TestPlqSingleInterface(t *testing.T) {
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
+
+	dp1 := dut1.Port(t, "port1")
+	dp2 := dut2.Port(t, "port1")
+	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
+	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
+
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
+	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
+	duts := []*ondatra.DUTDevice{dut1, dut2}
+
+	var wg sync.WaitGroup
+	for i := 0; i < len(clients) && i < len(duts); i++ {
+		wg.Add(1)
+		go func(client gnoigo.Clients, dev *ondatra.DUTDevice) {
+			defer wg.Done()
+			listAndDeleteResults(t, client, dev)
+		}(clients[i], duts[i])
+	}
+	wg.Wait()
+
+	capResponse, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Capabilities() for Generator: %v", err)
+	}
+	t.Logf("LinkQualification().CapabilitiesResponse: %v", capResponse)
+	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
+
+	genCreateReq := generatorCreateRequest(t, plqID, dp1, capResponse)
+	genCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), genCreateReq)
+	t.Logf("LinkQualification().Create() GeneratorCreateResponse: %v, err: %v", genCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
+	}
+
+	refCreateReq := reflectorCreateRequest(t, plqID, dp2)
+	refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
+	t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
+	}
+
+	sleepTime := 30 * time.Second
+	minTestTime := plqDuration.testDuration + plqDuration.preSyncDuration + plqDuration.reflectorPostSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
+	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
+	for i := 0; i <= counter; i++ {
+		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
+		time.Sleep(sleepTime)
+		testDone := true
+		for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
+			t.Logf("Check client: %d", i+1)
+
+			listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+			t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
+			if err != nil {
+				t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
+			}
+
+			for j := 0; j < len(listResp.GetResults()); j++ {
+				if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
+					testDone = false
+				}
+			}
+			if len(listResp.GetResults()) == 0 {
+				testDone = false
+			}
+		}
+		if testDone {
+			t.Logf("Detected QualificationState_QUALIFICATION_STATE_COMPLETED.")
+			break
+		}
+	}
+
+	getRequest := &plqpb.GetRequest{
+		Ids: []string{plqID},
+	}
+
+	var generatorPktsSent, generatorPktsRxed uint64
+	var dev string
+	for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
+		if client == gnoiClient1 {
+			dev = "DUT1 Generator"
+		} else {
+			dev = "DUT2 Reflector"
+		}
+		t.Logf("Check client: %d", i+1)
+		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
+		t.Logf("LinkQualification().Get(): %v, err: %v", getResp.Results[plqID], err)
+		if err != nil {
+			t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
+		}
+
+		result := getResp.GetResults()[plqID]
+		if got, want := result.GetStatus().GetCode(), int32(0); got != want {
+			t.Errorf("result.GetStatus().GetCode(): got %v, want %v", got, want)
+		}
+		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
+			t.Logf("result.GetState() on %v = %v", dev, result.GetState().String())
+			t.Errorf("result.GetState() failed on %v: got %v, want %v", dev, got, want)
+		}
+		if got, want := result.GetPacketsError(), uint64(0); got != want {
+			t.Errorf("result.GetPacketsError() failed on %v: got %v, want %v", dev, got, want)
+		}
+		if got, want := result.GetPacketsDropped(), uint64(0); got != want {
+			t.Errorf("result.GetPacketsDropped() failed on %v: got %v, want %v", dev, got, want)
+		}
+
+		if client == gnoiClient1 {
+			generatorPktsSent = result.GetPacketsSent()
+			generatorPktsRxed = result.GetPacketsReceived()
+		}
+	}
+
+	// The difference in counters between Generator sent packets & received packets
+	// mismatch tolerance level in percentage
+	var tolerance = 0.0001
+	if (math.Abs(float64(generatorPktsSent)-float64(generatorPktsRxed))/float64(generatorPktsSent))*100.00 > tolerance {
+		t.Errorf("The difference between packets received count and packets sent count of Generator is greater than %0.4f percent: generatorPktsSent %v, generatorPktsRxed %v", tolerance, generatorPktsSent, generatorPktsRxed)
+	}
 }
