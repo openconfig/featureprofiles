@@ -749,7 +749,10 @@ func TestP4rtNodeID(t *testing.T) {
 				t.Fatalf("Couldn't find P4RT Node for port: %s", "port1")
 			}
 			t.Logf("Configuring P4RT Node: %s", nodes["port1"])
-			gnmi.Replace(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().Config(), ic)
+			gnmi.Replace(t, dut, gnmi.OC().Component(nodes["port1"]).Config(), &oc.Component{
+				Name:              ygot.String(nodes["port1"]),
+				IntegratedCircuit: ic,
+			})
 			// Check path /components/component/integrated-circuit/state/node-id.
 			nodeID := gnmi.Lookup(t, dut, gnmi.OC().Component(nodes["port1"]).IntegratedCircuit().NodeId().State())
 			nodeIDVal, present := nodeID.Val()
@@ -793,14 +796,14 @@ func TestIntfCounterUpdate(t *testing.T) {
 	config.Ports().Add().SetName(ap1.ID())
 	intf1 := config.Devices().Add().SetName(ap1.Name())
 	eth1 := intf1.Ethernets().Add().SetName(ap1.Name() + ".Eth").SetMac("02:00:01:01:01:01")
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	ip4_1 := eth1.Ipv4Addresses().Add().SetName(intf1.Name() + ".IPv4").
 		SetAddress("198.51.100.1").SetGateway("198.51.100.0").
 		SetPrefix(31)
 	config.Ports().Add().SetName(ap2.ID())
 	intf2 := config.Devices().Add().SetName(ap2.Name())
 	eth2 := intf2.Ethernets().Add().SetName(ap2.Name() + ".Eth").SetMac("02:00:01:02:01:01")
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap2.ID())
+	eth2.Connection().SetPortName(ap2.ID())
 	ip4_2 := eth2.Ipv4Addresses().Add().SetName(intf2.Name() + ".IPv4").
 		SetAddress("198.51.100.3").SetGateway("198.51.100.2").
 		SetPrefix(31)

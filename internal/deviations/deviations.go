@@ -714,3 +714,119 @@ func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
 }
+
+// ISISMetricStyleTelemetryUnsupported returns true for devices that do not support state path
+// /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
+}
+
+// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
+func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}
+
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
+
+// SkipSettingAllowMultipleAS return true if device needs to skip setting allow-multiple-as while configuring eBGP
+func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
+}
+
+// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
+func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
+}
+
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// GribiDecapMixedPlenUnsupported returns true if devices does not support
+// programming with mixed prefix length.
+func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
+}
+
+// SkipIsisSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
+func SkipIsisSetLevel(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetLevel()
+}
+
+// SkipIsisSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
+}
+
+// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
+}
+
+// SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
+func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
+}
+
+// BGPConditionsMatchCommunitySetUnsupported returns true if device doesn't support bgp-conditions/match-community-set leaf
+func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
+}
+
+// PfRequireMatchDefaultRule returns true for device which requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
+}
+
+// MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
+func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
+}
+
+// SkipContainerOp returns true if gNMI container OP needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipContainerOp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipContainerOp()
+}
+
+// ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
+}
+
+// AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
+}
+
+// SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+}

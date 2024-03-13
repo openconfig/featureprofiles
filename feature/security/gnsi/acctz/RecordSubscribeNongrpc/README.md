@@ -6,7 +6,7 @@ Test Accounting for non-gRPC records
 ## Procedure
 - Record the time T0 for use later in this test
 - For each of the supported service classes in gnsi.acctz.v1.CommandService.CmdServiceType:
-	- Connect to a non-System-address on the DUT, recording the local and remote IP addresses and port numbers,
+	- Connect to the DUT, recording the local and remote IP addresses and port numbers,
 	- Run a few commands that should be permitted and a few that should be denied. If command abbreviation is permitted, at least one command and its arguments should be abbreviated.
 	- disconnect
 - Establish gNSI connection to the DUT.

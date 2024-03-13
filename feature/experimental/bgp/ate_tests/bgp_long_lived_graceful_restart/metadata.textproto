@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "9f319fa6-d197-48fa-84fe-ea075c422190"
-plan_id:  "RT-1.14"
-description:  "BGP Long-Lived Graceful Restart"
+uuid: "9f319fa6-d197-48fa-84fe-ea075c422190"
+plan_id: "RT-1.14"
+description: "BGP Long-Lived Graceful Restart"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -39,11 +39,11 @@ platform_exceptions: {
   deviations: {
     route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
-    interface_enabled: true
-    default_network_instance: "default"
-    deprecated_vlan_id: true
-    require_routed_subinterface_0: true
     interface_config_vrf_before_address: true
+    deprecated_vlan_id: true
+    interface_enabled: true
+    require_routed_subinterface_0: true
+    default_network_instance: "default"
     bgp_llgr_oc_undefined: true
   }
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	gnps "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -46,6 +47,11 @@ const (
 	interfaceFlapTimeOut          = 30 //seconds
 	outputFreqLowerBound          = 184500000
 	outputFreqUpperBound          = 196000000
+	rxSignalPowerLowerBound       = -14
+	rxSignalPowerUpperBound       = 0
+	txOutputPowerLowerBound       = -10
+	txOutputPowerUpperBound       = -6
+
 )
 
 type testData struct {
@@ -59,7 +65,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Helper method tp remove any breakoutConfiguration if present, and configure DUT
+//configureDUT removes any breakoutConfiguration if present, and configure DUT
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) {
 	d := gnmi.OC()
 	port := dut.Port(t, "port1")
@@ -79,7 +85,88 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) 
 	t.Logf("Configured port %v", port.Name())
 }
 
-// Helper method for RT-4.1: Checks if  inputPower , outputPower ,Frequency are as expected
+//verifyValidRxInputPower verifies valid Rx Signal power
+func verifyValidRxInputPower(t testing.TB,transceiverOpticalChanelInputPower *oc.Component_OpticalChannel_InputPower,isInterfaceDisabled bool, transceiverOpticalChannelName string , transceiverName string){
+	t.Logf("Checking Transceiver = %v  Optical Channel Input Power Statistics", transceiverOpticalChannelName)
+	t.Logf("Optical channel = %v , Instant Input Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetInstant())
+	t.Logf("Optical channel = %v , Average Input Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetAvg())
+	t.Logf("Optical channel = %v , Min Input Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetMin())
+	t.Logf("Optical channel = %v , Max Input Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetMax())
+	
+	if transceiverInputPowerInstantType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetInstant()).Kind(); transceiverInputPowerInstantType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Instant InputPower  data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerInstantType)
+	}
+	if transceiverInputPowerAvgType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetAvg()).Kind(); transceiverInputPowerAvgType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Avg InputPower data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerAvgType)
+	}
+	if transceiverInputPowerMinType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetMin()).Kind(); transceiverInputPowerMinType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Min InputPower data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerMinType)
+	}
+	if transceiverInputPowerMaxType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetMax()).Kind(); transceiverInputPowerMaxType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v Max InputPower data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerMaxType)
+	}
+
+	if isInterfaceDisabled {
+		if transceiverOpticalChanelInputPower.GetInstant() > 0 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Instant InputPower   = %v  ,Got =%v", transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetInstant())
+		}
+		if transceiverOpticalChanelInputPower.GetAvg() > 0 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Avg InputPower   = %v  ,Got =%v", transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetAvg())
+		}
+		if transceiverOpticalChanelInputPower.GetMin() > 0 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Min InputPower   = %v  ,Got =%v", transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetMin())
+		}
+		if transceiverOpticalChanelInputPower.GetMax() > 0 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Max InputPower   = %v  ,Got =%v", transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetMax())
+		}
+
+	} else if transceiverOpticalChanelInputPower.GetMin() < rxSignalPowerLowerBound|| transceiverOpticalChanelInputPower.GetMax() > rxSignalPowerUpperBound {
+		t.Fatalf("Transciever %v RX Input power range Expected = %v to %v dbm, Got = %v to %v  ", transceiverName,rxSignalPowerLowerBound, rxSignalPowerUpperBound,transceiverOpticalChanelInputPower.GetMin(), transceiverOpticalChanelInputPower.GetMax())
+	}
+}
+
+//verifyValidTxOutputPower verifies valid Tx Output Power
+func verifyValidTxOutputPower(t testing.TB,transceiverOpticalChanelOutputPower *oc.Component_OpticalChannel_OutputPower,isInterfaceDisabled bool, transceiverOpticalChannelName string , transceiverName string ){
+	t.Logf("Checking Transceiver = %v  Optical Channel Output Power Statistics", transceiverOpticalChannelName)
+	t.Logf("Optical channel = %v , Instant Output Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetInstant())
+	t.Logf("Optical channel = %v , Average Output Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetAvg())
+	t.Logf("Optical channel = %v , Min Output Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetMin())
+	t.Logf("Optical channel = %v , Max Output Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetMax())
+	if transceiverOutputPowerInstantType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetInstant()).Kind(); transceiverOutputPowerInstantType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Instant OutputPower  data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerInstantType)
+	}
+	if transceiverOutputPowerAvgType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetAvg()).Kind(); transceiverOutputPowerAvgType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Avg  OutputPower data type = %v  , Got =%v",transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerAvgType)
+	}
+	if transceiverOutputPowerMinType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetMin()).Kind(); transceiverOutputPowerMinType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v  Min  OutputPower data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerMinType)
+	}
+	if transceiverOutputPowerMaxType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetMax()).Kind(); transceiverOutputPowerMaxType != reflect.Float64 {
+		t.Fatalf("[Error]: Expected Optical Channel %v Max  OutputPower data type = %v  , Got =%v", transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerMaxType)
+	}
+
+	if isInterfaceDisabled {
+
+		if transceiverOpticalChanelOutputPower.GetInstant() != -40 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Instant OutputPower   = %v  ,Got =%v", transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetInstant())
+		}
+		if transceiverOpticalChanelOutputPower.GetAvg() != -40 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Avg OutputPower   = %v  ,Got =%v", transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetAvg())
+		}
+		if transceiverOpticalChanelOutputPower.GetMin() != -40 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Min OutputPower   = %v  ,Got =%v", transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetMin())
+		}
+		if transceiverOpticalChanelOutputPower.GetMax() != -40 {
+			t.Fatalf("[Error]: Expected Optical Channel %v  Max OutputPower   = %v  ,Got =%v", transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetMax())
+		}
+
+	} else if transceiverOpticalChanelOutputPower.GetMin() < txOutputPowerLowerBound  || transceiverOpticalChanelOutputPower.GetMax() > txOutputPowerUpperBound  {
+		t.Fatalf("[Error]:Transciever %v  TX Output power range Expected = %v to %v dbm, Got = %v to %v  ", transceiverName, txOutputPowerLowerBound,txOutputPowerUpperBound ,transceiverOpticalChanelOutputPower.GetMin(), transceiverOpticalChanelOutputPower.GetMax())
+	}
+}
+
+
+// verifyInputOutputPower verifies whether  inputPower , outputPower ,Frequency are as expected
 func verifyInputOutputPower(t *testing.T, tc *testData) {
 	transceiverComponentPath := gnmi.OC().Component(tc.transceiverName)
 	transceiverOpticalChannelPath := gnmi.OC().Component(tc.transceiverOpticalChannelName)
@@ -99,120 +186,57 @@ func verifyInputOutputPower(t *testing.T, tc *testData) {
 	}
 
 	if outputFrequency > outputFreqUpperBound || outputFrequency < outputFreqLowerBound {
-		t.Errorf("[Error]: Expected output frequency  not in range %v  =%v,  Got = %v", outputFreqLowerBound, outputFreqUpperBound, outputFrequency)
+		t.Errorf("[Error]: Output Frequency is not a valid frequency %v  =%v,  Got = %v", outputFreqLowerBound, outputFreqUpperBound, outputFrequency)
 	}
 	t.Logf("Transceiver = %v  Output Frequency is in the expected range", tc.transceiverName)
 
-	verifyRxInputTxOutputPower(t, tc, false)
+	opticalInputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().State(), 10*time.Second)
+	defer opticalInputPowerStream.Close()
+	transceiverOpticalOutputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State(), 10*time.Second)
+	defer transceiverOpticalOutputPowerStream.Close()
+	
+	transceiverOpticalChanelOutputPower,ok:= transceiverOpticalOutputPowerStream.Next(t).Val()
+	if !ok{
+		t.Errorf("[Error]:Trasceiver = %v Output Power not received !",tc.transceiverOpticalChannelName)
+	}
+	
+	transceiverOpticalChanelInputPower , ok:= opticalInputPowerStream.Next(t).Val()
+	if !ok{
+		t.Errorf("[Error]:Trasceiver = %v Power not received !",tc.transceiverOpticalChannelName)
+	}
 
-	transceiverOpticalChanelInputPower := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().State())
-	transceiverRxTotalInputPower := gnmi.Get(t, tc.dut, transceiverComponentPath.Transceiver().Channel(0).InputPower().State())
+	verifyValidTxOutputPower(t,transceiverOpticalChanelOutputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
+	verifyValidRxInputPower(t,transceiverOpticalChanelInputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
+
+
+	rxTotalInputPowerSamplingTime := gnmi.Get(t, tc.dut, transceiverComponentPath.Transceiver().Channel(0).InputPower().Interval().State())
+	rxTotalInputPowerStream := samplestream.New(t, tc.dut, transceiverComponentPath.Transceiver().Channel(0).InputPower().State(), time.Nanosecond*time.Duration(rxTotalInputPowerSamplingTime))
+	defer rxTotalInputPowerStream.Close()
+	nexInputPower := rxTotalInputPowerStream.Next(t)
+	transceiverRxTotalInputPower, got := nexInputPower.Val()
+
+	if transceiverRxTotalInputPower == nil || got == false {
+		t.Errorf("[Error]:Didn't recieve Rx total InputPower sample in 10 seconds for the transceiever = %v", tc.transceiverName)
+	}
+
 	t.Logf("Transceiver = %v RX Total Instant Input Power = %v", tc.transceiverName, transceiverRxTotalInputPower.GetInstant())
 	t.Logf("Transceiver = %v RX Total Average Input Power = %v", tc.transceiverName, transceiverRxTotalInputPower.GetAvg())
 	t.Logf("Transceiver = %v RX Total Min Input Power = %v", tc.transceiverName, transceiverRxTotalInputPower.GetMin())
 	t.Logf("Transceiver = %v RX Total channel Max Input Power = %v", tc.transceiverName, transceiverRxTotalInputPower.GetMax())
 
+	
+	if transceiverOpticalChanelInputPower == nil || got == false {
+		t.Errorf("[Error]:Didn't recieve Optical channel InputPower sample in 10 seconds for the transceiever = %v", tc.transceiverName)
+	}
 	if transceiverOpticalChanelInputPower.GetMax() > transceiverRxTotalInputPower.GetMax() {
 		t.Errorf("[Error]:Transciever %v RX Signal Power = %v is more than Total RX Signal Power = %v ", tc.transceiverName, transceiverOpticalChanelInputPower.GetMax(), transceiverRxTotalInputPower.GetMax())
 	}
 
+	
 }
 
-// Helper method to verify Rx InputPower, TxOutputPower data
-func verifyRxInputTxOutputPower(t testing.TB, tc *testData, isInterfaceDisabled bool) {
-	transceiverOpticalChannelPath := gnmi.OC().Component(tc.transceiverOpticalChannelName)
-	t.Logf("Checking Transceiver = %v  Optical Channel Input Power Statistics", tc.transceiverOpticalChannelName)
-	inputPowerSamplingTime := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().Interval().State())
-	time.Sleep(time.Duration(inputPowerSamplingTime))
 
-	transceiverOpticalChanelInputPower := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().State())
-	t.Logf("Optical Channel = %v InputPower avg,min and max sampling period = %v ns ", tc.transceiverOpticalChannelName, inputPowerSamplingTime)
-	t.Logf("Optical channel = %v , Instant Input Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetInstant())
-	t.Logf("Optical channel = %v , Average Input Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetAvg())
-	t.Logf("Optical channel = %v , Min Input Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetMin())
-	t.Logf("Optical channel = %v , Max Input Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetMax())
-
-	if transceiverInputPowerInstantType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetInstant()).Kind(); transceiverInputPowerInstantType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Instant InputPower  data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerInstantType)
-	}
-	if transceiverInputPowerAvgType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetAvg()).Kind(); transceiverInputPowerAvgType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Avg InputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerAvgType)
-	}
-	if transceiverInputPowerMinType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetMin()).Kind(); transceiverInputPowerMinType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Min InputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerMinType)
-	}
-	if transceiverInputPowerMaxType := reflect.TypeOf(transceiverOpticalChanelInputPower.GetMax()).Kind(); transceiverInputPowerMaxType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v Max InputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverInputPowerMaxType)
-	}
-
-	if isInterfaceDisabled {
-		if transceiverOpticalChanelInputPower.GetInstant() > 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Instant InputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetInstant())
-		}
-		if transceiverOpticalChanelInputPower.GetAvg() > 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Avg InputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetAvg())
-		}
-		if transceiverOpticalChanelInputPower.GetMin() > 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Min InputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetMin())
-		}
-		if transceiverOpticalChanelInputPower.GetMax() > 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Max InputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelInputPower.GetMax())
-		}
-
-	} else if transceiverOpticalChanelInputPower.GetMin() < -14 || transceiverOpticalChanelInputPower.GetMax() > 0 {
-		t.Fatalf("Transciever %v RX Input power range Expected = -14 to 0 dbm, Got = %v to %v  ", tc.transceiverName, transceiverOpticalChanelInputPower.GetMin(), transceiverOpticalChanelInputPower.GetMax())
-	}
-
-	transceiverOpticalChanelOutputPower := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State())
-	outputPowerSamplingTime := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().Interval().State())
-	t.Logf("Optical Channel = %v OutputPower avg,min and max sampling period = %v ns", tc.transceiverOpticalChannelName, outputPowerSamplingTime)
-	t.Logf("Optical channel = %v , Instant Output Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetInstant())
-	t.Logf("Optical channel = %v , Average Output Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetAvg())
-	t.Logf("Optical channel = %v , Min Output Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetMin())
-	t.Logf("Optical channel = %v , Max Output Power = %v", tc.transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetMax())
-	if transceiverOutputPowerInstantType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetInstant()).Kind(); transceiverOutputPowerInstantType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Instant OutputPower  data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerInstantType)
-	}
-	if transceiverOutputPowerAvgType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetAvg()).Kind(); transceiverOutputPowerAvgType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Avg  OutputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerAvgType)
-	}
-	if transceiverOutputPowerMinType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetMin()).Kind(); transceiverOutputPowerMinType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v  Min  OutputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerMinType)
-	}
-	if transceiverOutputPowerMaxType := reflect.TypeOf(transceiverOpticalChanelOutputPower.GetMax()).Kind(); transceiverOutputPowerMaxType != reflect.Float64 {
-		t.Fatalf("[Error]: Expected Optical Channel %v Max  OutputPower data type = %v  , Got =%v", tc.transceiverOpticalChannelName, reflect.Float64, transceiverOutputPowerMaxType)
-	}
-
-	if isInterfaceDisabled {
-
-		if tc.dut.Vendor() == ondatra.JUNIPER && transceiverOpticalChanelOutputPower.GetInstant() != -40 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Instant OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetInstant())
-		} else if transceiverOpticalChanelOutputPower.GetInstant() != 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Instant OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelOutputPower.GetInstant())
-		}
-		if tc.dut.Vendor() == ondatra.JUNIPER && transceiverOpticalChanelOutputPower.GetAvg() != -40 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Avg OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetAvg())
-		} else if transceiverOpticalChanelOutputPower.GetAvg() != 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Avg OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelOutputPower.GetAvg())
-		}
-		if tc.dut.Vendor() == ondatra.JUNIPER && transceiverOpticalChanelOutputPower.GetMin() != -40 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Min OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetMin())
-		} else if transceiverOpticalChanelOutputPower.GetMin() != 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Min OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelOutputPower.GetMin())
-		}
-		if tc.dut.Vendor() == ondatra.JUNIPER && transceiverOpticalChanelOutputPower.GetMax() != -40 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Max OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, -40, transceiverOpticalChanelOutputPower.GetMax())
-		} else if transceiverOpticalChanelOutputPower.GetMax() != 0 {
-			t.Fatalf("[Error]: Expected Optical Channel %v  Max OutputPower   = %v  ,Got =%v", tc.transceiverOpticalChannelName, 0, transceiverOpticalChanelOutputPower.GetMax())
-		}
-
-	} else if transceiverOpticalChanelOutputPower.GetMin() < -13 || transceiverOpticalChanelOutputPower.GetMax() > 0 {
-		t.Fatalf("[Error]:Transciever %v  TX Output power range Expected = -13 to 0 dbm, Got = %v to %v  ", tc.transceiverName, transceiverOpticalChanelOutputPower.GetMin(), transceiverOpticalChanelOutputPower.GetMax())
-	}
-
-}
-
-// helper method for RT4.2: Reboots the device and verifies Rx InputPower, TxOutputPower data while components are booting
+//dutRebootRxInputTxOutputPowerCheck  Reboots the device and verifies Rx InputPower, TxOutputPower data while components are booting
 func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
@@ -274,7 +298,11 @@ func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 
 		if verErrMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			interfaceEnabled := gnmi.Get(t, tc.dut, gnmi.OC().Interface(tc.interfaceName).Enabled().Config())
-			verifyRxInputTxOutputPower(t, tc, !interfaceEnabled)
+			transceiverOpticalChannelPath := gnmi.OC().Component(tc.transceiverOpticalChannelName)
+			transceiverOpticalChanelInputPower := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().State())
+			transceiverOpticalChanelOutputPower := gnmi.Get(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State())
+			verifyValidRxInputPower(t,transceiverOpticalChanelInputPower,!interfaceEnabled,tc.transceiverOpticalChannelName,tc.transceiverName)
+			verifyValidTxOutputPower(t,transceiverOpticalChanelOutputPower,!interfaceEnabled,tc.transceiverOpticalChannelName,tc.transceiverName)
 		}); strings.HasPrefix(*verErrMsg, "[Error]") {
 			t.Fatal(*verErrMsg)
 		}
@@ -295,8 +323,7 @@ func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
 				t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
 			}
-			//t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
-			t.Logf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+			t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
 			break
 		}
 		time.Sleep(10 * time.Second)
@@ -304,25 +331,42 @@ func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 
 }
 
-// Helper method for RT-4.3 : verifies Rx InputPower, TxOutputPower data is streamed correctly after interface flaps
+//verifyRxInputTxOutputAfterFlap verifies Rx InputPower, TxOutputPower data is streamed correctly after interface flaps
 func verifyRxInputTxOutputAfterFlap(t *testing.T, tc *testData) {
 
 	interfacePath := gnmi.OC().Interface(tc.interfaceName)
-	verifyRxInputTxOutputPower(t, tc, false)
+	
+	transceiverOpticalChannelPath := gnmi.OC().Component(tc.transceiverOpticalChannelName)
+	opticalInputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().InputPower().State(), 10*time.Second)
+	defer opticalInputPowerStream.Close()
+	transceiverOpticalOutputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State(), 10*time.Second)
+	defer transceiverOpticalOutputPowerStream.Close()
+
+	transceiverOpticalChanelInputPower,_ := opticalInputPowerStream.Next(t).Val()
+	transceiverOpticalChanelOutputPower,_ := transceiverOpticalOutputPowerStream.Next(t).Val()
+	
+	verifyValidRxInputPower(t,transceiverOpticalChanelInputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
+	verifyValidTxOutputPower(t,transceiverOpticalChanelOutputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
 
 	t.Logf("Disbaling the interface = %v ", tc.interfaceName)
-	gnmi.Replace(t, tc.dut, interfacePath.Enabled().Config(), false)
-	time.Sleep(30 * time.Second)
-	t.Logf("Disabled the interface = %v", tc.interfaceName)
+	gnmi.Replace(t, tc.dut, interfacePath.Enabled().Config(), *ygot.Bool(false))
+	gnmi.Await(t, tc.dut, interfacePath.Enabled().State(), time.Minute, *ygot.Bool(false))
 
-	verifyRxInputTxOutputPower(t, tc, true)
+	t.Logf("Disabled the interface = %v", tc.interfaceName)	
+	transceiverOpticalChanelInputPower,_  = opticalInputPowerStream.Nexts(t,5)[4].Val()
+	transceiverOpticalChanelOutputPower,_ = transceiverOpticalOutputPowerStream.Nexts(t,5)[4].Val()
+	verifyValidRxInputPower(t,transceiverOpticalChanelInputPower,true,tc.transceiverOpticalChannelName,tc.transceiverName)
+	verifyValidTxOutputPower(t,transceiverOpticalChanelOutputPower,true,tc.transceiverOpticalChannelName,tc.transceiverName)
 
 	t.Logf("Re-enabling the interface = %v ", tc.interfaceName)
-	gnmi.Replace(t, tc.dut, interfacePath.Enabled().Config(), true)
-	time.Sleep(30 * time.Second)
+	gnmi.Replace(t, tc.dut, interfacePath.Enabled().Config(), *ygot.Bool(true))
+	gnmi.Await(t, tc.dut, interfacePath.Enabled().State(), time.Minute, *ygot.Bool(true))
 	t.Logf("Re-enabled the interface = %v", tc.interfaceName)
 
-	verifyRxInputTxOutputPower(t, tc, false)
+	transceiverOpticalChanelInputPower,_  = opticalInputPowerStream.Nexts(t,5)[4].Val()
+	transceiverOpticalChanelOutputPower,_ = transceiverOpticalOutputPowerStream.Nexts(t,5)[4].Val()
+	verifyValidRxInputPower(t,transceiverOpticalChanelInputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
+	verifyValidTxOutputPower(t,transceiverOpticalChanelOutputPower,false,tc.transceiverOpticalChannelName,tc.transceiverName)
 
 }
 

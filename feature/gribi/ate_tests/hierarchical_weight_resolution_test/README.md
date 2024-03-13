@@ -25,9 +25,10 @@ Configure ATE and DUT:
         192.0.2.74 and default gateways as 192.0.2.5, 192.0.2.9, ..., 192.0.2.73
         respectively.
 
-* On DUT port-1 and ATE port-1 create a single L3 interface.
+*   On DUT port-1 and ATE port-1 create a single L3 interface.
 
-* On DUT, create a policy-based forwarding rule to redirect all traffic received from DUT port-1 into VRF-1 (based on src. IP match criteria).
+*   On DUT, create a policy-based forwarding rule to redirect all traffic
+    received from DUT port-1 into VRF-1 (based on src. IP match criteria).
 
 Test case for basic hierarchical weight:
 
@@ -110,7 +111,8 @@ WCMP width of 16 nexthops:
 
     *   for each VLAN ID in 4...18:
 
-        *   NH: (31/32) * (16/241) ~ 6.432% traffic received by ATE port-2 VLAN ID
+        *   NH: (31/32) * (16/241) ~ 6.432% traffic received by ATE port-2 VLAN
+            ID
 
     *   A tolerance of 0.2% is allowed for each VLAN for now, since we only test
         for 2 mins.
@@ -137,3 +139,4 @@ TODO:
 ## Minimum DUT platform requirement
 
 vRX
+
