@@ -69,7 +69,7 @@ func TestPM(t *testing.T) {
 	for i, p := range dut.Ports() {
 		// Check the port PMD is 400ZR.
 		if p.PMD() != ondatra.PMD400GBASEZR {
-			t.Fatalf("%s optics PMD is %v, not 400ZR", p.Name(), p.PMD())
+			t.Fatalf("%s PMD is %v, not 400ZR", p.Name(), p.PMD())
 		}
 
 		// Configure interfaces.
