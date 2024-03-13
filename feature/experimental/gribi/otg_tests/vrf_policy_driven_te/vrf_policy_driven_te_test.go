@@ -500,14 +500,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	portList := []*ondatra.Port{p1, p2, p3, p4, p5, p6, p7, p8}
 	portNameList := []string{"port1", "port2", "port3", "port4", "port5", "port6", "port7", "port8"}
 
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p6.Name()).Config(), dutPort6.NewOCInterface(p6.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p7.Name()).Config(), dutPort7.NewOCInterface(p7.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p8.Name()).Config(), dutPort8.NewOCInterface(p8.Name(), dut))
+	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5, dutPort6, dutPort7, dutPort8} {
+		p := portList[idx]
+		intf := a.NewOCInterface(p.Name(), dut)
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			e := intf.GetOrCreateEthernet()
+			e.AutoNegotiate = ygot.Bool(false)
+			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		}
+		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
+	}
 
 	// Configure loopback interface.
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
@@ -1071,6 +1074,21 @@ func configureOTG(t *testing.T, otg *otg.OTG, ate *ondatra.ATEDevice) gosnappi.C
 	port6 := config.Ports().Add().SetName("port6")
 	port7 := config.Ports().Add().SetName("port7")
 	port8 := config.Ports().Add().SetName("port8")
+
+	pmd100GFRPorts := []string{}
+	for _, p := range config.Ports().Items() {
+		port := ate.Port(t, p.Name())
+		if port.PMD() == ondatra.PMD100GBASEFR {
+			pmd100GFRPorts = append(pmd100GFRPorts, port.ID())
+		}
+	}
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	if len(pmd100GFRPorts) > 0 {
+		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
 
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
