@@ -439,6 +439,10 @@ message Metadata {
     // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
     bool skip_macaddress_check = 154;
+    // Devices are having native telemetry paths for BGP RIB verification.
+    // Juniper : b/306144372
+    bool bgp_rib_oc_path_unsupported = 155;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
