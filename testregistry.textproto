@@ -1355,7 +1355,7 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-6"
-  description: "400ZR Optics perfromance metrics (pm) streaming."
+  description: "400ZR Optics performance metrics (pm) streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_pm_test/README.md"
   exec: " "
 }

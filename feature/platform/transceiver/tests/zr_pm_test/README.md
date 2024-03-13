@@ -1,4 +1,4 @@
-# TRANSCEIVER-6: Telemetry: 400ZR Optics perfromance metrics (pm) streaming.
+# TRANSCEIVER-6: Telemetry: 400ZR Optics performance metrics (pm) streaming.
 
 ## Summary
 
@@ -71,7 +71,7 @@ module CMIS VDM(Versatile Diagnostics Monitor):
 
 ## Config Parameter coverage
 
-*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
+*   /components/component/transceiver/config/enabled
 
 ## Telemetry Parameter coverage
 
@@ -87,3 +87,4 @@ module CMIS VDM(Versatile Diagnostics Monitor):
     *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg
     *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
     *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
+FFF - Fixed form factor
