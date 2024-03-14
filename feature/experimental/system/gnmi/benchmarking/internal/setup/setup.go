@@ -25,9 +25,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -40,7 +42,6 @@ const (
 	ISISInstance = "DEFAULT"
 	// PeerGrpName is BGP peer group name.
 	PeerGrpName = "BGP-PEER-GROUP"
-
 	// DUTAs is DUT AS.
 	DUTAs = 64500
 	// ATEAs is ATE AS.
@@ -327,6 +328,69 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	topo.Push(t)
 	t.Log("Starting protocols to ATE...")
 	topo.StartProtocols(t)
+}
+
+// ConfigureOTG function is to configure otg ports with ipv4, bgp and isis peers.
+func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
+	topo := gosnappi.NewConfig()
+
+	for i, dp := range ate.Ports() {
+
+		topo.Ports().Add().SetName(dp.ID())
+		dev := topo.Devices().Add().SetName(dp.ID() + "dev")
+		eth := dev.Ethernets().Add().SetName(dp.ID() + ".Eth")
+		eth.Connection().SetPortName(dp.ID())
+		mac := fmt.Sprintf("02:00:01:01:01:%02x", byte(i&0xff))
+
+		eth.SetMac(mac)
+
+		ip := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ip.SetAddress(ATEIPList[dp.ID()].String()).SetGateway(DUTIPList[dp.ID()].String()).SetPrefix(uint32(plenIPv4))
+
+		// Add BGP on ATE
+		bgpDut1 := dev.Bgp().SetRouterId(ip.Address())
+		bgpDut1Peer := bgpDut1.Ipv4Interfaces().Add().SetIpv4Name(ip.Name()).Peers().Add().SetName(dp.ID() + ".BGP4.peer")
+		if dp.ID() == "port1" {
+			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		} else {
+			bgpDut1Peer.SetPeerAddress(DUTIPList[dp.ID()].String()).SetAsNumber(ATEAs).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		}
+		bgpDut1Peer.Capability().SetIpv4Unicast(true)
+		bgpDut1Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+
+		// Add ISIS on ATE
+		devIsis := dev.Isis().SetSystemId(strconv.FormatInt(int64(i), 16)).SetName("devIsis" + dp.Name())
+		devIsis.Basic().SetHostname(devIsis.Name()).SetLearnedLspFilter(true)
+		devIsis.Advanced().SetAreaAddresses([]string{"490002"})
+		devIsisInt := devIsis.Interfaces().Add().
+			SetEthName(eth.Name()).
+			SetName("devIsisInt").
+			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2)
+		devIsisInt.Authentication().SetAuthType("md5")
+		devIsisInt.Authentication().SetMd5(authPassword)
+		devIsisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
+		if dp.ID() == "port1" {
+			// Add BGP routes and ISIS routes , ate port1 is ingress port.
+			dstBgp4PeerRoutes := bgpDut1Peer.V4Routes().Add().SetName("bgpNeti1")
+			dstBgp4PeerRoutes.SetNextHopIpv4Address(ip.Address()).
+				SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+				SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+			dstBgp4PeerRoutes.Addresses().Add().
+				SetAddress(AdvertiseBGPRoutesv4).SetPrefix(32).SetCount(RouteCount)
+			devIsisRoutes := devIsis.V4Routes().Add().SetName("isisnet1").SetLinkMetric(20)
+			devIsisRoutes.Addresses().Add().
+				SetAddress(advertiseISISRoutesv4).SetPrefix(32).SetCount(RouteCount).SetStep(1)
+		}
+	}
+
+	t.Log("Pushing config to ATE...")
+	otg.PushConfig(t, topo)
+	t.Log("Starting protocols to ATE...")
+	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, topo, "IPv4")
 }
 
 // VerifyISISTelemetry function to used verify ISIS telemetry on DUT
