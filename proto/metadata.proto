@@ -442,7 +442,8 @@ message Metadata {
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
     bool bgp_rib_oc_path_unsupported = 155;
-
+    // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 156;
     
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
