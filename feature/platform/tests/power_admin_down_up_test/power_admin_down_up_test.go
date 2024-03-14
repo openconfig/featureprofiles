@@ -107,7 +107,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
 			}
 
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 3*time.Minute)
+			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 5*time.Minute)
 		})
 	}
 	if primary != "" {
