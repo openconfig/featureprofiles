@@ -1331,14 +1331,8 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-1"
-  description: "400ZR Electrical Signal to Noise Ratio(eSNR) and Chromatic Dispersion(CD) telemetry values streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_esnr_and_cd_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TRANSCEIVER-2"
-  description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  description: "400ZR Chromatic Dispersion(CD) telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_cd_test/README.md"
   exec: " "
 }
 test: {
@@ -1361,7 +1355,9 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-6"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_db_q_value_test/README.md"
+  description: "400ZR Optics performance metrics (pm) streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_pm_test/README.md"
+  exec: " "
 }
 test: {
   id: "TRANSCEIVER-8"
