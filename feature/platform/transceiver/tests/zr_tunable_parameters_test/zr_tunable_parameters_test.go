@@ -18,6 +18,7 @@ import (
 const (
 	samplingInterval   = 10 * time.Second
 	frequencyTolerance = 1800
+	dp16QAM            = 1
 )
 
 var (
@@ -40,7 +41,6 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -83,10 +83,12 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(dp16QAM),
 					})
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(dp16QAM),
 					})
 					validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 				})
@@ -98,7 +100,6 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -132,10 +133,12 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				})
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				})
 				validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, tc.frequency, top)
 			})
@@ -146,7 +149,6 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
@@ -161,10 +163,12 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 	t.Run("Telemetry before flap", func(t *testing.T) {
 		validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
@@ -205,10 +209,14 @@ func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, streams []*sa
 		ocs = append(ocs, v.GetOpticalChannel())
 	}
 	for _, oc := range ocs {
+		opm := oc.GetOperationalMode()
 		inst := oc.GetCarrierFrequencyOffset().GetInstant()
 		avg := oc.GetCarrierFrequencyOffset().GetAvg()
 		min := oc.GetCarrierFrequencyOffset().GetMin()
 		max := oc.GetCarrierFrequencyOffset().GetMax()
+		if got, want := opm, uint16(dp16QAM); got != want {
+			t.Errorf("Optical-Channel: operational-mode: got %v, want %v", got, want)
+		}
 		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
 		// configured centre frequency.
 		if inst < -1*frequencyTolerance || inst > frequencyTolerance {
