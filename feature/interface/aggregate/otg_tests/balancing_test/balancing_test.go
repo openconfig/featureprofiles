@@ -573,7 +573,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
 		batch := gnmi.OCBatch()
 		for _, port := range tc.dutPorts[1:] {
-			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters().State().PathStruct())
+			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters())
 		}
 
 		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {

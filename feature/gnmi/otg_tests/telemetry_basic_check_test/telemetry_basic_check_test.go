@@ -219,9 +219,8 @@ func TestHardwarePort(t *testing.T) {
 	t.Logf("For interface %s, HardwarePort is %s", dp.Name(), val)
 
 	// Verify HardwarePort is a component of type PORT.
-	typeGotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Type().State())
-	typeGot, present := typeGotV.Val()
-	if present && typeGot != portType {
+	typeGot := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+	if typeGot != portType {
 		t.Errorf("HardwarePort leaf's component type got %s, want %s", typeGot, portType)
 	}
 
