@@ -830,3 +830,18 @@ func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
+
+// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
+func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
+func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
+}
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
+func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
+}

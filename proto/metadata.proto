@@ -442,7 +442,12 @@ message Metadata {
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
     bool bgp_rib_oc_path_unsupported = 155;
-
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 156;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 157;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 158;  
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
