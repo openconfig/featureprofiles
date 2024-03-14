@@ -826,7 +826,7 @@ func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
 }
 
-// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
-func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
