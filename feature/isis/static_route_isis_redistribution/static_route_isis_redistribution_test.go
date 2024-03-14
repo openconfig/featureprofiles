@@ -2,10 +2,12 @@ package basic_static_route_support_test
 
 import (
 	"fmt"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygot/ygot"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -29,42 +31,29 @@ const (
 	dutSysID              = "1920.0000.2001"
 	ate1SysID             = "640000000001"
 	ate2SysID             = "640000000002"
-	v4Route               = "203.0.113.0"
-	v4TrafficStart        = "203.0.113.1"
+	v4Route               = "192.168.10.0"
+	v4TrafficStart        = "192.168.10.1"
 	v4RoutePrefix         = uint32(24)
-	v6Route               = "2001:db8:128:128::0"
+	v6Route               = "2024:db8:128:128::"
 	v6TrafficStart        = "2001:db8:128:128::1"
 	v6RoutePrefix         = uint32(64)
-	v4LoopbackRoute       = "198.51.100.100"
-	v4LoopbackRoutePrefix = uint32(32)
+	v4LoopbackRoute       = "192.168.1.4"
+	v4LoopbackRoutePrefix = uint32(30)
 	v6LoopbackRoute       = "2001:db8:64:64::1"
 	v6LoopbackRoutePrefix = uint32(128)
 	v4Flow                = "v4Flow"
 	v6Flow                = "v6Flow"
 	trafficDuration       = 2 * time.Minute
 	lossTolerance         = float64(1)
-	ecmpTolerance         = uint64(2)
-	port1Tag              = "0x101"
-	port2Tag              = "0x102"
 	v4RoutePolicy         = "route-policy-v4"
 	v4Statement           = "statement-v4"
 	v4PrefixSet           = "prefix-set-v4"
-	maskLenExact          = "exact"
-	v4DummyRoute          = "192.51.100.0"
-
-	// Target network instance name
-	networkInstanceName = "default"
-
-	// Static route prefix to redistribute
-	prefix = "10.0.0.0/16"
-
-	// Destination ISIS routing protocol name (likely needs adjustment)
-	isisName = "isis-instance1"
+	StaticRouteTag1       = uint32(40)
+	StaticRouteMetric     = 100
 )
 
 var (
-	nonAdvertisedIPv4 ipAddr = ipAddr{address: v4DummyRoute, prefix: v4RoutePrefix}
-	dutPort1                 = attrs.Attributes{
+	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
@@ -146,6 +135,66 @@ type testData struct {
 	advertisedIPv6 ipAddr
 }
 
+func configureRoutePolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
+
+	ipPrefixSet := "203.0.113.0"
+	prefixSet := "prefix-set-v4"
+	prefixSubnetRange := "exact"
+	allowConnected := "route-policy-v4"
+	aclStatement1 := "1"
+	rp := d.GetOrCreateRoutingPolicy()
+	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
+	pset.GetOrCreatePrefix(ipPrefixSet, prefixSubnetRange)
+	pdef := rp.GetOrCreatePolicyDefinition(allowConnected)
+	stmt, err := pdef.AppendNewStatement(aclStatement1)
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefixSet)
+	if err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
+func configureStaticRoute(t *testing.T,
+	dut *ondatra.DUTDevice,
+	ipv4Route string,
+	ipv4Mask string,
+	tagValueV4 uint32,
+	metricValueV4 uint32,
+	ipv6Route string,
+	ipv6Mask string,
+	tagValueV6 uint32,
+	metricValueV6 uint32) {
+
+	// For IPv4
+	staticRoute1 := ipv4Route + "/" + ipv4Mask
+
+	// For IPv6
+	staticRoute2 := ipv6Route + "/" + ipv6Mask
+
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	sr := static.GetOrCreateStatic(staticRoute1)
+	sr.SetTag, _ = sr.To_NetworkInstance_Protocol_Static_SetTag_Union(tagValueV4)
+	nh := sr.GetOrCreateNextHop("0")
+	nh.NextHop = oc.UnionString(atePort2.IPv4)
+	nh.Metric = ygot.Uint32(metricValueV4)
+
+	sr2 := static.GetOrCreateStatic(staticRoute2)
+	sr2.SetTag, _ = sr.To_NetworkInstance_Protocol_Static_SetTag_Union(tagValueV6)
+	nh2 := sr2.GetOrCreateNextHop("0")
+	nh2.NextHop = oc.UnionString(atePort1.IPv6)
+	nh2.Metric = ygot.Uint32(metricValueV6)
+
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		deviations.StaticProtocolName(dut)).Config(),
+		static)
+}
+
 func (td *testData) configureOTGFlows(t *testing.T) {
 	t.Helper()
 
@@ -186,6 +235,23 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
 	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
+}
+
+func pollOTGIsisLSD(t *testing.T,
+	ate *ondatra.ATEDevice,
+	isisName string,
+	isisPrefix string) {
+
+	path := gnmi.OTG().IsisRouter(isisName).LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(isisPrefix).State()
+	_, ok := gnmi.WatchAll(t, ate.OTG(),
+		path, 30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+			prefix, present := v.Val()
+			return present && prefix.GetPrefix() == isisPrefix
+		}).Await(t)
+	if ok {
+		t.Errorf("Prefix found, not want:")
+	}
 }
 
 func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName string) error {
@@ -245,7 +311,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []g
 	return []gosnappi.Device{d1, d2, d3}
 }
 
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
+func configureDutISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -279,6 +345,11 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+
+		//isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		//isisIntfLevelAfiv6.Metric = ygot.Uint32(200)
+		//isisIntfLevelAfiv6.Enabled = ygot.Bool(true)
+
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
 		}
@@ -328,6 +399,8 @@ func TestStaticToISISRedistribution(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
 	devs := configureOTG(t, ate, top)
+	p1Dut := dut.Port(t, "port1")
+	p2Dut := dut.Port(t, "port2")
 
 	td := testData{
 		dut:            dut,
@@ -342,76 +415,163 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		advertisedIPv6: ipAddr{address: v6LoopbackRoute, prefix: v6LoopbackRoutePrefix},
 	}
 
-	dut1PortNames := []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}
-	configureISIS(t, dut, dut1PortNames, dutAreaAddr, dutSysID)
+	t.Run("Initial Setup", func(t *testing.T) {
 
-	//td.advertiseRoutesWithISIS(t)
-	//
-	//td.configureOTGFlows(t)
-	//ate.OTG().PushConfig(t, top)
-	//ate.OTG().StartProtocols(t)
-	//defer ate.OTG().StopProtocols(t)
-	//otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-	//otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-	//t.Log(top.String())
+		t.Run("Configure Static Route on DUT", func(t *testing.T) {
+			ipv4Mask := strconv.FormatUint(uint64(v4RoutePrefix), 10)
+			ipv6Mask := strconv.FormatUint(uint64(v6RoutePrefix), 10)
 
-	//if err := td.awaitISISAdjacency(t, dut.Port(t, "port1"), isisInstance); err != nil {
-	//	t.Fatal(err)
-	//}
-	//if err := td.awaitISISAdjacency(t, dut.Port(t, "port2"), isisInstance); err != nil {
-	//	t.Fatal(err)
-	//}
+			configureStaticRoute(t, dut, v4Route, ipv4Mask, 40, 104,
+				v6Route, ipv6Mask, 60, 106)
+		})
 
-	// config static route
+		t.Run("Configure ISIS on DUT", func(t *testing.T) {
+			dut1PortNames := []string{p1Dut.Name(), p2Dut.Name()}
+			configureDutISIS(t, dut, dut1PortNames, dutAreaAddr, dutSysID)
+		})
 
-	const tag = uint32(10)
-	b := &gnmi.SetBatch{}
-	// Configure a tag of value 10 on ipv4 and ipv6 static routes
-	v4Cfg := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
-		Prefix:          td.staticIPv4.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort1.IPv4),
-			"1": oc.UnionString(atePort2.IPv4),
-		},
+		t.Run("OTG Configuration", func(t *testing.T) {
+			td.advertiseRoutesWithISIS(t)
+			td.configureOTGFlows(t)
+			ate.OTG().PushConfig(t, top)
+			ate.OTG().StartProtocols(t)
+			//defer ate.OTG().StopProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+			t.Log(top.String())
+		})
+
+		t.Run("Await ISIS Status", func(t *testing.T) {
+			if err := td.awaitISISAdjacency(t, dut.Port(t, "port1"), isisInstance); err != nil {
+				t.Fatal(err)
+			}
+			if err := td.awaitISISAdjacency(t, dut.Port(t, "port2"), isisInstance); err != nil {
+				t.Fatal(err)
+			}
+
+		})
+
+		t.Run("Configure Route-Policy", func(t *testing.T) {
+			d := &oc.Root{}
+			rpl, err := configureRoutePolicy(d)
+			if err != nil {
+				t.Fatalf("Failed to configure Route Policy: %v", err)
+			}
+			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
+
+		})
+
+		t.Run("Attach Route Policy to ISIS", func(t *testing.T) {
+			dni := deviations.DefaultNetworkInstance(dut)
+			tblconn := &oc.Root{}
+
+			tableConn := tblconn.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(
+				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+				oc.Types_ADDRESS_FAMILY_IPV4)
+
+			tableConn.ImportPolicy = []string{v4RoutePolicy}
+
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(
+				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+				oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+				oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
+
+		})
+
+	})
+
+	cases := []struct {
+		desc                      string
+		staticMetricv4            uint32
+		staticv4Tag               uint32
+		staticMetricv6            uint32
+		staticv6Tag               uint32
+		policyStmtType            oc.E_RoutingPolicy_PolicyResultType
+		DefaultPolicyStmtType     oc.E_RoutingPolicy_DefaultPolicyType
+		policyType                string
+		metricPropogation         bool
+		protoSrc                  oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+		protoDst                  oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE
+		protoAf                   oc.E_Types_ADDRESS_FAMILY
+		importPolicyConfig        bool
+		importPolicyVerify        bool
+		defaultImportPolicyConfig bool
+		defaultImportPolicyVerify bool
+	}{{
+		desc: "RT-2.12.1: Redistribute IPv4 static route to IS-IS " +
+			"with metric propogation diabled",
+		staticMetricv4:            uint32(104),
+		staticv4Tag:               uint32(40),
+		staticMetricv6:            uint32(106),
+		staticv6Tag:               uint32(60),
+		metricPropogation:         true,
+		DefaultPolicyStmtType:     oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE,
+		protoSrc:                  oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		protoDst:                  oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		protoAf:                   oc.Types_ADDRESS_FAMILY_IPV4,
+		policyType:                "ACCEPT",
+		defaultImportPolicyConfig: true,
+		defaultImportPolicyVerify: true,
+	}, {
+		desc:                      "RT-2.12.2: Redistribute IPv4 static route to IS-IS with metric propogation enabled",
+		metricPropogation:         false,
+		defaultImportPolicyConfig: true,
+		defaultImportPolicyVerify: true,
+	}, {
+		desc: "RT-2.12.3: Redistribute IPv6 static route to IS-IS with metric propogation diabled",
+	}, {
+		desc: "RT-2.12.4: Redistribute IPv6 static route to IS-IS with metric propogation enabled",
+	}, {
+		desc: "RT-2.12.5: Redistribute IPv4 and IPv6 static route to IS-IS with default-import-policy set to reject",
+	}, {
+		desc: "RT-2.12.6: Redistribute IPv4 static route to IS-IS matching a prefix using a route-policy",
+	}, {
+		desc: "RT-2.12.7: Redistribute IPv4 static route to IS-IS matching a tag",
+	}, {
+		desc: "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
+	}, {
+		desc: "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+
+			dni := deviations.DefaultNetworkInstance(dut)
+			tblconn := &oc.Root{}
+
+			if tc.defaultImportPolicyConfig {
+				t.Run(fmt.Sprintf("Config Default Policy Type %v", tc.policyType), func(t *testing.T) {
+					tableConn := tblconn.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(
+						tc.protoSrc, tc.protoDst, tc.protoAf)
+					tableConn.SetDefaultImportPolicy(tc.DefaultPolicyStmtType)
+					tableConn.SetDisableMetricPropagation(tc.metricPropogation)
+
+					gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(
+						tc.protoSrc, tc.protoDst, tc.protoAf).Config(), tableConn)
+				})
+
+			}
+
+			if tc.importPolicyConfig {
+				t.Run(fmt.Sprintf("Config Default Policy Type %v", tc.policyType), func(t *testing.T) {
+					tableConn := tblconn.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(
+						tc.protoSrc, tc.protoDst, tc.protoAf)
+
+					tableConn.ImportPolicy = []string{v4RoutePolicy}
+
+					gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(
+						tc.protoSrc, tc.protoDst, tc.protoAf).Config(), tableConn)
+
+				})
+			}
+
+			if tc.defaultImportPolicyVerify {
+				t.Run(fmt.Sprintf("Verify Route propagation for %v", v4Route), func(t *testing.T) {
+					pollOTGIsisLSD(t, ate, "atePort1.ISIS", v4Route)
+				})
+			}
+
+		})
 	}
-	sV4, err := cfgplugins.NewStaticRouteCfg(b, v4Cfg, td.dut)
-	if err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	sV4.SetTag, _ = sV4.To_NetworkInstance_Protocol_Static_SetTag_Union(tag)
-
-	v6Cfg := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
-		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort1.IPv6),
-			"1": oc.UnionString(atePort2.IPv6),
-		},
-	}
-	sV6, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut)
-	if err != nil {
-		t.Fatalf("Failed to configure IPv6 static route: %v", err)
-	}
-	sV6.SetTag, _ = sV6.To_NetworkInstance_Protocol_Static_SetTag_Union(tag)
-
-	b.Set(t, td.dut)
-
-	dni := deviations.DefaultNetworkInstance(dut) // Get default network instance
-	root := &oc.Root{}
-
-	// Get or create the table connection with appropriate configuration
-	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(
-		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, // Source protocol: STATIC
-		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,   // Destination protocol: ISIS
-		oc.Types_ADDRESS_FAMILY_IPV4)                // Address family: IPV4
-
-	tableConn.SetDisableMetricPropagation(true)                                       // Disable metric propagation
-	tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE) // Accept routes
-
-	// Update configuration on the DUT
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(
-		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
-		oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
 }
