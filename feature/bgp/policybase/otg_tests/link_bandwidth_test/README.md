@@ -145,6 +145,10 @@ communities to routes based on a prefix match.
 
 ## Config Parameter Coverage
 
+## Configuration to enable advertise communities to bgp peer
+
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community
+
 ### Policy for community-set configuration
 
 * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name
