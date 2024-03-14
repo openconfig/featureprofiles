@@ -772,4 +772,3 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []g
 	d2 := atePort2.AddToOTG(top, p2, &dutPort2)
 	return []gosnappi.Device{d1, d2}
 }
-
