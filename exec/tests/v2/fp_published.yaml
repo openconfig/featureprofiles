@@ -341,7 +341,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
-    internal: true
     pr: 2805
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
