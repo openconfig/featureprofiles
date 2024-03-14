@@ -802,7 +802,37 @@ func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
 }
 
-// InterfaceCountersUpdateDelayed returns true for devices missing component tree mapping from hardware port to optical channel.
+// SkipContainerOp returns true if gNMI container OP needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipContainerOp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipContainerOp()
+}
+
+// ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
+}
+
+// AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
+}
+
+// SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+}
+
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
 func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
 }
