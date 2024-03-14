@@ -25,7 +25,7 @@ The test validates that the device completes TPM enrollment and attestation duri
 
 | ID  | Case | Result |
 | --- | ---- | ------ |
-| attestz-1.1 | Successful enrollment and attestation | Device obtained oIAK and oIDevID certs and passed attestation for all control cards |
+| attestz-1.1 | Successful enrollment and attestation | Device obtained oIAK and oIDevID certs, updated default SSL profile to rely on the oIDevID cert, and passed attestation for all control cards |
 | attestz-1.2 | IAK/IDevID are not present on the device | `GetIakCert` fails with missing IAK/IDevID error |
 | attestz-1.3 | Bad request for `GetIakCertRequest`, `RotateOIakCertRequest` and  `AttestRequest`. Examples: `ControlCardSelection control_card_selection` is not specified or `control_card_id.role = 0`. Invalid `control_card_id.serial` or `control_card_id.slot` | `GetIakCert`, `RotateOIakCert` and `Attest` fail with detailed invalid request error |
 | attestz-1.4 | Store oIAK/oIDevId certs that have different underlying IAK/IDevID pub keys or intended for other control card | `RotateOIakCert` fails with detailed invalid request error |
@@ -39,14 +39,14 @@ The test validates that the device completes TPM enrollment and attestation duri
 2. Verify that correct IDevID cert was used for establishing TLS session:
    * Cert structure matches TCG specification [Section 8](https://trustedcomputinggroup.org/wp-content/uploads/TPM-2p0-Keys-for-Device-Identity-and-Attestation_v1_r12_pub10082021.pdf#page=55).
    * Cert is not expired.
-   * Cert is signed by switch vendor CA.
-   * Cert is tied to the active control card.
+   * Cert is signed by switch vendor CA.
+   * Cert is tied to the active control card.
 3. Verify IAK cert:
    * Cert structure matches TCG spec (similar to IDevID above).
-   * Cert is not expired.
-   * Cert is signed by switch vendor CA.
-   * Cert is tied to the active control card.
-   * IAK and IDevID cert contain the same device serial number field.
+   * Cert is not expired.
+   * Cert is signed by switch vendor CA.
+   * Cert is tied to the active control card.
+   * IAK and IDevID cert contain the same device serial number field.
 4. Verify that the device returned the correct `ControlCardVendorId` with all fields populated.
 5. Issue owner IAK (oIAK) and owner IDevID (oIDevID) certs, which are based on the same underlying public keys, have the same structure and fields, but are signed by a different - owner - CA.
 6. Call `RotateOIakCert` to store newly issued oIAK and oIDevID certs and verify successful response.
@@ -59,19 +59,20 @@ The test validates that the device completes TPM enrollment and attestation duri
 13. Verify oIAK cert is the same as the one installed earlier.
 14. Verify all `pcr_values` match expectations.
 15. Verify `quote_signature` signature with oIAK cert.
-16. Use `pcr_values` and `tpms_quote_info` to recompute PCR Quote digest and verify that it matches the one used in `quote_signature`.
+16. Use `pcr_values` and `quoted` to recompute PCR Quote digest and verify that it matches the one used in `quote_signature`.
 17. Call `Attest` for standby control card with correct `ControlCardSelection`, random nonce, hash algo of choice (all should be supported and tested) and all PCR indices.
 18. Verify that the oIDevID cert of active control card was used for establishing TLS session and verify that oIDevID cert of standby control card was specified in the response payload.
 19. Repeat steps (12-16) for the standby control card.
 
 ### attestz-2: Validate oIAK and oIDevID rotation
 
-The test validates that the device can rotate oIAK and oIAK certificates post-install.
+The test validates that the device can rotate oIAK and oIDevID certificates post-install.
 
 | ID          | Case            | Result |
 | ----------- | ----------------| ------ |
 | attestz-2.1 | Successful oIAK and oIDevID cert rotation when no owner-issued mTLS cert is available on the device | Device obtained newly-rotated oIAK and oIDevID certs and passed attestation for all control cards relying on the new oIAK and oIDevID certs |
 | attestz-2.2 | Successful oIAK and oIDevID cert rotation when owner-issued mTLS cert is available on the device | Device obtained newly-rotated oIAK and oIDevID certs and passed attestation for all control cards relying on the new oIAK and previously owner-issued mTLS cert |
+| attestz-2.3 | Device is unable to authenticate switch owner (e.g. no suitable TLS trust bundle) during oIAK/oIDevID rotation | Both `GetIakCert` and `RotateOIakCert` return authentication failure error |
 
 1. Execute "Initial Install" workflow.
 2. Issue new oIAK and oIDevID certs for active control card, call `RotateOIakCert` to store those on the right card and verify successful response.
@@ -88,6 +89,7 @@ The test validates that the device completes TPM attestation after initial boots
 | attestz-3.1 | Successful post-install re-attestation relying an owner-issued mTLS cert | Device passed attestation for all control cards relying on the latest oIAK and mTLS certs |
 | attestz-3.2 | Two re-attestations separated by a device reboot result in the same PCR values, but different PCR Quote (due a different random nonce in `AttestRequest`) | Device passed multiple re-attestations separated by a reboot for all control cards relying on the latest oIAK and mTLS certs |
 | attestz-3.2 | When an active control card becomes unavailable, standby control card becomes active and can successfully complete re-attestation | Standby control card passed re-attestation after an active control card failure, relying on the latest oIAK and mTLS certs|
+| attestz-3.3 | Device is unable to authenticate switch owner (e.g. no suitable TLS trust bundle) during attestation | `Attest` returns authentication failure error |
 
 1. Execute "Initial Install" workflow.
 2. Provision the device with switch owner mTLS credentials (separate key pair and cert for each control card).

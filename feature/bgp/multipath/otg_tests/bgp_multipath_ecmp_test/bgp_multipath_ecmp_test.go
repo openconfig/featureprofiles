@@ -167,17 +167,18 @@ func TestBGPSetup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4)
-			bs.WithEBGP(t, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true, !tc.enableMultiAS)
+			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
+			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port2", "port3", "port4"}, true, !tc.enableMultiAS)
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
-			niProtocol := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-			pgUseMulitplePaths := niProtocol.Bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths()
+			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+			pgUseMulitplePaths := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths()
 			if tc.enableMultipath {
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
-				pgUseMulitplePaths.GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
 			}
-			if tc.enableMultiAS {
-				pgUseMulitplePaths.GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+				gEBGP.AllowMultipleAs = ygot.Bool(true)
 			}
 
 			configureOTG(t, bs)
@@ -185,10 +186,10 @@ func TestBGPSetup(t *testing.T) {
 			bs.PushAndStart(t)
 
 			t.Logf("Verify DUT BGP sessions up")
-			bs.VerifyDUTBGPEstablished(t)
+			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Verify OTG BGP sessions up")
-			bs.VerifyOTGBGPEstablished(t)
+			cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 			aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
