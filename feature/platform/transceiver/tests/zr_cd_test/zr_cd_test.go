@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	dp16QAM          = uint16(16)
+	dp16QAM          = 1
 	samplingInterval = 10 * time.Second
 	minCDValue       = 0
 	maxCDValue       = 2400
@@ -118,10 +118,10 @@ func TestCDValue(t *testing.T) {
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-			p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Instant().State(), 10*time.Second)
-			p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Avg().State(), 10*time.Second)
-			p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Min().State(), 10*time.Second)
-			p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Max().State(), 10*time.Second)
+			p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Instant().State(), samplingInterval)
+			p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Avg().State(), samplingInterval)
+			p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Min().State(), samplingInterval)
+			p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Max().State(), samplingInterval)
 
 			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
