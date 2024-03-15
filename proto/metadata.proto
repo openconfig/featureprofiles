@@ -442,7 +442,8 @@ message Metadata {
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
     bool bgp_rib_oc_path_unsupported = 155;
-
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 156;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
