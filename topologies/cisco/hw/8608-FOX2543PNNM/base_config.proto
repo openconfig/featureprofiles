@@ -3,6 +3,7 @@ replace: {
       origin: "cli"
     }
     val: {
+      ascii_val:
 "hostname WASP-Macsec-R1\n"
 "logging console disable\n"
 "username cafyauto\n"
