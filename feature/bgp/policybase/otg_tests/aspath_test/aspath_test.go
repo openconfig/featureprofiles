@@ -183,7 +183,7 @@ type testCase struct {
 	testResults     [6]bool
 }
 
-func TestCommunitySet(t *testing.T) {
+func TestAsPathSet(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
 
