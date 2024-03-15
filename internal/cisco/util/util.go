@@ -4,10 +4,12 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -22,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 const (
@@ -495,4 +498,25 @@ func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+func PrettyPrintJson(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
+// load oc from a file
+func LoadJsonFileToOC(t *testing.T, path string) *oc.Root {
+	var ocRoot oc.Root
+	jsonConfig, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Cannot load base config: %v", err)
+	}
+	opts := []ytypes.UnmarshalOpt{
+		&ytypes.PreferShadowPath{},
+	}
+	if err := oc.Unmarshal(jsonConfig, &ocRoot, opts...); err != nil {
+		t.Fatalf("Cannot unmarshal base config: %v", err)
+	}
+	return &ocRoot
 }

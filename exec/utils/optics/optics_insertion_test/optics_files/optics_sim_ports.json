@@ -1,0 +1,10 @@
+{
+  "Port": {
+    "0": "4x10g_lr.json",
+    "1": "2x100g_sr4_aoi.json",
+    "2": "100g_fr_p1.json",
+    "3": "100g_fr_p0.json",
+    "15": "400g_aoc_p1.json",
+    "21": "400g_aoc_p0.json"
+  }
+}

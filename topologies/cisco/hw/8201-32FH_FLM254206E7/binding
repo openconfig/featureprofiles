@@ -50,6 +50,8 @@ options {
 
 duts {
   id: "dut"
+  vendor: CISCO
+  hardware_model: "8201"
   name: "R3-10.85.84.51:2014"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
@@ -98,6 +100,7 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/0/0/1/0"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "port2"
