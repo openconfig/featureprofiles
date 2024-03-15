@@ -787,11 +787,6 @@ func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
 }
 
-// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
-}
-
 // BGPConditionsMatchCommunitySetUnsupported returns true if device doesn't support bgp-conditions/match-community-set leaf
 func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
