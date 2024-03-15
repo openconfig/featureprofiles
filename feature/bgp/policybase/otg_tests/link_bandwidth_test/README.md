@@ -28,7 +28,7 @@ communities to routes based on a prefix match.
       * prefix-set-2 with 2 ipv4 and 2 ipv6 routes with communities `[ "100:100" ]`.
       * prefix-set-3 with 2 ipv4 and 2 ipv6 routes with extended communities `[ "link-bandwidth:100:0" ]`.
   * Configure Send community knob to IBGP neigbour to advertise the communities to IBGP peer 
-    * use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community`
+    * use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community`.
 * RT-7.5.1 - Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
