@@ -16,7 +16,7 @@ options {
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
-  config: {
+  config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
   vendor: CISCO
