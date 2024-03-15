@@ -2,13 +2,20 @@
 
 ## Summary
 
-The purpose of this test is to verify a combination of bgp conditions using matching and policy nesting as well as and actions in a single BGP import policy.  Additional combinations may be added in the future as subtests.
+The purpose of this test is to verify a combination of bgp conditions using
+matching and policy nesting as well as and actions in a single BGP import
+policy.  Additional combinations may be added in the future as additonal
+subtests.
 
 ## Testbed type
 
 * [2 port ATE to DUT](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## Testbed common configuration
+
+This configuration initializes the testbed with configurations that are a
+pre-requisite for the test.  This configuration should not be part of the test
+functions.
 
 * Testbed configuration - Setup eBGP sessions and prefixes
   * Generate config for 2 DUT and ATE ports where
@@ -64,7 +71,7 @@ The purpose of this test is to verify a combination of bgp conditions using matc
 
 ## Procedure
 
-### RT-7.11.2 - Create a bgp policy containing the following conditions and actions
+### RT-7.11.1 - Create a bgp policy containing the following conditions and actions
 
 * Summary of this policy
   * Reject route matching any communities in a community-set.
@@ -127,21 +134,31 @@ The purpose of this test is to verify a combination of bgp conditions using matc
       * set-med = 100
     * actions/config/policy-result = "ACCEPT_ROUTE"
 
-* For policy-definition `multi_policy` run a subtest (RT-7.11.2.x-import_<policy_name_here>) to
+#### RT-7.11.1.1 Configure import_multi_policy
+
+* For policy-definition `multi_policy`
   * Use gnmi Set REPLACE option for:
     * `/routing-policy/policy-definitions` to configure the policy
     * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
         to apply the policy on the DUT bgp neighbor to the ATE port 1.
-  * Verify expected attributes are present in ATE.
 
-* For each policy-definition created, run a subtest (RT-7.11.2.x-export_<policy_name_here>) to
+#### RT-7.11.1.2 Verify import_multi_policy expected attributes are present
+
+* Verify expected attributes are present in ATE.
+
+#### RT-7.11.2.1 Configure export_multi_policy
+
+* For policy-definition `multi_policy`
   * Use gnmi Set REPLACE option for:
     * `/routing-policy/policy-definitions` to configure the policy
-    * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy`
-        to apply the policy on the DUT bgp neighbor to the ATE port 1.
-  * Verify expected attributes are present in ATE.
+    * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor`
+      * Use `.../afi-safis/afi-safi/apply-policy/config/export-policy` to attach the policy to ATE port 1
 
-#### Multi_policy results observed on ATE port 2
+#### RT-7.11.2.2 Verify export_multi_policy expected attributes are present
+
+* Verify expected attributes are present in ATE.
+
+#### Multi_policy results observed on ATE port 2 for both import and export cases
 
   |              | Received | Communities                       | as-path     | lpref | med | Notes                                                     |
   | ------------ | -------- | --------------------------------- | ----------- | ----- | --- | --------------------------------------------------------- |
