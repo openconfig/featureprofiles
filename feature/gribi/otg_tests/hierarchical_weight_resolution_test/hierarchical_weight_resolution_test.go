@@ -166,10 +166,8 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 	t.Helper()
 
 	// Check the egress packets
-	path := gnmi.OTG().Flow(flow).TaggedMetricAny()
-	vlanTags := gnmi.GetAll(t, ate.OTG(), path.State())
-	tagspath := gnmi.OTG().Flow(flow).TaggedMetricAny().TagsAny()
-	tags := gnmi.GetAll(t, ate.OTG(), tagspath.State())
+	vlanTags := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().Flow(flow).TaggedMetricAny().State())
+	tags := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().Flow(flow).TaggedMetricAny().TagsAny().State())
 	t.Logf("There are a total of %v vlans", len(tags))
 
 	inPkts := map[string]uint64{}
@@ -389,6 +387,8 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 	t.Helper()
 	p := ate.Port(t, a.Name)
 
+	// Configure source port on ATE : Port1.
+
 	ip := a.ip(0)
 	gateway := a.gateway(0)
 
@@ -398,13 +398,16 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 	eth.Connection().SetPortName(p.ID())
 	ipObj := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
 	ipObj.SetAddress(ip).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
-	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, 30), gateway)
-
+	t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, int(a.IPv4Len)), gateway)
+	// Configure destination port on ATE : Port2.
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		name := fmt.Sprintf(`dst%d`, i)
-		ip = a.ip(uint8(i))
-		gateway = a.gateway(uint8(i))
-		mac, _ := incrementMAC(a.MAC, int(i)+1)
+		ip := a.ip(uint8(i))
+		gateway := a.gateway(uint8(i))
+		mac, err := incrementMAC(a.MAC, int(i)+1)
+		if err != nil {
+			t.Fatalf("Failed to generate mac address with error %s", err)
+		}
 
 		dev := top.Devices().Add().SetName(name + ".Dev")
 		eth := dev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
@@ -414,6 +417,7 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, 30), gateway, i)
 	}
+	// }
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
