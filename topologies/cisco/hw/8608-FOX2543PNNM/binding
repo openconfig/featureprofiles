@@ -16,6 +16,9 @@ options {
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
+  config: {
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
   vendor: CISCO
   hardware_model: "CISCO-8000"
 
