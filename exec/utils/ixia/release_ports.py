@@ -38,14 +38,8 @@ with open(sys.argv[1], 'rb') as fp:
                 for pname in targetPorts:
                     slot, port = pname.split('/')
                     port_map.Map(chassis, slot, port)
-                port_map.Connect(ForceOwnership=True)
-
-                ixnetwork = session_assistant.Ixnetwork
-                for vport in ixnetwork.Vport.find(Name=port_map._get_name_regex()):
-                    port = session_assistant.Session.GetObjectFromHref(vport.ConnectedTo)
-                    if port is not None:
-                        vport.UnassignPorts(False)
-                        port.ClearOwnership()
+                port_map.Connect(ForceOwnership=True, HostReadyTimeout=20, LinkUpTimeout=60)
+                port_map.Disconnect()
             except Exception as e: 
                 print(e)
             finally: 

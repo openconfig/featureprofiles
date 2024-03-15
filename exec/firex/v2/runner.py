@@ -22,6 +22,8 @@ import shutil
 import random
 import string
 import tempfile
+import hashlib
+import uuid
 import time
 import json
 import yaml
@@ -62,7 +64,6 @@ def _get_go_root_path(ws=None):
         return p
     return ws
         
-
 def _get_go_path():
     return os.path.join(_get_go_root_path(), 'go')
 
@@ -91,6 +92,10 @@ def _resolve_path_if_needed(dir, path):
         return os.path.join(dir, path)
     return path
 
+def _uuid_from_str(s):
+    hex_string = hashlib.md5(s.encode("UTF-8")).hexdigest()
+    return uuid.UUID(hex=hex_string)
+    
 def _gnmi_set_file_template(conf):
     return """
     replace: {
@@ -215,6 +220,19 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
 
+def _sim_get_data_ports(testbed_logs_dir):
+    vxr_conf_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-config.yaml")
+    with open(vxr_conf_file, "r") as fp:
+        try:
+            vxr_conf = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    data_ports = {}
+    for dut, entry in vxr_conf.get('devices').items():
+        data_ports[dut] = entry.get('data_ports', [])
+    return data_ports
+            
 def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     gnmi_set = _gnmi_set_file_template(cli_lines)
     with open(gnmi_file, 'w') as gnmi:
@@ -223,29 +241,84 @@ def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     with open(gnmi_file, 'w') as gnmi:
         gnmi.write(gnmi_set)
 
-def _get_dummy_suite_xml(test_name, fail):
-    if fail: 
-        failures = 1
-        body = '<failure message="Failed"></failure>'
+def _get_fixes_from_testbed_info(testbed_info_file):
+    ddts_re = r'CSC[a-z][a-z]\d{5}'
+    with open(testbed_info_file, 'r') as fp:
+        info = fp.read()
+        return re.findall(ddts_re, info)
+
+def _add_extra_properties_to_xml(ts, test_name, reserved_testbed, core_files=[]):
+    props = ts.find('./properties')
+    if not props:
+        props = ET.SubElement(ts, 'properties')
+
+    has_test_plan_id = False
+    for p in props:
+        has_test_plan_id = p.get('name', '') == 'test.plan_id'
+        if has_test_plan_id: break
+
+    if not has_test_plan_id:
+        ET.SubElement(props, 'property', attrib={
+            'name': 'test.plan_id',
+            'value': test_name
+        })
+
+    fixes = []
+    if os.path.exists(reserved_testbed['testbed_info_file']):
+        fixes = _get_fixes_from_testbed_info(reserved_testbed['testbed_info_file'])
+
+    ET.SubElement(props, 'property', attrib={
+        'name': 'b4.fixes_active',
+        'value': ','.join(fixes)
+    })
+    
+    ET.SubElement(props, 'property', attrib={
+        'name': 'b4.num_core_files',
+        'value': str(len(core_files))
+    })
+    
+    if len(core_files) > 0:
+        e = ET.SubElement(ts, 'testcase', attrib = {
+            'classname': '', 
+            'name': 'CoreFileCheck', 
+            'time': '1'
+        })
+        ET.SubElement(e, 'failure', attrib={
+            'message': 'Failed'
+        }).text = 'Found core files:\n' + '\n'.join(core_files)
+
+def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
+    ts = ET.Element('testsuite', attrib={
+        'name': test_name,
+        'tests': '1',
+        'failures': str(int(fail)),
+        'errors': str(int(abort)),
+        'skipped': '0'
+    })
+    
+    tc = ET.SubElement(ts, 'testcase', attrib={
+        'name': 'dummy',
+        'time': '1'
+    })
+
+    if fail:
+        ET.SubElement(tc, 'failure', attrib={
+            'message': 'Failed'
+        })
+    elif abort:
+        ET.SubElement(tc, 'error')
     else:
-        failures = 0
-        body = "<system-out></system-out>"
+        ET.SubElement(tc, 'system-out')
+    
+    return ts
 
-    return f"""<?xml version='1.0' encoding='UTF-8'?>
-<testsuites>
-    <!-- This dummy xunit result has been automatically generated since the test was aborted. -->
-    <!-- Check test logs for error details. -->
-    <testsuite name="{test_name}" tests="1" failures="{failures}" errors="0" skipped="0">
-        <testcase name="dummy">
-            {body}
-        </testcase>
-    </testsuite>
-</testsuites>
-    """
+def _write_xml_suite(ts, xml_file):
+    root = ET.Element("testsuites")
+    root.append(ts)
 
-def _write_dummy_xml_output(test_name, xml_file, fail):
-    with open(xml_file, 'w') as fp:
-        fp.write(_get_dummy_suite_xml(test_name, fail))
+    tree = ET.ElementTree(root)
+    with open(xml_file, 'wb') as fp:
+        tree.write(fp)
 
 def _get_testsuite_from_xml(file_name):
     try:
@@ -255,7 +328,7 @@ def _get_testsuite_from_xml(file_name):
         return None
     except:
         return None
-
+    
 def _extract_env_var_from_arg(arg):
     m = re.findall('\$[0-9a-zA-Z_]+', arg)
     if len(m) > 0: return m[0]
@@ -305,8 +378,7 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         if testbed.get('sim', False): 
             return testbed
 
-        id = testbed.get('hw', testbed_id)
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {id}')
+        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
             return output['testbed']
         return None
@@ -328,7 +400,7 @@ def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     if reserved_testbed.get('sim', False): 
         return True
             
-    id = reserved_testbed.get('hw', reserved_testbed['id'])
+    id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
         output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
@@ -354,8 +426,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                         sim_use_mtls=False,
                         smus=None):
     
-    internal_pkgs_dir = os.path.join(ws, 'internal_go_pkgs')
-    internal_fp_repo_dir = os.path.join(internal_pkgs_dir, 'openconfig', 'featureprofiles')
+    internal_fp_repo_dir = os.path.join(ws, 'b4_go_pkgs', 'openconfig', 'featureprofiles')
     if not os.path.exists(internal_fp_repo_dir):
         c = CloneRepo.s(repo_url=internal_fp_repo_url,
                     repo_branch=internal_fp_repo_branch,
@@ -459,9 +530,11 @@ def b4_chain_provider(ws, testsuite_id, cflow,
                         testbed=None,
                         **kwargs):
     
-    test_repo_dir = os.path.join(ws, 'go_pkgs', 'openconfig', 'featureprofiles')
     if internal_test:
         test_repo_url = internal_fp_repo_url
+
+    test_repo_uuid = str(_uuid_from_str(test_repo_url))
+    test_repo_dir = os.path.join(ws, 'go_test_pkgs', test_repo_uuid, 'openconfig', 'featureprofiles')
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
@@ -523,8 +596,8 @@ def b4_chain_provider(ws, testsuite_id, cflow,
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
 def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
-        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, collect_dut_info=True,
-        override_test_args_from_env=True, test_debug=False, test_verbose=False, testbed_info_path=None,
+        test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
+        collect_dut_info=True, override_test_args_from_env=True, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
 
     logger.print('Running Go test...')
@@ -548,7 +621,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
-        
+    
     go_args = ''
     test_args = test_args or ''
 
@@ -602,51 +675,66 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         stop_time = self.get_current_time()
     finally:
         suite = _get_testsuite_from_xml(xml_results_file)
-        if suite: 
-            shutil.copyfile(xml_results_file, xunit_results_filepath)
-            test_did_pass = suite.attrib['failures'] == '0'
-            core_files_only = test_did_pass or (not test_did_pass and not collect_debug_files)
-            self.enqueue_child_and_get_results(CollectDebugFiles.s(
-                ws=ws,
-                internal_fp_repo_dir=internal_fp_repo_dir, 
-                reserved_testbed=reserved_testbed, 
-                test_log_directory_path=test_log_directory_path,
-                timestamp=start_timestamp,
-                core_files_only=core_files_only,
-                xunit_results_filepath=xunit_results_filepath
-            ))
-        elif test_ignore_aborted or test_skip:
-            _write_dummy_xml_output(test_name, xunit_results_filepath, test_skip and test_fail_skipped)
+        test_did_pass = suite and suite.attrib['failures'] == '0'
+        if not suite: 
+            if test_ignore_aborted or test_skip:
+                suite = _generate_dummy_suite(test_name, reserved_testbed, fail=test_skip and test_fail_skipped)
+            else:
+                suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
+
+        core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
+            ws=ws,
+            internal_fp_repo_dir=internal_fp_repo_dir, 
+            reserved_testbed=reserved_testbed, 
+            test_log_directory_path=test_log_directory_path,
+            timestamp=start_timestamp,
+            core_files_only=test_did_pass or (not test_did_pass and not collect_debug_files),
+        )).get('core_files', [])
+        
+        _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+        _write_xml_suite(suite, xunit_results_filepath)
+            
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-       
+
         if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
         elif not test_show_skipped: 
             check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
+def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
+    repo.git.reset('--hard')
+    repo.git.clean('-xdf')
+
+    if repo_rev:
+        logger.print(f'Checking out revision {repo_rev}...')
+        repo.git.checkout(repo_rev)
+    elif repo_pr:
+        logger.print(f'Checking out pr {repo_pr}...')
+        branch_suffix = ''.join(random.choice(string.ascii_letters) for _ in range(6))
+        repo.remotes.origin.fetch(f'pull/{repo_pr}/head:firex_{branch_suffix}_pr_{repo_pr}')
+        repo.git.checkout(f'firex_{branch_suffix}_pr_{repo_pr}')
+    elif repo_branch:
+        logger.print(f'Checking out branch {repo_branch}...')
+        repo.git.checkout(repo_branch)
+        
 @app.task(bind=True, max_retries=3, autoretry_for=[git.GitCommandError])
 def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=None):
-    if Path(target_dir).exists():
-        logger.warning(f'The target directory "{target_dir}" already exists; removing first')
-        shutil.rmtree(target_dir)
-
-    repo_name = repo_url.split("/")[-1].split(".")[0]
-    logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
     try:
         os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
-        repo = git.Repo.clone_from(url=repo_url,
-                                   to_path=target_dir,
-                                   branch=repo_branch)
-        if repo_rev:
-            logger.print(f'Checking out revision {repo_rev} from {repo_url}...')
-            repo.git.checkout(repo_rev)
-        elif repo_pr:
-            logger.print(f'Pulling PR#{repo_pr} from {repo_url}...')
-            repo.remotes.origin.fetch(f'pull/{repo_pr}/head:pr_{repo_pr}')
-            logger.print(f'Checking out branch pr_{repo_pr}...')
-            repo.git.checkout(f'pr_{repo_pr}')
+        repo_name = repo_url.split("/")[-1].split(".")[0]
+        
+        if not os.path.exists(target_dir):
+            logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
+            repo = git.Repo.clone_from(url=repo_url,
+                                    to_path=target_dir,
+                                    branch=repo_branch)
+            if repo_rev or repo_pr:
+              _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)  
+        else:
+            repo = git.Repo(target_dir)
+            _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
 
     except git.GitCommandError as e:
         err = e.stderr or ''
@@ -744,6 +832,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
+        data_ports = _sim_get_data_ports(testbed_logs_dir)
+        
         if not type(reserved_testbed['baseconf']) is dict:
             reserved_testbed['baseconf'] = {
                 'dut': reserved_testbed['baseconf']
@@ -762,10 +852,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             
             extra_conf = []
             mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-            if mgmt_vrf:
-                extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
-            else:
-                extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+            else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+
+            # some FP tests (e.g., gNOI-3.1) expects that
+            for d in data_ports.get(dut, []):
+                extra_conf.append(f'interface {d} description {d}')
 
             with open(ondatra_baseconf_path, 'r') as cli:
                 lines = []
@@ -909,8 +1001,8 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only, xunit_results_filepath):
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only):
     logger.print("Collecting debug files...")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -939,38 +1031,19 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
     except Exception as error:
         logger.warning(f'Failed to collect debug files with error: {error}') 
     finally:
-        self.enqueue_child_and_get_results(AppendCoreFileCheckResult.s(
-            reserved_testbed=reserved_testbed,
-            test_log_directory_path=test_log_directory_path,
-            xunit_results_filepath=xunit_results_filepath
-        ))
         os.remove(tmp_binding_file)
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def AppendCoreFileCheckResult(self, reserved_testbed, test_log_directory_path, xunit_results_filepath):
-    try:
+        
+        core_files = []
         duts = ['dut']
         if type(reserved_testbed['baseconf']) is dict: 
             duts = [k for k in reserved_testbed['baseconf']]
 
-        core_files = []
         r = re.compile(r'core\b', re.IGNORECASE)        
         for dut in duts:
             arr = os.listdir(os.path.join(test_log_directory_path, 'debug_files', dut))
-            dut_core_files = list(filter(lambda x: r.search(str(x)),arr))
+            dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
             core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
-            
-        logger.print(f'Core files found if any {core_files}')
-        
-        if len(core_files) > 0:
-            tree = ET.parse(xunit_results_filepath)
-            testsuite = tree.find("testsuite")
-            fe = ET.SubElement(testsuite, "testcase", attrib = {"classname": "", "name": "CoreFileCheck", "time": "1"})
-            ET.SubElement(fe, "failure", attrib={"message": "Failed"}).text = "Found core files:\n" + '\n'.join(core_files)
-            tree.write(xunit_results_filepath, encoding="utf-8")
-    except Exception as error:
-        logger.warning(f"Failed to collect core files with error: {error}") 
+        return core_files
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
