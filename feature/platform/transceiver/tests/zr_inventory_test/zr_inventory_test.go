@@ -100,15 +100,6 @@ func TestInventory(t *testing.T) {
 	p1StreamsStr = append(p1StreamsStr, samplestream.New(t, dut1, component1.FirmwareVersion().State(), samplingInterval))
 	p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut1, component1.Type().State(), samplingInterval))
 
-	component1.SerialNo().State()
-	component1.PartNo().State()
-	component1.Type().State()
-	component1.Description().State()
-	component1.MfgName().State()
-	component1.MfgDate().State()
-	component1.HardwareVersion().State()
-	component1.FirmwareVersion().State()
-
 	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
 
 	// Disable or shut down the interface on the DUT.
@@ -119,8 +110,8 @@ func TestInventory(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 
 	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
-	time.Sleep(waitInterval)
 
+	time.Sleep(waitInterval)
 	// Re-enable interfaces.
 	gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
 	gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
@@ -129,7 +120,6 @@ func TestInventory(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
 	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
-
 }
 
 func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
