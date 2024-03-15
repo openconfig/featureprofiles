@@ -790,12 +790,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7.9"
-  description: "BGP Policy - Import/Export Policy Action Using Extended Communities"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/extcomm_action_test/README.md"
-  exec: " "
-}
-test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
