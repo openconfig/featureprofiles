@@ -13,8 +13,8 @@ communities to routes based on a prefix match.
 
 * Testbed configuration - Setup external BGP sessions and prefixes.
   * Generate config for 2 DUT and ATE ports where:
-    * DUT port 1 to ATE port 1.
-    * DUT port 2 to ATE port 2.
+    * DUT port 1 to ATE port 1 EBGP session.
+    * DUT port 2 to ATE port 2 IBGP session.
   * Configure dummy accept policies and attach it to both sessions on DUT.
      * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named 'allow_all' with the following `statements`
@@ -27,7 +27,8 @@ communities to routes based on a prefix match.
       * prefix-set-1 with 2 ipv4 and 2 ipv6 routes without communities.
       * prefix-set-2 with 2 ipv4 and 2 ipv6 routes with communities `[ "100:100" ]`.
       * prefix-set-3 with 2 ipv4 and 2 ipv6 routes with extended communities `[ "link-bandwidth:100:0" ]`.
-
+  * Configure Send community knob to IBGP neigbour to advertise the communities to IBGP peer 
+    * use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community`.
 * RT-7.5.1 - Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
@@ -143,6 +144,10 @@ communities to routes based on a prefix match.
         * This policy intention is to overcome this implementation difference, by deprefering (LocPref) routes with link-bandwidth 0 (only this routes) to prevent them becoming part of multipath, and remove link-bandwidth community so route will not be treated with WCMP behavior.
 
 ## Config Parameter Coverage
+
+## Configuration to enable advertise communities to bgp peer
+
+* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community
 
 ### Policy for community-set configuration
 

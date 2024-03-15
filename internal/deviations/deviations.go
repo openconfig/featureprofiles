@@ -825,3 +825,8 @@ func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
 func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
 }
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+}
