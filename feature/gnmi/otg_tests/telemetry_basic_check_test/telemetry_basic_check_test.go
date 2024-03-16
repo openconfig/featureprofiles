@@ -460,6 +460,10 @@ func TestComponentParent(t *testing.T) {
 			// Validate parent component.
 			for _, comp := range compList[tc.desc] {
 				t.Logf("Validate component %s", comp)
+				compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(comp).Empty().State()).Val()
+				if compMtyPresent && compMtyVal {
+					t.Skipf("INFO: Skip status check as %s is empty", comp)
+				}
 				verifyChassisIsAncestor(t, dut, comp)
 			}
 		})
