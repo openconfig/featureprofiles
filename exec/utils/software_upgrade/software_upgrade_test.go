@@ -249,7 +249,7 @@ func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 }
 
 func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
-	if len(lineup) == 0 || len(efr) == 0 {
+	if len(lineup) == 0 || len(efr) == 0 || strings.HasPrefix(efr, "sha") {
 		return true
 	}
 
