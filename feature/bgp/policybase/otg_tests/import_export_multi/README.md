@@ -33,8 +33,12 @@ functions.
     * prefix-set-4 with 2 ipv4 and 2 ipv6 routes with communities [ "20:2", "30:3" ]
     * prefix-set-5 with 2 ipv4 and 2 ipv6 routes with communities [ "40:1" ]
     * prefix-set-6 with 2 ipv4 and 2 ipv6 routes with communities [ "50:1" ]
-    * Configure accept_route policy and apply as an export policy on the DUT
-      eBGP session to ATE port 2.
+    * Configure accept_all policy
+      * Create policy-definitions/policy-definition/config/name = "accept_all"
+        * statements/statement/config/name = "accept"
+        * actions/config/policy-result = "ACCEPT_ROUTE"
+    * apply as an export and import policy on the DUT
+      eBGP session to ATE port 1 and port 2.
 
 * Configure the following community sets on the DUT:
   * /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config
