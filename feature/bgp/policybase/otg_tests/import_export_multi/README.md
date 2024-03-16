@@ -138,27 +138,30 @@ functions.
       * set-med = 100
     * actions/config/policy-result = "ACCEPT_ROUTE"
 
-#### RT-7.11.1.1 Configure import_multi_policy
+* Use gnmi Set REPLACE option to configure the policies above on the DUT at this subtree level:
+  * `/routing-policy/policy-definitions`
 
-* For policy-definition `multi_policy`
-  * Use gnmi Set REPLACE option for:
-    * `/routing-policy/policy-definitions` to configure the policy
-    * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
-        to apply the policy on the DUT bgp neighbor to the ATE port 1.
+#### RT-7.11.2 Attach multi_policy as import policy
 
-#### RT-7.11.1.2 Verify import_multi_policy expected attributes are present
+* Use gnmi Set REPLACE option to apply the policy on the DUT bgp neighbor to the ATE port 1.
+  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy
+    * Set the value `config/import-policy` = "multi-policy"
+
+#### RT-7.11.3 Verify import_multi_policy expected attributes are present
 
 * Verify expected attributes are present in ATE.
 
-#### RT-7.11.2.1 Configure export_multi_policy
+> NOTE: (At the time of writing, the APIs necesary to do this validation are not yet available via the OTG API.  A feature enhancement has been submitted.)
 
-* For policy-definition `multi_policy`
-  * Use gnmi Set REPLACE option for:
-    * `/routing-policy/policy-definitions` to configure the policy
-    * `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor`
-      * Use `.../afi-safis/afi-safi/apply-policy/config/export-policy` to attach the policy to ATE port 1
+#### RT-7.11.4 Configure export_multi_policy
 
-#### RT-7.11.2.2 Verify export_multi_policy expected attributes are present
+This replace method should guarantee that the previous step's import-policy is removed.
+
+* Use gnmi Set REPLACE option to apply the policy on the DUT bgp neighbor to the ATE port 1.
+  * at this subtree level: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy
+    * Set the value `config/export-policy` = "multi-policy"
+
+#### RT-7.11.5 Verify export_multi_policy expected attributes are present
 
 * Verify expected attributes are present in ATE.
 
