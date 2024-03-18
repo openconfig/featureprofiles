@@ -1,7 +1,7 @@
 package debug
 
 import (
-	// "context"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -12,8 +12,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	// "github.com/openconfig/ondatra"
-	// "github.com/openconfig/testt"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
 )
@@ -88,55 +88,55 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// func TestCollectDebugFiles(t *testing.T) {
-// 	targets := NewTargets(t)
-// 	if *outDirFlag == "" {
-// 		t.Fatalf("outDirFlag was not set")
-// 	} else {
-// 		outDir = *outDirFlag
-// 		timestamp = *timestampFlag
-// 	}
-// 	coreFlag = *coreFilesFlag
+func TestCollectDebugFiles(t *testing.T) {
+	targets := NewTargets(t)
+	if *outDirFlag == "" {
+		t.Fatalf("outDirFlag was not set")
+	} else {
+		outDir = *outDirFlag
+		timestamp = *timestampFlag
+	}
+	coreFlag = *coreFilesFlag
 
-// 	commands := []string{
-// 		"run rm -rf /" + techDirectory,
-// 		"mkdir " + techDirectory,
-// 		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
-// 	}
-// 	t.Logf("core file flag is set to [%v]", coreFlag)
-// 	if coreFlag == false {
-// 		t.Log("Adding commands to be send to get logs")
-// 		for _, t := range showTechSupport {
-// 			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
-// 		}
+	commands := []string{
+		"run rm -rf /" + techDirectory,
+		"mkdir " + techDirectory,
+		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
+	}
+	t.Logf("core file flag is set to [%v]", coreFlag)
+	if coreFlag == false {
+		t.Log("Adding commands to be send to get logs")
+		for _, t := range showTechSupport {
+			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
+		}
 
-// 		for _, t := range pipedCmds {
-// 			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
-// 		}
-// 		t.Logf("All commands to be executed: [%v]", commands)
-// 	}
-// 	for dutID, targetInfo := range targets.targetInfo {
+		for _, t := range pipedCmds {
+			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
+		}
+		t.Logf("All commands to be executed: [%v]", commands)
+	}
+	for dutID, targetInfo := range targets.targetInfo {
 
-// 		ctx := context.Background()
-// 		dut := ondatra.DUT(t, dutID)
-// 		sshClient := dut.RawAPIs().CLI(t)
+		ctx := context.Background()
+		dut := ondatra.DUT(t, dutID)
+		sshClient := dut.RawAPIs().CLI(t)
 
-// 		for _, cmd := range commands {
-// 			testt.CaptureFatal(t, func(t testing.TB) {
-// 				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-// 					t.Logf("> %s", cmd)
-// 					t.Log(result.Output())
-// 				} else {
-// 					t.Logf("> %s", cmd)
-// 					t.Log(err.Error())
-// 				}
-// 				t.Logf("\n")
-// 			})
-// 		}
+		for _, cmd := range commands {
+			testt.CaptureFatal(t, func(t testing.TB) {
+				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+					t.Logf("> %s", cmd)
+					t.Log(result.Output())
+				} else {
+					t.Logf("> %s", cmd)
+					t.Log(err.Error())
+				}
+				t.Logf("\n")
+			})
+		}
 
-// 		copyDebugFiles(t, targetInfo)
-// 	}
-// }
+		copyDebugFiles(t, targetInfo)
+	}
+}
 
 func copyDebugFiles(t *testing.T, d targetInfo) {
 	t.Helper()
