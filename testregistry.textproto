@@ -1044,6 +1044,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_forwarding/README.md"
 }
 test: {
+  id: "TE-16.2"
+  description: "gRIBI encapsulation FRR scenarios"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr/README.md"
+}
+test: {
   id: "TR-6.1"
   description: "system logging remote syslog"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/logging/remote_syslog/otg_tests/README.md"
@@ -1387,5 +1392,11 @@ test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}
+test: {
+  id: "MGT-1"
+  description: "Management HA test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/README.md"
   exec: " "
 }

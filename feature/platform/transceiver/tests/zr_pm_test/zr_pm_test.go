@@ -136,7 +136,7 @@ func TestPM(t *testing.T) {
 			// Now validate OTN streams didn't return any invalid values.
 			for portName, stream := range otnStreams {
 				var linkStates []oc.E_Channel_LinkState
-				for _, val := range stream.All(t) {
+				for _, val := range stream.All() {
 					linkStates = append(linkStates, validateStream(t, val, portName))
 				}
 				validateLinkStateTransitions(t, linkStates, portName)
