@@ -1011,7 +1011,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log
         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
     coreFlag = 'false'
-    if core_files_only: coreFlag = 'true'
+    # if core_files_only: coreFlag = 'true'
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
