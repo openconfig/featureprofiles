@@ -1001,7 +1001,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-# @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
 def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only):
     logger.print("Collecting debug files...")
 
