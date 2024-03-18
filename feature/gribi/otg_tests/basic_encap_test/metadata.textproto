@@ -4,7 +4,7 @@
 uuid:  "36cc79b5-3766-4cb4-b83b-1baea1464de8"
 plan_id:  "TE-16.1"
 description:  "basic encapsulation tests"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions:  {
   platform:  {
     vendor:  CISCO
@@ -15,6 +15,17 @@ platform_exceptions:  {
     interface_ref_interface_id_format:  true
     ttl_copy_unsupported:  true
     pf_require_match_default_rule:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    omit_l2_mtu: true
+    default_network_instance:  "default"
+    static_protocol_name: "STATIC"
   }
 }
 tags:  TAGS_DATACENTER_EDGE
