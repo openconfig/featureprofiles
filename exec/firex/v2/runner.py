@@ -1001,49 +1001,49 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
-def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only):
-    logger.print("Collecting debug files...")
+# @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+# def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, timestamp, core_files_only):
+#     logger.print("Collecting debug files...")
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        tmp_binding_file = f.name
-        shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
-        check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
+#     with tempfile.NamedTemporaryFile(delete=False) as f:
+#         tmp_binding_file = f.name
+#         shutil.copyfile(reserved_testbed['binding_file'], tmp_binding_file)
+#         check_output(f"sed -i 's|gnmi_set_file|#gnmi_set_file|g' {tmp_binding_file}")
 
-    coreFlag = 'false'
-    # if core_files_only: coreFlag = 'true'
+#     coreFlag = 'false'
+#     # if core_files_only: coreFlag = 'true'
 
-    collect_debug_cmd = f'{GO_BIN} test -v ' \
-            f'./exec/utils/debug ' \
-            f'-timeout 60m ' \
-            f'-args ' \
-            f'-collect_dut_info=false '\
-            f'-testbed {reserved_testbed["testbed_file"]} ' \
-            f'-binding {tmp_binding_file} ' \
-            f'-outDir {test_log_directory_path}/debug_files ' \
-            f'-timestamp {str(timestamp)} ' \
-            f'-core={coreFlag} ' \
-            f'-v 5'
-    try:
-        env = dict(os.environ)
-        env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
-    except Exception as error:
-        logger.warning(f'Failed to collect debug files with error: {error}') 
-    finally:
-        os.remove(tmp_binding_file)
+#     collect_debug_cmd = f'{GO_BIN} test -v ' \
+#             f'./exec/utils/debug ' \
+#             f'-timeout 60m ' \
+#             f'-args ' \
+#             f'-collect_dut_info=false '\
+#             f'-testbed {reserved_testbed["testbed_file"]} ' \
+#             f'-binding {tmp_binding_file} ' \
+#             f'-outDir {test_log_directory_path}/debug_files ' \
+#             f'-timestamp {str(timestamp)} ' \
+#             f'-core={coreFlag} ' \
+#             f'-v 5'
+#     try:
+#         env = dict(os.environ)
+#         env.update(_get_go_env(ws))
+#         check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+#     except Exception as error:
+#         logger.warning(f'Failed to collect debug files with error: {error}') 
+#     finally:
+#         os.remove(tmp_binding_file)
         
-        core_files = []
-        duts = ['dut']
-        if type(reserved_testbed['baseconf']) is dict: 
-            duts = [k for k in reserved_testbed['baseconf']]
+#         core_files = []
+#         duts = ['dut']
+#         if type(reserved_testbed['baseconf']) is dict: 
+#             duts = [k for k in reserved_testbed['baseconf']]
 
-        r = re.compile(r'core\b', re.IGNORECASE)        
-        for dut in duts:
-            arr = os.listdir(os.path.join(test_log_directory_path, 'debug_files', dut))
-            dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
-            core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
-        return core_files
+#         r = re.compile(r'core\b', re.IGNORECASE)        
+#         for dut in duts:
+#             arr = os.listdir(os.path.join(test_log_directory_path, 'debug_files', dut))
+#             dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
+#             core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
+#         return core_files
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
