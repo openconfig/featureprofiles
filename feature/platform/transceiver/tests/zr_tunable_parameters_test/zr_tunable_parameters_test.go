@@ -90,7 +90,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 						Frequency:         ygot.Uint64(freq),
 						OperationalMode:   ygot.Uint16(dp16QAM),
 					})
-					validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
+					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 				})
 			}
 		})
@@ -140,7 +140,7 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 					Frequency:         ygot.Uint64(tc.frequency),
 					OperationalMode:   ygot.Uint16(dp16QAM),
 				})
-				validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, tc.frequency, top)
+				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, tc.frequency, top)
 			})
 		}
 	}
@@ -171,7 +171,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 	t.Run("Telemetry before flap", func(t *testing.T) {
-		validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
 	})
 	// Disable or shut down the interface on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
@@ -181,7 +181,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	// Verify for the TX output power with interface in down state a decimal64
 	// value of -40 dB is streamed.
 	t.Run("Telemetry during interface disabled", func(t *testing.T) {
-		validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, 0, -40)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, 0, -40)
 	})
 	// Re-enable the interfaces on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
@@ -192,13 +192,13 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	// power as per the configuration and related telemetry values are updated
 	// to the value in the normal range again.
 	t.Run("Telemetry after flap", func(t *testing.T) {
-		validateOpticsTelemetry(t, dut, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
 	})
 }
-func validateOpticsTelemetry(t *testing.T, dut *ondatra.DUTDevice, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64) {
+func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64) {
 	var ocs []*oc.Component_OpticalChannel
 	for _, s := range streams {
-		val := s.Next(t)
+		val := s.Next()
 		if val == nil {
 			t.Fatal("Optical channel streaming telemetry not received")
 		}

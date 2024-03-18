@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "b569d5de-0038-43f5-b329-bedce86eec3d"
+plan_id:  "MGT-1"
+description:  "Management HA solution test"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    route_policy_under_afi_unsupported:  true
+    omit_l2_mtu:  true
+    static_protocol_name:  "STATIC"
+    interface_enabled:  true
+    default_network_instance:  "default"
+    skip_set_rp_match_set_options:  true
+    skip_setting_disable_metric_propagation:  true
+    set_metric_as_preference:  true
+  }
+}
+tags:  TAGS_AGGREGATION
+tags:  TAGS_TRANSIT
+tags:  TAGS_DATACENTER_EDGE
