@@ -15,8 +15,6 @@
 package link_bandwidth_test
 
 import (
-	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -119,14 +117,6 @@ func TestMain(m *testing.M) {
 type ipAddr struct {
 	address string
 	prefix  uint32
-}
-
-func (ip *ipAddr) cidr(t *testing.T) string {
-	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return net.String()
 }
 
 type testData struct {
@@ -299,6 +289,7 @@ func validateRouteCommunityV4(t *testing.T, td testData, ec extCommunity, localP
 					}
 				} else {
 					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v42Route {
@@ -317,7 +308,8 @@ func validateRouteCommunityV4(t *testing.T, td testData, ec extCommunity, localP
 						}
 					}
 				} else {
-					// // TODO Verification as OTG not supported for Extended community
+					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v43Route {
@@ -336,7 +328,8 @@ func validateRouteCommunityV4(t *testing.T, td testData, ec extCommunity, localP
 						}
 					}
 				} else {
-					// // TODO Verification as OTG not supported for Extended community
+					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 		}
@@ -374,6 +367,7 @@ func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity, localP
 					}
 				} else {
 					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v62Route {
@@ -393,6 +387,7 @@ func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity, localP
 					}
 				} else {
 					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v63Route {
@@ -412,6 +407,7 @@ func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity, localP
 					}
 				} else {
 					// TODO Verification as OTG not supported for Extended community
+					t.Logf("TODO")
 				}
 			}
 		}
