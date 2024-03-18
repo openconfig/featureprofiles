@@ -53,7 +53,7 @@ func New[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T],
 
 // Next returns the next sample received within the sample interval.
 // If no sample is received within the interval, nil is returned.
-func (s *SampleStream[T]) Next(t *testing.T) *ygnmi.Value[T] {
+func (s *SampleStream[T]) Next() *ygnmi.Value[T] {
 	func() {
 		s.dataMu.Lock()
 		defer s.dataMu.Unlock()
@@ -73,16 +73,16 @@ func (s *SampleStream[T]) Next(t *testing.T) *ygnmi.Value[T] {
 }
 
 // Nexts calls Next() count times and returns the slice of returned samples.
-func (s *SampleStream[T]) Nexts(t *testing.T, count int) []*ygnmi.Value[T] {
+func (s *SampleStream[T]) Nexts(count int) []*ygnmi.Value[T] {
 	var nexts []*ygnmi.Value[T]
 	for i := 0; i < count; i++ {
-		nexts = append(nexts, s.Next(t))
+		nexts = append(nexts, s.Next())
 	}
 	return nexts
 }
 
 // All returns the list of values that has been received thus far.
-func (s *SampleStream[T]) All(t *testing.T) []*ygnmi.Value[T] {
+func (s *SampleStream[T]) All() []*ygnmi.Value[T] {
 	s.dataMu.Lock()
 	defer s.dataMu.Unlock()
 	return s.data
