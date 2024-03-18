@@ -442,10 +442,12 @@ message Metadata {
     // Devices are having native telemetry paths for BGP RIB verification.
     // Juniper : b/306144372
     bool bgp_rib_oc_path_unsupported = 155;
+    // Skip setting prefix-set mode while configuring prefix-set routing-policy
+    bool skip_prefix_set_mode = 156;
     // Devices does not support bgp max multipaths
     // Juniper: b/319301559
-    bool bgp_max_multipath_paths_unsupported = 156;
-
+    bool bgp_max_multipath_paths_unsupported = 157;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
