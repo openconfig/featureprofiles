@@ -444,6 +444,8 @@ message Metadata {
     bool bgp_rib_oc_path_unsupported = 155;
     // Skip setting prefix-set mode while configuring prefix-set routing-policy
     bool skip_prefix_set_mode = 156;
+    // Devices set metric as preference for static next-hop
+    bool set_metric_as_preference = 157;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
