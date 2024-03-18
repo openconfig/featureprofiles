@@ -797,12 +797,6 @@ func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
 }
 
-// PolicyResultTypeNextStatementUnsupported returns true if devices which are not
-// supporting next statement in policy options.
-func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
-}
-
 // MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
 func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
@@ -840,4 +834,10 @@ func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 // SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
 func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
+// PolicyResultTypeNextStatementUnsupported returns true if devices which are not
+// supporting next statement in policy options.
+func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
 }
