@@ -831,12 +831,12 @@ func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
 
+// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
+func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
 // Devices does not support bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
-}
-
- // SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
-func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
 }
