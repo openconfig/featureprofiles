@@ -830,3 +830,14 @@ func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
+
+// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
+func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
