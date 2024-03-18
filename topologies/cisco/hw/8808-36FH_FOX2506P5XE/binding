@@ -104,6 +104,7 @@ duts {
   }
   ssh{
     target: "10.85.84.159:47403"
+    skip_verify: true
   }
   p4rt{
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
