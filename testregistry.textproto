@@ -1389,3 +1389,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
   exec: " "
 }
+test: {
+  id: "MGT-1"
+  description: "Management HA test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/README.md"
+  exec: " "
+}
