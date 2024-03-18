@@ -17,4 +17,16 @@ platform_exceptions:  {
     pf_require_match_default_rule:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA 
+  }
+  deviations:  {
+    static_protocol_name: "STATIC"
+    gribi_mac_override_static_arp_static_route: true
+    interface_enabled: true
+    ttl_copy_unsupported: true
+    default_network_instance: "default"
+  }
+}
 tags:  TAGS_DATACENTER_EDGE
