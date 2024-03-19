@@ -841,3 +841,9 @@ func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
 func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
 }
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
