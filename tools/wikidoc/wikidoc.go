@@ -17,6 +17,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -143,7 +144,7 @@ func fetchTestDocs(rootPath string) ([]testDoc, error) {
 			}
 			md := new(mpb.Metadata)
 			if err := prototext.Unmarshal(bytes, md); err != nil {
-				return err
+				return fmt.Errorf("cannot unmarshal %s: %v", path, err)
 			}
 			docMap[md.GetUuid()] = testDoc{
 				Name:  filepath.Base(filepath.Dir(path)),

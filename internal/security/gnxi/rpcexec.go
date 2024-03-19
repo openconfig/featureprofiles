@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openconfig/gnoi/system"
-	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -16,7 +14,9 @@ import (
 	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	gribi "github.com/openconfig/gribi/v1/proto/service"
+	spb "github.com/openconfig/gnoi/system"
+	authzpb "github.com/openconfig/gnsi/authz"
+	grpb "github.com/openconfig/gribi/v1/proto/service"
 )
 
 // AllRPC implements a sample request for service * to validate if authz works as expected.
@@ -408,7 +408,7 @@ func GnoiSystemTime(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	_, err = gnoiC.System().Time(ctx, &system.TimeRequest{})
+	_, err = gnoiC.System().Time(ctx, &spb.TimeRequest{})
 	return err
 }
 
@@ -423,7 +423,7 @@ func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	pingC, err := gnoiC.System().Ping(ctx, &system.PingRequest{Destination: "192.0.2.1"})
+	pingC, err := gnoiC.System().Ping(ctx, &spb.PingRequest{Destination: "192.0.2.1"})
 	if err != nil {
 		return err
 
@@ -468,7 +468,7 @@ func GnsiAuthzGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialO
 	if err != nil {
 		return err
 	}
-	_, err = gnsiC.Authz().Get(ctx, &authz.GetRequest{})
+	_, err = gnsiC.Authz().Get(ctx, &authzpb.GetRequest{})
 	return err
 }
 
@@ -478,7 +478,7 @@ func GnsiAuthzProbe(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	_, err = gnsiC.Authz().Probe(ctx, &authz.ProbeRequest{User: "dummy", Rpc: "*"})
+	_, err = gnsiC.Authz().Probe(ctx, &authzpb.ProbeRequest{User: "dummy", Rpc: "*"})
 	return err
 }
 
@@ -493,9 +493,9 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 		return err
 	}
 	// TODO: send valid policy for postive cases
-	err = gnsiCStream.Send(&authz.RotateAuthzRequest{
-		RotateRequest: &authz.RotateAuthzRequest_UploadRequest{
-			UploadRequest: &authz.UploadRequest{
+	err = gnsiCStream.Send(&authzpb.RotateAuthzRequest{
+		RotateRequest: &authzpb.RotateAuthzRequest_UploadRequest{
+			UploadRequest: &authzpb.UploadRequest{
 				Version:   "0.0",
 				CreatedOn: uint64(time.Now().Nanosecond()),
 				Policy:    "",
@@ -599,7 +599,7 @@ func GribiFlush(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOpt
 	if err != nil {
 		return err
 	}
-	_, err = gribiC.Flush(ctx, &gribi.FlushRequest{Election: &gribi.FlushRequest_Id{Id: &gribi.Uint128{Low: 1}}})
+	_, err = gribiC.Flush(ctx, &grpb.FlushRequest{Election: &grpb.FlushRequest_Id{Id: &grpb.Uint128{Low: 1}}})
 	return err
 }
 
@@ -609,9 +609,9 @@ func GribiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOptio
 	if err != nil {
 		return err
 	}
-	getReq := gribi.GetRequest{
-		NetworkInstance: &gribi.GetRequest_All{},
-		Aft:             gribi.AFTType_ALL,
+	getReq := grpb.GetRequest{
+		NetworkInstance: &grpb.GetRequest_All{},
+		Aft:             grpb.AFTType_ALL,
 	}
 	getSteram, err := gribiC.Get(ctx, &getReq)
 	if err != nil {
@@ -634,9 +634,9 @@ func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 	if err != nil {
 		return err
 	}
-	err = mStream.Send(&gribi.ModifyRequest{
-		Params: &gribi.SessionParameters{Redundancy: gribi.SessionParameters_SINGLE_PRIMARY,
-			Persistence: gribi.SessionParameters_PRESERVE},
+	err = mStream.Send(&grpb.ModifyRequest{
+		Params: &grpb.SessionParameters{Redundancy: grpb.SessionParameters_SINGLE_PRIMARY,
+			Persistence: grpb.SessionParameters_PRESERVE},
 	})
 	if err != nil {
 		return err

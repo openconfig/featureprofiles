@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package openconfig.featureprofiles.cntr;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option go_package="github.co/openconfig/featureprofiles/internal/cntrsrv/proto/cntr;cntr";
+
+// Service Cntr is a CoNTaineR service that runs on a network device
+// that is exposed to ONDATRA tests, it allows in-container behaviours
+// to be triggered via a gRPC API.
+service Cntr {
+  // Dial instructs the container to dial the target specified in the
+  // DialRequest message.
+  rpc Dial(DialRequest) returns (DialResponse);
+  // Ping provides a means for a container to respond to an external gRPC probe.
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+// Service enumerates the services that the dialler can connect to
+// in an RPC-content-aware manner.
+enum Service {
+  ST_UNSPECIFIED = 0;
+  // gNMI indicates that a gNMI check should be initiated, particularly the
+  // Capabilities RPC should be sent to the target.
+  ST_GNMI = 1;
+  // gRIBI indictes that gRIBI check should be initiated, particularly the
+  // Get RPC should be sent to the target.
+  ST_GRIBI = 2;
+}
+
+message DialRequest {
+  // Address for the container to dial.
+  string addr = 1;
+  oneof request {
+    // The payload of a PingRequest, if specified, the container dials and then
+    // uses the Ping RPC to send a request.
+    PingRequest ping = 2;
+    // Service to be initiated towards the target.
+    Service srv = 3;
+  }
+}
+
+message DialResponse {
+  oneof response {
+    // The ping response returned from the remote system, populated when the
+    // request specifies a PingRequest.
+    PingResponse pong = 2;
+    // The gRIBI message sent in response to the gRIBI Get RPC. Contains only
+    // the first message, and is populated only when the Service in the request
+    // is set to GRIBI.
+    google.protobuf.Any gribi_response = 3;
+    // The gNMI message sent in response to the gNMI Capabilities RPC. Populated
+    // only when the Service in the request is set to GNMI.
+    google.protobuf.Any gnmi_response = 4;
+  }
+}
+
+message PingRequest {}
+
+message PingResponse {
+  // Timestamp at which the ping response was sent.
+  google.protobuf.Timestamp timestamp = 1;
+}

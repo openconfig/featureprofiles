@@ -21,5 +21,6 @@ platform_exceptions:  {
     skip_isis_set_metric_style_type:  true
     skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
+    bgp_conditions_match_community_set_unsupported: true
   }
 }

@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "47c623ec-69b3-4bca-ae07-012feff496b8"
+plan_id: "TRANSCEIVER-5"
+description: "Configuration: 400ZR channel frequency, output TX launch power and operational mode setting."
+testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

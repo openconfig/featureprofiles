@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "0bef25c1-0ea2-4b44-8a37-07de9f870cae"
+plan_id: "TRANSCEIVER-11"
+description: "Telemetry: 400ZR Optics logical channels provisioning and related telemetry."
+testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

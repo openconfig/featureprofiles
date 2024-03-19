@@ -41,15 +41,15 @@ const (
 	RPLPermitAll = "PERMIT-ALL"
 
 	// DutAS dut AS
-	DutAS = uint32(65656)
+	DutAS = uint32(65501)
 	// AteAS1 for ATE port1
-	AteAS1 = uint32(65536)
+	AteAS1 = uint32(65511)
 	// AteAS2 for ATE port2
-	AteAS2 = uint32(65537)
+	AteAS2 = uint32(65512)
 	// AteAS3 for ATE port3
-	AteAS3 = uint32(65538)
+	AteAS3 = uint32(65513)
 	// AteAS4 for ATE port4
-	AteAS4 = uint32(65539)
+	AteAS4 = uint32(65514)
 
 	// BGPPeerGroup1 for ATE port1
 	BGPPeerGroup1 = "BGP-PEER-GROUP1"
@@ -149,15 +149,16 @@ type BGPSession struct {
 	DUTConf *oc.Root
 	ATETop  gosnappi.Config
 
-	DUTPorts []*attrs.Attributes
-	ATEPorts []*attrs.Attributes
-	aftType  oc.E_BgpTypes_AFI_SAFI_TYPE
+	DUTPorts        []*attrs.Attributes
+	ATEPorts        []*attrs.Attributes
+	afiTypes        []oc.E_BgpTypes_AFI_SAFI_TYPE
+	networkInstance string
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
 // configures the interfaces on the dut and the ate based in given topology port count.
 // Only supports 2 and 4 port DUT-ATE topology
-func NewBGPSession(t *testing.T, pc PortCount) *BGPSession {
+func NewBGPSession(t *testing.T, pc PortCount, ni *string) *BGPSession {
 	conf := &BGPSession{
 		DUT:             ondatra.DUT(t, "dut"),
 		DUTConf:         &oc.Root{},
@@ -186,15 +187,25 @@ func NewBGPSession(t *testing.T, pc PortCount) *BGPSession {
 			conf.ATEIntfs[i] = conf.ATEPorts[i].AddToOTG(conf.ATETop, conf.OndatraATEPorts[i], conf.DUTPorts[i])
 		}
 	}
+
+	if ni == nil {
+		fptest.ConfigureDefaultNetworkInstance(t, conf.DUT)
+		conf.networkInstance = deviations.DefaultNetworkInstance(conf.DUT)
+	} else {
+		conf.networkInstance = *ni
+	}
+
 	return conf
 }
 
 // WithEBGP adds eBGP specific config
-func (bs *BGPSession) WithEBGP(t *testing.T, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, isSamePG, isSameAS bool) *BGPSession {
-	if aftype != oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST && aftype != oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST {
-		t.Fatalf("Unsupported AFI type: %v", bs.aftType)
+func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_TYPE, bgpPorts []string, isSamePG, isSameAS bool) *BGPSession {
+	for _, afiType := range afiTypes {
+		if afiType != oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST && afiType != oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST {
+			t.Fatalf("Unsupported AFI type: %v", afiType)
+		}
 	}
-	bs.aftType = aftype
+	bs.afiTypes = afiTypes
 
 	asNumbers := []uint32{AteAS1, AteAS2, AteAS3, AteAS4}
 	if isSameAS {
@@ -205,34 +216,36 @@ func (bs *BGPSession) WithEBGP(t *testing.T, aftype oc.E_BgpTypes_AFI_SAFI_TYPE,
 	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
 	sort.Slice(devices, byName)
 	for i, otgPort := range bs.ATEPorts {
+		if !containsValue(bgpPorts, otgPort.Name) {
+			continue
+		}
 		bgp := devices[i].Bgp().SetRouterId(otgPort.IPv4)
 
-		switch aftype {
-		case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
-			ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-			bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP4.peer")
-			bgp4Peer.SetPeerAddress(ipv4.Gateway())
-			bgp4Peer.SetAsNumber(uint32(asNumbers[i]))
-			bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-			bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-			bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-		case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
-			ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-			bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP6.peer")
-			bgp6Peer.SetPeerAddress(ipv6.Gateway())
-			bgp6Peer.SetAsNumber(uint32(asNumbers[i]))
-			bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-			bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true).SetExtendedNextHopEncoding(true)
-			bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		for _, afiType := range afiTypes {
+			switch afiType {
+			case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
+				ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+				bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP4.peer")
+				bgp4Peer.SetPeerAddress(ipv4.Gateway())
+				bgp4Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+				bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+			case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
+				ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+				bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP6.peer")
+				bgp6Peer.SetPeerAddress(ipv6.Gateway())
+				bgp6Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+				bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true).SetExtendedNextHopEncoding(true)
+				bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+			}
 		}
 	}
 
-	dni := bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(bs.DUT))
-	dni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	niProtocol := dni.GetOrCreateProtocol(PTBGP, bgpName)
-	neighborConfig := BuildNeigborConfig(isSamePG, isSameAS, len(bs.DUTPorts))
-	niProtocol.Bgp = BuildBGPOCConfig(t, bs.DUT, dutPort1.IPv4, aftype, neighborConfig)
+	niProtocol := bs.DUTConf.GetOrCreateNetworkInstance(bs.networkInstance).GetOrCreateProtocol(PTBGP, bgpName)
+	neighborConfig := bs.buildNeigborConfig(isSamePG, isSameAS, bgpPorts)
+	niProtocol.Bgp = BuildBGPOCConfig(t, bs.DUT, dutPort1.IPv4, afiTypes, neighborConfig)
 
 	err := bs.configureRoutingPolicy()
 	if err != nil {
@@ -273,7 +286,7 @@ func (bs *BGPSession) PushDUT(t testing.TB) error {
 
 	if deviations.ExplicitInterfaceInDefaultVRF(bs.DUT) {
 		for i := 0; i < len(bs.DUTPorts); i++ {
-			fptest.AssignToNetworkInstance(t, bs.DUT, bs.OndatraDUTPorts[i].Name(), deviations.DefaultNetworkInstance(bs.DUT), 0)
+			fptest.AssignToNetworkInstance(t, bs.DUT, bs.OndatraDUTPorts[i].Name(), bs.networkInstance, 0)
 		}
 	}
 	if deviations.ExplicitPortSpeed(bs.DUT) {
@@ -291,11 +304,13 @@ func (bs *BGPSession) PushAndStartATE(t testing.TB) {
 	otg.PushConfig(t, bs.ATETop)
 	otg.StartProtocols(t)
 
-	switch bs.aftType {
-	case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
-		otgutils.WaitForARP(t.(*testing.T), otg, bs.ATETop, "IPv4")
-	case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
-		otgutils.WaitForARP(t.(*testing.T), otg, bs.ATETop, "IPv6")
+	for _, afiType := range bs.afiTypes {
+		switch afiType {
+		case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
+			otgutils.WaitForARP(t.(*testing.T), otg, bs.ATETop, "IPv4")
+		case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
+			otgutils.WaitForARP(t.(*testing.T), otg, bs.ATETop, "IPv6")
+		}
 	}
 }
 
@@ -334,74 +349,74 @@ func VerifyOTGBGPEstablished(t *testing.T, ate *ondatra.ATEDevice) {
 
 // NeighborConfig to  hold neighbor specific config
 type NeighborConfig struct {
+	Name         string
 	IPv4Neighbor string
 	IPv6Neighbor string
 	PeerGroup    string
 	AS           uint32
 }
 
-// BuildNeigborConfig builds neighbor config based on given flags
-func BuildNeigborConfig(isSamePG, isSameAS bool, portCount int) []*NeighborConfig {
-	nc := []*NeighborConfig{
-		{
-			IPv4Neighbor: atePort1.IPv4,
-			IPv6Neighbor: atePort1.IPv6,
-			PeerGroup:    BGPPeerGroup1,
-			AS:           AteAS1,
-		},
-		{
-			IPv4Neighbor: atePort2.IPv4,
-			IPv6Neighbor: atePort2.IPv6,
-			PeerGroup:    BGPPeerGroup2,
-			AS:           AteAS2,
-		},
+// buildNeigborConfig builds neighbor config based on given flags
+func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []string) []*NeighborConfig {
+	nc1 := &NeighborConfig{
+		Name:         "port1",
+		IPv4Neighbor: atePort1.IPv4,
+		IPv6Neighbor: atePort1.IPv6,
+		PeerGroup:    BGPPeerGroup1,
+		AS:           AteAS1,
 	}
+	nc2 := &NeighborConfig{
+		Name:         "port2",
+		IPv4Neighbor: atePort2.IPv4,
+		IPv6Neighbor: atePort2.IPv6,
+		PeerGroup:    BGPPeerGroup2,
+		AS:           AteAS2,
+	}
+	nc3 := &NeighborConfig{
+		Name:         "port3",
+		IPv4Neighbor: atePort3.IPv4,
+		IPv6Neighbor: atePort3.IPv6,
+		PeerGroup:    BGPPeerGroup3,
+		AS:           AteAS3,
+	}
+	nc4 := &NeighborConfig{
+		Name:         "port4",
+		IPv4Neighbor: atePort4.IPv4,
+		IPv6Neighbor: atePort4.IPv6,
+		PeerGroup:    BGPPeerGroup4,
+		AS:           AteAS4,
+	}
+	ncAll := []*NeighborConfig{nc1, nc2, nc3, nc4}
 
-	if portCount == int(PortCount4) {
-		nc = append(
-			nc,
-			&NeighborConfig{
-				IPv4Neighbor: atePort3.IPv4,
-				IPv6Neighbor: atePort3.IPv6,
-				PeerGroup:    BGPPeerGroup3,
-				AS:           AteAS3,
-			},
-			&NeighborConfig{
-				IPv4Neighbor: atePort4.IPv4,
-				IPv6Neighbor: atePort4.IPv6,
-				PeerGroup:    BGPPeerGroup4,
-				AS:           AteAS4,
-			},
-		)
+	validNC := []*NeighborConfig{}
+	for _, nc := range ncAll[:len(bs.DUTPorts)] {
+		if containsValue(bgpPorts, nc.Name) {
+			validNC = append(validNC, nc)
+		}
 	}
 
 	if isSamePG {
-		for _, n := range nc {
-			n.PeerGroup = BGPPeerGroup1
+		for _, nc := range validNC {
+			nc.PeerGroup = BGPPeerGroup1
 		}
 	}
 	if isSameAS {
-		for _, n := range nc {
-			n.AS = AteAS1
+		for _, nc := range validNC {
+			nc.AS = AteAS1
 		}
 	}
 
-	return nc
+	return validNC
 }
 
 // BuildBGPOCConfig builds the BGP OC config applying global, neighbors and peer-group config
-func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, aftType oc.E_BgpTypes_AFI_SAFI_TYPE, neighborConfig []*NeighborConfig) *oc.NetworkInstance_Protocol_Bgp {
-	afiSafiGlobal := map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
-		aftType: {
-			AfiSafiName: aftType,
+func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, afiTypes []oc.E_BgpTypes_AFI_SAFI_TYPE, neighborConfig []*NeighborConfig) *oc.NetworkInstance_Protocol_Bgp {
+	afiSafiGlobal := map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{}
+	for _, afiType := range afiTypes {
+		afiSafiGlobal[afiType] = &oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi{
+			AfiSafiName: afiType,
 			Enabled:     ygot.Bool(true),
-		},
-	}
-	afiSafiNeighbor := map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-		aftType: {
-			AfiSafiName: aftType,
-			Enabled:     ygot.Bool(true),
-		},
+		}
 	}
 
 	global := &oc.NetworkInstance_Protocol_Bgp_Global{
@@ -414,23 +429,30 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, aft
 	peerGroups := make(map[string]*oc.NetworkInstance_Protocol_Bgp_PeerGroup)
 	var neighbor string
 	for _, nc := range neighborConfig {
-		switch aftType {
-		case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
-			neighbor = nc.IPv4Neighbor
-		case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
-			neighbor = nc.IPv6Neighbor
-		default:
-			t.Fatalf("Unsupported AFI type: %v", aftType)
-		}
+		for _, afiType := range afiTypes {
+			switch afiType {
+			case oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST:
+				neighbor = nc.IPv4Neighbor
+			case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
+				neighbor = nc.IPv6Neighbor
+			default:
+				t.Fatalf("Unsupported AFI type: %v", afiType)
+			}
 
-		neighbors[neighbor] = &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			PeerAs:          ygot.Uint32(nc.AS),
-			PeerGroup:       ygot.String(nc.PeerGroup),
-			NeighborAddress: ygot.String(neighbor),
-			AfiSafi:         afiSafiNeighbor,
-		}
+			neighbors[neighbor] = &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+				PeerAs:          ygot.Uint32(nc.AS),
+				PeerGroup:       ygot.String(nc.PeerGroup),
+				NeighborAddress: ygot.String(neighbor),
+				AfiSafi: map[oc.E_BgpTypes_AFI_SAFI_TYPE]*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
+					afiType: {
+						AfiSafiName: afiType,
+						Enabled:     ygot.Bool(true),
+					},
+				},
+			}
 
-		peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, aftType)
+			peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, afiType)
+		}
 	}
 
 	return &oc.NetworkInstance_Protocol_Bgp{
@@ -441,7 +463,7 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, aft
 }
 
 // getPeerGroup build peer-config
-func getPeerGroup(pgn string, dut *ondatra.DUTDevice, aftype oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 
@@ -454,10 +476,19 @@ func getPeerGroup(pgn string, dut *ondatra.DUTDevice, aftype oc.E_BgpTypes_AFI_S
 	}
 
 	// policy under peer group AFI
-	afisafi := pg.GetOrCreateAfiSafi(aftype)
+	afisafi := pg.GetOrCreateAfiSafi(afiType)
 	afisafi.Enabled = ygot.Bool(true)
 	rpl := afisafi.GetOrCreateApplyPolicy()
 	rpl.SetExportPolicy([]string{RPLPermitAll})
 	rpl.SetImportPolicy([]string{RPLPermitAll})
 	return pg
+}
+
+func containsValue[T comparable](slice []T, value T) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }

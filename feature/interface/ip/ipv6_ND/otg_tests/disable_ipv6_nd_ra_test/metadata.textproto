@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "43776caf-2340-4f35-ab30-8c763feaadae"
-plan_id: "RT-9"
+plan_id: "RT-5.9"
 description: "Disable IPv6 ND Router Arvetisment"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {

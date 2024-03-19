@@ -22,7 +22,6 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
     interface_enabled: true
-    skip_pbf_with_decap_encap_vrf: true
   }
 }
 platform_exceptions: {
@@ -37,3 +36,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+tags: TAGS_TRANSIT
