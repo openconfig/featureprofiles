@@ -790,9 +790,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-7.9"
-  description: "BGP Policy - Import/Export Policy Action Using Extended Communities"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/extcomm_action_test/README.md"
+  id: "RT-7.11"
+  description: "RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import-export-multi/README.md"
   exec: " "
 }
 test: {
@@ -1048,6 +1048,11 @@ test: {
   id: "TE-10"
   description: "gRIBI MPLS Forwarding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_forwarding/README.md"
+}
+test: {
+  id: "TE-16.2"
+  description: "gRIBI encapsulation FRR scenarios"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr/README.md"
 }
 test: {
   id: "TR-6.1"
@@ -1331,14 +1336,8 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-1"
-  description: "400ZR Electrical Signal to Noise Ratio(eSNR) and Chromatic Dispersion(CD) telemetry values streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_esnr_and_cd_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TRANSCEIVER-2"
-  description: "400ZR Optics Pre-FEC(Forward Error Correction) BER(Bit Error Rate)"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/ZR_pre-fec_ber_test/README.md"
+  description: "400ZR Chromatic Dispersion(CD) telemetry values streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_cd_test/README.md"
   exec: " "
 }
 test: {
@@ -1361,7 +1360,9 @@ test: {
 }
 test: {
   id: "TRANSCEIVER-6"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_db_q_value_test/README.md"
+  description: "400ZR Optics performance metrics (pm) streaming."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_pm_test/README.md"
+  exec: " "
 }
 test: {
   id: "TRANSCEIVER-8"
@@ -1397,5 +1398,11 @@ test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
+  exec: " "
+}
+test: {
+  id: "MGT-1"
+  description: "Management HA test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/management/README.md"
   exec: " "
 }
