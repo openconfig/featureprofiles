@@ -541,7 +541,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 		Down: ygot.Uint32(2000),
 	}
 
-	t.Run(fmt.Sprintf("Update hold timer configs down"), func(t *testing.T) {
+	t.Run("Update hold timer configs down"), func(t *testing.T) {
 		intfPath := gnmi.OC().Interface(dutPort1Intf.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
 	})
