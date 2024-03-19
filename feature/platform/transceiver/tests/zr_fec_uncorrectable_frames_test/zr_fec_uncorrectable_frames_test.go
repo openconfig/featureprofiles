@@ -38,8 +38,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func validateFecUncorrectableBlocks(t *testing.T, dut *ondatra.DUTDevice, stream *samplestream.SampleStream[uint64]) {
-	fecStream := stream.Next(t)
+func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64]) {
+	fecStream := stream.Next()
 	if fecStream == nil {
 		t.Fatalf("Fec Uncorrectable Blocks was not streamed in the most recent subscription interval")
 	}
@@ -79,13 +79,13 @@ func TestZrUncorrectableFrames(t *testing.T) {
 
 			streamFec := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFec.Close()
-			validateFecUncorrectableBlocks(t, dut, streamFec)
+			validateFecUncorrectableBlocks(t, streamFec)
 
 			// Toggle interface enabled
 			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(false))
 			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(true))
 
-			validateFecUncorrectableBlocks(t, dut, streamFec)
+			validateFecUncorrectableBlocks(t, streamFec)
 		})
 	}
 }
