@@ -397,7 +397,7 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix+"/"+mask)
 	}
 	aftPfx, _ := aftPfxVal.Val()
-
+	time.Sleep(30 * time.Second)
 	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
 	if got := len(aftNHG.NextHop); got != 1 {
 		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix+"/"+mask, got)
