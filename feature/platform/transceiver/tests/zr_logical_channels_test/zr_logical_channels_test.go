@@ -122,7 +122,7 @@ func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChId
 }
 
 func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
-	val := stream.Next(t) // value received in the gnmi subscription within 10 seconds
+	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Ethernet Channel telemetry stream not received in last 10 seconds")
 	}
@@ -201,7 +201,7 @@ func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx
 }
 
 func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
-	val := stream.Next(t) // value received in the gnmi subscription within 10 seconds
+	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Coherent Channel telemetry stream not received in last 10 seconds")
 	}
