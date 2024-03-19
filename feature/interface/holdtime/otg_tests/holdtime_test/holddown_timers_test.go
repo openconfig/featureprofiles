@@ -252,7 +252,7 @@ func flapOTGInterface(t *testing.T,
 		ate.OTG().SetControlState(t, portStateAction)
 
 		// TC2 Step 3
-		t.Log("Step 3 sleeping 1000ms")
+		t.Log("Step 3 sleeping 500ms")
 		time.Sleep(500 * time.Millisecond)
 	}
 
