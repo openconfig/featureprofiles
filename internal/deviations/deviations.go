@@ -840,3 +840,9 @@ func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
