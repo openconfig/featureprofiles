@@ -831,6 +831,17 @@ func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
 
+// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
+func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
+
 // IPv6StaticRouteWithIPv4NextHopRequiresStaticARP returns true if devices don't support having an
 // IPv6 static Route with an IPv4 address as next hop and requires configuring a static ARP entry.
 // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
