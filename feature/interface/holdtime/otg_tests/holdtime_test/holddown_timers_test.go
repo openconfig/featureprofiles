@@ -89,7 +89,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, aggID string) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	dutAggPorts := []*ondatra.Port{
 		dut.Port(t, "port1"),
-		// dut.Port(t, "port2"),
 	}
 	configureDUTBundle(t, dut, dutAggPorts, aggID)
 
@@ -104,7 +103,6 @@ func configureOTG(t *testing.T,
 
 	ateAggPorts := []*ondatra.Port{
 		ate.Port(t, "port1"),
-		// ate.Port(t, "port2"),
 	}
 	configureOTGBundle(t, ate, top, ateAggPorts, aggID)
 
@@ -279,10 +277,13 @@ func flapOTGInterface(t *testing.T,
 
 	// convert string type change to time.time
 	otgStateChangeTs, err := time.Parse(time.RFC3339Nano, otgStateChangeTsStr)
-	DutLastChangeTS2, err := time.Parse(time.RFC3339Nano, DutLastChangeTS2STR)
-
 	if err != nil {
-		t.Fatalf("failed to parse event timestamp: %v", err)
+		t.Fatalf("failed to parse event timestamp: %v %v", err, otgStateChangeTs)
+	}
+
+	DutLastChangeTS2, err := time.Parse(time.RFC3339Nano, DutLastChangeTS2STR)
+	if err != nil {
+		t.Fatalf("failed to parse event timestamp: %v %v", err, DutLastChangeTS2)
 	}
 
 	// Step 6. verify oper-status last change time has changed
@@ -339,7 +340,7 @@ func TestHoldTimeConfig(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	dutPort1Intf = dut.Port(t, "port1")
-	t.Run(fmt.Sprintf("ConfigureDUT Interfaces"), func(t *testing.T) {
+	t.Run("ConfigureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		aggID = netutil.NextAggregateInterface(t, dut)
 		t.Log(dutPort1Intf)
@@ -347,7 +348,7 @@ func TestHoldTimeConfig(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("Configure Hold Timers on DUT"), func(t *testing.T) {
+	t.Run("Configure Hold Timers on DUT", func(t *testing.T) {
 		// Construct the hold-time config object
 		holdTimeConfig := &oc.Interface_HoldTime{
 			Up:   ygot.Uint32(upTimer),
@@ -359,7 +360,7 @@ func TestHoldTimeConfig(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("ConfigureOTG"), func(t *testing.T) {
+	t.Run("ConfigureOTG", func(t *testing.T) {
 		t.Logf("Configure ATE")
 		configureOTG(t, ate, aggID)
 
@@ -433,7 +434,7 @@ func TestTC2LongDown(t *testing.T) {
 		verifyPortsStatus(t, dut, "UP", 45)
 	})
 
-	t.Run(fmt.Sprintf("Verify test results"), func(t *testing.T) {
+	t.Run("Verify test results", func(t *testing.T) {
 		displaySummaryTable(t, otgStateChangeTs.Format(time.RFC3339Nano), DutLastChangeTS2.Format(time.RFC3339Nano),
 			durationInMS, minDuration, maxDuration, expectedOper, actualOper, pass)
 
@@ -446,7 +447,7 @@ func TestTC3ShortUP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	t.Run(fmt.Sprintf("Start sending Ethernet Remote Fault on OTG"), func(t *testing.T) {
+	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
@@ -490,7 +491,7 @@ func TestTC4SLongUP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	t.Run(fmt.Sprintf("Start sending Ethernet Remote Fault on OTG"), func(t *testing.T) {
+	t.Run("Start sending Ethernet Remote Fault on OTG", func(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
@@ -545,7 +546,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
 	})
 
-	t.Run(fmt.Sprintf("Flap OTG Interfaces"), func(t *testing.T) {
+	t.Run("Flap OTG Interfaces", func(t *testing.T) {
 
 		t.Log("Verify Interface State before TC Start")
 		verifyPortsStatus(t, dut, "UP", 10)
@@ -561,7 +562,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("Verify Short Down Results"), func(t *testing.T) {
+	t.Run("Verify Short Down Results", func(t *testing.T) {
 
 		// Start building the log message
 		logMessage := "Interface Status Timeline\n" +
@@ -606,7 +607,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 		}
 	})
 
-	t.Run(fmt.Sprintf("Verify port status UP"), func(t *testing.T) {
+	t.Run("Verify port status UP", func(t *testing.T) {
 		t.Log("re-verify that the interface state is still up")
 		verifyPortsStatus(t, dut, "UP", 10)
 
