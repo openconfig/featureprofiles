@@ -54,7 +54,7 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 	})
 }
 func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) {
-	firmwareVersionSample := pStream.Next(t)
+	firmwareVersionSample := pStream.Next()
 	if firmwareVersionSample == nil {
 		t.Fatalf("Firmware telemetry %v was not streamed in the most recent subscription interval", firmwareVersionSample)
 	}
