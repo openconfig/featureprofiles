@@ -15,17 +15,20 @@ import (
 type Collector struct {
 	sync.WaitGroup
 	CpuLogs [][]*oc.System_Cpu
-	MemLogs []*oc.System_Memory
+	// MemLogs []*oc.System_Memory
+	MemLogs []any
 }
 
 func CollectAllData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
 	t.Helper()
 	collector := &Collector{
 		CpuLogs: make([][]*oc.System_Cpu, 0),
-		MemLogs: make([]*oc.System_Memory, 0),
+		// MemLogs: make([]*oc.System_Memory, 0),
+		MemLogs: make([]any, 0),
 	}
 	collector.Add(2)
 	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
+	// go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
 	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
 	return collector
 }
@@ -43,7 +46,7 @@ func CollectCpuData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duratio
 func CollectMemData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
 	t.Helper()
 	collector := &Collector{
-		MemLogs: make([]*oc.System_Memory, 0),
+		MemLogs: make([]any, 0),
 	}
 	collector.Add(1)
 	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
@@ -65,7 +68,9 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 			case <-ticker.C:
 				var data []*oc.System_Cpu
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					data = gnmi.GetAll[*oc.System_Cpu](t, dut, gnmi.OC().System().CpuAny().State())
+					data = gnmi.GetAll(t, dut, gnmi.OC().System().CpuAny().State())
+					// Cisco-IOS-XR-wdsysmon-fd-oper:system-monitoring/cpu-utilization
+					t.Logf("CPU Data: \n %s\n", util.PrettyPrintJson(data))
 				}); errMsg != nil {
 					t.Logf("CPU collector failed: %s", *errMsg)
 					continue
@@ -80,10 +85,11 @@ func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 	return cpuChan
 }
 
-func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan *oc.System_Memory {
+func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan any {
 	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
 	t.Helper()
-	memChan := make(chan *oc.System_Memory, 100)
+	// memChan := make(chan *oc.System_Memory, 100)
+	memChan := make(chan any, 100)
 
 	go func() {
 		ticker := time.NewTicker(freq)
@@ -93,14 +99,26 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 		for !done {
 			select {
 			case <-ticker.C:
-				var data *oc.System_Memory
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					data = gnmi.Get[*oc.System_Memory](t, dut, gnmi.OC().System().Memory().State())
+					// Cisco-IOS-XR-wd-oper:watchdog/nodes/node/memory-state
+					var data any
+					data, err := GetAllNativeModel(t, dut, "Cisco-IOS-XR-wd-oper:watchdog/nodes/node/memory-state")
+					if err != nil {
+						t.Logf("Memory collector failed: %s", err)
+					}
+					
+					// Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id
+					// nativeModelObj2, err := GetAllNativeModel(t, dut, "Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id")
+					// if err != nil {
+					// 	t.Logf("Memory collector failed: %s", err)
+					// } else {
+					// 	t.Logf("Mem Data: \n %s\n", util.PrettyPrintJson(nativeModelObj2))
+					// }
+					memChan <- data
 				}); errMsg != nil {
 					t.Logf("Memory collector failed: %s", *errMsg)
 					continue
 				}
-				memChan <- data
 			case <-timer.C:
 				done = true
 			}
@@ -120,7 +138,7 @@ func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Coll
 	}
 }
 
-func receiveMemData(t *testing.T, memChan chan *oc.System_Memory, collector *Collector) {
+func receiveMemData(t *testing.T, memChan chan any, collector *Collector) {
 	t.Helper()
 	defer collector.Done()
 	for memData := range memChan {

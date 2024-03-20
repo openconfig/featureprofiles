@@ -3,6 +3,8 @@ package performance
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -47,6 +49,7 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 				t.Logf("Raw GNMI Query failed, retrying")
 				continue
 			}
+			t.Logf("emsd restart collector")
 			jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
 			err = json.Unmarshal(jsonIetfData, &responseRawObj)
 			if err != nil {
@@ -79,4 +82,38 @@ func CreateInterfaceSetFromOCRoot(ocRoot *oc.Root, replace bool) *gnmi.SetBatch 
 		}
 	}
 	return batchRep
+}
+
+func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, error) {
+
+	split := strings.Split(str, ":")
+	origin := split[0]
+	paths := strings.Split(split[1], "/")
+	pathelems := []*gnmipb.PathElem{}
+	for _, path := range paths {
+		pathelems = append(pathelems, &gnmipb.PathElem{Name: path})
+	}
+	
+	req := &gnmipb.GetRequest{
+		Path: []*gnmipb.Path{
+			{
+				Origin: origin,
+				Elem: pathelems,
+			},
+		},
+		Type:     gnmipb.GetRequest_ALL,
+		Encoding: gnmipb.Encoding_JSON_IETF,
+	}
+	var responseRawObj any
+	restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed GNMI GET request on native model: \n%v\n", req)
+	} else {
+		jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+		err = json.Unmarshal(jsonIetfData, &responseRawObj)
+		if err != nil {
+			return nil, fmt.Errorf("Could not unmarshal native model GET json")
+		}
+	}
+	return responseRawObj, nil
 }
