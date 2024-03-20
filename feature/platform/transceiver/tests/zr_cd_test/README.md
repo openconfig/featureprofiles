@@ -5,7 +5,7 @@
 Validate 400ZR optics module reports accurate CD telemetry values.
 
 Chromatic Dispersion is frequency dependent change in signal phase velocity due
-to fiber measured in ps/nm 
+to fiber measured in ps/nm
 
 ## Procedure
 
