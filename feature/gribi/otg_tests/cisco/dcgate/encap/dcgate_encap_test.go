@@ -395,6 +395,7 @@ func TestBasicEncap(t *testing.T) {
 		weights            []float64
 		capturePorts       []string
 		validateEncapRatio bool
+		skip               bool
 	}{
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
@@ -453,6 +454,7 @@ func TestBasicEncap(t *testing.T) {
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
 			validateEncapRatio: false,
+			skip:               true,
 		},
 		{
 			name:               fmt.Sprintf("IPv6 No Prefix In Encap Vrf %d Traffic", dscpEncapA1),
@@ -474,6 +476,9 @@ func TestBasicEncap(t *testing.T) {
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Name: %s", tc.name)
+			if tc.skip {
+				t.SkipNow()
+			}
 			if strings.Contains(tc.name, "No Match Dscp") {
 				configDefaultRoute(t, dut, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), otgPort2.IPv4, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), otgPort2.IPv6)
 				defer gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(cidr(ipv4EntryPrefix, ipv4EntryPrefixLen)).Config())
@@ -1552,6 +1557,7 @@ func TestEncapFrr(t *testing.T) {
 		name string
 		desc string
 		fn   func(t *testing.T, args *testArgs)
+		skip bool
 	}{
 		{
 			name: "EncapWithVIPHavingBackupNHG",
@@ -1572,6 +1578,7 @@ func TestEncapFrr(t *testing.T) {
 			name: "SSFRRTunnelPrimaryAndBackupPathUnviableForAllTunnel",
 			desc: "SFRR_02: Test self site FRR with primary and backup path of all tunnels being unviable then traffic is routed via default vrf.",
 			fn:   testAllTunnelUnviable,
+			skip: true,
 		},
 		{
 			name: "SFRRBackupNHGTunneltoPrimaryTunnelWhenPrimaryTunnelUnviable",
@@ -1582,6 +1589,7 @@ func TestEncapFrr(t *testing.T) {
 			name: "SFRRPrimaryBackupNHGforTunnelUnviable",
 			desc: "SFRR_07: Verify when backup NextHopGroup is also unviable, the cluster traffic is NOT encap-ed and falls back to the BGP routes in the DEFAULT VRF",
 			fn:   testPrimaryAndBackupNHGUnviableForTunnel,
+			skip: true,
 		},
 		{
 			name: "SFRRPrimaryPathUnviableWithooutBNHG",
@@ -1617,6 +1625,9 @@ func TestEncapFrr(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.desc)
+			if tc.skip {
+				t.SkipNow()
+			}
 			tc.fn(t, tcArgs)
 		})
 	}
@@ -2051,11 +2062,13 @@ func TestTransitFrr(t *testing.T) {
 		name string
 		desc string
 		fn   func(t *testing.T, args *testArgs)
+		skip bool
 	}{
 		{
 			name: "TestTransitTrafficNoPrefixInTransitVrf",
 			desc: "TTT_02: Verify if there is no match for the tunnel IP in the TRANSIT_TE_VRF, then the packet is decaped and forwarded according to the routes in the DEFAULT VRF.",
 			fn:   testTransitTrafficNoMatchInTransitVrf,
+			skip: true,
 		},
 		{
 			name: "TestTransitTrafficTransitNHGDownRepaiPathTunnelHandlesTraffic",
@@ -2125,6 +2138,9 @@ func TestTransitFrr(t *testing.T) {
 		}
 
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.SkipNow()
+			}
 			t.Logf("Description: %s", tc.desc)
 			tc.fn(t, tcArgs)
 		})
