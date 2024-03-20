@@ -19,6 +19,7 @@ import (
 const (
 	targetOutputPower = -9
 	frequency         = 193100000
+	dp16QAM           = 1
 )
 
 var (
@@ -45,7 +46,6 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
@@ -79,6 +79,7 @@ func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChId
 	gnmi.BatchReplace(b, gnmi.OC().Component(opticalChannel).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 
 	// Ethernet Logical Channel
@@ -121,7 +122,7 @@ func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChId
 }
 
 func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
-	val := stream.Next(t) // value received in the gnmi subscription within 10 seconds
+	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Ethernet Channel telemetry stream not received in last 10 seconds")
 	}
@@ -200,7 +201,7 @@ func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx
 }
 
 func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
-	val := stream.Next(t) // value received in the gnmi subscription within 10 seconds
+	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Coherent Channel telemetry stream not received in last 10 seconds")
 	}

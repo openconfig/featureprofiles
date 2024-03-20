@@ -47,6 +47,8 @@ const (
 	ecmpTolerance         = uint64(2)
 	port1Tag              = "0x101"
 	port2Tag              = "0x102"
+	dummyV6               = "2001:db8::192:0:2:d"
+	dummyMAC              = "00:1A:11:00:0A:BC"
 )
 
 var (
@@ -674,13 +676,25 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 	// IPv4 address of ATE port-1
 	// Change the IPv6 next-hop of the ipv6-route-b with the next hop set to the
 	// IPv4 address of ATE port-2
-	v6Cfg := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
-		Prefix:          td.staticIPv6.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort1.IPv4),
-			"1": oc.UnionString(atePort2.IPv4),
-		},
+	var v6Cfg *cfgplugins.StaticRouteCfg
+	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
+		staticARPWithMagicUniversalIP(t, td.dut)
+		v6Cfg = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+			Prefix:          td.staticIPv6.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(dummyV6),
+			},
+		}
+	} else {
+		v6Cfg = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
+			Prefix:          td.staticIPv6.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+			},
+		}
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, v6Cfg, td.dut); err != nil {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
@@ -690,6 +704,9 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 	// Validate both the routes i.e. ipv6-route-[a|b] are configured and the IPv4
 	// next-hop is reported correctly
 	t.Run("Telemetry", func(t *testing.T) {
+		if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
+			t.Skip("Telemetry not validated due to use of deviation: IPv6StaticRouteWithIPv4NextHopRequiresStaticARP.")
+		}
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
@@ -737,6 +754,44 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 			t.Errorf("ECMP IPv6 load balance error for port2, got: %v, want: %v", got, want)
 		}
 	})
+}
+
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+	dummyIPCIDR := dummyV6 + "/128"
+	s2 := &oc.NetworkInstance_Protocol_Static{
+		Prefix: ygot.String(dummyIPCIDR),
+		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+			"0": {
+				Index: ygot.String("0"),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p1.Name()),
+				},
+			},
+			"1": {
+				Index: ygot.String("1"),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(p2.Name()),
+				},
+			},
+		},
+	}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	static, ok := gnmi.LookupConfig(t, dut, sp.Config()).Val()
+	if !ok || static == nil {
+		static = &oc.NetworkInstance_Protocol{
+			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			Name:       ygot.String(deviations.StaticProtocolName(dut)),
+			Static: map[string]*oc.NetworkInstance_Protocol_Static{
+				dummyIPCIDR: s2,
+			},
+		}
+		gnmi.Replace(t, dut, sp.Config(), static)
+	} else {
+		gnmi.Replace(t, dut, sp.Static(dummyIPCIDR).Config(), s2)
+	}
 }
 
 func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
@@ -962,9 +1017,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 	b := &gnmi.SetBatch{}
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
+	i1 := dutPort1.NewOCInterface(p1.Name(), dut)
+	i2 := dutPort2.NewOCInterface(p2.Name(), dut)
+	i3 := dutPort3.NewOCInterface(p3.Name(), dut)
+	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
+		i1.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
+		i2.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), i1)
+	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), i2)
+	gnmi.BatchReplace(b, gnmi.OC().Interface(p3.Name()).Config(), i3)
 	b.Set(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
