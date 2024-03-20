@@ -678,63 +678,23 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
-	s2 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(magicIp + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			strconv.Itoa(nh10ID): {
-				Index: ygot.String(strconv.Itoa(nh1ID)),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p2.Name()),
+	portList := []*ondatra.Port{p2, p3, p4, p5}
+	for idx, p := range portList {
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(magicIp + "/32"),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				strconv.Itoa(idx): {
+					Index: ygot.String(strconv.Itoa(idx)),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(p.Name()),
+					},
 				},
 			},
-		},
+		}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Update(t, dut, sp.Static(magicIp+"/32").Config(), s)
+		gnmi.Update(t, dut, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIp, magicMac))
 	}
-	s3 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(magicIp + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			strconv.Itoa(nh11ID): {
-				Index: ygot.String(strconv.Itoa(nh11ID)),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p3.Name()),
-				},
-			},
-		},
-	}
-	s4 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(magicIp + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			strconv.Itoa(nh100ID): {
-				Index: ygot.String(strconv.Itoa(nh100ID)),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p4.Name()),
-				},
-			},
-		},
-	}
-	s5 := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(magicIp + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			strconv.Itoa(nh101ID): {
-				Index: ygot.String(strconv.Itoa(nh101ID)),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p5.Name()),
-				},
-			},
-		},
-	}
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Update(t, dut, sp.Static(magicIp+"/32").Config(), s2)
-	sp = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Update(t, dut, sp.Static(magicIp+"/32").Config(), s3)
-	sp = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Update(t, dut, sp.Static(magicIp+"/32").Config(), s4)
-	sp = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.Update(t, dut, sp.Static(magicIp+"/32").Config(), s5)
-
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), magicIp, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), magicIp, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), magicIp, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), magicIp, magicMac))
 }
 
 // programEntries pushes RIB entries on the DUT required for Encap functionality
