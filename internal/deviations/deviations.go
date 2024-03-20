@@ -848,3 +848,8 @@ func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
 func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NextHopRequiresStaticArp()
 }
+
+// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+}
