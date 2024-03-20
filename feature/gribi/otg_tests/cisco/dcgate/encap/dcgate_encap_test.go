@@ -276,7 +276,7 @@ type pbrRule struct {
 type packetAttr struct {
 	dscp     int
 	protocol int
-	// ttl      uint32
+	ttl      uint32
 }
 
 type flowAttr struct {
@@ -286,8 +286,8 @@ type flowAttr struct {
 	dstPorts []string // destination OTG ports
 	srcMac   string   // source MAC address
 	dstMac   string   // destination MAC address
-	// dscp     uint32
-	topo gosnappi.Config
+	dscp     uint32
+	topo     gosnappi.Config
 }
 
 var (
@@ -626,6 +626,7 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 			encapVrf:  vrfEncapB,
 		},
 	}
+
 	// var defaultClassRule = []pbrRule{
 	// 	{
 	// 		sequence: 17,
@@ -653,7 +654,7 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	pbrRules = append(pbrRules, splitDefaultClassRules...)
 
 	// if deviations.PfDefaultRuleVariableSequenceUnsupported(dut) {
-	pbrRules = append(pbrRules, splitDefaultClassRules...)
+	// pbrRules = append(pbrRules, splitDefaultClassRules...)
 	// } else {
 	// 	pbrRules = append(pbrRules, defaultClassRule...)
 	// }
@@ -688,24 +689,24 @@ func configIPv4DefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4Ne
 }
 
 // configDefaultRoute configures a static route in DEFAULT network-instance.
-// func configDefaultRouteInVrf(t *testing.T, vrf string, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
-// 	t.Logf("Configuring static route in DEFAULT network-instance")
-// 	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
-// 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-// 	sr := static.GetOrCreateStatic(v4Prefix)
-// 	//nh := sr.GetOrCreateNextHop("0")
-// 	nh := sr.GetOrCreateNextHop("default")
-// 	//nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("DEFAULT")
-// 	//nh.NextHop = oc.UnionString(v4NextHop)
-// 	nh.SetNextHop(oc.UnionString("default"))
-// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-// 	sr = static.GetOrCreateStatic(v6Prefix)
-// 	//nh = sr.GetOrCreateNextHop("0")
-// 	nh = sr.GetOrCreateNextHop("default")
-// 	//nh.NextHop = oc.UnionString(v6NextHop)
-// 	nh.SetNextHop(oc.UnionString("default"))
-// 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
-// }
+func configDefaultRouteInVrf(t *testing.T, vrf string, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
+	t.Logf("Configuring static route in DEFAULT network-instance")
+	ni := oc.NetworkInstance{Name: ygot.String(vrf)}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	sr := static.GetOrCreateStatic(v4Prefix)
+	//nh := sr.GetOrCreateNextHop("0")
+	nh := sr.GetOrCreateNextHop("default")
+	//nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("DEFAULT")
+	//nh.NextHop = oc.UnionString(v4NextHop)
+	nh.SetNextHop(oc.UnionString("default"))
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	sr = static.GetOrCreateStatic(v6Prefix)
+	//nh = sr.GetOrCreateNextHop("0")
+	nh = sr.GetOrCreateNextHop("default")
+	//nh.NextHop = oc.UnionString(v6NextHop)
+	nh.SetNextHop(oc.UnionString("default"))
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+}
 
 // configureNetworkInstance creates nonDefaultVRFs
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
@@ -910,7 +911,7 @@ func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortName
 		t.Log("Enabling capture on ", port)
 		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
-	// t.Log(topo.Msg().GetCaptures())
+	//t.Log(topo.Msg().GetCaptures())
 	otg.PushConfig(t, topo)
 }
 
@@ -1530,15 +1531,14 @@ func configFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 	}
 }
 
-// // CLI to configure falback vrf
-//
-//	func unConfigFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
-//		ctx := context.Background()
-//		for _, v := range vrf {
-//			fConf := fmt.Sprintf("no vrf %v fallback-vrf default\n", v)
-//			config.TextWithGNMI(ctx, t, dut, fConf)
-//		}
-//	}
+// CLI to configure falback vrf
+func unConfigFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
+	ctx := context.Background()
+	for _, v := range vrf {
+		fConf := fmt.Sprintf("no vrf %v fallback-vrf default\n", v)
+		config.TextWithGNMI(ctx, t, dut, fConf)
+	}
+}
 func TestEncapFrr(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
