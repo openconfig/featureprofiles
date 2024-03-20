@@ -450,6 +450,8 @@ message Metadata {
     // as next hop and requires configuring a static ARP entry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
     bool ipv6_static_route_with_ipv4_next_hop_requires_static_arp = 158;
+    // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 159;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
