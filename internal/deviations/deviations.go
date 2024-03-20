@@ -841,3 +841,10 @@ func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
 func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
 }
+
+// IPv6StaticRouteWithIPv4NextHopRequiresStaticARP returns true if devices don't support having an
+// IPv6 static Route with an IPv4 address as next hop and requires configuring a static ARP entry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NextHopRequiresStaticArp()
+}
