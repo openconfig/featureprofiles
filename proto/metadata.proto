@@ -446,6 +446,10 @@ message Metadata {
     bool skip_prefix_set_mode = 156;
     // Devices set metric as preference for static next-hop
     bool set_metric_as_preference = 157;
+    // Devices don't support having an IPv6 static Route with an IPv4 address
+    // as next hop and requires configuring a static ARP entry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+    bool ipv6_static_route_with_ipv4_next_hop_requires_static_arp = 158;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
