@@ -18,6 +18,7 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
+    ipv6_static_route_with_ipv4_next_hop_requires_static_arp: true
   }
 }
 tags: TAGS_DATACENTER_EDGE
