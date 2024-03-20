@@ -36,10 +36,13 @@ func GetFlowStats(t testing.TB, otg *otg.OTG, flowName string, timeout time.Dura
 	}
 	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 
-	rxPkts, _ := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		rxPackets, ok := val.Val()
-		return ok && rxPackets == txPkts
+	rxPkts, ok := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+		rxPackets, present := val.Val()
+		return present && rxPackets == txPkts
 	}).Await(t)
+	if !ok {
+		return txPkts, 0
+	}
 	rx, _ := rxPkts.Val()
 
 	return txPkts, rx
