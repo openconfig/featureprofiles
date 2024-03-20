@@ -10,6 +10,11 @@ testbeds:
       controller_port: 40055
       gnmi_port: 50055
 
+  8808_FOX2506P2QT_MTLS: 
+    <<: *8808_FOX2506P2QT_DEFAULTS
+    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_mtls
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
+
   8808-36FH_FOX2613PHWL:
     hw: 8808-36FH_FOX2613PHWL
     owner: wdolaast
@@ -167,6 +172,14 @@ testbeds:
       host: kne2-lnx
       controller_port: 40052
       gnmi_port: 50052
+  
+  8608-FOX2543PNNM:
+    hw: 8608-FOX2543PNNM
+    owner: anidamod
+    testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
+    binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
+    baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
+
 #SIM
   8201-1DUT:
     sim: true

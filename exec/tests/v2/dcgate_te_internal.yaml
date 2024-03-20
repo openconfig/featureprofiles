@@ -5,7 +5,7 @@ owners:
 tests:
 - name: Decap 
   path: feature/gribi/cisco/dcgate
-  timeout: 1800
+  timeout: 4200
   mustpass: true
   internal: true
   branch: master

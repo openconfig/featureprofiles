@@ -645,6 +645,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         test_args += f' -collect_dut_info=false'
 
     inactivity_timeout = 1800
+    test_timeout = int(test_timeout)
     if test_timeout == 0: test_timeout = inactivity_timeout
     if test_timeout > 0: inactivity_timeout = 2*test_timeout
 

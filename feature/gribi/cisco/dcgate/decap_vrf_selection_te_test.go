@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -206,9 +205,6 @@ func testBaseDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs)
 				args.validateTrafficFlows(t, flowDecapMatch, []string{strconv.Itoa(nhUdpProtocol)}, false)
 			})
 			t.Run("No DECAP with No Match in Decap VRF", func(t *testing.T) {
-				if strings.Contains(tt.prefix, "/32") {
-					t.Skip("Traffic loadbalancing not working in this case, under triage")
-				}
 				t.Log("Generating Traffic flows")
 				dstPorts := []string{atePort2.Name, atePort3.Name, atePort4.Name}
 				flowDecapNoMatch := []*ondatra.Flow{flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecapNoMatch", "IPv4", transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts), flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecapNoMatch", "IPv6", transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts)}
