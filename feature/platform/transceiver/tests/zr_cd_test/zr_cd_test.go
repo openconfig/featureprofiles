@@ -54,7 +54,7 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, fr
 }
 
 func verifyCDValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string, status portState) float64 {
-	CDSample := pStream.Next(t)
+	CDSample := pStream.Next()
 	if CDSample == nil {
 		t.Fatalf("CD telemetry %s was not streamed in the most recent subscription interval", sensorName)
 	}
