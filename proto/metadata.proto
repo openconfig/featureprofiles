@@ -452,6 +452,15 @@ message Metadata {
     bool ipv6_static_route_with_ipv4_next_hop_requires_static_arp = 158;
     // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
     bool pf_require_sequential_order_pbr_rules = 159;
+    // Device telemetry missing next hop metric value.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+    bool missing_static_route_next_hop_metric_telemetry = 160;
+    // Device does not support recursive resolution of static route next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+    bool unsupported_static_route_next_hop_recurse = 161;
+    // Device missing telemetry for static route that has DROP next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+    bool missing_static_route_drop_next_hop_telemetry = 162;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
