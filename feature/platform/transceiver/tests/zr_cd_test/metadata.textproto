@@ -1,0 +1,16 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "6c7ec460-10be-4c71-81f5-888f76ef241b"
+plan_id: "TRANSCEIVER-1"
+description: "Telemetry: 400ZR Chromatic Dispersion(CD) telemetry values streaming"
+testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}
