@@ -1,5 +1,3 @@
-package zr_input_output_power_test
-
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +12,7 @@ package zr_input_output_power_test
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package topology_test configures just the ports on DUT and ATE,
-// assuming that DUT port i is connected to ATE i.  It detects the
-// number of ports in the testbed and can be used with the 2, 4, 12
-// port variants of the atedut testbed.
+package zr_input_output_power_test
 
 import (
 	"context"
@@ -42,9 +37,9 @@ const (
 	opticalChannelTransceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL
 	maxRebootTime                 = 900
 	maxCompWaitTime               = 600
-	samplingTime                  = 10000000000 //10 Seconds
+	samplingTime                  = 10000000000 // 10 Seconds.
 	targetOutputPower             = -9
-	interfaceFlapTimeOut          = 30 //seconds
+	interfaceFlapTimeOut          = 30 // Seconds.
 	outputFreqLowerBound          = 184500000
 	outputFreqUpperBound          = 196000000
 	rxSignalPowerLowerBound       = -14
@@ -64,12 +59,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// configureDUT removes any breakoutConfiguration if present, and configure DUT
+// Removes any breakout configuration if present, and configures the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) {
 	d := gnmi.OC()
 	port := dut.Port(t, "port1")
 
-	//remove any breakout configuration
+	// Remove any breakout configuration.
 	hardwareComponentName := gnmi.Get(t, dut, d.Interface(port.Name()).HardwarePort().State())
 	gnmi.Delete(t, dut, d.Component(hardwareComponentName).Port().BreakoutMode().Config())
 
@@ -84,7 +79,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) 
 	t.Logf("Configured port %v", port.Name())
 }
 
-// verifyValidRxInputPower verifies valid Rx Signal power
+// Verifies valid Rx Signal power.
 func verifyValidRxInputPower(t testing.TB, transceiverOpticalChanelInputPower *oc.Component_OpticalChannel_InputPower, isInterfaceDisabled bool, transceiverOpticalChannelName string, transceiverName string) {
 	t.Logf("Checking Transceiver = %v  Optical Channel Input Power Statistics", transceiverOpticalChannelName)
 	t.Logf("Optical channel = %v , Instant Input Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelInputPower.GetInstant())
@@ -124,7 +119,7 @@ func verifyValidRxInputPower(t testing.TB, transceiverOpticalChanelInputPower *o
 	}
 }
 
-// verifyValidTxOutputPower verifies valid Tx Output Power
+// Verifies valid Tx Output Power.
 func verifyValidTxOutputPower(t testing.TB, transceiverOpticalChanelOutputPower *oc.Component_OpticalChannel_OutputPower, isInterfaceDisabled bool, transceiverOpticalChannelName string, transceiverName string) {
 	t.Logf("Checking Transceiver = %v  Optical Channel Output Power Statistics", transceiverOpticalChannelName)
 	t.Logf("Optical channel = %v , Instant Output Power = %v", transceiverOpticalChannelName, transceiverOpticalChanelOutputPower.GetInstant())
@@ -164,7 +159,7 @@ func verifyValidTxOutputPower(t testing.TB, transceiverOpticalChanelOutputPower 
 	}
 }
 
-// verifyInputOutputPower verifies whether  inputPower , outputPower ,Frequency are as expected
+// Verifies whether  inputPower , outputPower ,Frequency are as expected.
 func verifyInputOutputPower(t *testing.T, tc *testData) {
 	transceiverComponentPath := gnmi.OC().Component(tc.transceiverName)
 	transceiverOpticalChannelPath := gnmi.OC().Component(tc.transceiverOpticalChannelName)
@@ -230,7 +225,7 @@ func verifyInputOutputPower(t *testing.T, tc *testData) {
 
 }
 
-// dutRebootRxInputTxOutputPowerCheck  Reboots the device and verifies Rx InputPower, TxOutputPower data while components are booting
+// Reboots the device and verifies Rx InputPower, TxOutputPower data while components are booting.
 func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
@@ -325,7 +320,7 @@ func dutRebootRxInputTxOutputPowerCheck(t *testing.T, tc *testData) {
 
 }
 
-// verifyRxInputTxOutputAfterFlap verifies Rx InputPower, TxOutputPower data is streamed correctly after interface flaps
+// Verifies Rx InputPower, TxOutputPower data is streamed correctly after interface flaps.
 func verifyRxInputTxOutputAfterFlap(t *testing.T, tc *testData) {
 
 	interfacePath := gnmi.OC().Interface(tc.interfaceName)
@@ -411,6 +406,6 @@ func TestZrInputOutputPower(t *testing.T) {
 		}
 	})
 
-	//Todo: ## TRANSCEIVER-4.4
+	// Todo: ## TRANSCEIVER-4.4 .
 
 }
