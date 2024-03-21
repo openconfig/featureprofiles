@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/testt"
 
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	certzpb "github.com/openconfig/gnsi/certz"
@@ -32,6 +34,11 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/encoding/prototext"
+)
+
+const (
+	clientIP = "1.1.1.1"
 )
 
 func TestMain(m *testing.M) {
@@ -483,14 +490,29 @@ func readCertificatesFromFile(filename string) ([]*x509.Certificate, error) {
 	return certificates, nil
 }
 
-var (
-	serverIP = flag.String("serverip", "", "Server IP address")
-	clientIP = flag.String("clientip", "1.1.1.1", "Client IP address")
-)
+func getIpAndPortFromBindingFile() (string, error) {
+	bindingFile := flag.Lookup("binding").Value.String()
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		return "", err
+	}
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(in, b); err != nil {
+		return "", err
+	}
+	target := b.Duts[0].Ssh.Target
+	targetIP := strings.Split(target, ":")[0]
+	return targetIP, nil
+}
 
 func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
+
+	serverIP, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
+	}
 
 	// Adding New SSL Profile
 
@@ -516,7 +538,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -529,7 +551,7 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -702,6 +724,11 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
 
+	serverIP, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
+	}
+
 	// Adding New SSL Profile
 	dut := ondatra.DUT(t, "dut")
 	gnsiC := dut.RawAPIs().GNSI(t)
@@ -724,7 +751,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -738,7 +765,7 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -909,6 +936,11 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
 
+	serverIP, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
+	}
+
 	// Adding New SSL Profile
 	dut := ondatra.DUT(t, "dut")
 	gnsiC := dut.RawAPIs().GNSI(t)
@@ -930,7 +962,7 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1115,6 +1147,11 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	os.Mkdir("testdataecdsa/", 0755)
 	defer os.RemoveAll("testdataecdsa/")
 
+	serverIP, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
+	}
+
 	// Adding New SSL Profile
 
 	dut := ondatra.DUT(t, "dut")
@@ -1139,7 +1176,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from RSA CA
-	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1153,7 +1190,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 
 	//Generating RSA Client Cert & Signed from CA
-	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
+	certTemp1rsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1188,7 +1225,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1207,7 +1244,7 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	var response *certzpb.RotateCertificateResponse
 
 	//Generating ECDSA Client Cert & Signed from CA
-	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
+	certTemp1ecdsa, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1480,6 +1517,11 @@ func TestHARedundancySwithOver(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
 
+	serverIP, err := getIpAndPortFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Server IP from Binding file: %v", err)
+	}
+
 	// Adding New SSL Profile
 
 	dut := ondatra.DUT(t, "dut")
@@ -1504,7 +1546,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		t.Fatalf("Could not load the generated key and cer: %v", err)
 	}
 	//Generating Server Cert & Signed from CA
-	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(*serverIP)}, "test", 100)
+	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1517,7 +1559,7 @@ func TestHARedundancySwithOver(t *testing.T) {
 		t.Fatalf("Could not generate certificates: %v", err)
 	}
 	//Generating Client Cert & Signed from CA
-	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(*clientIP)}, "test", 100)
+	certTemp1, err := cert.PopulateCertTemplate("client", []string{"client.cisco.com"}, []net.IP{net.ParseIP(clientIP)}, "test", 100)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
