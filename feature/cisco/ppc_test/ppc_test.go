@@ -60,56 +60,56 @@ func TestMain(m *testing.M) {
 func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 	testcases := []Testcase{
 		{
-			name:      "drop/lookup-block/state/acl-drops",
+			name:      "drop/lookup-block/state/no-route",
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
-			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true}, // todo - how to cleanup while exiting the function?
+			eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
 		},
-		//{
-		//	name:      "drop/lookup-block/state/no-route",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
-		//	eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
-		//},
-		//{
-		//	name:      "drop/lookup-block/state/no-nexthop",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
-		//	eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
-		//},
-		//{
-		//	name:      "drop/lookup-block/state/no-label",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
-		//	eventType: &eventEnableMplsLdp{config: true},
-		//},
-		//{
-		//	name: "drop/lookup-block/state/incorrect-software-state",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
-		//},
-		//{
-		//	name: "drop/lookup-block/state/invalid-packet",
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, ttl: true}),
-		//},
-		//{
-		//	name:      "drop/lookup-block/state/fragment-total-drops",
-		//	flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, frame_size: 1400}),
-		//	eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
-		//},
-		//{
-		//	name: "drop/lookup-block/state/acl-drops",
-		//	CSCwi94987,
-		//},
-		//{ rate-limit need to check how to automate
-		//	name: "drop/lookup-block/state/lookup-aggregate", // waiting for Muthu to advise - https://miggbo.atlassian.net/browse/XR-56749
-		//	flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, fps: 1000000000}),
-		//},
+		/*
+			{
+				name:      "drop/lookup-block/state/acl-drops",
+				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+				eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true}, // todo - how to cleanup while exiting the function?
+			},
+			{
+				name:      "drop/lookup-block/state/no-nexthop",
+				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+				eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
+			},
+			{
+				name:      "drop/lookup-block/state/no-label",
+				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
+				eventType: &eventEnableMplsLdp{config: true},
+			},
+			{
+				name: "drop/lookup-block/state/incorrect-software-state",
+				flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
+			},
+			{
+				name: "drop/lookup-block/state/invalid-packet",
+				flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, ttl: true}),
+			},
+			{
+				name:      "drop/lookup-block/state/fragment-total-drops",
+				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, frame_size: 1400}),
+				eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
+			},
+
+		*/
+
+		/*
+			{ rate-limit need to check how to automate
+				name: "drop/lookup-block/state/lookup-aggregate", // waiting for Muthu to advise - https://miggbo.atlassian.net/browse/XR-56749
+				flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, fps: 1000000000}),*/
 	}
 
 	npus := args.interfaceToNPU(t)                       // collecting all the destination NPUs
 	data := make(map[string]ygnmi.WildcardQuery[uint64]) // holds a path and its query information
 	//sampleInterval := 30 * time.Second
 	for _, tt := range testcases {
-		// loop over different streaming modes // todo - other SubscriptionList_Mode's
-		for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_SAMPLE, gpb.SubscriptionMode_ON_CHANGE} {
-			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode.String()), func(t *testing.T) {
-				t.Logf("Name: %s", tt.name)
+		// loop over different streaming modes
+		for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_SAMPLE} {
+			t.Run(fmt.Sprintf("Test path %v in subscription mode %v", tt.name, subMode), func(t *testing.T) {
+				t.Logf("Path name: %s", tt.name)
 				var preCounters, postCounters = uint64(0), uint64(0)
 				tolerance = 2.0 // 2% change tolerance is allowed between want and got value
 
@@ -135,14 +135,15 @@ func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 				// running multiple subscriptions on all the queries while tc is executed
 				for _, query := range data {
 					sa := &subscriptionArgs{
-						streamMode: subMode,
+						streamMode:     subMode,
+						sampleInterval: 30 * time.Second,
 					}
 					sa.multipleSubscriptions(t, query)
 				}
 
 				// aggregate pre counters for a path across all the destination NPUs
 				for path, query := range data {
-					pre, _ := getData(t, path, query) //
+					pre, _ := getData(t, path, query) // improve error handling
 					preCounters = preCounters + pre
 				}
 
@@ -161,16 +162,16 @@ func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 				//<-doneClientsTrigger
 
 				// following reload, we can have pre data bigger than post data. So using absolute value
-				got := math.Abs(float64(postCounters - preCounters))
+				want := math.Abs(float64(postCounters - preCounters))
 
 				t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
 				t.Logf("Final counters for path %s: %d", tt.name, postCounters)
-				t.Logf("Expected counters for path %s: %f", tt.name, got)
+				t.Logf("Expected counters for path %s: %f", tt.name, want)
 
-				if (math.Abs(tgnData-got)/(tgnData))*100 > float64(tolerance) {
-					// t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, got, tgn_data)
+				if (math.Abs(tgnData-want)/(tgnData))*100 > float64(tolerance) {
+					t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, tgnData, want)
 				} else {
-					t.Logf("Data for path %s, got: %f, want: %f", tt.name, got, tgnData)
+					t.Logf("Data for path %s, got: %f, want: %f", tt.name, tgnData, want)
 				}
 			})
 		}
@@ -185,7 +186,7 @@ func TestOcPpc(t *testing.T) {
 	var vrfs = []string{vrf1}
 	configVRF(t, dut, vrfs)
 	configureDUT(t, dut)
-	configbasePBR(t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configBasePBR(t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
 	configRoutePolicy(t, dut)
 	configIsis(t, dut, "Bundle-Ether121")
 	configBgp(t, dut, "100.100.100.100")

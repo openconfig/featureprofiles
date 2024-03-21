@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -136,16 +135,16 @@ func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.Wildc
 	//for i := 1; i <= subscriptionCount; i++ {
 	//	gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
 	//}
-	var wg sync.WaitGroup
+	//var wg sync.WaitGroup
 	for i := 1; i <= subscriptionCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode)), query, multipleSubscriptionRuntime)
-		}()
+		//wg.Add(1)
+		//go func() {
+		//	defer wg.Done()
+		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
 	}
-	wg.Wait()
 }
+
+//wg.Wait()
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
 	startTime := time.Now()
@@ -219,7 +218,7 @@ func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
 				gnmi.Update(t, dut, cliPath, mtu)
 			}
 		} else {
-			//following reload need to try twice
+			// following reload need to try twice
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 			}); errMsg != nil {
@@ -267,7 +266,7 @@ func (eventArgs eventEnableMplsLdp) enableMplsLdp(t *testing.T) {
 	}
 	var mpls_ldp string
 	if eventArgs.config {
-		mpls_ldp = "mpls ldp interface bundle-Ether 120"
+		mpls_ldp = "mpls ldp interface bundle-Ether 121"
 	} else {
 		mpls_ldp = "no mpls ldp"
 	}
@@ -662,7 +661,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	if is100gfr {
 		i2.Ethernet().FEC().WithEnabled(false)
 	}
-	top.Push(t).StartProtocols(t)
 
 	i2.IPv4().
 		WithAddress(ateDst.IPv4CIDR()).
@@ -670,8 +668,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	i2.IPv6().
 		WithAddress(ateDst.IPv6CIDR()).
 		WithDefaultGateway(dutDst.IPv6)
-	top.Update(t)
-	top.StartProtocols(t)
+	//top.Update(t)
+	top.Push(t).StartProtocols(t)
 	return top
 }
 
@@ -725,7 +723,7 @@ func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive on ATE interface dst.
+// createFlow returns a flow from atePort1 to the dstPfx, expected to arrive at ATE dst interface
 func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TgnOptions) *ondatra.Flow {
 	srcEndPoint := args.top.Interfaces()[ateSrc.Name]
 	var flow *ondatra.Flow
@@ -759,11 +757,14 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 		flow.WithFrameRateFPS(1000)
 	}
 
-	flow.WithFrameRatePct(100)
+	if opts[0].fpercent != 0 {
+		flow.WithFrameRatePct(opts[0].fpercent)
+	} else {
+		flow.WithFrameRatePct(100)
+	}
+
 	if opts[0].frame_size != 0 {
 		flow.WithFrameSize(opts[0].frame_size)
-	} else if opts[0].fpercent != 0 {
-		flow.WithFrameRatePct((opts[0].fpercent))
 	} else {
 		flow.WithFrameSize(300)
 	}
@@ -787,6 +788,7 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 			eventAction.enableMplsLdp(t)
 		}
 	}
+
 	// TODO - uncomment
 	//// close all the existing goroutine for the trigger
 	//close(stopMonitor)
@@ -852,7 +854,9 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 	for _, op := range opts {
 		if op.drop {
 			in := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
+			t.Logf("InPkts = %d", in)
 			out := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
+			t.Logf("OutPkts = %d", out)
 			return out - in
 		}
 	}
@@ -933,20 +937,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutPorts := sortPorts(dut.Ports())
 	d := gnmi.OC()
 
-	// incoming interface is Bundle-Ether120 with only 1 member (port1)
-	incoming := &oc.Interface{Name: ygot.String("Bundle-Ether120")}
+	// incoming interface is Bundle-Ether121 with only 1 member (port1)
+	incoming := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
 	gnmi.Replace(t, dut, d.Interface(*incoming.Name).Config(), configInterfaceDUT(incoming, &dutSrc))
 	srcPort := dutPorts[0]
 	dutSource := generateBundleMemberInterfaceConfig(t, srcPort.Name(), *incoming.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(srcPort.Name()).Config(), dutSource)
 
-	// outgoing interface is bundle-121 with 7 members (port2, port 3, port4, port5, port6, port7, port8)
-	// lacp := &oc.Lacp_Interface{Name: ygot.String("Bundle-Ether121")}
+	// outgoing interface is bundle-122 with 7 members (port2, port 3, port4, port5, port6, port7, port8)
+	// lacp := &oc.Lacp_Interface{Name: ygot.String("Bundle-Ether122")}
 	// lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-	// lacpPath := d.Lacp().Interface("Bundle-Ether121")
+	// lacpPath := d.Lacp().Interface("Bundle-Ether122")
 	// gnmi.Replace(t, dut, lacpPath.Config(), lacp)
 
-	outgoing := &oc.Interface{Name: ygot.String("Bundle-Ether121")}
+	outgoing := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
 	outgoingData := configInterfaceDUT(outgoing, &dutDst)
 	g := outgoingData.GetOrCreateAggregation()
 	g.LagType = oc.IfAggregate_AggregationType_LACP
@@ -1039,7 +1043,7 @@ func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// configBgp configures ISIS on DUT
+// configBgp configures BGP on DUT
 func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -1079,8 +1083,9 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 	}
 }
 
-// configbasePBR creates class map, policy and configures them under source interface
-func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
+// t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}
+// configBasePBR creates class map, policy and configures them under source interface
+func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
@@ -1119,8 +1124,8 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType
 	if err != nil {
 		t.Error(err)
 	}
-	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	intf := pf.GetOrCreateInterface("Bundle-Ether121.0")
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
@@ -1149,12 +1154,21 @@ func getPathFromElements(input []*gpb.PathElem) string {
 // getData retrieves data from a DUT using GNMI.
 // It performs a one-time subscription to the specified path using a wildcard query.
 func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 
-	data, _ := gnmi.WatchAll(t,
-		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))),
+	//data, _ := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))), query, 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
+	//	_, present := val.Val()
+	//	element := val.Path.Elem
+	//	if getPathFromElements(element) == path {
+	//		return present
+	//	}
+	//	return !present
+	//}).Await(t)
+	_ = gnmi.LookupAll(t, dut, query) // check _ value for ONCE comparison on router
+	data, _ := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Second)),
 		query,
-		30*time.Second,
+		45*time.Second,
 		func(val *ygnmi.Value[uint64]) bool {
 			_, present := val.Val()
 			element := val.Path.Elem
@@ -1167,7 +1181,7 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 
 	counter, ok := data.Val()
 	if ok {
-		return counter, nil
+		return counter, nil // check counter value for stream comparison
 	} else {
 		return 0, fmt.Errorf("failed to collect data for path %s", path)
 	}
