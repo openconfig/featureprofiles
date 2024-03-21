@@ -188,12 +188,12 @@ func verifyInputOutputPower(t *testing.T, tc *testData) {
 	transceiverOpticalOutputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State(), 10*time.Second)
 	defer transceiverOpticalOutputPowerStream.Close()
 
-	transceiverOpticalChanelOutputPower, ok := transceiverOpticalOutputPowerStream.Next(t).Val()
+	transceiverOpticalChanelOutputPower, ok := transceiverOpticalOutputPowerStream.Next().Val()
 	if !ok {
 		t.Errorf("[Error]:Trasceiver = %v Output Power not received !", tc.transceiverOpticalChannelName)
 	}
 
-	transceiverOpticalChanelInputPower, ok := opticalInputPowerStream.Next(t).Val()
+	transceiverOpticalChanelInputPower, ok := opticalInputPowerStream.Next().Val()
 	if !ok {
 		t.Errorf("[Error]:Trasceiver = %v Power not received !", tc.transceiverOpticalChannelName)
 	}
@@ -204,7 +204,7 @@ func verifyInputOutputPower(t *testing.T, tc *testData) {
 	rxTotalInputPowerSamplingTime := gnmi.Get(t, tc.dut, transceiverComponentPath.Transceiver().Channel(0).InputPower().Interval().State())
 	rxTotalInputPowerStream := samplestream.New(t, tc.dut, transceiverComponentPath.Transceiver().Channel(0).InputPower().State(), time.Nanosecond*time.Duration(rxTotalInputPowerSamplingTime))
 	defer rxTotalInputPowerStream.Close()
-	nexInputPower := rxTotalInputPowerStream.Next(t)
+	nexInputPower := rxTotalInputPowerStream.Next()
 	transceiverRxTotalInputPower, got := nexInputPower.Val()
 
 	if transceiverRxTotalInputPower == nil || got == false {
@@ -331,8 +331,8 @@ func verifyRxInputTxOutputAfterFlap(t *testing.T, tc *testData) {
 	transceiverOpticalOutputPowerStream := samplestream.New(t, tc.dut, transceiverOpticalChannelPath.OpticalChannel().OutputPower().State(), 10*time.Second)
 	defer transceiverOpticalOutputPowerStream.Close()
 
-	transceiverOpticalChanelInputPower, _ := opticalInputPowerStream.Next(t).Val()
-	transceiverOpticalChanelOutputPower, _ := transceiverOpticalOutputPowerStream.Next(t).Val()
+	transceiverOpticalChanelInputPower, _ := opticalInputPowerStream.Next().Val()
+	transceiverOpticalChanelOutputPower, _ := transceiverOpticalOutputPowerStream.Next().Val()
 
 	verifyValidRxInputPower(t, transceiverOpticalChanelInputPower, false, tc.transceiverOpticalChannelName, tc.transceiverName)
 	verifyValidTxOutputPower(t, transceiverOpticalChanelOutputPower, false, tc.transceiverOpticalChannelName, tc.transceiverName)
@@ -342,8 +342,8 @@ func verifyRxInputTxOutputAfterFlap(t *testing.T, tc *testData) {
 	gnmi.Await(t, tc.dut, interfacePath.Enabled().State(), time.Minute, *ygot.Bool(false))
 
 	t.Logf("Disabled the interface = %v", tc.interfaceName)
-	transceiverOpticalChanelInputPower, _ = opticalInputPowerStream.Nexts(t, 5)[4].Val()
-	transceiverOpticalChanelOutputPower, _ = transceiverOpticalOutputPowerStream.Nexts(t, 5)[4].Val()
+	transceiverOpticalChanelInputPower, _ = opticalInputPowerStream.Nexts(5)[4].Val()
+	transceiverOpticalChanelOutputPower, _ = transceiverOpticalOutputPowerStream.Nexts(5)[4].Val()
 	verifyValidRxInputPower(t, transceiverOpticalChanelInputPower, true, tc.transceiverOpticalChannelName, tc.transceiverName)
 	verifyValidTxOutputPower(t, transceiverOpticalChanelOutputPower, true, tc.transceiverOpticalChannelName, tc.transceiverName)
 
@@ -352,8 +352,8 @@ func verifyRxInputTxOutputAfterFlap(t *testing.T, tc *testData) {
 	gnmi.Await(t, tc.dut, interfacePath.Enabled().State(), time.Minute, *ygot.Bool(true))
 	t.Logf("Re-enabled the interface = %v", tc.interfaceName)
 
-	transceiverOpticalChanelInputPower, _ = opticalInputPowerStream.Nexts(t, 5)[4].Val()
-	transceiverOpticalChanelOutputPower, _ = transceiverOpticalOutputPowerStream.Nexts(t, 5)[4].Val()
+	transceiverOpticalChanelInputPower, _ = opticalInputPowerStream.Nexts(5)[4].Val()
+	transceiverOpticalChanelOutputPower, _ = transceiverOpticalOutputPowerStream.Nexts(5)[4].Val()
 	verifyValidRxInputPower(t, transceiverOpticalChanelInputPower, false, tc.transceiverOpticalChannelName, tc.transceiverName)
 	verifyValidTxOutputPower(t, transceiverOpticalChanelOutputPower, false, tc.transceiverOpticalChannelName, tc.transceiverName)
 
