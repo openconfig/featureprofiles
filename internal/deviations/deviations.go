@@ -853,3 +853,24 @@ func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) boo
 func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
 }
+
+// MissingStaticRouteNextHopMetricTelemetry returns true for devices missing
+// static route next-hop metric telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+func MissingStaticRouteNextHopMetricTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteNextHopMetricTelemetry()
+}
+
+// UnsupportedStaticRouteNextHopRecurse returns true for devices that don't support recursive
+// resolution of static route next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedStaticRouteNextHopRecurse()
+}
+
+// MissingStaticRouteDropNextHopTelemetry returns true for devices missing
+// static route telemetry with DROP next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
+}
