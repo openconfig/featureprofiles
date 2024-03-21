@@ -211,6 +211,9 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 
 func TestDisableRecursiveNextHopResolution(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.UnsupportedStaticRouteNextHopRecurse(dut) {
+		t.Skip("Skipping Disable Recursive Next Hop Resolution Test. Deviation UnsupportedStaticRouteNextHopRecurse enabled.")
+	}
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
@@ -252,6 +255,7 @@ func TestDisableRecursiveNextHopResolution(t *testing.T) {
 	if err := td.awaitISISAdjacency(t, dut.Port(t, "port2"), isisName); err != nil {
 		t.Fatal(err)
 	}
+
 	t.Run("RT-1.26.8: Disable Recursive Next Hop Resolution", func(t *testing.T) {
 		td.testRecursiveNextHopResolution(t)
 		td.testRecursiveNextHopResolutionDisabled(t)
@@ -270,9 +274,11 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 			"0": oc.UnionString(td.advertisedIPv4.address),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut); err != nil {
+	spV4, err := cfgplugins.NewStaticRouteCfg(b, sV4, td.dut)
+	if err != nil {
 		t.Fatal(err)
 	}
+	spV4.GetOrCreateNextHop("0").SetRecurse(true)
 	// Configure one IPv6 static route i.e. ipv6-route on the DUT for destination
 	// `ipv6-network 2001:db8:128:128::/64` with the next hop of `ipv6-loopback =
 	// 2001:db8::64:64::1/128`. Remove all other existing next hops for the route.
@@ -283,9 +289,11 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 			"0": oc.UnionString(td.advertisedIPv6.address),
 		},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut); err != nil {
+	spV6, err := cfgplugins.NewStaticRouteCfg(b, sV6, td.dut)
+	if err != nil {
 		t.Fatal(err)
 	}
+	spV6.GetOrCreateNextHop("0").SetRecurse(true)
 
 	b.Set(t, td.dut)
 
@@ -310,8 +318,8 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		// Validate that traffic is received from DUT (doesn't matter which port)
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
@@ -351,8 +359,8 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		// Validate that traffic is NOT received from DUT
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
@@ -365,7 +373,7 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 	})
 }
 
-func (td *testData) testStaticRouteECMP(t *testing.T) {
+func (td *testData) configureStaticRouteToATEP1AndP2(t *testing.T) {
 	b := &gnmi.SetBatch{}
 	// Configure IPv4 static routes:
 	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for
@@ -405,6 +413,19 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		t.Fatalf("Failed to configure IPv6 static route: %v", err)
 	}
 	b.Set(t, td.dut)
+}
+
+func (td *testData) deleteStaticRoutes(t *testing.T) {
+	b := &gnmi.SetBatch{}
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
+	gnmi.BatchDelete(b, sp.Static(td.staticIPv4.cidr(t)).Config())
+	gnmi.BatchDelete(b, sp.Static(td.staticIPv6.cidr(t)).Config())
+	b.Set(t, td.dut)
+}
+
+func (td *testData) testStaticRouteECMP(t *testing.T) {
+	td.configureStaticRouteToATEP1AndP2(t)
+	defer td.deleteStaticRoutes(t)
 
 	t.Run("Telemetry", func(t *testing.T) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
@@ -438,8 +459,8 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 		if lossV4 > lossTolerance {
@@ -494,17 +515,23 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 }
 
 func (td *testData) testStaticRouteWithMetric(t *testing.T) {
-	const port2Metric = uint32(1000)
+	td.configureStaticRouteToATEP1AndP2(t)
+	defer td.deleteStaticRoutes(t)
+
+	const port2Metric = uint32(100)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
-	// Configure metric of ipv4-route-b and ipv6-route-b to 1000
+	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
+		if deviations.MissingStaticRouteNextHopMetricTelemetry(td.dut) {
+			t.Skip("Skipping Telemetry check for Metric, since deviation MissingStaticRouteNextHopMetricTelemetry is enabled.")
+		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate that the metric is set correctly
@@ -523,8 +550,8 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 		if lossV4 > lossTolerance {
@@ -535,7 +562,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		}
 		// Validate that traffic is received from DUT on port-1 and not on port-2
 		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
-		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 10*time.Second)
+		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		port1Counter, ok := portCounters[port1Tag]
 		if !ok {
 			t.Errorf("Port1 IPv4 egress tracking counter not found: %v", portCounters)
@@ -545,7 +572,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		}
 		// Validate that traffic is received from DUT on port-1 and not on port-2
 		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
-		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
 		port1Counter, ok = portCounters[port1Tag]
 		if !ok {
 			t.Errorf("Port1 IPv6 egress tracking counter not found: %v", portCounters)
@@ -557,23 +584,44 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 }
 
 func (td *testData) testStaticRouteWithPreference(t *testing.T) {
-	const port1Preference = uint32(200)
+	td.configureStaticRouteToATEP1AndP2(t)
+	defer td.deleteStaticRoutes(t)
+
+	const port1Preference = uint32(50)
+	const port2Metric = uint32(100)
 
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-	// Configure preference of ipv4-route-a and ipv6-route-a to 200
+
+	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
-	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
-	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
+	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
+
+	// Configure preference of ipv4-route-a and ipv6-route-a to 50
+	if deviations.SetMetricAsPreference(td.dut) {
+		// Lower metric indicate more favourable path.
+		// If we use Metric instead of Preference, we would need to have a port1Metric
+		// larger than port2Metric for traffic to pass through port 2
+		port1Metric := port2Metric + port1Preference
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
+	} else {
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
+	}
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
+		if deviations.SetMetricAsPreference(td.dut) {
+			t.Skip("Skipping Preference telemetry check since deviation SetMetricAsPreference is enabled")
+		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate that the preference is set correctly
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Preference().State()), port1Preference; got != want {
+		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
 			t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
 		}
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Preference().State()), port1Preference; got != want {
+		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
 			t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
 		}
 	})
@@ -585,8 +633,8 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 		if lossV4 > lossTolerance {
@@ -597,7 +645,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		}
 		// Validate that traffic is now received from DUT on port-2 and not on port-1
 		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
-		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 10*time.Second)
+		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 20*time.Second)
 		port2Counter, ok := portCounters[port2Tag]
 		if !ok {
 			t.Errorf("Port2 IPv4 egress tracking counter not found: %v", portCounters)
@@ -607,7 +655,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		}
 		// Validate that traffic is now received from DUT on port-2 and not on port-1
 		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
-		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
 		port2Counter, ok = portCounters[port2Tag]
 		if !ok {
 			t.Errorf("Port2 IPv6 egress tracking counter not found: %v", portCounters)
@@ -620,6 +668,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 
 func (td *testData) testStaticRouteSetTag(t *testing.T) {
 	const tag = uint32(10)
+
 	b := &gnmi.SetBatch{}
 	// Configure a tag of value 10 on ipv4 and ipv6 static routes
 	v4Cfg := &cfgplugins.StaticRouteCfg{
@@ -652,6 +701,8 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 
 	b.Set(t, td.dut)
 
+	defer td.deleteStaticRoutes(t)
+
 	// Validate the tag is set
 	t.Run("Telemetry", func(t *testing.T) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
@@ -667,15 +718,15 @@ func (td *testData) testStaticRouteSetTag(t *testing.T) {
 }
 
 func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
-	b := &gnmi.SetBatch{}
-	// Remove metric of 1000 from ipv4-route-b and ipv6-route-b
+	// Remove metric of 100 from ipv4-route-b and ipv6-route-b
 	// *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
-	// Remove preference of 200 from ipv4-route-a and ipv6-route-a
+	// Remove preference of 50 from ipv4-route-a and ipv6-route-a
 	// *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
 	// Change the IPv6 next-hop of the ipv6-route-a with the next hop set to the
 	// IPv4 address of ATE port-1
 	// Change the IPv6 next-hop of the ipv6-route-b with the next hop set to the
 	// IPv4 address of ATE port-2
+	b := &gnmi.SetBatch{}
 	var v6Cfg *cfgplugins.StaticRouteCfg
 	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
 		staticARPWithMagicUniversalIP(t, td.dut)
@@ -701,6 +752,8 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 	}
 	b.Set(t, td.dut)
 
+	defer td.deleteStaticRoutes(t)
+
 	// Validate both the routes i.e. ipv6-route-[a|b] are configured and the IPv4
 	// next-hop is reported correctly
 	t.Run("Telemetry", func(t *testing.T) {
@@ -725,7 +778,7 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 
@@ -813,6 +866,8 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 	}
 	b.Set(t, td.dut)
 
+	defer td.deleteStaticRoutes(t)
+
 	// Validate both the routes i.e. ipv4-route-[a|b] are configured and the IPv6
 	// next-hop is reported correctly
 	t.Run("Telemetry", func(t *testing.T) {
@@ -834,7 +889,7 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
 
 		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
 
@@ -899,7 +954,12 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 	}
 	b.Set(t, td.dut)
 
+	defer td.deleteStaticRoutes(t)
+
 	t.Run("Telemetry", func(t *testing.T) {
+		if deviations.MissingStaticRouteDropNextHopTelemetry(td.dut) {
+			t.Skip("Skipping telemetry check for DROP next hop. Deviation MissingStaticRouteDropNextHopTelemetryenabled.")
+		}
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
@@ -923,8 +983,8 @@ func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
 		time.Sleep(trafficDuration)
 		td.ate.OTG().StopTraffic(t)
 
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 10*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 10*time.Second)
+		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
 
 		// Validate that traffic is dropped on DUT and not received on port-1 and
 		// port-2
