@@ -40,14 +40,14 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, frequency uint64, targetOutputPower float64) {
+func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, frequency uint64, targetOutputPower float64) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+	c := opticalChannelComponentFromPort(t, dut1, dp)
+	gnmi.Replace(t, dut1, gnmi.OC().Component(c).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
@@ -108,20 +108,20 @@ func TestCDValue(t *testing.T) {
 	// Derive transceiver names from ports.
 	tr1 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	component1 := gnmi.OC().Component(tr1)
+	och1 := gnmi.OC().Component(opticalChannelComponentFromPort(t, dut1, dp1))
 
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
-			interfaceConfig(t, dut1, dp1, frequency, targetOutputPower)
-			interfaceConfig(t, dut1, dp2, frequency, targetOutputPower)
+			configInterface(t, dut1, dp1, frequency, targetOutputPower)
+			configInterface(t, dut1, dp2, frequency, targetOutputPower)
 			// Wait for channels to be up.
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-			p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Instant().State(), samplingInterval)
-			p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Avg().State(), samplingInterval)
-			p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Min().State(), samplingInterval)
-			p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Max().State(), samplingInterval)
+			p1StreamInstant := samplestream.New(t, dut1, och1.OpticalChannel().ChromaticDispersion().Instant().State(), samplingInterval)
+			p1StreamAvg := samplestream.New(t, dut1, och1.OpticalChannel().ChromaticDispersion().Avg().State(), samplingInterval)
+			p1StreamMin := samplestream.New(t, dut1, och1.OpticalChannel().ChromaticDispersion().Min().State(), samplingInterval)
+			p1StreamMax := samplestream.New(t, dut1, och1.OpticalChannel().ChromaticDispersion().Max().State(), samplingInterval)
 
 			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
