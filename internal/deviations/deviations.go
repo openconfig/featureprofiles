@@ -881,3 +881,8 @@ func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
 }
+
+// SkipSetRpSetCommunityMethod return true if device needs to skip setting set-community method while configuring routing-policy statement action
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
+}

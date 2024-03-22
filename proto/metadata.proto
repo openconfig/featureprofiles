@@ -465,6 +465,8 @@ message Metadata {
     // min/max/avg.
     // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Skip setting set-community method while configuring routing-policy statement action
+    bool bgp_actions_set_community_method_unsupported = 164;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
