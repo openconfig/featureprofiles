@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package disable_ipv6_nd_ra_test
 
 import (
@@ -134,10 +133,10 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Logf("OTG configuration completed!")
 	topo.Flows().Clear().Items()
 	ate.OTG().PushConfig(t, topo)
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 	t.Logf("starting protocols... ")
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t,ate.OTG(),topo,"IPv6")
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
 }
 
