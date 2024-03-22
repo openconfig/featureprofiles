@@ -71,6 +71,8 @@ The directory tree is organized as follows:
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
 
+Directory names are not allowed to contain hyphen (-) characters.
+
 ## Allowed File Types
 
 Regular files should be plain text in either ASCII or UTF-8 encoding. Please

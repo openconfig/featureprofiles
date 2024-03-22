@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "MGT-1"
+description: "Management HA test"
+testbed: TESTBED_DUT_ATE_4LINKS
+tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
