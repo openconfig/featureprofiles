@@ -830,3 +830,47 @@ func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
 func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
 }
+
+// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
+func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
+
+// IPv6StaticRouteWithIPv4NextHopRequiresStaticARP returns true if devices don't support having an
+// IPv6 static Route with an IPv4 address as next hop and requires configuring a static ARP entry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NextHopRequiresStaticArp()
+}
+
+// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+}
+
+// MissingStaticRouteNextHopMetricTelemetry returns true for devices missing
+// static route next-hop metric telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+func MissingStaticRouteNextHopMetricTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteNextHopMetricTelemetry()
+}
+
+// UnsupportedStaticRouteNextHopRecurse returns true for devices that don't support recursive
+// resolution of static route next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedStaticRouteNextHopRecurse()
+}
+
+// MissingStaticRouteDropNextHopTelemetry returns true for devices missing
+// static route telemetry with DROP next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
+}
