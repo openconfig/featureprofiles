@@ -1167,17 +1167,29 @@ func configureDUTSubIfs(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.P
 	}
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-		gnmi.BatchReplace(batchConfig, sp.Static(magicIP+"/32").Config(), &oc.NetworkInstance_Protocol_Static{
+		p2 := dut.Port(t, "port2")
+		static := &oc.NetworkInstance_Protocol_Static{
 			Prefix: ygot.String(magicIP + "/32"),
 			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
 				"0": {
 					Index: ygot.String("0"),
 					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-						Interface: ygot.String(dut.Port(t, "port2").Name()),
+						Interface: ygot.String(p2.Name()),
 					},
 				},
 			},
-		})
+		}
+		for i := 1; i < *fpargs.DefaultVRFIPv4NHCount; i++ {
+			idx := fmt.Sprintf("%d", i)
+			static.NextHop[idx] = &oc.NetworkInstance_Protocol_Static_NextHop{
+				Index: ygot.String(idx),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface:    ygot.String(p2.Name()),
+					Subinterface: ygot.Uint32(uint32(i)),
+				},
+			}
+		}
+		gnmi.BatchReplace(batchConfig, sp.Static(magicIP+"/32").Config(), static)
 	}
 	batchConfig.Set(t, dut)
 	return nextHops
