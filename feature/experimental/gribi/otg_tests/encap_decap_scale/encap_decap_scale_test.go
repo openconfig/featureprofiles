@@ -942,7 +942,13 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 			WithMacAddress(magicMAC).
 			WithElectionID(args.electionID.Low, args.electionID.High)
 		if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
-			entry.WithIPAddress(primaryNextHopIfs[i%len(primaryNextHopIfs)].nextHopIPAddress)
+			intfName := primaryNextHopIfs[i%len(primaryNextHopIfs)].intfName
+			if uint64(primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex) > 0 {
+				intfName = fmt.Sprintf("%s.%d", intfName, primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex)
+			}
+			entry.WithInterfaceRef(intfName).WithIPAddress(primaryNextHopIfs[i%len(primaryNextHopIfs)].nextHopIPAddress)
+		} else {
+			entry.WithSubinterfaceRef(primaryNextHopIfs[i%len(primaryNextHopIfs)].intfName, uint64(primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex))
 		}
 		entries = append(entries, entry)
 		primaryNextHopIndices = append(primaryNextHopIndices, index)
