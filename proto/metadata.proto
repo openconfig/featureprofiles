@@ -461,6 +461,9 @@ message Metadata {
     // Device missing telemetry for static route that has DROP next hop.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
     bool missing_static_route_drop_next_hop_telemetry = 162;
+    // Device missing 400ZR optical-channel tunable parameters telemetry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+    bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
