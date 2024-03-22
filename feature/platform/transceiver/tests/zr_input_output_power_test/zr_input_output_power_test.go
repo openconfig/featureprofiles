@@ -61,12 +61,10 @@ func TestMain(m *testing.M) {
 
 // Removes any breakout configuration if present, and configures the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) {
-	d := gnmi.OC()
 	port := dut.Port(t, "port1")
-
 	// Remove any breakout configuration.
-	hardwareComponentName := gnmi.Get(t, dut, d.Interface(port.Name()).HardwarePort().State())
-	gnmi.Delete(t, dut, d.Component(hardwareComponentName).Port().BreakoutMode().Config())
+	hardwareComponentName := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+	gnmi.Delete(t, dut, gnmi.OC().Component(hardwareComponentName).Port().BreakoutMode().Config())
 
 	i1 := &oc.Interface{Name: ygot.String(port.Name())}
 	i1.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -74,8 +72,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) 
 		i1.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
 	}
 
-	gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), i1)
-	gnmi.Replace(t, dut, d.Component(transceiverName).Transceiver().Enabled().Config(), *ygot.Bool(true))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i1)
+	gnmi.Replace(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Enabled().Config(), *ygot.Bool(true))
 	t.Logf("Configured port %v", port.Name())
 }
 
@@ -116,6 +114,8 @@ func verifyValidRxInputPower(t testing.TB, transceiverOpticalChanelInputPower *o
 
 	} else if transceiverOpticalChanelInputPower.GetMin() < rxSignalPowerLowerBound || transceiverOpticalChanelInputPower.GetMax() > rxSignalPowerUpperBound {
 		t.Fatalf("Transciever %v RX Input power range Expected = %v to %v dbm, Got = %v to %v  ", transceiverName, rxSignalPowerLowerBound, rxSignalPowerUpperBound, transceiverOpticalChanelInputPower.GetMin(), transceiverOpticalChanelInputPower.GetMax())
+	} else if transceiverOpticalChanelInputPower.GetMin() > transceiverOpticalChanelInputPower.GetAvg() || transceiverOpticalChanelInputPower.GetAvg() > transceiverOpticalChanelInputPower.GetMax() || transceiverOpticalChanelInputPower.GetMin() > transceiverOpticalChanelInputPower.GetInstant() || transceiverOpticalChanelInputPower.GetInstant() > transceiverOpticalChanelInputPower.GetMax() {
+		t.Fatalf("Transciever %v RX Input power not following min <= avg/instant <= max. Got instant = %v ,min= %v , avg= %v , max =%v  ", transceiverName, transceiverOpticalChanelInputPower.GetInstant(), transceiverOpticalChanelInputPower.GetMin(), transceiverOpticalChanelInputPower.GetAvg(), transceiverOpticalChanelInputPower.GetMax())
 	}
 }
 
@@ -156,6 +156,8 @@ func verifyValidTxOutputPower(t testing.TB, transceiverOpticalChanelOutputPower 
 
 	} else if transceiverOpticalChanelOutputPower.GetMin() < txOutputPowerLowerBound || transceiverOpticalChanelOutputPower.GetMax() > txOutputPowerUpperBound {
 		t.Fatalf("[Error]:Transciever %v  TX Output power range Expected = %v to %v dbm, Got = %v to %v  ", transceiverName, txOutputPowerLowerBound, txOutputPowerUpperBound, transceiverOpticalChanelOutputPower.GetMin(), transceiverOpticalChanelOutputPower.GetMax())
+	} else if transceiverOpticalChanelOutputPower.GetMin() > transceiverOpticalChanelOutputPower.GetAvg() || transceiverOpticalChanelOutputPower.GetAvg() > transceiverOpticalChanelOutputPower.GetMax() || transceiverOpticalChanelOutputPower.GetMin() > transceiverOpticalChanelOutputPower.GetInstant() || transceiverOpticalChanelOutputPower.GetInstant() > transceiverOpticalChanelOutputPower.GetMax() {
+		t.Fatalf("Transciever %v TX Output power not following min <= avg/instant <= max . Got instant = %v ,min= %v , avg= %v , max =%v  ", transceiverName, transceiverOpticalChanelOutputPower.GetInstant(), transceiverOpticalChanelOutputPower.GetMin(), transceiverOpticalChanelOutputPower.GetAvg(), transceiverOpticalChanelOutputPower.GetMax())
 	}
 }
 
@@ -390,19 +392,19 @@ func TestZrInputOutputPower(t *testing.T) {
 	}
 
 	t.Run("RT-4.1: Testing Input, Output Power telemetry", func(t *testing.T) {
-		for _, testData := range testCases {
-			verifyInputOutputPower(t, &testData)
+		for _, testDataObj := range testCases {
+			verifyInputOutputPower(t, &testDataObj)
 		}
 	})
 
 	t.Run("RT-4.2: Testing Rx Input Power, Tx Output Power telemetry  during DUT reboot", func(t *testing.T) {
-		for _, testData := range testCases {
-			dutRebootRxInputTxOutputPowerCheck(t, &testData)
+		for _, testDataObj := range testCases {
+			dutRebootRxInputTxOutputPowerCheck(t, &testDataObj)
 		}
 	})
 	t.Run("RT-4.3: Interface flap Rx Input Power Tx Output Power telemetry test", func(t *testing.T) {
-		for _, testData := range testCases {
-			verifyRxInputTxOutputAfterFlap(t, &testData)
+		for _, testDataObj := range testCases {
+			verifyRxInputTxOutputAfterFlap(t, &testDataObj)
 		}
 	})
 
