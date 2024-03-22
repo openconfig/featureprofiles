@@ -141,8 +141,8 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 }
 
 func TestBGPSetup(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4)
-	bs.WithEBGP(t, oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, true, false)
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
+	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, false)
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()

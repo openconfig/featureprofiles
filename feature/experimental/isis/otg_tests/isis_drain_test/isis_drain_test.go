@@ -252,7 +252,9 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	for _, intfName := range intfs {
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
