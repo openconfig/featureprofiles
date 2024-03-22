@@ -67,7 +67,8 @@ const (
 	plenIPv6                  = 126
 	fibPassedTraffic          = "fibPassedTraffic"
 	fibFailedTraffic          = "fibFailedTraffic"
-	dstTracking               = "dstTracking"
+	dstTrackingf1             = "dstTrackingf1"
+	dstTrackingf2             = "dstTrackingf2"
 )
 
 var (
@@ -186,6 +187,12 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	v4 := flow1ipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(dstIPList[0])
+
+	flow1ipv4.EgressPacket().Add().Ethernet()
+	ipTrackingf1 := flow1ipv4.EgressPacket().Add().Ipv4()
+	ipDstTrackingf1 := ipTrackingf1.Dst().MetricTags().Add()
+	ipDstTrackingf1.SetName(dstTrackingf1).SetOffset(22).SetLength(10)
+
 	flow2ipv4 := config.Flows().Add().SetName(fibFailedTraffic)
 	flow2ipv4.Metrics().SetEnable(true)
 	flow2ipv4.TxRx().Device().
@@ -201,9 +208,9 @@ func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV
 	v4Flow2.Dst().SetValues(dstIPList[1:])
 
 	flow2ipv4.EgressPacket().Add().Ethernet()
-	ipTracking := flow2ipv4.EgressPacket().Add().Ipv4()
-	ipDstTracking := ipTracking.Dst().MetricTags().Add()
-	ipDstTracking.SetName(dstTracking).SetOffset(22).SetLength(10)
+	ipTrackingf2 := flow2ipv4.EgressPacket().Add().Ipv4()
+	ipDstTrackingf2 := ipTrackingf2.Dst().MetricTags().Add()
+	ipDstTrackingf2.SetName(dstTrackingf2).SetOffset(22).SetLength(10)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
@@ -368,7 +375,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 		for _, et := range ets {
 			tags := et.Tags
 			for _, tag := range tags {
-				if tag.GetTagName() == dstTracking && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
+				if tag.GetTagName() == dstTrackingf2 && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
 					trafficPassed = true
 					break
 				}
