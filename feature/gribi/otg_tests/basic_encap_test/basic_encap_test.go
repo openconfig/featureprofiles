@@ -873,7 +873,7 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 }
 
 func randRange(max int, count int) []uint32 {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	var result []uint32
 	for len(result) < count {
 		result = append(result, uint32(rand.Intn(max)))
