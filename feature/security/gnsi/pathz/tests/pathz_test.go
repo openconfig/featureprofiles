@@ -16,6 +16,7 @@ package pathz
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"testing"
 	"time"
@@ -59,9 +60,110 @@ const (
 	// deletePath represents a SetRequest delete.
 	deletePath setOperation = iota
 	// replacePath represents a SetRequest replace.
+	replacePath
+	// updatePath represents a SetRequest update.
 	updatePath
 	isisInstance = "B4"
 )
+
+func configwithprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, origin string, config string) {
+	jsonConfig, _ := json.Marshal(config)
+	r := &gpb.SetRequest{
+		Prefix: &gpb.Path{
+			Origin: origin,
+		},
+	}
+
+	switch op {
+	case updatePath:
+		r.Update = []*gpb.Update{
+			{
+				Path: &gpb.Path{
+					Elem: []*gpb.PathElem{
+						{Name: "hw-module"},
+						{Name: "local-mac"},
+						{Name: "address"},
+					},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_JsonIetfVal{
+						JsonIetfVal: jsonConfig,
+					},
+				},
+			},
+		}
+
+	case replacePath:
+		r.Replace = []*gpb.Update{
+			{
+				Path: &gpb.Path{
+					Elem: []*gpb.PathElem{
+						{Name: "hw-module"},
+						{Name: "local-mac"},
+						{Name: "address"},
+					},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_JsonIetfVal{
+						JsonIetfVal: jsonConfig,
+					},
+				},
+			},
+		}
+
+	case deletePath:
+		r.Delete = []*gpb.Path{
+			{
+				Elem: []*gpb.PathElem{
+					{Name: "hw-module"},
+					{Name: "local-mac"},
+					{Name: "address"},
+				},
+			},
+		}
+	}
+
+	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), r)
+	t.Logf("Rec Err %v", err)
+	if err == nil {
+		t.Error("This gNMI SET Operation should have failed: ", err)
+
+	}
+}
+
+func configwithoutprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, config string) {
+	json_config, _ := json.Marshal(config)
+	path := &gpb.Path{Origin: "Cisco-IOS-XR-um-hostname-cfg", Elem: []*gpb.PathElem{
+		{Name: "hostname"},
+		{Name: "system-network-name"}}}
+	val := &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}}
+	r := &gpb.SetRequest{}
+
+	switch op {
+	case updatePath:
+		r = &gpb.SetRequest{
+			Update: []*gpb.Update{{Path: path, Val: val}},
+		}
+
+	case replacePath:
+		r = &gpb.SetRequest{
+			Replace: []*gpb.Update{{Path: path, Val: val}},
+		}
+
+	case deletePath:
+		r = &gpb.SetRequest{
+			Delete: []*gpb.Path{path},
+		}
+
+	}
+
+	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), r)
+	t.Logf("Rec Err %v", err)
+	if err == nil {
+		t.Error("This gNMI SET Operation should have failed : ", err)
+
+	}
+}
 
 func getsandboxresponse(t *testing.T, want *pathzpb.GetResponse) {
 	client := start(t)
@@ -7514,6 +7616,183 @@ func TestAuthzPathz_2(t *testing.T) {
 	} else {
 		t.Errorf("This gNMI Update should have failed after process restart")
 	}
+}
+
+func TestCiscoNative(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	createdtime := uint64(time.Now().UnixMicro())
+
+	// Declare probeBeforeFinalize
+	probeBeforeFinalize := false
+
+	// Start gRPC client
+	client := start(t)
+
+	rc, err := client.Rotate(context.Background())
+	if err == nil {
+		// Define rotate request
+		req := &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+				UploadRequest: &pathzpb.UploadRequest{
+					Version:   "1",
+					CreatedOn: createdtime,
+					Policy: &pathzpb.AuthorizationPolicy{
+						Rules: []*pathzpb.AuthorizationRule{{
+							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						}},
+					},
+				},
+			},
+		}
+		mustSendAndRecv(t, rc, req)
+		if !probeBeforeFinalize {
+			mustFinalize(t, rc)
+		}
+	}
+
+	get_res := &pathzpb.GetResponse{
+		Version:   "1",
+		CreatedOn: createdtime,
+		Policy: &pathzpb.AuthorizationPolicy{
+			Rules: []*pathzpb.AuthorizationRule{{
+				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Mode:      pathzpb.Mode_MODE_WRITE,
+				Action:    pathzpb.Action_ACTION_PERMIT,
+			}},
+		},
+	}
+
+	// Perform GET operations for sandbox policy instance
+	getReq_Sand := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+	}
+
+	sand_res, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform GET operations for active policy instance
+	getReq_Actv := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+	}
+
+	actv_res, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform gNMI operations
+	performOperations(t, dut)
+
+	path := gnmi.OC().Lldp().Enabled()
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed ")
+	}
+
+	// gNMI.SET Operation using XR Model
+	stationMAC := "00:ba:ba:ba:ba:ba"
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	hostname := "XR-Native"
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
+
+	// Reload router
+	pathz.ReloadRouter(t, dut)
+
+	// Perform GET operations for sandbox policy instance after router reload
+	client = start(t)
+	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after router reload
+	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Verify gNMI Operations after Router Reload.
+	performOperations(t, dut)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got_after_reload)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after reouter reload")
+	}
+
+	// gNMI.SET Operation using XR Model after router reload.
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
+
+	// Perform eMSD process restart
+	t.Logf("Restarting emsd at %s", time.Now())
+	perf.RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+
+	// Perform GET operations for sandbox policy instance after process restart
+	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after process restart
+	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Verify gNMI Operations after process restart.
+	performOperations(t, dut)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got_after_reload)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after process restart ")
+	}
+
+	// gNMI.SET Operation using XR Model after process restart.
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
 }
 
 func mustSendAndRecv(t testing.TB, rc pathzpb.Pathz_RotateClient, req *pathzpb.RotateRequest) {
