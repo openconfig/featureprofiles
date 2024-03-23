@@ -16,7 +16,6 @@ package pathz
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"testing"
 	"time"
@@ -60,110 +59,9 @@ const (
 	// deletePath represents a SetRequest delete.
 	deletePath setOperation = iota
 	// replacePath represents a SetRequest replace.
-	replacePath
-	// updatePath represents a SetRequest update.
 	updatePath
 	isisInstance = "B4"
 )
-
-func configwithprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, origin string, config string) {
-	jsonConfig, _ := json.Marshal(config)
-	r := &gpb.SetRequest{
-		Prefix: &gpb.Path{
-			Origin: origin,
-		},
-	}
-
-	switch op {
-	case updatePath:
-		r.Update = []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{Name: "hw-module"},
-						{Name: "local-mac"},
-						{Name: "address"},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: jsonConfig,
-					},
-				},
-			},
-		}
-
-	case replacePath:
-		r.Replace = []*gpb.Update{
-			{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{Name: "hw-module"},
-						{Name: "local-mac"},
-						{Name: "address"},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: jsonConfig,
-					},
-				},
-			},
-		}
-
-	case deletePath:
-		r.Delete = []*gpb.Path{
-			{
-				Elem: []*gpb.PathElem{
-					{Name: "hw-module"},
-					{Name: "local-mac"},
-					{Name: "address"},
-				},
-			},
-		}
-	}
-
-	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), r)
-	t.Logf("Rec Err %v", err)
-	if err == nil {
-		t.Error("This gNMI SET Operation should have failed: ", err)
-
-	}
-}
-
-func configwithoutprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, config string) {
-	json_config, _ := json.Marshal(config)
-	path := &gpb.Path{Origin: "Cisco-IOS-XR-um-hostname-cfg", Elem: []*gpb.PathElem{
-		{Name: "hostname"},
-		{Name: "system-network-name"}}}
-	val := &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: json_config}}
-	r := &gpb.SetRequest{}
-
-	switch op {
-	case updatePath:
-		r = &gpb.SetRequest{
-			Update: []*gpb.Update{{Path: path, Val: val}},
-		}
-
-	case replacePath:
-		r = &gpb.SetRequest{
-			Replace: []*gpb.Update{{Path: path, Val: val}},
-		}
-
-	case deletePath:
-		r = &gpb.SetRequest{
-			Delete: []*gpb.Path{path},
-		}
-
-	}
-
-	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), r)
-	t.Logf("Rec Err %v", err)
-	if err == nil {
-		t.Error("This gNMI SET Operation should have failed : ", err)
-
-	}
-}
 
 func getsandboxresponse(t *testing.T, want *pathzpb.GetResponse) {
 	client := start(t)
