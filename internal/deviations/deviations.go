@@ -874,3 +874,9 @@ func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
 func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
 }
+
+// Device missing 400ZR optical-channel tunable parameters telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
+}
