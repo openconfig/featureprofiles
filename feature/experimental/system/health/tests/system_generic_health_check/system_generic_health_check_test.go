@@ -157,6 +157,10 @@ func TestComponentStatus(t *testing.T) {
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
+			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
+			if compMtyPresent && compMtyVal {
+				t.Skipf("INFO: Skip status check as %s is empty", component)
+			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
 			if !present {
 				t.Errorf("ERROR: Get component %s oper-status failed", component)
