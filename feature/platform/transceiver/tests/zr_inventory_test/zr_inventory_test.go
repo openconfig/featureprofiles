@@ -17,7 +17,7 @@ import (
 const (
 	dp16QAM          = 1
 	samplingInterval = 10 * time.Second
-	timeout          = 10 * time.Minute
+	timeout          = 5 * time.Minute
 	waitInterval     = 30 * time.Second
 )
 
@@ -43,26 +43,30 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, fr
 	})
 }
 
-func verifyAllInventoryValues(t *testing.T, dut1 *ondatra.DUTDevice, pStreamsStr []*samplestream.SampleStream[string], pStreamsUnion []*samplestream.SampleStream[oc.Component_Type_Union]) {
+func verifyAllInventoryValues(t *testing.T, pStreamsStr []*samplestream.SampleStream[string], pStreamsUnion []*samplestream.SampleStream[oc.Component_Type_Union]) {
 	for _, stream := range pStreamsStr {
 		inventoryStr := stream.Next()
 		if inventoryStr == nil {
-			t.Fatalf("Inventory telemetry %s was not streamed in the most recent subscription interval", inventoryStr)
+			t.Fatalf("Inventory telemetry %v was not streamed in the most recent subscription interval", stream)
 		}
 		inventoryVal, ok := inventoryStr.Val()
 		if !ok {
-			t.Fatalf("Inventory telemetry %q is not present or valid, expected <string>", inventoryVal)
+			t.Fatalf("Inventory telemetry %q is not present or valid, expected <string>", inventoryStr)
+		} else {
+			t.Logf("Inventory telemetry %q is valid: %q", inventoryStr, inventoryVal)
 		}
 	}
 
 	for _, stream := range pStreamsUnion {
 		inventoryUnion := stream.Next()
 		if inventoryUnion == nil {
-			t.Fatalf("Inventory telemetry %v was not streamed in the most recent subscription interval", inventoryUnion)
+			t.Fatalf("Inventory telemetry %v was not streamed in the most recent subscription interval", stream)
 		}
 		inventoryVal, ok := inventoryUnion.Val()
 		if !ok {
-			t.Fatalf("Inventory telemetry %q is not present or valid, expected <union>", inventoryVal)
+			t.Fatalf("Inventory telemetry %q is not present or valid, expected <union>", inventoryUnion)
+		} else {
+			t.Logf("Inventory telemetry %q is valid: %q", inventoryUnion, inventoryVal)
 		}
 
 	}
@@ -94,15 +98,15 @@ func TestInventory(t *testing.T) {
 	p1StreamsStr = append(p1StreamsStr,
 		samplestream.New(t, dut1, component1.SerialNo().State(), samplingInterval),
 		samplestream.New(t, dut1, component1.PartNo().State(), samplingInterval),
-		samplestream.New(t, dut1, component1.Description().State(), samplingInterval),
 		samplestream.New(t, dut1, component1.MfgName().State(), samplingInterval),
 		samplestream.New(t, dut1, component1.MfgDate().State(), samplingInterval),
 		samplestream.New(t, dut1, component1.HardwareVersion().State(), samplingInterval),
 		samplestream.New(t, dut1, component1.FirmwareVersion().State(), samplingInterval),
+		samplestream.New(t, dut1, component1.Description().State(), samplingInterval),
 	)
 	p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut1, component1.Type().State(), samplingInterval))
 
-	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
+	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 	// Disable or shut down the interface on the DUT.
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
@@ -111,17 +115,19 @@ func TestInventory(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 
-	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
+	t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
+	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 	time.Sleep(waitInterval)
 	// Re-enable interfaces.
-	gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), true)
 	// Wait for channels to be up.
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-	verifyAllInventoryValues(t, dut1, p1StreamsStr, p1StreamsUnion)
+	t.Logf("Interfaces are up: %v, %v", dp1.Name(), dp2.Name())
+	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 }
 
 func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
