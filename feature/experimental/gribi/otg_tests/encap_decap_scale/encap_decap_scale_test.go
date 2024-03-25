@@ -938,12 +938,11 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 		entry := fluent.NextHopEntry().
 			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(index).
-			WithSubinterfaceRef(primaryNextHopIfs[i%len(primaryNextHopIfs)].intfName, uint64(primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex)).
 			WithMacAddress(magicMAC).
 			WithElectionID(args.electionID.Low, args.electionID.High)
 		if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
 			intfName := primaryNextHopIfs[i%len(primaryNextHopIfs)].intfName
-			if uint64(primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex) > 0 {
+			if primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex > 0 {
 				intfName = fmt.Sprintf("%s.%d", intfName, primaryNextHopIfs[i%len(primaryNextHopIfs)].subintfIndex)
 			}
 			entry.WithInterfaceRef(intfName).WithIPAddress(primaryNextHopIfs[i%len(primaryNextHopIfs)].nextHopIPAddress)
@@ -965,7 +964,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 		if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
 			entry.WithIPAddress(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].nextHopIPAddress)
 			intfName := decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].intfName
-			if uint64(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex) > 0 {
+			if decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex > 0 {
 				intfName += fmt.Sprintf(".%d", decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex)
 			}
 			entry.WithInterfaceRef(intfName)
