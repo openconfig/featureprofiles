@@ -446,9 +446,6 @@ message Metadata {
     bool skip_prefix_set_mode = 156;
     // Devices set metric as preference for static next-hop
     bool set_metric_as_preference = 157;
-    // Devices which do not support next statement in OC Config.
-    // Juniper : b/328280827
-    bool policy_result_type_next_statement_unsupported = 158;
     // Devices don't support having an IPv6 static Route with an IPv4 address
     // as next hop and requires configuring a static ARP entry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
@@ -467,6 +464,9 @@ message Metadata {
     // Device missing 400ZR optical-channel tunable parameters telemetry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Devices which do not support next statement in OC Config.
+    // Juniper : b/328280827
+    bool policy_result_type_next_statement_unsupported = 164;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
