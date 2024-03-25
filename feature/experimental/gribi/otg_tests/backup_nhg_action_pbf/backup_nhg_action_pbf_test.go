@@ -226,11 +226,6 @@ func TestBackupNHGAction(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
-	// Configure ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	ate.OTG().PushConfig(t, top)
-
 	// Configure DUT
 	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUT(t, dut)
@@ -259,7 +254,13 @@ func TestBackupNHGAction(t *testing.T) {
 
 	addStaticRoute(t, dut)
 
+	// Configure ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
 
 	test := []struct {
 		name string
@@ -521,9 +522,12 @@ func updateFlows(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
 	for _, flow := range flows {
 		top.Flows().Append(flow)
 	}
-	ate.OTG().PushConfig(t, top)
 
+	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 

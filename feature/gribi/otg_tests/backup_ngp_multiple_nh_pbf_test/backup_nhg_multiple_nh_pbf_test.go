@@ -227,14 +227,16 @@ func TestBackup(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
+	// configure DUT
+	configureDUT(t, dut)
+
 	// Configure ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
-
-	// configure DUT
-	configureDUT(t, dut)
+	time.Sleep(30 * time.Second)
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
@@ -394,7 +396,9 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 
 	// StartProtocols required for running on hardware
 	a.ate.OTG().PushConfig(t, a.top)
+	time.Sleep(30 * time.Second)
 	a.ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, a.ate.OTG(), a.top, "IPv4")
 	return name
 }
