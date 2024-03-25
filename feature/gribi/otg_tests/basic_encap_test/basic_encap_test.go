@@ -18,6 +18,7 @@ package basic_encap_test
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -75,6 +77,7 @@ const (
 	dscpEncapB1        = 20
 	dscpEncapB2        = 28
 	dscpEncapNoMatch   = 30
+	magicIp            = "192.168.1.1"
 	magicMac           = "02:00:00:00:00:01"
 	tunnelDstIP1       = "203.0.113.1"
 	tunnelDstIP2       = "203.0.113.2"
@@ -628,7 +631,6 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 
 	for _, pRule := range getPbrRules(dut, clusterFacing) {
 		r := p.GetOrCreateRule(pRule.sequence)
-		l2 := r.GetOrCreateL2()
 		r4 := r.GetOrCreateIpv4()
 
 		if pRule.dscpSet != nil {
@@ -653,12 +655,8 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 			ra.DecapFallbackNetworkInstance = ygot.String(pRule.decapVrfSet[2])
 		}
 
-		if pRule.etherType != nil {
-			l2.SetEthertype(pRule.etherType)
-		}
 		if pRule.encapVrf != "" {
 			r.GetOrCreateAction().SetNetworkInstance(pRule.encapVrf)
-
 		}
 	}
 	return pf
@@ -674,6 +672,33 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 }
 
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	sb := &gnmi.SetBatch{}
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+	p5 := dut.Port(t, "port5")
+	portList := []*ondatra.Port{p2, p3, p4, p5}
+	for idx, p := range portList {
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(magicIp + "/32"),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				strconv.Itoa(idx): {
+					Index: ygot.String(strconv.Itoa(idx)),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(p.Name()),
+					},
+				},
+			},
+		}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.BatchUpdate(sb, sp.Static(magicIp+"/32").Config(), s)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIp, magicMac))
+	}
+	sb.Set(t, dut)
+}
+
 // programEntries pushes RIB entries on the DUT required for Encap functionality
 func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 	// push RIB entries
@@ -682,28 +707,55 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 		c.AddNH(t, nh11ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort3DummyIP.IPv4, Mac: magicMac})
 		c.AddNH(t, nh100ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort4DummyIP.IPv4, Mac: magicMac})
 		c.AddNH(t, nh101ID, "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort5DummyIP.IPv4, Mac: magicMac})
-
+		c.AddNHG(t, nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	} else if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		p2 := dut.Port(t, "port2")
+		p3 := dut.Port(t, "port3")
+		p4 := dut.Port(t, "port4")
+		p5 := dut.Port(t, "port5")
+		nh1, op1 := gribi.NHEntry(nh10ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p2.Name(), Mac: magicMac, Dest: magicIp})
+		nh2, op2 := gribi.NHEntry(nh11ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p3.Name(), Mac: magicMac, Dest: magicIp})
+		nh3, op3 := gribi.NHEntry(nh100ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p4.Name(), Mac: magicMac, Dest: magicIp})
+		nh4, op4 := gribi.NHEntry(nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut),
+			fluent.InstalledInFIB, &gribi.NHOptions{Interface: p5.Name(), Mac: magicMac, Dest: magicIp})
+		nhg1, op5 := gribi.NHGEntry(nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3},
+			deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		nhg2, op6 := gribi.NHGEntry(nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3},
+			deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		c.AddEntries(t, []fluent.GRIBIEntry{nh1, nh2, nh3, nh4, nhg1, nhg2},
+			[]*client.OpResult{op1, op2, op3, op4, op5, op6})
 	} else {
 		c.AddNH(t, nh10ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
 		c.AddNH(t, nh11ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port3").Name(), Mac: magicMac})
 		c.AddNH(t, nh100ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port4").Name(), Mac: magicMac})
 		c.AddNH(t, nh101ID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
+		c.AddNHG(t, nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	}
-	c.AddNHG(t, nhg2ID, map[uint64]uint64{nh10ID: 1, nh11ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(vipIP1, 32), nhg2ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	c.AddNHG(t, nhg3ID, map[uint64]uint64{nh100ID: 2, nh101ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(vipIP2, 32), nhg3ID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	c.AddNH(t, nh1ID, vipIP1, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	c.AddNH(t, nh2ID, vipIP2, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	c.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1, nh2ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nh5, op7 := gribi.NHEntry(nh1ID, vipIP1, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nh6, op8 := gribi.NHEntry(nh2ID, vipIP2, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nhg3, op9 := gribi.NHGEntry(nhg1ID, map[uint64]uint64{nh1ID: 1, nh2ID: 3},
+		deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddEntries(t, []fluent.GRIBIEntry{nh5, nh6, nhg3}, []*client.OpResult{op7, op8, op9})
+
 	c.AddIPv4(t, cidr(tunnelDstIP1, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(tunnelDstIP2, 32), nhg1ID, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	c.AddNH(t, nh201ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
-	c.AddNH(t, nh202ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
-	c.AddNHG(t, nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	nh7, op9 := gribi.NHEntry(nh201ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB,
+		&gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
+	nh8, op10 := gribi.NHEntry(nh202ID, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB,
+		&gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP2, VrfName: vrfTransit})
+	nhg4, op11 := gribi.NHGEntry(nhg10ID, map[uint64]uint64{nh201ID: 1, nh202ID: 3},
+		deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	c.AddEntries(t, []fluent.GRIBIEntry{nh7, nh8, nhg4}, []*client.OpResult{op9, op10, op11})
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), nhg10ID, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	c.AddIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), nhg10ID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
@@ -717,13 +769,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
+	portList := []*ondatra.Port{p1, p2, p3, p4, p5}
 
 	// configure interfaces
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
+		p := portList[idx]
+		intf := a.NewOCInterface(p.Name(), dut)
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			e := intf.GetOrCreateEthernet()
+			e.AutoNegotiate = ygot.Bool(false)
+			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		}
+		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
+	}
 
 	// configure base PBF policies and network-instances
 	configureBaseconfig(t, dut)
@@ -732,6 +791,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	applyForwardingPolicy(t, dut, p1.Name())
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		staticARPWithSecondaryIP(t, dut)
+	} else if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		staticARPWithMagicUniversalIP(t, dut)
 	}
 }
 
@@ -768,6 +829,21 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
 
+	pmd100GFRPorts := []string{}
+	for _, p := range topo.Ports().Items() {
+		port := ate.Port(t, p.Name())
+		if port.PMD() == ondatra.PMD100GBASEFR {
+			pmd100GFRPorts = append(pmd100GFRPorts, port.ID())
+		}
+	}
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	if len(pmd100GFRPorts) > 0 {
+		l1Settings := topo.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
+	}
+
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
 	t.Logf("starting protocols...")
@@ -796,6 +872,15 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 	otg.PushConfig(t, topo)
 }
 
+func randRange(max int, count int) []uint32 {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	for len(result) < count {
+		result = append(result, uint32(rand.Intn(max)))
+	}
+	return result
+}
+
 // getFlow returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp value passed in args.
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
@@ -812,8 +897,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v4.TimeToLive().SetValue(ttl)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(50001).SetCount(1000)
-		udp.DstPort().Increment().SetStart(50001).SetCount(1000)
+		udp.SrcPort().SetValues(randRange(50001, 10000))
+		udp.DstPort().SetValues(randRange(50001, 10000))
 
 		// add inner ipv4 headers
 		if flowType == "ipv4in4" {
@@ -835,8 +920,8 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v6.HopLimit().SetValue(ttl)
 		v6.TrafficClass().SetValue(dscp << 2)
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(50001).SetCount(1000)
-		udp.DstPort().Increment().SetStart(50001).SetCount(1000)
+		udp.SrcPort().SetValues(randRange(50001, 10000))
+		udp.DstPort().SetValues(randRange(50001, 10000))
 	}
 
 	return flow
