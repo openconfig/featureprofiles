@@ -115,13 +115,9 @@ func TestCollectDebugFiles(t *testing.T) {
 		)
 	}
 
-	if *splitPerDut && len(targets.targetInfo) < 2 {
-		*splitPerDut = false
-	}
-
 	for dutID, targetInfo := range targets.targetInfo {
 		fileNamePrefix := ""
-		if !*splitPerDut {
+		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID
 		}
 
