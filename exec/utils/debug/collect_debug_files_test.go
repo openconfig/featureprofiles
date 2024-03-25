@@ -118,7 +118,7 @@ func TestCollectDebugFiles(t *testing.T) {
 	for dutID, targetInfo := range targets.targetInfo {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
-			fileNamePrefix = dutID
+			fileNamePrefix = dutID + "_"
 		}
 
 		if *collectTech {
@@ -264,5 +264,5 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 
 // getTechFileName return the techDirecory + / + replacing " " with _
 func getTechFileName(tech string, prefix string) string {
-	return filepath.Join(techDirectory, prefix+"_"+strings.ReplaceAll(tech, " ", "_"))
+	return filepath.Join(techDirectory, prefix+strings.ReplaceAll(tech, " ", "_"))
 }
