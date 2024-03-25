@@ -709,8 +709,8 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             out_dir = os.path.join(test_log_directory_path, "debug_files"),
             timestamp=start_timestamp,
             core_check=core_check_only,
-            collect_tech=core_check_only,
-            run_cmds=core_check_only,
+            collect_tech=not core_check_only,
+            run_cmds=not core_check_only,
             split_files_per_dut=True
         )).get('core_files', [])
         
