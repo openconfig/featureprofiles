@@ -464,6 +464,9 @@ message Metadata {
     // Device missing 400ZR optical-channel tunable parameters telemetry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 164;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
