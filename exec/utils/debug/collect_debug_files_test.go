@@ -24,12 +24,14 @@ const (
 )
 
 var (
-	outDirFlag    = flag.String("outDir", "", "Directory where debug files should be copied")
-	timestampFlag = flag.String("timestamp", "1", "Test start timestamp")
-	coreFilesFlag = flag.Bool("core", false, "Check for core files that get generated")
-	outDir        string
-	timestamp     string
-	coreFlag      bool
+	outDir      = flag.String("outDir", "", "Directory where debug files should be copied")
+	timestamp   = flag.String("timestamp", "1", "Test start timestamp")
+	coreCheck   = flag.Bool("coreCheck", false, "Check for core file")
+	collectTech = flag.Bool("collectTech", false, "Collect show tech")
+	runCmds     = flag.Bool("runCmds", false, "Run commands")
+	splitPerDut = flag.Bool("splitPerDut", false, "Create a folder for each dut")
+	showTechs   = flag.String("showtechs", "", "Comma-separated list of show techs")
+	cmds        = flag.String("cmds", "", "Comma-separated list of commands")
 )
 
 type targetInfo struct {
@@ -45,7 +47,7 @@ type Targets struct {
 }
 
 var (
-	showTechSupport = []string{
+	showTechList = []string{
 		"cef", "cef platform", "ofa", "insight", "rib", "fabric",
 		"service-layer", "grpc", "spi", "hw-ac", "bundles", "cfgmgr",
 		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
@@ -54,16 +56,16 @@ var (
 		"install",
 	}
 
-	pipedCmds = []string{
-		"show grpc trace all",
-		"show telemetry model-driven trace all",
-		"show cef global gribi aft internal location all",
+	pipedCmdList = []string{
+		// "show grpc trace all",
+		// "show telemetry model-driven trace all",
+		// "show cef global gribi aft internal location all",
+		// "show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
 		"show running-config",
 		"show context location all",
-		"show logging",
 		"show processes blocked location all",
 		"show redundancy",
 		"show reboot history detail",
@@ -90,32 +92,50 @@ func TestMain(m *testing.M) {
 
 func TestCollectDebugFiles(t *testing.T) {
 	targets := NewTargets(t)
-	if *outDirFlag == "" {
-		t.Fatalf("outDirFlag was not set")
-	} else {
-		outDir = *outDirFlag
-		timestamp = *timestampFlag
+	if *outDir == "" {
+		t.Fatalf("outDir was not set")
 	}
-	coreFlag = *coreFilesFlag
+
+	if *showTechs != "" {
+		showTechList = strings.Split(*showTechs, ",")
+	}
+
+	if *cmds != "" {
+		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
+	}
 
 	commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
-		"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @" + timestamp + " -exec cp \"{}\" /" + techDirectory + "/  \\\\;",
 	}
-	t.Logf("core file flag is set to [%v]", coreFlag)
-	if coreFlag == false {
-		t.Log("Adding commands to be send to get logs")
-		for _, t := range showTechSupport {
-			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t)))
+
+	if *coreCheck {
+		commands = append(commands,
+			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
+		)
+	}
+
+	if *splitPerDut && len(targets.targetInfo) < 2 {
+		*splitPerDut = false
+	}
+
+	for dutID, targetInfo := range targets.targetInfo {
+		fileNamePrefix := ""
+		if !*splitPerDut {
+			fileNamePrefix = dutID
 		}
 
-		for _, t := range pipedCmds {
-			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t)))
+		if *collectTech {
+			for _, t := range showTechList {
+				commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t, fileNamePrefix)))
+			}
 		}
-		t.Logf("All commands to be executed: [%v]", commands)
-	}
-	for dutID, targetInfo := range targets.targetInfo {
+
+		if *runCmds {
+			for _, t := range pipedCmdList {
+				commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t, fileNamePrefix)))
+			}
+		}
 
 		ctx := context.Background()
 		dut := ondatra.DUT(t, dutID)
@@ -152,7 +172,13 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}
 	defer scpClient.Close()
 
-	dutOutDir := filepath.Join(outDir, d.dut)
+	var dutOutDir string
+	if *splitPerDut {
+		dutOutDir = filepath.Join(*outDir, d.dut)
+	} else {
+		dutOutDir = *outDir
+	}
+
 	if err := os.MkdirAll(dutOutDir, os.ModePerm); err != nil {
 		t.Errorf("Error creating output directory: %v", err)
 		return
@@ -241,6 +267,6 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 }
 
 // getTechFileName return the techDirecory + / + replacing " " with _
-func getTechFileName(tech string) string {
-	return techDirectory + "/" + strings.ReplaceAll(tech, " ", "_")
+func getTechFileName(tech string, prefix string) string {
+	return filepath.Join(techDirectory, prefix+"_"+strings.ReplaceAll(tech, " ", "_"))
 }
