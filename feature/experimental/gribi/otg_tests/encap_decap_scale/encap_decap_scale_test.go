@@ -960,11 +960,17 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 		entry := fluent.NextHopEntry().
 			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithIndex(index).
-			WithSubinterfaceRef(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].intfName, uint64(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex)).
 			WithMacAddress(magicMAC).
 			WithElectionID(args.electionID.Low, args.electionID.High)
 		if deviations.GRIBIMACOverrideStaticARPStaticRoute(args.dut) {
 			entry.WithIPAddress(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].nextHopIPAddress)
+			intfName := decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].intfName
+			if uint64(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex) > 0 {
+				intfName += fmt.Sprintf(".%d", decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex)
+			}
+			entry.WithInterfaceRef(intfName)
+		} else {
+			entry.WithSubinterfaceRef(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].intfName, uint64(decapEncapNextHopIfs[i%len(decapEncapNextHopIfs)].subintfIndex))
 		}
 		entries = append(entries, entry)
 		decapEncapNextHopIndices = append(decapEncapNextHopIndices, index)
