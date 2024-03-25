@@ -196,6 +196,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	})
 }
 func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64) {
+	dut := ondatra.DUT(t, "dut")
 	var ocs []*oc.Component_OpticalChannel
 	for _, s := range streams {
 		val := s.Next()
@@ -207,6 +208,10 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			t.Fatal("Optical channel streaming telemetry empty")
 		}
 		ocs = append(ocs, v.GetOpticalChannel())
+	}
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut) {
+		t.Log("Skipping Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
+		return
 	}
 	for _, oc := range ocs {
 		opm := oc.GetOperationalMode()
