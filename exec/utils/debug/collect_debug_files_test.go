@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	techDirectory  = "harddisk:/firex_tech"
+	techDirectory  = "harddisk:/showtech"
 	scpCopyTimeout = 300 * time.Second
 )
 
@@ -115,16 +115,16 @@ func TestCollectDebugFiles(t *testing.T) {
 		)
 	}
 
+	if *collectTech {
+		for _, t := range showTechList {
+			commands = append(commands, fmt.Sprintf("show tech-support %s", t))
+		}
+	}
+
 	for dutID, targetInfo := range targets.targetInfo {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
-		}
-
-		if *collectTech {
-			for _, t := range showTechList {
-				commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, getTechFileName(t, fileNamePrefix)))
-			}
 		}
 
 		if *runCmds {
