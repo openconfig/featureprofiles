@@ -21,19 +21,19 @@ for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
 		- .status must equal LOGIN:
-			- .authen.type must equal the authentication method used.
-			- .authen.status must equal ERROR, and cause should be populated.
-			- .authen.cause should be populated with reason(s) for the failure.
-		- .user.identity must match the username sent to authenticate to the DUT
-		- .user.privilege_level should be omitted.
+			- .authn.type must equal the authentication method used.
+			- .authn.status must equal ERROR, and cause should be populated.
+			- .authn.cause should be populated with reason(s) for the failure.
+		- .user.identity must match the username sent to authenticate to the DUT.
+		- .user.role should be omitted.
+		- .user.ssh_principal should be populated, if applicable.
 	- timestamp is after (greater than) RecordRequest.timestamp
 	- session_info.service_request.serivce_type must equal the service used.
 	- cmd_service or grpc_service: 
 		- .service_type must equal the service used
 		- all other fields should be omitted.
-	- for authorization:
-		- all other fields should be omitted.
 	- task_ids might be populate with platform-specific information
+	- component_name is populated with the record origin component name
 
 
 ## Config Parameter

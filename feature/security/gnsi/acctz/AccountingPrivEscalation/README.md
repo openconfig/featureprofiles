@@ -20,19 +20,23 @@ Test Accounting for changing current privilege level, if supported.
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
 		- .status must equal ENABLE:
-			- .authen.type must equal the authentication method used.
-			- .authen.status must equal FAIL, and cause should be populated.
-			- .authen.cause should be populated with reason(s) for the failure.
-		- .user.identity must match the username sent to authenticate to the DUT
-		- .user.privilege_level must be populated with the new privilege level
+			- .authn.type must equal the authentication method used.
+			- .authn.status must equal FAIL, and cause should be populated.
+			- .authn.cause should be populated with reason(s) for the failure.
+		- .user.identity must match the username sent to authenticate to the DUT.
+		- .user.role must be populated with the new privilege level
+		- .user.ssh_principal should be populated, if applicable.
 	- timestamp is after (greater than) RecordRequest.timestamp
 	- session_info.service_request.serivce_type must equal the service used.
 	- cmd_service. or grpc_service: 
 		- .service_type must equal the service used
 		- all other fields should be omitted.
-	- for authorization:
-		- all other fields should be omitted.
+		- .authz should report status
+			- .status must equal to the expected and actual authorization status for the command
+			- if .status is PERMIT, .detail  might be populated with additional information
+			- if .status is DENY or ERROR, .detail should be populated with the reason
 	- task_ids might be populate with platform-specific information
+	- component_name is populated with the record origin component name
 
 ## Config Parameter
 ### Prefix:

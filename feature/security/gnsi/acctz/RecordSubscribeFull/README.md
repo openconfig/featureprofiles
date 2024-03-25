@@ -18,11 +18,12 @@ Test RecordSubscribe for all (since epoch) records
 			- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 			- .channel_id = 0 for ssh and grpc.
 			- .tty must be populated and correct, if applicable to the platform & access method, else omitted
-			- .status must equal the operation, else UNSPECIFIED if there isn't a corresponding enumeration.  It must equal ONCE for connections where each RPC/command is authenticated (eg: gRPC metadata authen). If the operation was not LOGIN, ONCE, or ENABLE, authen must be omitted, else it must be populated:
-				- .authen.type must equal the authentication method used.
-				- .authen.status must equal the status of the authentication operation.  if FAIL or ERROR, cause should be populated, if SUCCESS, cause might be populated.
-			- .user.identity must match the username used to authenticate to the DUT
-			- .user.privilege_level must match the user’s privilege level, if applicable to the platform
+			- .status must equal the operation, else UNSPECIFIED if there isn't a corresponding enumeration.  It must equal ONCE for connections where each RPC/command is authenticated (eg: gRPC metadata authen). If the operation was not LOGIN, ONCE, or ENABLE, authn must be omitted, else it must be populated:
+				- .authn.type must equal the authentication method used.
+				- .authn.status must equal the status of the authentication operation.  if FAIL or ERROR, cause should be populated, if SUCCESS, cause might be populated.
+			- .user.identity must match the username used to authenticate to the DUT.
+			- .user.role must match the user's privilege level, if applicable to the platform
+			- .user.ssh_principal should be populated, if applicable.
 		- timestamp is after (greater than) RecordRequest.timestamp
 		- session_info.service_request must be a GrpcService.
 		- grpc_service. : 
@@ -30,12 +31,12 @@ Test RecordSubscribe for all (since epoch) records
 			- .rpc_name must equal the path of the RPC call made
 			- .payloads must equal the payload of the RPC sent.
 			- If any of the payloads is truncated, payload_istruncated must be true, else false.
-		- for authorization:
-			- .status must equal to the expected and actual authorization status for the RPC
-			- if .status is PERMIT, .detail  might be populated with additional information
-			- if .status is DENY or ERROR, .detail should be populated with the reason
- 
-- task_ids might be populate with platform-specific information
+			- .authz must report the status
+				- .status must equal to the expected and actual authorization status for the RPC
+				- if .status is PERMIT, .detail might be populated with additional information
+				- if .status is DENY or ERROR, .detail should be populated with the reason
+		- task_ids might be populated with platform-specific information
+		- component_name is populated with the record origin component name
 
 ## Config Parameter
 ### Prefix:

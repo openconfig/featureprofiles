@@ -18,11 +18,12 @@ Test Accounting for non-gRPC records
 		- .{layer4_proto, local_address, local_port, remote_address, remote_port}, ip_proto must match those recorded earlier
 		- channel_id = 0 for ssh and grpc.
 		- .tty must be populated and correct, if applicable to the platform & access method, else omitted
-		- .status must equal the operation, else UNSPECIFIED if there is no corresponding enumeration.  It must equal ONCE for connections where each command/RPC is authenticated (eg: HTTP metadata authen).  If the operation was not LOGIN, ONCE, or ENABLE, authen must be omitted, else it must be populated:
-			- .authen.type must equal the authentication method used.
-			- .authen.status must equal the status of the authentication operation.  if FAIL or ERROR, cause should be populated, if SUCCESS, cause might be populated.
-		- .user.identity must match the username used to authenticate to the DUT
-		- .user.privilege_level must match the user's privilege level, if applicable to the platform
+		- .status must equal the operation, else UNSPECIFIED if there is no corresponding enumeration.  It must equal ONCE for connections where each command/RPC is authenticated (eg: HTTP metadata authen).  If the operation was not LOGIN, ONCE, or ENABLE, authn must be omitted, else it must be populated:
+			- .authn.type must equal the authentication method used.
+			- .authn.status must equal the status of the authentication operation.  if FAIL or ERROR, cause should be populated, if SUCCESS, cause might be populated.
+		- .user.identity must match the username used to authenticate to the DUT.
+		- .user.role must match the user's privilege level, if applicable to the platform
+		- .user.ssh_principal should be populated, if applicable.
 	- timestamp is after (greater than) RecordRequest.timestamp
 	- session_info.service_request must be a CmdService.
 	- cmd_service. : 
@@ -30,14 +31,15 @@ Test Accounting for non-gRPC records
 		- .cmd must equal the full name of the command sent, expanded by the DUT, if abbreviated
 		- .cmd_args must equal the arguments to the command.  Abbreviated arguments that are not user-freeform, must be expanded by the DUT.
 		- If any of the .cmd or .cmd_args are truncated, {cmd,cmd_args}_istruncated must be true, else false.
-	- for authorization:
-		- .status must equal the expected and true authorization status for the command/RPC
-		- if .status is PERMIT, .detail  might be populated with additional information
-		- if .status is DENY or ERROR, .detail should be populated with the reason
+		- .authz must report the status
+			- .status must equal the expected and true authorization status for the command/RPC
+			- if .status is PERMIT, .detail  might be populated with additional information
+			- if .status is DENY or ERROR, .detail should be populated with the reason
 		- command_service.status must equal the status of the command/RPC operation, SUCCESS or FAILURE
 			- If SUCCESS, task_ids should be populated with task IDs
 			- If FAILURE, failure_cause must be populated with a failure message
 	- task_ids might be populated with platform-specific information
+	- component_name is populated with the record origin component name
 - If applicable to the service type, and session_info.stats != ONCE, ensure records for each connection are bracketed by LOGIN/LOGOUT records.
 
 
