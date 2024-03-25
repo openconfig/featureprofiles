@@ -107,8 +107,6 @@ func TestCDValue(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut1)
 
 	// Derive transceiver names from ports.
-	tr1 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	tr2 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
 	och1 := gnmi.OC().Component(opticalChannelComponentFromPort(t, dut1, dp1))
 
 	for _, frequency := range frequencies {
@@ -138,8 +136,8 @@ func TestCDValue(t *testing.T) {
 			time.Sleep(flapInterval)
 
 			// Re-enable interfaces.
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), true)
 			// Wait for channels to be up.
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
