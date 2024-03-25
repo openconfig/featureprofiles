@@ -24,8 +24,8 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 
-	perf "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
@@ -269,6 +269,7 @@ func isPermissionDeniedError(t *testing.T, dut *ondatra.DUTDevice, oper string) 
 		})
 	}
 }
+
 func performOperations(t *testing.T, dut *ondatra.DUTDevice) {
 	config := gnmi.OC().System().Hostname()
 
@@ -621,7 +622,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -641,25 +642,24 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 	// Perform gNMI operations after process restart
 	performOperations(t, dut)
 
-	//Reload router
-	pathz.ReloadRouter(t, dut)
+	// Perform RP Switchover
+	utils.Dorpfo(context.Background(), t, true)
 
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+	// Perform GET operations for sandbox policy instance after RP Switchover.
+	sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 	}
-	t.Logf("GET Sandbox Response after Router Reload: %v", sand_res_after_router_reload)
+	t.Logf("GET Sandbox Response after RP Switchover: %v", sand_res_after_RP_Switchover)
 
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_router_reload, _ := client.Get(context.Background(), getReq_Actv)
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+	// Perform GET operations for active policy instance after after_RP_Switchover
+	actv_res_after_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Actv)
+	if d := cmp.Diff(get_res, actv_res_after_after_RP_Switchover, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after after_RP_Switchover: %s", d)
 	}
-	t.Logf("GET Active Response after Router Reload: %v", actv_res_after_router_reload)
+	t.Logf("GET Active Response after after_RP_Switchover: %v", sand_res_after_RP_Switchover)
 
-	// Perform gNMI operations after Router Reload.
+	// Perform gNMI operations after after RP Switchover
 	performOperations(t, dut)
 }
 
@@ -725,7 +725,7 @@ func TestInvalidWithFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	got, err = client.Get(context.Background(), getReq)
@@ -830,7 +830,7 @@ func TestInvalidXpathFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Pathz GET after process restart
@@ -846,8 +846,8 @@ func TestInvalidXpathFinalize(t *testing.T) {
 
 	// Perfrom gNMI Operations after process restart.
 	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
 }
+
 func TestProbeReqWithFinalize(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -962,7 +962,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -1602,7 +1602,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -3120,7 +3120,6 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
 }
 
 func TestConflictBwGroupAndUser_2(t *testing.T) {
@@ -3322,7 +3321,6 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
 }
 
 func TestConflictBwGroupAndUser_3(t *testing.T) {
@@ -3524,7 +3522,6 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
 }
 
 func TestConflictBwGroupAndUser_4(t *testing.T) {
@@ -3726,7 +3723,6 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
 }
 
 func TestConflictBwGroupAndUser_5(t *testing.T) {
@@ -3987,7 +3983,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -4029,7 +4025,6 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update after router reload
 	configISIS(t, dut)
-
 }
 
 func TestGnmiOriginCli(t *testing.T) {
@@ -4088,7 +4083,7 @@ func TestGnmiOriginCli(t *testing.T) {
 
 	sand_res, _ := client.Get(context.Background(), getReq_Sand)
 	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
 	}
 
 	// Perform GET operations for active policy instance
@@ -4101,7 +4096,7 @@ func TestGnmiOriginCli(t *testing.T) {
 		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 	}
 	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
 	}
 
 	// Perform gNMI operations
@@ -4122,7 +4117,7 @@ func TestGnmiOriginCli(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -4439,8 +4434,8 @@ func TestConflictBwUsers_1(t *testing.T) {
 
 	// Configure ISIS using gNMI.Update
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
 }
+
 func TestConflictBwUsers_2(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	createdtime := uint64(time.Now().UnixMicro())
@@ -4603,7 +4598,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5372,7 +5367,7 @@ func TestConflictBwGroups(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5660,7 +5655,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5740,7 +5735,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5973,7 +5968,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6130,7 +6125,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6385,7 +6380,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after router reload.
@@ -6465,7 +6460,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6544,7 +6539,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6880,7 +6875,7 @@ func TestPathz_txt_bak_4(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6910,712 +6905,6 @@ func TestPathz_txt_bak_4(t *testing.T) {
 
 	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
 	gnmi.Update(t, dut, path.Config(), true)
-}
-
-func TestAuthzPathz_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
-
-	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
-	newpolicy, ok := policyMap["policy-gNMI-set"]
-	if !ok {
-		t.Fatal("policy-gNMI-set is not loaded from policy json file")
-	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
-	// Rotate the policy.
-	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_PERMIT,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AuthzPathz")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Perform eMSD process restart.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Authz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting Authz backup policy.
-	sand_res_after_del_Authzbkup, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzbkup, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting Authz backup policy.
-	actv_res_after_del_Authzbkup, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzbkup, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations deleting Authz Backup file.
-	isPermissionDeniedError(t, dut, "AfterAuthzBackupDelete")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_del_Authzbkup := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzbkup == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting Authz backup policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting Authz backup policy")
-	}
-
-	// Perform eMSD process restart after deleting Authz Backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Authz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.json")
-
-	// Perform GET operations for active policy instance after deleting authz policy.
-	sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting Authz policy.
-	isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
-
-	// Get and store the result in portNum after router reload.
-	portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting authz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting authz policy")
-	}
-
-	//Reload router after deleting Authz Policy & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_reload_after_del_authz, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_reload_after_del_authz, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_reload_after_del_authz, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_reload_after_del_authz, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after router reload.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after router reload.
-	portNum_reload_after_del_authz := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_reload_after_del_authz == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after router reload
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-}
-
-func TestAuthzPathz_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
-
-	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
-	newpolicy, ok := policyMap["policy-gNMI-set"]
-	if !ok {
-		t.Fatal("policy-gNMI-set is not loaded from policy json file")
-	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
-	// Rotate the policy.
-	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AuthzPathz")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete Authz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.json")
-
-	// Perform GET operations for active policy instance after deleting authz policy.
-	sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting Authz policy.
-	isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
-
-	// Get and store the result in portNum after deleting authz policy.
-	portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting authz policy")
-	}
-
-	// Perform eMSD process restart after deleting Authz Backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	//Reload router after deleting pathz policy & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_reload_after_del_pathz, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_reload_after_del_pathz, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_reload_after_del_pathz, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_reload_after_del_pathz, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after router reload.
-	isPermissionDeniedError(t, dut, "AfterRouterReload")
-
-	// Get and store the result in portNum after router reload.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after router reload
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	t.Logf("GOT Response: %v", actv_res_after_emsd_restart)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum deleting after process restart.
-	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
 }
 
 func TestCiscoNative(t *testing.T) {
@@ -7755,7 +7044,8 @@ func TestCiscoNative(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	// pathz.KillEmsdProcess(t, dut)
+	pathz.KillEmsdProcess(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -7795,6 +7085,341 @@ func TestCiscoNative(t *testing.T) {
 	configwithoutprefix(t, dut, deletePath, hostname)
 }
 
+func TestAuthzPathz_1(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	createdtime := uint64(time.Now().UnixMicro())
+
+	policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
+
+	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
+	newpolicy, ok := policyMap["policy-gNMI-set"]
+	if !ok {
+		t.Fatal("policy-gNMI-set is not loaded from policy json file")
+	}
+	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+	// Rotate the policy.
+	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
+
+	// Define probe request
+	probeReq := &pathzpb.ProbeRequest{
+		Mode:           pathzpb.Mode_MODE_WRITE,
+		User:           "cafyauto",
+		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+	}
+
+	// Define expected response
+	want := &pathzpb.ProbeResponse{
+		Version: "1",
+		Action:  pathzpb.Action_ACTION_PERMIT,
+	}
+
+	// Declare probeBeforeFinalize
+	probeBeforeFinalize := false
+
+	// Start gRPC client
+	client := start(t)
+
+	// Perform Rotate request
+	rc, err := client.Rotate(context.Background())
+	if err == nil {
+		// Define rotate request
+		req := &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+				UploadRequest: &pathzpb.UploadRequest{
+					Version:   "1",
+					CreatedOn: createdtime,
+					Policy: &pathzpb.AuthorizationPolicy{
+						Rules: []*pathzpb.AuthorizationRule{{
+							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						}},
+					},
+				},
+			},
+		}
+		mustSendAndRecv(t, rc, req)
+		if !probeBeforeFinalize {
+			mustFinalize(t, rc)
+		}
+	}
+
+	// Perform Probe request
+	t.Logf("Probe Request : %v", probeReq)
+	got, err := client.Probe(context.Background(), probeReq)
+	t.Logf("Probe Response : %v", got)
+
+	if err != nil {
+		t.Fatalf("Probe() unexpected error: %v", err)
+	}
+
+	// Check for differences between expected and actual responses
+	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+		t.Fatalf("Probe() unexpected diff: %s", d)
+	}
+
+	get_res := &pathzpb.GetResponse{
+		Version:   "1",
+		CreatedOn: createdtime,
+		Policy: &pathzpb.AuthorizationPolicy{
+			Rules: []*pathzpb.AuthorizationRule{{
+				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Mode:      pathzpb.Mode_MODE_WRITE,
+				Action:    pathzpb.Action_ACTION_PERMIT,
+			}},
+		},
+	}
+
+	// Perform GET operations for sandbox policy instance
+	getReq_Sand := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+	}
+
+	sand_res, _ := client.Get(context.Background(), getReq_Sand)
+	t.Logf("Response : %v", sand_res)
+	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform GET operations for active policy instance
+	getReq_Actv := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+	}
+
+	actv_res, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform gNMI operations
+	isPermissionDeniedError(t, dut, "AuthzPathz")
+
+	// Get and store the result in portNum
+	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+	if portNum == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number: %v", portNum)
+	}
+
+	path := gnmi.OC().Lldp().Enabled()
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed ")
+	}
+
+	// Perform eMSD process restart.
+	t.Logf("Restarting emsd at %s", time.Now())
+	pathz.KillEmsdProcess(t, dut)
+
+	// Perform GET operations for sandbox policy instance after process restart
+	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after process restart
+	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Verify gNMI SET Operations after process restart.
+	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
+
+	// Get and store the result in portNum deleting Authz Backup file.
+	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+	}
+
+	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after process restart")
+	}
+
+	// Delete Authz backup policy file and verify the behaviour
+	pathz.DeletePolicyData(t, dut, "authz_policy.bak")
+
+	// Perform GET operations for sandbox policy instance after deleting Authz backup policy.
+	sand_res_after_del_Authzbkup, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_del_Authzbkup, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after deleting Authz backup policy.
+	actv_res_after_del_Authzbkup, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_del_Authzbkup, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
+	}
+
+	// Verify gNMI SET Operations deleting Authz Backup file.
+	isPermissionDeniedError(t, dut, "AfterAuthzBackupDelete")
+
+	// Get and store the result in portNum deleting Authz Backup file.
+	portNum_after_del_Authzbkup := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_del_Authzbkup == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number after deleting Authz backup policy: %v", portNum)
+	}
+
+	// Verify gNMI SET Operation for different xpath deleting Authz Backup file
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after deleting Authz backup policy")
+	}
+
+	// Perform eMSD process restart after deleting Authz Backup file.
+	t.Logf("Restarting emsd at %s", time.Now())
+	pathz.KillEmsdProcess(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+
+	// Perform GET operations for sandbox policy instance after process restart.
+	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+	t.Logf("Got sandbox policy instance %s", sand_res_after_emsd_restart)
+	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Logf("Pathz sandbox policy instance diff %s", d)
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after process restart.
+	actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Verify gNMI SET Operations after process restart.
+	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
+
+	// Get and store the result in portNum after process restart.
+	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+	}
+
+	// Verify gNMI SET Operation for different xpath after process restart.
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after process restart")
+	}
+
+	// Delete Authz policy file and verify the behaviour
+	pathz.DeletePolicyData(t, dut, "authz_policy.json")
+
+	// Perform GET operations for active policy instance after deleting authz policy.
+	sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+	}
+
+	actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+	}
+
+	// Verify gNMI SET Operations after deleting Authz policy.
+	isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
+
+	// Get and store the result in portNum after router reload.
+	portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
+	}
+
+	// Verify gNMI SET Operation for different xpath after deleting authz policy.
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after deleting authz policy")
+	}
+
+	//Reload router after deleting Authz Policy & verify the behaviour.
+	pathz.ReloadRouter(t, dut)
+
+	// Perform GET operations for sandbox policy instance after router reload.
+	client = start(t)
+	sand_res_reload_after_del_authz, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_reload_after_del_authz, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after router reload.
+	actv_res_reload_after_del_authz, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_reload_after_del_authz, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Verify gNMI SET Operations after router reload.
+	performOperations(t, dut)
+
+	// Get and store the result in portNum after router reload.
+	portNum_reload_after_del_authz := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_reload_after_del_authz == uint16(0) || portNum > uint16(0) {
+		t.Logf("Got the expected port number")
+	} else {
+		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+	}
+
+	// Verify gNMI SET Operation for different xpath after router reload
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after router reload")
+	}
+}
+
 func mustSendAndRecv(t testing.TB, rc pathzpb.Pathz_RotateClient, req *pathzpb.RotateRequest) {
 	t.Helper()
 	t.Logf("Rotate Req : %v", req)
@@ -7811,6 +7436,7 @@ func mustFinalize(t testing.TB, rc pathzpb.Pathz_RotateClient) {
 	t.Helper()
 	mustSendAndRecv(t, rc, &pathzpb.RotateRequest{RotateRequest: &pathzpb.RotateRequest_FinalizeRotation{}})
 }
+
 func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
 	t.Helper()
 	if svc == introspect.GNOI || svc == introspect.GNSI {

@@ -57,6 +57,47 @@ func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 	t.Logf("delete pathz policy file  %v, %s", resp, file)
 }
 
+// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
+			return proc
+		}
+	}
+	return nil
+}
+
+func KillEmsdProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	// Trigger Section
+	pName := "emsd"
+	ctx := context.Background()
+	proc := findProcessByName(ctx, t, dut, pName)
+	pid := uint32(proc.GetPid())
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	killResponse, err := gnoiClient.System().KillProcess(context.Background(), &spb.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: spb.KillProcessRequest_SIGNAL_TERM})
+	t.Logf("Got kill process response: %v\n\n", killResponse)
+	if err != nil {
+		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+	}
+	time.Sleep(30 * time.Second)
+	newProc := findProcessByName(ctx, t, dut, pName)
+	if newProc == nil {
+		t.Logf("Retry to get the process emsd info after restart")
+		time.Sleep(30 * time.Second)
+		if newProc = findProcessByName(ctx, t, dut, "emsd"); newProc == nil {
+			t.Fatalf("Failed to start process emsd after failure")
+		}
+	}
+	if newProc.GetPid() == proc.GetPid() {
+		t.Fatalf("The process id of %s is expected to be changed after the restart", pName)
+	}
+	if newProc.GetStartTime() <= proc.GetStartTime() {
+		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
+	}
+}
+
 // Reload router
 func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient := dut.RawAPIs().GNOI(t)
