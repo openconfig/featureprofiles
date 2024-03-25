@@ -123,9 +123,9 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		if *collectTech {
 			for _, t := range showTechList {
-				fname := getTechFileName(t, fileNamePrefix)
+				fname := getTechFilePath(t, fileNamePrefix)
 				if t == "sanitizer" {
-					fname = "showtech-sanitizer-" + dutID
+					fname = filepath.Join(techDirectory, "showtech-sanitizer-"+dutID)
 				}
 				commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, fname))
 			}
@@ -133,7 +133,7 @@ func TestCollectDebugFiles(t *testing.T) {
 
 		if *runCmds {
 			for _, t := range pipedCmdList {
-				commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFileName(t, fileNamePrefix)))
+				commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFilePath(t, fileNamePrefix)))
 			}
 		}
 
@@ -266,7 +266,7 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 	return nil
 }
 
-// getTechFileName return the techDirecory + / + replacing " " with _
-func getTechFileName(tech string, prefix string) string {
+// getTechFilePath return the techDirecory + / + replacing " " with _
+func getTechFilePath(tech string, prefix string) string {
 	return filepath.Join(techDirectory, prefix+strings.ReplaceAll(tech, " ", "_"))
 }
