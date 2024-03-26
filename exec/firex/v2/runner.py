@@ -243,7 +243,7 @@ def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
 
 def _get_fixes_from_testbed_info(testbed_info_file):
     ddts_re = r'CSC[a-z][a-z]\d{5}'
-    with open(testbed_info_file, 'r') as fp:
+    with open(testbed_info_file, 'r',encoding="utf8", errors='ignore') as fp:
         info = fp.read()
         return re.findall(ddts_re, info)
 
