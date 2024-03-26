@@ -117,3 +117,39 @@ func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, e
 	}
 	return responseRawObj, nil
 }
+
+type MemData struct {
+	FreeMemory string `json:"free-memory"`
+	MemoryState string `json:"memory-state"`
+	PhysicalMemory uint32 `json:"physical-memory"`
+}
+
+func DeserializeMemData(t testing.TB, dut *ondatra.DUTDevice) (*MemData, error) {
+	req := &gnmipb.GetRequest{
+		Path: []*gnmipb.Path{
+			{
+				Origin: "Cisco-IOS-XR-wd-oper", Elem: []*gnmipb.PathElem{
+					{Name: "watchdog"},
+					{Name: "nodes"},
+					{Name: "node"},
+					{Name: "memory-state"},
+				},
+			},
+		},
+		Type:     gnmipb.GetRequest_ALL,
+		Encoding: gnmipb.Encoding_JSON_IETF,
+	}
+	
+	var responseRawObj MemData
+	restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed GNMI GET request on native model: \n%v\n", req)
+	} else {
+		jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+		err = json.Unmarshal(jsonIetfData, &responseRawObj)
+		if err != nil {
+			return nil, fmt.Errorf("Could not unmarshal native model GET json")
+		}
+	}
+	return &responseRawObj, nil
+}

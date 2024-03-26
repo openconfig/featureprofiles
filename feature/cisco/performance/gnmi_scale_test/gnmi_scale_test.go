@@ -77,7 +77,14 @@ func TestCpuCollector(t *testing.T) {
 func TestMemCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting Memory data collection at %s", time.Now())
-	perf.CollectMemData(t, dut, 50*time.Millisecond, 5*time.Second).Wait()
+	collector := perf.CollectMemData(t, dut, 50*time.Millisecond, 5*time.Second)
+	
+	collector.Wait()
+	for _, memLog := range collector.MemLogs {
+		t.Logf("Free memory: %s\n", memLog.FreeMemory)
+		t.Logf("Memory state: %s \n", memLog.MemoryState)
+		t.Logf("PhysicalMemory: %d\n", memLog.PhysicalMemory)
+	}
 	t.Logf("Collector finished at %s", time.Now())
 }
 
