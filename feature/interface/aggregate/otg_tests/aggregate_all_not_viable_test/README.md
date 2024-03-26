@@ -27,9 +27,11 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 |            |----+-+-----|             |                  |    (  pfx3   )
 |            |    | |     |             | p8     .    p8   |     `-------'|
 |            |    | |     |             +-------;-:--------+     .-------.|
-|            |    : ;     |             |       | |        |    (  pfx4   )
-|            |     '      |             |       | |        |     `-------'|
-|            |  LAG_1     |             +-------+-+--------+              |
+|            |    | |     |             |       | |        |    (  pfx4   )
+|            |    | |     |             |       | |        |     `-------'|
+|            |    | |     |             |       | |        |     .-------.|
+|            |    : ;     |             |       | |        |    (  pfx5,  )
+|            |  LAG_1     |             +-------+-+--------+     `-------'|
 +------------+            +-------------+ p9    : ;   p9   +--------------+
                                                  '
                                                 LAG_3
@@ -44,13 +46,16 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 - Establish ISIS adjacencies on LAG_1, LAG_2, LAG_3.
   1. Advertise one network prefix (pfx1) from ATE LAG_1
   1. Advertise one network prefix (pfx2) from ATE LAG_2 and ATE LAG_3.
+- Configure VRF selection policy that redirect traffic with DSCP=AF2 to be forwarded in VRF_X FIB.
 - Establish iBGP between ATE and DUT over LGA_1 using LAG_1 interface IPs and advertise prefix pfx3 with BGP NH from pfx2 range.
-- Programm via gRIBI route for prefix pfx4 with single NHG pointing LAG_2 (al
-  ports are forwarding-viable at this point).
+- Programm via gRIBI route in VRF_X for prefix pfx4 with single NHG pointing LAG_2 (all  ports are forwarding-viable at this point).
+- [TODO] Programm via gRIBI route in VRF_X for prefix pfx5 with single NHG pointing LAG_2 and backup NHG pointing IPinIP decap and lookup in default vrf (all  ports are forwarding-viable at this point).
+
   
 - For ISIS cost of LAG_2 lower then ISIS cost of LAG_3:
   - Run traffic:
     - From prefix pfx1 to all three: pfx2, pfx3, pfx4
+    - [TODO] From prefix pfx1 to pfx5, pfx6 with DSCP set to AF2
     - From prefix pfx2 to: pfx1
   - Make the forwarding-viable transitions from TRUE --> FALSE on ports 3-7
     within the LAG_2 on the DUT
@@ -69,6 +74,8 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
       traffic from ATE LAG_2 to ATE LAG_1 (pfx_1).
     - ensure there are no packet losses in steady state (no congestion) for
       traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
+    - [TODO] ensure there are no packet losses in steady state (no congestion) for
+      traffic from ATE LAG_1 to ATE LAG_3 (pfx5).
     - Ensure there is no traffic received on DUT LAG_3
     - Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT
       LAG3
@@ -91,24 +98,31 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
   - Make the forwarding-viable transitions from TRUE --> FALSE on ports 3-7
     within the LAG_2 on the DUT
     - ensure that only DUT port 2 of LAG_2 and all ports of LAG_3 ports has bidirectional
-    traffic. The traffic split between LAG_2 and LAG_3 should be 50:50.
+    traffic.
+    - [TODO] ensure traffic from ATE LAG_1 to each (pfx2, pfx3, pfx4, pfx5) split between LAG_2 and LAG_3 is be 1:2 (wECMP)
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 3:1 (wECMP)
     - Ensure there is no traffic transmitted out of DUT ports 3-7
     - ensure that traffic is received on all port2-7 and ports8-9 and delivered to ATE port1
     - ensure there are no packet losses in steady state (no congestion).
   - Disable/deactive laser on ATE port2; All LAG_2 members are either down (port2) or
     set with forwarding-viable=FALSE.
     - Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 5:2 (wECMP)
     - Ensure there is no traffic transmitted out of  DUT ports 2-7 (LAG_2)
     - ensure that traffic received on all port3-7 and ports8-9 is delivered to ATE LAG_1
     - ensure there are no packet losses in steady state (no congestion) for
       traffic from ATE LAG_2, LAG_3 to ATE LAG_1 (pfx_1).
     - ensure there are no packet losses in steady state (no congestion) for
       traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
+    - [TODO] ensure there are no packet losses in steady state (no congestion) for
+      traffic from ATE LAG_1 to ATE LAG_3 (pfx5).     
     - Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT
       LAG3
     - Ensure that traffic from ATE port1 to pfx4 are discarded on DUT
   - Make the forwarding-viable transitions from FALSE --> TRUE on a ports 7
     within the LAG_2 on the DUT
+    - [TODO] ensure traffic from ATE LAG_1 to each (pfx2, pfx3, pfx4, pfx5) split between LAG_2 and LAG_3 is be 1:2 (wECMP)
+    - [TODO] ensure traffic from each(pfx2, pfx3, pfx4, pfx5) to ATE LAG_1 split between LAG_2 and LAG_3 is be 5:2 (wECMP)
     - ensure that only DUT port 7 of LAG_2 and all ports of LAG_3 ports has bidirectional traffic.
     - Ensure there is no traffic transmitted out of  DUT ports 2-6
     - ensure that traffic received on all port3-7 and ports8-9 is delivered to ATE port1
@@ -120,7 +134,7 @@ Ensure that when **all LAG member** become set with forwarding-viable == FALSE.
 
 It is foreseen that implementation may drop ISIS adjacency if all members of LAG
 are set with forwarding-viable = FALSE. This scenario may be
-handled via the yet to be defined deviation `logicalInterfaceUPonNonViableAll`.
+handled via the yet to be defined deviation `logicalInterfaceDownOnNonViableAll`.
 
 ## Config Parameter coverage
 
