@@ -237,22 +237,23 @@ if command == "bindings":
     _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
     print('You can run the following command to setup your enviroment:')
     print(f'source {setup_file}')
-    
-if command in ["stop", "restart"]:
+ 
+with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
     kne_host = reserved_testbed['otg']['host']
+    docker_compose_file_path = f.name
+    docker_compose_file_name = os.path.basename(docker_compose_file_path)
+    _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
     check_output(
-        f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
+        f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
     )
 
-if command in ["start", "restart"]:
-    with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
+    if command in ["stop", "restart"]:
         kne_host = reserved_testbed['otg']['host']
-        docker_compose_file_path = f.name
-        docker_compose_file_name = os.path.basename(docker_compose_file_path)
-        _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
         check_output(
-            f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
+            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} down'
         )
+
+    if command in ["start", "restart"]:
         check_output(
             f'ssh -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
         )
