@@ -270,7 +270,6 @@ func isPermissionDeniedError(t *testing.T, dut *ondatra.DUTDevice, oper string) 
 	}
 }
 
-
 func performOperations(t *testing.T, dut *ondatra.DUTDevice) {
 	config := gnmi.OC().System().Hostname()
 
