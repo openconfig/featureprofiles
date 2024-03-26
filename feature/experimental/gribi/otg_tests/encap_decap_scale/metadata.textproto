@@ -34,6 +34,7 @@ platform_exceptions:  {
   deviations:  {
     explicit_interface_ref_definition:  true
     gribi_decap_mixed_plen_unsupported:  true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
   }
 }
 platform_exceptions:  {
@@ -44,5 +45,7 @@ platform_exceptions:  {
     deprecated_vlan_id:  true
     interface_enabled:  true
     default_network_instance:  "default"
+    gribi_mac_override_static_arp_static_route: true
+    static_protocol_name: "STATIC"
   }
 }
