@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -57,18 +58,6 @@ func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 	t.Logf("delete pathz policy file  %v, %s", resp, file)
 }
 
-// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
-			return proc
-		}
-	}
-	return nil
-}
-
 func KillEmsdProcess(t *testing.T, dut *ondatra.DUTDevice) {
 	// Trigger Section
 	pName := "emsd"
@@ -79,7 +68,11 @@ func KillEmsdProcess(t *testing.T, dut *ondatra.DUTDevice) {
 	killResponse, err := gnoiClient.System().KillProcess(context.Background(), &spb.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: spb.KillProcessRequest_SIGNAL_TERM})
 	t.Logf("Got kill process response: %v\n\n", killResponse)
 	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+		t.Logf("Failed to get response for gNOI Kill Process, error received: %v", err)
+		if st, ok := status.FromError(err); !ok || st.Code() != codes.Unavailable ||
+			!strings.Contains(st.Message(), "error reading from server: EOF") {
+			t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+		}
 	}
 	time.Sleep(30 * time.Second)
 	newProc := findProcessByName(ctx, t, dut, pName)
@@ -96,6 +89,18 @@ func KillEmsdProcess(t *testing.T, dut *ondatra.DUTDevice) {
 	if newProc.GetStartTime() <= proc.GetStartTime() {
 		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
 	}
+}
+
+// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
+func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
+			return proc
+		}
+	}
+	return nil
 }
 
 // Reload router
