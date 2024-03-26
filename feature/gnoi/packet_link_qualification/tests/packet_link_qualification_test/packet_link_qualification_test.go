@@ -45,8 +45,8 @@ func TestMain(m *testing.M) {
 //
 
 var (
-	maxMTU = uint64(8184)
-	maxPPS = uint64(1e8)
+	minRequiredGeneratorMTU = uint64(8184)
+	minRequiredGeneratorPPS = uint64(1e8)
 )
 
 func TestCapabilitiesResponse(t *testing.T) {
@@ -66,11 +66,11 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}
 
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
-		maxMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
 	}
 
 	if deviations.PLQGeneratorCapabilitiesMaxPPS(dut1) != 0 {
-		maxPPS = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
+		minRequiredGeneratorPPS = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
 	}
 
 	cases := []struct {
@@ -104,7 +104,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxMtu",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  maxMTU,
+		min:  minRequiredGeneratorMTU,
 	}, {
 		desc: "Generator MaxBps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
@@ -112,7 +112,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxPps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxPps()),
-		min:  maxPPS,
+		min:  minRequiredGeneratorPPS,
 	}}
 
 	for _, tc := range cases {
@@ -246,7 +246,7 @@ func TestLinkQualification(t *testing.T) {
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
 
 	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
-		maxMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
 	}
 	type LinkQualificationDuration struct {
 		// time needed to complete preparation
@@ -282,7 +282,7 @@ func TestLinkQualification(t *testing.T) {
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
 					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
 						PacketRate: uint64(138888),
-						PacketSize: uint32(maxMTU),
+						PacketSize: uint32(minRequiredGeneratorMTU),
 					},
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{
