@@ -29,33 +29,33 @@ const (
 	ipv4PrefixLen    = 30
 	ipv6PrefixLen    = 126
 	isisInstance     = "DEFAULT"
-	dutAreaAddr      = "49.0001"
-	ateAreaAddr      = "49.0002"
-	dutSysID         = "1920.0000.2001"
-	ate1SysID        = "640000000001"
-	ate2SysID        = "640000000002"
-	v4Route          = "192.168.10.0"
-	v4TrafficStart   = "192.168.10.1"
-	v4RoutePrefix    = uint32(24)
-	v6Route          = "2024:db8:128:128::"
-	v6TrafficStart   = "2024:db8:128:128::1"
-	v6RoutePrefix    = uint32(64)
-	dp2v4Route       = "192.168.1.4"
-	dp2v4Prefix      = uint32(30)
-	dp2v6Route       = "2001:DB8::0"
-	dp2v6Prefix      = uint32(126)
-	v4Flow           = "v4Flow"
-	v6Flow           = "v6Flow"
-	trafficDuration  = 30 * time.Second
-	prefixMatch      = "exact"
-	v4RoutePolicy    = "route-policy-v4"
-	v4Statement      = "statement-v4"
-	v4PrefixSet      = "prefix-set-v4"
-	v6RoutePolicy    = "route-policy-v6"
-	v6Statement      = "statement-v6"
-	v6PrefixSet      = "prefix-set-v6"
-	protoSrc         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	protoDst         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	//dutAreaAddr      = "49.0001"
+	ateAreaAddr = "49.0002"
+	//dutSysID         = "1920.0000.2001"
+	ate1SysID = "640000000001"
+	//ate2SysID        = "640000000002"
+	v4Route         = "192.168.10.0"
+	v4TrafficStart  = "192.168.10.1"
+	v4RoutePrefix   = uint32(24)
+	v6Route         = "2024:db8:128:128::"
+	v6TrafficStart  = "2024:db8:128:128::1"
+	v6RoutePrefix   = uint32(64)
+	dp2v4Route      = "192.168.1.4"
+	dp2v4Prefix     = uint32(30)
+	dp2v6Route      = "2001:DB8::0"
+	dp2v6Prefix     = uint32(126)
+	v4Flow          = "v4Flow"
+	v6Flow          = "v6Flow"
+	trafficDuration = 30 * time.Second
+	prefixMatch     = "exact"
+	v4RoutePolicy   = "route-policy-v4"
+	v4Statement     = "statement-v4"
+	v4PrefixSet     = "prefix-set-v4"
+	v6RoutePolicy   = "route-policy-v6"
+	v6Statement     = "statement-v6"
+	v6PrefixSet     = "prefix-set-v6"
+	protoSrc        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+	protoDst        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 )
 
 var (
@@ -247,34 +247,37 @@ func IsisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 }
 
 func configureRoutePolicy(ipPrefixSet string, prefixSet string,
-	allowConnected string, prefixSubnetRange string, statement string,
-	rplType oc.E_RoutingPolicy_PolicyResultType) (*oc.RoutingPolicy, error) {
+	rplName string, prefixSubnetRange string, statement string,
+	rplType oc.E_RoutingPolicy_PolicyResultType, tagSetName string, tagValue oc.UnionUint32) (*oc.RoutingPolicy, error) {
 
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 
+	pdef := rp.GetOrCreatePolicyDefinition(rplName)
+
+	// Condition for prefix set configuration
 	if prefixSet != "" && ipPrefixSet != "" && prefixSubnetRange != "" {
 		pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 		pset.GetOrCreatePrefix(ipPrefixSet, prefixSubnetRange)
 	}
-	pdef := rp.GetOrCreatePolicyDefinition(allowConnected)
 
-	if prefixSet != "" {
-		stmt, err := pdef.AppendNewStatement(statement + "_matchPrefix")
-		if err != nil {
-			return nil, err
-		}
-		stmt.GetOrCreateActions().PolicyResult = rplType
-		if prefixSet != "" {
-			stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefixSet)
-		}
-	}
-
-	stmtAll, err := pdef.AppendNewStatement(statement)
+	// Create a common statement. This can be adjusted based on unique requirements.
+	stmt, err := pdef.AppendNewStatement(statement)
 	if err != nil {
 		return nil, err
 	}
-	stmtAll.GetOrCreateActions().PolicyResult = rplType
+	stmt.GetOrCreateActions().SetPolicyResult(rplType)
+
+	// Condition for tag set configuration
+	if tagSetName != "" {
+		// Create or get the tag set and set its value.
+		tagSet := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(tagSetName)
+		//tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(100)})
+		tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{tagValue})
+
+		// Assuming conditions specific to tag set need to be set on the common statement.
+		stmt.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(tagSetName)
+	}
 
 	return rp, nil
 }
@@ -304,7 +307,7 @@ func configureStaticRoute(t *testing.T,
 	sr2 := static.GetOrCreateStatic(staticRoute2)
 	sr2.SetTag, _ = sr.To_NetworkInstance_Protocol_Static_SetTag_Union(tagValueV6)
 	nh2 := sr2.GetOrCreateNextHop("0")
-	nh2.NextHop = oc.UnionString(atePort1.IPv6)
+	nh2.NextHop = oc.UnionString(atePort2.IPv6)
 	nh2.Metric = ygot.Uint32(metricValueV6)
 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(
@@ -446,9 +449,34 @@ func advertiseRoutesWithISIS(t *testing.T, devs []gosnappi.Device) {
 
 }
 
+func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string,
+	tagValue oc.UnionUint32) {
+
+	tagSetState := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSetName).TagValue().State())
+	tagNameState := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSetName).Name().State())
+
+	setTagValue := []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{tagValue}
+
+	for _, value := range tagSetState {
+		configuredTagValue := []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{value}
+		if setTagValue[0] == configuredTagValue[0] {
+			t.Logf("Passed: setTagValue is %v and configuredTagValue is %v",
+				setTagValue[0], configuredTagValue[0])
+		} else {
+			t.Errorf("Failed: setTagValue is %v and configuredTagValue is %v",
+				setTagValue[0], configuredTagValue[0])
+		}
+	}
+	t.Logf("verify tag name matches expected")
+	if tagNameState != tagSetName {
+		t.Errorf("Failed to get tag-set name got %s wanted %s", tagNameState, tagSetName)
+	} else {
+		t.Logf("Passed Found tag-set name got %s wanted %s", tagNameState, tagSetName)
+	}
+}
+
 func TestStaticToISISRedistribution(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	configureDUT(t, dut)
 
 	ate := ondatra.ATE(t, "ate")
@@ -513,6 +541,8 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		RplStatement              string
 		verifyTrafficStats        bool
 		trafficFlows              []string
+		tagSet                    string
+		tagValue                  oc.UnionUint32
 	}{{
 		desc: "RT-2.12.1: Redistribute IPv4 static route to IS-IS " +
 			"with metric propogation diabled",
@@ -568,7 +598,17 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v4Flow},
 	}, {
-		desc: "RT-2.12.7: Redistribute IPv4 static route to IS-IS matching a tag",
+		desc:               "RT-2.12.7: Redistribute IPv4 static route to IS-IS matching a tag",
+		importPolicyConfig: true,
+		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
+		RplName:            v4RoutePolicy,
+		RplStatement:       v4Statement,
+		metricPropogation:  true,
+		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyTrafficStats: true,
+		trafficFlows:       []string{v4Flow},
+		tagSet:             "tag-set-v4",
+		tagValue:           100,
 	}, {
 		desc:               "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
 		importPolicyConfig: true,
@@ -585,13 +625,14 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		desc:               "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
 		importPolicyConfig: true,
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
-		rplPrefixMatch:     v6Route,
-		PrefixSet:          v6PrefixSet,
 		RplName:            v6RoutePolicy,
-		prefixMatchMask:    prefixMatch,
-		RplStatement:       v4Statement,
+		RplStatement:       v6Statement,
 		metricPropogation:  true,
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyTrafficStats: true,
+		trafficFlows:       []string{v4Flow},
+		tagSet:             "tag-set-v6",
+		tagValue:           100,
 	}}
 
 	for _, tc := range cases {
@@ -603,7 +644,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				t.Run(fmt.Sprintf("Config Default Policy Type %s", tc.policyStmtType.String()), func(t *testing.T) {
 
 					rpl, err := configureRoutePolicy(tc.rplPrefixMatch, tc.PrefixSet,
-						tc.RplName, tc.prefixMatchMask, tc.RplStatement, tc.policyStmtType)
+						tc.RplName, tc.prefixMatchMask, tc.RplStatement, tc.policyStmtType, tc.tagSet, tc.tagValue)
 					if err != nil {
 						fmt.Println("Error configuring route policy:", err)
 						return
@@ -625,12 +666,18 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 					t.Run(fmt.Sprintf("Config %v Route-Policy", tc.protoAf), func(t *testing.T) {
 						rpl, err := configureRoutePolicy(tc.rplPrefixMatch, tc.PrefixSet, tc.RplName,
-							tc.prefixMatchMask, tc.RplStatement, tc.policyStmtType)
+							tc.prefixMatchMask, tc.RplStatement, tc.policyStmtType, tc.tagSet, tc.tagValue)
 						if err != nil {
 							t.Fatalf("Failed to configure Route Policy: %v", err)
 						}
 						gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
-						t.Logf("Matthew update is done")
+
+						if tc.tagSet != "" {
+							t.Run(fmt.Sprintf("Verify Configuration for RPL %v value %v",
+								tc.tagSet, tc.tagValue), func(t *testing.T) {
+								verifyRplConfig(t, dut, tc.tagSet, tc.tagValue)
+							})
+						}
 
 					})
 					t.Run(fmt.Sprintf("Attach RPL %v To ISIS", tc.RplName), func(t *testing.T) {
@@ -646,11 +693,14 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 			if tc.verifyTrafficStats {
 				t.Run(fmt.Sprintf("Verify traffic for %s", tc.trafficFlows), func(t *testing.T) {
+
+					top.Flows().Clear()
 					ate.OTG().StartTraffic(t)
 					time.Sleep(trafficDuration)
 					ate.OTG().StopTraffic(t)
 					verifyTraffic(t, ate, tc.trafficFlows)
 				})
+
 			}
 
 			// TODO: Verify routes are learned on the ATE device. This is pending a fix from IXIA and OTG
