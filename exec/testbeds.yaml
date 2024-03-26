@@ -138,12 +138,12 @@ testbeds:
      
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: saarvind
+    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
 
