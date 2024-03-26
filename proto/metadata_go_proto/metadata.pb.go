@@ -674,7 +674,7 @@ type Metadata_Deviations struct {
 	// Skip setting allow-multiple-as while configuring eBGP
 	// Arista: partnerissuetracker.corp.google.com/issues/317422300
 	SkipSettingAllowMultipleAs bool `protobuf:"varint,140,opt,name=skip_setting_allow_multiple_as,json=skipSettingAllowMultipleAs,proto3" json:"skip_setting_allow_multiple_as,omitempty"`
-	// Skip tests with decap encap vrf as PBF action
+	//Skip tests with decap encap vrf as PBF action
 	// Nokia: partnerissuetracker.corp.google.com/issues/323251581
 	SkipPbfWithDecapEncapVrf bool `protobuf:"varint,141,opt,name=skip_pbf_with_decap_encap_vrf,json=skipPbfWithDecapEncapVrf,proto3" json:"skip_pbf_with_decap_encap_vrf,omitempty"`
 	// Devices which does not support copying TTL.
