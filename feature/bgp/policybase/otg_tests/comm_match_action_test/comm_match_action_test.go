@@ -52,14 +52,28 @@ var prefixesV6 = [][]string{
 	{"2048:db1:64:64::32", "2048:db1:64:64::40"},
 }
 
+var matchStdCcomms = [][][]int{
+	{
+		{5, 5},
+	},
+}
+
+var addStdComms = [][][]int{
+	{
+		{10, 10}, {20, 20}, {30, 30},
+	},
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
+
 	communitySetName := "add_std_comms"
-	communityMatch := "10[0-9]:1"
-	commMatchSetOptions := oc.BgpPolicy_MatchSetOptionsType_ANY
+	// TODO: actions/bgp-actions/set-community/config/method = REFERENCE.
+	// At the moment no support for oc.BgpPolicy_SetCommunityMethodType_REFERENCE.
+
 	communitySetName2 := "accept_all_routes"
 
 	root := &oc.Root{}
@@ -69,12 +83,17 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", "match_community", err)
 	}
-
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 
+	pdef2 := rp.GetOrCreatePolicyDefinition("routePolicy")
+	stmt2, err := pdef2.AppendNewStatement("match_community")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "match_community", err)
+	}
+	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(communityMatch)})
-	communitySet.SetMatchSetOptions(commMatchSetOptions)
+	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
@@ -82,19 +101,8 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
 	}
 
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-	pdef2 := rp.GetOrCreatePolicyDefinition("routePolicy")
-	stmt2, err := pdef2.AppendNewStatement("match_community")
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "match_community", err)
-	}
-	
-	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName2)
-	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(communityMatch)})
-	communitySet.SetMatchSetOptions(commMatchSetOptions)
+	communitySet2 := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName2)
+	communitySet2.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName2)
@@ -116,6 +124,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	policyV4.SetImportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
+
 }
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string) {
@@ -284,4 +293,3 @@ func TestCommunitySet(t *testing.T) {
 		verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), testResults[index])
 	}
 }
-
