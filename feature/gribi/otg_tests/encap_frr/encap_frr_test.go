@@ -126,6 +126,7 @@ const (
 	ateSrcNetCIDR    = "198.51.100.0/24"
 	ateSrcNetFirstIP = "198.51.100.1"
 	ateSrcNetCount   = 250
+	ipOverIPProtocol = 4
 
 	checkEncap = true
 	wantLoss   = true
@@ -379,17 +380,17 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 	pfRule13 := &policyFwRule{SeqID: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		networkInstance: niEncapTeVrfA}
-	// pfRule14 := &policyFwRule{SeqID: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
-	// 	networkInstance: niEncapTeVrfA}
+	pfRule14 := &policyFwRule{SeqID: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+		networkInstance: niEncapTeVrfA}
 	pfRule15 := &policyFwRule{SeqID: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		networkInstance: niEncapTeVrfB}
-	// pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
-	// 	networkInstance: niEncapTeVrfB}
+	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
+		networkInstance: niEncapTeVrfB}
 	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: niDefault}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
-		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13,
-		pfRule15, pfRule17}
+		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
+		pfRule15, pfRule16, pfRule17}
 
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niP := ni.GetOrCreatePolicyForwarding()
@@ -1183,7 +1184,7 @@ func TestEncapFrr(t *testing.T) {
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(4)
+		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
 		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(niDefault)
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
