@@ -11,7 +11,7 @@ options {
   username: "cafyauto"
   password: "cisco123"
   insecure: false 
-  skip_verify: false
+  skip_verify: true
   trust_bundle_file: "$TRUST_BUNDLE_FILE"
   cert_file: "$CERT_FILE"
   key_file:  "$KEY_FILE"
