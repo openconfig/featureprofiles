@@ -86,7 +86,7 @@ class DUT(Device):
         self.trust_bundle_file = os.path.join(certs_dir, self.get_id(), 'ca.cert.pem')
 
     def get_model(self):
-        if platform == 'spitdire_d':
+        if platform == 'spitfire_d':
             return 'CISCO-8808'
         return 'CISCO-8201'
 
