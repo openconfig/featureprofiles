@@ -1,6 +1,6 @@
 # proto-file: /proto/testregistry.proto
 # proto-message: TestRegistry
-Bad text - this should make CI fail.
+
 name: "WBB Test Registry"
 test: {
   id: "ACL-1.1"
