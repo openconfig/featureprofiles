@@ -6,7 +6,7 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40055
       gnmi_port: 50055
 
@@ -71,7 +71,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40054
       gnmi_port: 50054
 
@@ -82,7 +82,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40053
       gnmi_port: 50053
 
@@ -138,12 +138,12 @@ testbeds:
      
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: saarvind
+    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
 
