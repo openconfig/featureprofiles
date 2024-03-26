@@ -15,8 +15,6 @@
 package link_bandwidth_test
 
 import (
-	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -117,14 +115,6 @@ func TestMain(m *testing.M) {
 type ipAddr struct {
 	address string
 	prefix  uint32
-}
-
-func (ip *ipAddr) cidr(t *testing.T) string {
-	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return net.String()
 }
 
 type testData struct {
