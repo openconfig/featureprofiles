@@ -589,10 +589,9 @@ def b4_chain_provider(ws, testsuite_id,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path:
+    if 'otg' in test_path and not reserved_testbed.get('sim', False):
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
-        if not reserved_testbed.get('sim', False):
-            chain |= TeardownIxiaController.s()
+        chain |= TeardownIxiaController.s()
 
     if sanitizer:
         logger.info(f"Sanitizer is set to {sanitizer}. Collect show tech sanitizer from routers")
