@@ -21,20 +21,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	spb "github.com/openconfig/gnoi/system"
 	pathzpb "github.com/openconfig/gnsi/pathz"
 	"github.com/openconfig/lemming/gnsi/acltrie"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,90 +52,6 @@ func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 		t.Error(err)
 	}
 	t.Logf("delete pathz policy file  %v, %s", resp, file)
-}
-
-func KillEmsdProcess(t *testing.T, dut *ondatra.DUTDevice) {
-	// Trigger Section
-	pName := "emsd"
-	ctx := context.Background()
-	proc := findProcessByName(ctx, t, dut, pName)
-	pid := uint32(proc.GetPid())
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	killResponse, err := gnoiClient.System().KillProcess(context.Background(), &spb.KillProcessRequest{Name: pName, Pid: pid, Restart: true, Signal: spb.KillProcessRequest_SIGNAL_TERM})
-	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Logf("Failed to get response for gNOI Kill Process, error received: %v", err)
-		if st, ok := status.FromError(err); !ok || st.Code() != codes.Unavailable ||
-			!strings.Contains(st.Message(), "error reading from server: EOF") {
-			t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-		}
-	}
-	time.Sleep(30 * time.Second)
-	newProc := findProcessByName(ctx, t, dut, pName)
-	if newProc == nil {
-		t.Logf("Retry to get the process emsd info after restart")
-		time.Sleep(30 * time.Second)
-		if newProc = findProcessByName(ctx, t, dut, "emsd"); newProc == nil {
-			t.Fatalf("Failed to start process emsd after failure")
-		}
-	}
-	if newProc.GetPid() == proc.GetPid() {
-		t.Fatalf("The process id of %s is expected to be changed after the restart", pName)
-	}
-	if newProc.GetStartTime() <= proc.GetStartTime() {
-		t.Fatalf("The start time of process emsd is expected to be larger than %d, got %d ", proc.GetStartTime(), newProc.GetStartTime())
-	}
-}
-
-// findProcessByName uses telemetry to collect and return the process information. It return nill if the process is not found.
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) *oc.System_Process {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			t.Logf("Pid of daemon '%s' is '%d'", pName, proc.GetPid())
-			return proc
-		}
-	}
-	return nil
-}
-
-// Reload router
-func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	_, errs :=
-		gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-			Method:  spb.RebootMethod_COLD,
-			Delay:   0,
-			Message: "Reboot chassis without delay",
-			Force:   true,
-		})
-
-	if errs != nil {
-		t.Fatalf("Reboot failed %v", errs)
-	}
-	startReboot := time.Now()
-	const maxRebootTime = 30
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(3 * time.Minute)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-
-		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-		}
-	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
-
 }
 
 type policyData struct {

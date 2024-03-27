@@ -21,15 +21,15 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 
+	perf "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	"github.com/openconfig/featureprofiles/internal/cisco/security/pathz"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
-	"github.com/openconfig/featureprofiles/internal/security/pathz"
 	"github.com/openconfig/gnmi/errdiff"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	pathzpb "github.com/openconfig/gnsi/pathz"
@@ -40,14 +40,13 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type UsersMap map[string]pathz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
+	username = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")
 )
 
 func TestMain(m *testing.M) {
@@ -165,7 +164,7 @@ func configwithoutprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, 
 	}
 }
 
-func getsandboxresponse(t *testing.T, want *pathzpb.GetResponse) {
+func getSandboxResponse(t *testing.T, want *pathzpb.GetResponse) {
 	client := start(t)
 	getReq := &pathzpb.GetRequest{
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
@@ -208,9 +207,9 @@ func configISIS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	request.Protocol[oc.NetworkInstance_Protocol_Key{Name: "B4", Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS}] = &model
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Config(), request)
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Config())
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Config(), request)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), request)
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Config())
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), request)
 }
 
 func gnmiwithcli(t *testing.T, dut *ondatra.DUTDevice, op setOperation, cfg string) *gpb.SetResponse {
@@ -235,7 +234,7 @@ func gnmiwithcli(t *testing.T, dut *ondatra.DUTDevice, op setOperation, cfg stri
 		}
 	}
 
-	log.V(1).Info("Request Sent:\n%s", prototext.Format(r))
+	t.Logf("Request Sent: %s", r)
 	if _, deadlineSet := context.Background().Deadline(); !deadlineSet {
 		_, cncl := context.WithTimeout(context.Background(), time.Second*120)
 		defer cncl()
@@ -309,13 +308,13 @@ func TestInvalidWithoutFinalize(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, req := range reqs {
-		log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+		t.Logf("Request Sent: %s", req)
 		if err := rot.Send(req); err != nil {
 			t.Logf("Rec Err %v", err)
 			t.Fatal(err)
 		}
 		received, err := rot.Recv()
-		log.V(1).Infof("Received Request:\n%s", prototext.Format(received))
+		t.Logf("Received Request: %s", received)
 		t.Logf("Rec Err %v", err)
 
 		// Check if the error string matches the expected error string
@@ -354,13 +353,13 @@ func TestMultipleInvalidRotate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, req := range reqs {
-		log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+		t.Logf("Request Sent: %s", req)
 		if err := rot.Send(req); err != nil {
 			t.Logf("Rec Err %v", err)
 			t.Fatal(err)
 		}
 		received, err := rot.Recv()
-		log.V(1).Infof("Received Request:\n%s", prototext.Format(received))
+		t.Logf("Received Request: %s", received)
 		t.Logf("Rec Err %v", err)
 
 		// Check if the error string matches the expected error string
@@ -387,14 +386,14 @@ func TestFinalizeWithoutRotate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, req := range reqs {
-		log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+		t.Logf("Request Sent: %s", req)
 		if err := rot.Send(req); err != nil {
 			t.Logf("Rec Err %v", err)
 			t.Fatal(err)
 
 		}
 		received, err := rot.Recv()
-		log.V(1).Infof("Received Request:\n%s", prototext.Format(received))
+		t.Logf("Received Request: %s", received)
 		t.Logf("Rec Err %v", err)
 
 		// Check if the error string matches the expected error string
@@ -433,7 +432,7 @@ func TestInvalidProbePath(t *testing.T) {
 	wantErr := "Nil Probe Request or Path"
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_READ,
-		User:           "cafyauto",
+		User:           *username,
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
 
@@ -455,7 +454,7 @@ func TestInvalidProbeInst(t *testing.T) {
 	wantErr := "Unknown instance type"
 	probeReq := &pathzpb.ProbeRequest{
 		Mode: pathzpb.Mode_MODE_READ,
-		User: "cafyauto",
+		User: *username,
 		Path: &gpb.Path{},
 	}
 
@@ -477,7 +476,7 @@ func TestProbeInstWithoutReq(t *testing.T) {
 	wantErr := "requested policy instance is nil"
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_READ,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -500,7 +499,7 @@ func TestInvalidProbeMode(t *testing.T) {
 	wantErr := "mode not specified"
 
 	probeReq := &pathzpb.ProbeRequest{
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -523,7 +522,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
 	}
@@ -553,7 +552,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -586,7 +585,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_DENY,
 			}},
@@ -622,7 +621,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -686,21 +685,21 @@ func TestInvalidWithFinalize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+	t.Logf("Request Sent: %s", req)
 	if err := rot.Send(req); err != nil {
 		t.Logf("Rec Err %v", err)
 		t.Fatal(err)
 	}
 
 	// Perform GET operations for sandbox policy instance
-	getsandboxresponse(t, want)
+	getSandboxResponse(t, want)
 
 	// Finalize
 	req = &pathzpb.RotateRequest{
 		RotateRequest: &pathzpb.RotateRequest_FinalizeRotation{},
 	}
 
-	log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+	t.Logf("Request Sent: %s", req)
 	if err := rot.Send(req); err != nil {
 		t.Logf("Rec Err %v", err)
 		t.Fatal(err)
@@ -725,7 +724,7 @@ func TestInvalidWithFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	got, err = client.Get(context.Background(), getReq)
@@ -740,7 +739,7 @@ func TestInvalidWithFinalize(t *testing.T) {
 	isPermissionDeniedError(t, dut, "AfterProcessRestart")
 
 	//Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	client = start(t)
 	got, err = client.Get(context.Background(), getReq)
@@ -762,7 +761,7 @@ func TestInvalidXpathFinalize(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_PERMIT,
 			}},
@@ -776,7 +775,7 @@ func TestInvalidXpathFinalize(t *testing.T) {
 				Policy: &pathzpb.AuthorizationPolicy{
 					Rules: []*pathzpb.AuthorizationRule{{
 						Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
-						Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+						Principal: &pathzpb.AuthorizationRule_User{User: *username},
 						Mode:      pathzpb.Mode_MODE_WRITE,
 						Action:    pathzpb.Action_ACTION_PERMIT,
 					}},
@@ -791,21 +790,21 @@ func TestInvalidXpathFinalize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+	t.Logf("Request Sent: %s", req)
 	if err := rot.Send(req); err != nil {
 		t.Logf("Rec Err %v", err)
 		t.Fatal(err)
 	}
 
 	// Perform GET operations for sandbox policy instance
-	getsandboxresponse(t, want)
+	getSandboxResponse(t, want)
 
 	// Finalize
 	req = &pathzpb.RotateRequest{
 		RotateRequest: &pathzpb.RotateRequest_FinalizeRotation{},
 	}
 
-	log.V(1).Infof("Request Sent:\n%s", prototext.Format(req))
+	t.Logf("Request Sent: %s", req)
 	if err := rot.Send(req); err != nil {
 		t.Logf("Rec Err %v", err)
 		t.Fatal(err)
@@ -830,7 +829,7 @@ func TestInvalidXpathFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Pathz GET after process restart
@@ -854,7 +853,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -883,7 +882,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -917,7 +916,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_PERMIT,
 			}},
@@ -962,7 +961,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -993,7 +992,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 	}
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload
 	client = start(t)
@@ -1048,7 +1047,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -1174,7 +1173,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1189,7 +1188,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1205,7 +1204,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1221,7 +1220,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1238,7 +1237,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1255,7 +1254,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1271,7 +1270,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -1294,7 +1293,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -1420,7 +1419,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1435,7 +1434,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1451,7 +1450,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1467,7 +1466,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1484,7 +1483,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1501,7 +1500,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1517,7 +1516,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -1602,7 +1601,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -1672,7 +1671,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 	}
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -1766,7 +1765,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_2(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -2028,7 +2027,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_2(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -2326,7 +2325,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -2341,7 +2340,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2356,7 +2355,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2372,7 +2371,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2388,7 +2387,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2405,7 +2404,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2422,7 +2421,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2438,7 +2437,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2452,7 +2451,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2467,7 +2466,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2483,7 +2482,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2499,7 +2498,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2516,7 +2515,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "identifier"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2533,7 +2532,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2549,7 +2548,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -2572,7 +2571,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -2587,7 +2586,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2602,7 +2601,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2618,7 +2617,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2634,7 +2633,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2651,7 +2650,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2668,7 +2667,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2684,7 +2683,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -2698,7 +2697,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2713,7 +2712,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2729,7 +2728,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2745,7 +2744,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2762,7 +2761,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "identifier"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2779,7 +2778,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2795,7 +2794,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -2894,7 +2893,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -2947,7 +2946,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3003,7 +3002,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -3033,7 +3032,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3057,7 +3056,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -3087,7 +3086,7 @@ func TestConflictBwGroupAndUser_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3147,7 +3146,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -3192,7 +3191,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -3206,7 +3205,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -3229,7 +3228,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -3274,7 +3273,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -3288,7 +3287,7 @@ func TestConflictBwGroupAndUser_2(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -3348,7 +3347,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -3393,7 +3392,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3407,7 +3406,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3430,7 +3429,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -3475,7 +3474,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3489,7 +3488,7 @@ func TestConflictBwGroupAndUser_3(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3549,7 +3548,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -3594,7 +3593,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3608,7 +3607,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3631,7 +3630,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -3676,7 +3675,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3690,7 +3689,7 @@ func TestConflictBwGroupAndUser_4(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3750,7 +3749,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -3808,7 +3807,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3823,7 +3822,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3837,7 +3836,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 										{Name: "protocols"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -3860,7 +3859,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -3918,7 +3917,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3933,7 +3932,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3947,7 +3946,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 							{Name: "protocols"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -3983,7 +3982,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -4005,7 +4004,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 	configISIS(t, dut)
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -4049,7 +4048,7 @@ func TestGnmiOriginCli(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -4069,7 +4068,7 @@ func TestGnmiOriginCli(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_DENY,
 			}},
@@ -4117,7 +4116,7 @@ func TestGnmiOriginCli(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -4151,7 +4150,7 @@ func TestGnmiOriginCli(t *testing.T) {
 	gnmiwithcli(t, dut, deletePath, "no hostname")
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -4232,7 +4231,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -4277,7 +4276,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -4341,7 +4340,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -4355,7 +4354,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 										{Name: "name"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -4387,7 +4386,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -4401,7 +4400,7 @@ func TestConflictBwUsers_1(t *testing.T) {
 							{Name: "name"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -4469,7 +4468,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -4485,7 +4484,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -4517,7 +4516,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -4533,7 +4532,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -4598,7 +4597,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -4647,7 +4646,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 	}
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -4720,7 +4719,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -4737,7 +4736,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 										{Name: "isis"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
 							},
@@ -4751,7 +4750,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 										{Name: "protocols"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -4774,7 +4773,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -4791,7 +4790,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 							{Name: "isis"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
@@ -4805,7 +4804,7 @@ func TestLongestPrefixMatch_1(t *testing.T) {
 							{Name: "protocols"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -4867,7 +4866,7 @@ func TestLongestPrefixMatch_2(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -4898,7 +4897,7 @@ func TestLongestPrefixMatch_2(t *testing.T) {
 										{Name: "protocols"},
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+								Principal: &pathzpb.AuthorizationRule_User{User: *username},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
 							},
@@ -4921,7 +4920,7 @@ func TestLongestPrefixMatch_2(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -4952,7 +4951,7 @@ func TestLongestPrefixMatch_2(t *testing.T) {
 							{Name: "protocols"},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+					Principal: &pathzpb.AuthorizationRule_User{User: *username},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
 				},
@@ -5014,14 +5013,14 @@ func TestLongestPrefixMatch_3(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}, {
 							Name: "admin",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -5075,14 +5074,14 @@ func TestLongestPrefixMatch_3(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}, {
 				Name: "admin",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -5202,14 +5201,14 @@ func TestConflictBwGroups(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}, {
 							Name: "admin",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -5263,14 +5262,14 @@ func TestConflictBwGroups(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}, {
 				Name: "admin",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -5367,7 +5366,7 @@ func TestConflictBwGroups(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5416,7 +5415,7 @@ func TestConflictBwGroups(t *testing.T) {
 	}
 
 	// Reload router
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -5472,7 +5471,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -5501,7 +5500,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -5527,7 +5526,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -5561,7 +5560,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_DENY,
 			}},
@@ -5655,7 +5654,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5735,7 +5734,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -5765,6 +5764,183 @@ func TestPathz_txt_bak_1(t *testing.T) {
 	gnmi.Update(t, dut, path.Config(), true)
 }
 
+func TestCiscoNative(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	createdtime := uint64(time.Now().UnixMicro())
+
+	// Declare probeBeforeFinalize
+	probeBeforeFinalize := false
+
+	// Start gRPC client
+	client := start(t)
+
+	rc, err := client.Rotate(context.Background())
+	if err == nil {
+		// Define rotate request
+		req := &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+				UploadRequest: &pathzpb.UploadRequest{
+					Version:   "1",
+					CreatedOn: createdtime,
+					Policy: &pathzpb.AuthorizationPolicy{
+						Rules: []*pathzpb.AuthorizationRule{{
+							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						}},
+					},
+				},
+			},
+		}
+		mustSendAndRecv(t, rc, req)
+		if !probeBeforeFinalize {
+			mustFinalize(t, rc)
+		}
+	}
+
+	get_res := &pathzpb.GetResponse{
+		Version:   "1",
+		CreatedOn: createdtime,
+		Policy: &pathzpb.AuthorizationPolicy{
+			Rules: []*pathzpb.AuthorizationRule{{
+				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
+				Mode:      pathzpb.Mode_MODE_WRITE,
+				Action:    pathzpb.Action_ACTION_PERMIT,
+			}},
+		},
+	}
+
+	// Perform GET operations for sandbox policy instance
+	getReq_Sand := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+	}
+
+	sand_res, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform GET operations for active policy instance
+	getReq_Actv := &pathzpb.GetRequest{
+		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+	}
+
+	actv_res, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff: %s", d)
+	}
+
+	// Perform gNMI operations
+	performOperations(t, dut)
+
+	path := gnmi.OC().Lldp().Enabled()
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed ")
+	}
+
+	// gNMI.SET Operation using XR Model
+	stationMAC := "00:ba:ba:ba:ba:ba"
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	hostname := "XR-Native"
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
+
+	// Reload router
+	perf.ReloadRouter(t, dut)
+
+	// Perform GET operations for sandbox policy instance after router reload
+	client = start(t)
+	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after router reload
+	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	}
+
+	// Verify gNMI Operations after Router Reload.
+	performOperations(t, dut)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got_after_reload)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after reouter reload")
+	}
+
+	// gNMI.SET Operation using XR Model after router reload.
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
+
+	// Perform eMSD process restart
+	t.Logf("Restarting emsd at %s", time.Now())
+	perf.RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+
+	// Perform GET operations for sandbox policy instance after process restart
+	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Perform GET operations for active policy instance after process restart
+	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+	if err != nil {
+		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+	}
+	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	}
+
+	// Verify gNMI Operations after process restart.
+	performOperations(t, dut)
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		got_after_process_restart := gnmi.Update(t, dut, path.Config(), true)
+		t.Logf("gNMI Update : %v", got_after_process_restart)
+	}); errMsg != nil {
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+	} else {
+		t.Errorf("This gNMI Update should have failed after process restart ")
+	}
+
+	// gNMI.SET Operation using XR Model after process restart.
+	configwithprefix(t, dut, replacePath, "native", stationMAC)
+	configwithprefix(t, dut, updatePath, "native", stationMAC)
+	configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+	configwithoutprefix(t, dut, updatePath, hostname)
+	configwithoutprefix(t, dut, replacePath, hostname)
+	configwithoutprefix(t, dut, deletePath, hostname)
+}
+
 func TestPathz_txt_bak_2(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	createdtime := uint64(time.Now().UnixMicro())
@@ -5772,7 +5948,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -5801,7 +5977,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -5827,7 +6003,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -5861,7 +6037,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_DENY,
 			}},
@@ -5959,7 +6135,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_PERMIT,
 			}},
@@ -5968,7 +6144,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6046,10 +6222,10 @@ func TestPathz_txt_bak_2(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 	}
 
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+	//Reload router after deleting Authz Policy & verify the behaviour.
+	perf.ReloadRouter(t, dut)
+
+	client = start(t)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
@@ -6124,26 +6300,28 @@ func TestPathz_txt_bak_2(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 	}
 
-	//Reload router after deleting Pathz Policy & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
+	// Perform eMSD process restart after deleting Pathz file.
+	t.Logf("Restarting emsd at %s", time.Now())
+	perf.RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
 
-	// Perform GET operations for sandbox policy instance after router reload.
+	// Perform GET operations for sandbox policy instance after process restart
 	client = start(t)
-	sand_res_after_reload, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 	}
 
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_reload, _ = client.Get(context.Background(), getReq_Actv)
+	// Perform GET operations for active policy instance after process restart.
+	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
 	t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", actv_res_after_reload)
 
-	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d == "" {
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
 		t.Logf("gNMI Update : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 	}
 
-	// Verify gNMI SET Operations after router reload.
+	// Verify gNMI SET Operations after process restart.
 	performOperations(t, dut)
 }
 
@@ -6154,7 +6332,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -6185,14 +6363,14 @@ func TestPathz_txt_bak_3(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}, {
 							Name: "admin",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -6224,7 +6402,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -6258,7 +6436,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_PERMIT,
 			}},
@@ -6358,14 +6536,14 @@ func TestPathz_txt_bak_3(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}, {
 				Name: "admin",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -6380,7 +6558,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6460,7 +6638,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6539,7 +6717,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Pathz file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -6568,7 +6746,7 @@ func TestPathz_txt_bak_4(t *testing.T) {
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -6599,14 +6777,14 @@ func TestPathz_txt_bak_4(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}, {
 							Name: "admin",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -6640,14 +6818,14 @@ func TestPathz_txt_bak_4(t *testing.T) {
 							Name: "pathz",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}, {
 							Name: "admin",
 							Users: []*pathzpb.User{
 								{
-									Name: "cafyauto",
+									Name: *username,
 								},
 							},
 						}},
@@ -6689,14 +6867,14 @@ func TestPathz_txt_bak_4(t *testing.T) {
 				Name: "pathz",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}, {
 				Name: "admin",
 				Users: []*pathzpb.User{
 					{
-						Name: "cafyauto",
+						Name: *username,
 					},
 				},
 			}},
@@ -6733,7 +6911,7 @@ func TestPathz_txt_bak_4(t *testing.T) {
 		t.Fatalf("Pathz Get unexpected diff: %s", d)
 	}
 
-	// Perform gNMI operations
+	// Perform gNMI operations.
 	isPermissionDeniedError(t, dut, "Pathz_txt_bak")
 
 	// Get and store the result in portNum
@@ -6794,23 +6972,22 @@ func TestPathz_txt_bak_4(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting pathz Backup file")
 	}
 
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+	//Reload router after deleting Authz Policy & verify the behaviour.
+	perf.ReloadRouter(t, dut)
+	client = start(t)
 
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	// Perform GET operations for sandbox policy instance after router reload.
+	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 	}
 
 	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+	actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
 	if err != nil {
 		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
 		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 	}
 
@@ -6874,20 +7051,20 @@ func TestPathz_txt_bak_4(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting Pathz policy")
 	}
 
-	//Reload router after deleting pathz Backup file & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router_reload.
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router_reload: %s", d)
+	// Perform eMSD process restart after deleting Pathz file.
+	t.Logf("Restarting emsd at %s", time.Now())
+	// perf.RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+	// Perform GET operations for sandbox policy instance after process restart.
+	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 	}
 
 	// Perform GET operations for active policy instance after router_reload.
-	actv_res_after_router_reload, _ := client.Get(context.Background(), getReq_Actv)
-	t.Logf("Got GET Response : %s", actv_res_after_router_reload)
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d == "" {
+	actv_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Actv)
+	t.Logf("Got GET Response : %s", actv_res_after_emsd_restart)
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
 		t.Logf("GET Difference : %v", d)
 		t.Fatalf("Pathz Get unexpected diff after router_reload: %s", d)
 	}
@@ -6907,183 +7084,6 @@ func TestPathz_txt_bak_4(t *testing.T) {
 	gnmi.Update(t, dut, path.Config(), true)
 }
 
-func TestCiscoNative(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	performOperations(t, dut)
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// gNMI.SET Operation using XR Model
-	stationMAC := "00:ba:ba:ba:ba:ba"
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	hostname := "XR-Native"
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI Operations after process restart.
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart ")
-	}
-
-	// gNMI.SET Operation using XR Model after process restart.
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-
-	// Reload router
-	pathz.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI Operations after Router Reload.
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after reouter reload")
-	}
-
-	// gNMI.SET Operation using XR Model after router reload.
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-}
-
 func TestAuthzPathz_1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	createdtime := uint64(time.Now().UnixMicro())
@@ -7095,14 +7095,14 @@ func TestAuthzPathz_1(t *testing.T) {
 	if !ok {
 		t.Fatal("policy-gNMI-set is not loaded from policy json file")
 	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+	newpolicy.AddAllowRules("base", []string{*username}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	// Rotate the policy.
 	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
 
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -7131,7 +7131,7 @@ func TestAuthzPathz_1(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -7165,7 +7165,7 @@ func TestAuthzPathz_1(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_PERMIT,
 			}},
@@ -7220,7 +7220,7 @@ func TestAuthzPathz_1(t *testing.T) {
 
 	// Perform eMSD process restart.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart
@@ -7300,7 +7300,7 @@ func TestAuthzPathz_1(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Authz Backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -7380,7 +7380,7 @@ func TestAuthzPathz_1(t *testing.T) {
 	}
 
 	//Reload router after deleting Authz Policy & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
+	perf.ReloadRouter(t, dut)
 
 	// Perform GET operations for sandbox policy instance after router reload.
 	client = start(t)
@@ -7431,14 +7431,14 @@ func TestAuthzPathz_2(t *testing.T) {
 	if !ok {
 		t.Fatal("policy-gNMI-set is not loaded from policy json file")
 	}
-	newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+	newpolicy.AddAllowRules("base", []string{*username}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 	// Rotate the policy.
 	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
 
 	// Define probe request
 	probeReq := &pathzpb.ProbeRequest{
 		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           "cafyauto",
+		User:           *username,
 		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
@@ -7467,7 +7467,7 @@ func TestAuthzPathz_2(t *testing.T) {
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
 							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+							Principal: &pathzpb.AuthorizationRule_User{User: *username},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -7501,7 +7501,7 @@ func TestAuthzPathz_2(t *testing.T) {
 		Policy: &pathzpb.AuthorizationPolicy{
 			Rules: []*pathzpb.AuthorizationRule{{
 				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto"},
+				Principal: &pathzpb.AuthorizationRule_User{User: *username},
 				Mode:      pathzpb.Mode_MODE_WRITE,
 				Action:    pathzpb.Action_ACTION_DENY,
 			}},
@@ -7594,7 +7594,7 @@ func TestAuthzPathz_2(t *testing.T) {
 
 	// Perform eMSD process restart after deleting Authz Backup file.
 	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
+	perf.RestartEmsd(t, dut)
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	// Perform GET operations for sandbox policy instance after process restart.
@@ -7652,7 +7652,7 @@ func TestAuthzPathz_2(t *testing.T) {
 	}
 
 	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+	isPermissionDeniedError(t, dut, "AfterBakupPolicyDelete")
 
 	// Get and store the result in portNum after deleting pathz policy.
 	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
@@ -7672,44 +7672,43 @@ func TestAuthzPathz_2(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 	}
 
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	pathz.KillEmsdProcess(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+	//Reload router after deleting Authz Policy & verify the behaviour.
+	perf.ReloadRouter(t, dut)
+	client = start(t)
 
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+	// Perform GET operations for sandbox policy instance after router reload.
+	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 	}
 
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	t.Logf("GOT Response: %v", actv_res_after_emsd_restart)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+	// Perform GET operations for active policy instance after router reload.
+	actv_res_after_router_reload, _ := client.Get(context.Background(), getReq_Actv)
+	t.Logf("GOT Response: %v", actv_res_after_router_reload)
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
 		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 	}
 
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
+	// Verify gNMI SET Operations after Router reload.
+	isPermissionDeniedError(t, dut, "AfterRouterReload")
 
 	// Get and store the result in portNum deleting after process restart.
-	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+	portNum_after_router_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_router_reload == uint16(0) || portNum > uint16(0) {
 		t.Logf("Got the expected port number")
 	} else {
 		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
 	}
 
-	// Verify gNMI SET Operation for different xpath after process restart.
+	// Verify gNMI SET Operation for different xpath after Router reload.
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		got := gnmi.Update(t, dut, path.Config(), true)
 		t.Logf("gNMI Update : %v", got)
 	}); errMsg != nil {
 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
+		t.Errorf("This gNMI Update should have failed after Router reload")
 	}
 
 	// Delete Pathz policy file and verify the behaviour
@@ -7751,44 +7750,43 @@ func TestAuthzPathz_2(t *testing.T) {
 		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 	}
 
-	//Reload router after deleting pathz policy & verify the behaviour.
-	pathz.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_reload_after_del_pathz, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_reload_after_del_pathz, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	// Perform eMSD process restart after deleting Pathz file.
+	t.Logf("Restarting emsd at %s", time.Now())
+	perf.RestartEmsd(t, dut)
+	t.Logf("Restart emsd finished at %s", time.Now())
+	// Perform GET operations for active policy instance after process restart.
+	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 	}
 
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_reload_after_del_pathz, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_reload_after_del_pathz, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+	// Perform GET operations for active policy instance after process restart.
+	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
+	t.Logf("GOT Response: %v", actv_res_after_emsd_restart)
+	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+		t.Logf("GET Difference : %v", d)
+		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 	}
 
-	// Verify gNMI SET Operations after router reload.
-	isPermissionDeniedError(t, dut, "AfterRouterReload")
+	// Verify gNMI SET Operations after process restart.
+	performOperations(t, dut)
 
-	// Get and store the result in portNum after router reload.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+	// Get and store the result in portNum after process restart.
+	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
 		t.Logf("Got the expected port number")
 	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
 	}
 
-	// Verify gNMI SET Operation for different xpath after router reload
+	// Verify gNMI SET Operation for different xpath after process restart
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		got := gnmi.Update(t, dut, path.Config(), true)
 		t.Logf("gNMI Update : %v", got)
 	}); errMsg != nil {
 		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
 	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
+		t.Errorf("This gNMI Update should have failed after process restart")
 	}
 }
 
