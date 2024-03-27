@@ -90,7 +90,6 @@ const (
 	niEncapTeVrfB          = "ENCAP_TE_VRF_B"
 	niTeVrf111             = "TE_VRF_111"
 	niTeVrf222             = "TE_VRF_222"
-	niDefault              = "default"
 	tolerancePct           = 2
 	tolerance              = 0.2
 	encapFlow              = "encapFlow"
@@ -370,13 +369,13 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
 	pfRule9 := &policyFwRule{SeqID: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule10 := &policyFwRule{SeqID: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule11 := &policyFwRule{SeqID: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 	pfRule12 := &policyFwRule{SeqID: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
 	pfRule13 := &policyFwRule{SeqID: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		networkInstance: niEncapTeVrfA}
@@ -386,7 +385,7 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		networkInstance: niEncapTeVrfB}
 	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		networkInstance: niEncapTeVrfB}
-	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: niDefault}
+	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: deviations.DefaultNetworkInstance(dut)}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
@@ -498,7 +497,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
-	// t.Helper()
+	t.Helper()
 
 	// Programming AFT entries for prefixes in DEFAULT VRF
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
@@ -595,7 +594,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 	// Programming AFT entries for backup NHG
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithNextHopNetworkInstance(niDefault),
+			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(2000).AddNextHop(2000, 1),
 	)
@@ -1185,7 +1184,7 @@ func TestEncapFrr(t *testing.T) {
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
-		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(niDefault)
+		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
@@ -1344,8 +1343,10 @@ func TestEncapFrr(t *testing.T) {
 			if tc.encapUnviable == "primaryBackupRoutingSingle" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1000).AddNextHop(1100, 1),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1354,11 +1355,15 @@ func TestEncapFrr(t *testing.T) {
 			if tc.encapUnviable == "primaryBackupRoutingAll" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1000).AddNextHop(1100, 1),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1101).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1001).AddNextHop(1101, 1),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
