@@ -732,8 +732,9 @@ type Metadata_Deviations struct {
 	// Device missing telemetry for static route that has DROP next hop.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
 	MissingStaticRouteDropNextHopTelemetry bool `protobuf:"varint,162,opt,name=missing_static_route_drop_next_hop_telemetry,json=missingStaticRouteDropNextHopTelemetry,proto3" json:"missing_static_route_drop_next_hop_telemetry,omitempty"`
-	// Device missing 400ZR optical-channel tunable parameters telemetry.
-	// Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+	// Device missing 400ZR optical-channel tunable parameters telemetry:
+	// min/max/avg.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
 	MissingZrOpticalChannelTunableParametersTelemetry bool `protobuf:"varint,163,opt,name=missing_zr_optical_channel_tunable_parameters_telemetry,json=missingZrOpticalChannelTunableParametersTelemetry,proto3" json:"missing_zr_optical_channel_tunable_parameters_telemetry,omitempty"`
 }
 

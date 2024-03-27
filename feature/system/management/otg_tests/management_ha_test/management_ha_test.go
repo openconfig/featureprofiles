@@ -107,6 +107,7 @@ func TestManagementHA1(t *testing.T) {
 	configureLoopbackOnDUT(t, bs.DUT)
 	advertiseDUTLoopbackToATE(t, bs.DUT)
 	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
+	configureImportExportBGPPolicy(t, bs)
 
 	t.Run("traffic received by port1 or port2", func(t *testing.T) {
 		createFlowV6(t, bs)
@@ -306,6 +307,57 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRF).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
 
 	batchSet.Set(t, dut)
+}
+
+func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession) {
+	root := &oc.Root{}
+	batchSet := &gnmi.SetBatch{}
+
+	rp := root.GetOrCreateRoutingPolicy()
+	pdef1 := rp.GetOrCreatePolicyDefinition("importRoutePolicy")
+	stmt1, err := pdef1.AppendNewStatement("routePolicyStatement1")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement1", err)
+	}
+	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+	prefixSet1 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("ps1")
+	prefixSet1.SetMode(oc.PrefixSet_Mode_IPV6)
+	prefixSet1.GetOrCreatePrefix(defaultRoute+"/0", "exact")
+
+	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
+		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+	}
+	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps1")
+
+	pdef2 := rp.GetOrCreatePolicyDefinition("exportRoutePolicy")
+	stmt2, err := pdef2.AppendNewStatement("routePolicyStatement2")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement2", err)
+	}
+	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+	prefixSet2 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("ps2")
+	prefixSet2.SetMode(oc.PrefixSet_Mode_IPV6)
+	prefixSet2.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
+
+	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
+		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+	}
+	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps2")
+
+	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
+
+	dni := deviations.DefaultNetworkInstance(bs.DUT)
+	for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
+		pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+		policyV6 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+		policyV6.SetImportPolicy([]string{"importRoutePolicy"})
+		policyV6.SetExportPolicy([]string{"exportRoutePolicy"})
+		gnmi.BatchReplace(batchSet, pathV6.Config(), policyV6)
+	}
+
+	batchSet.Set(t, bs.DUT)
 }
 
 func lossPct(tx, rx float64) float64 {
