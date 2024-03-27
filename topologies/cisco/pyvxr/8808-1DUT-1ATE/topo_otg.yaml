@@ -13,7 +13,7 @@ devices:
     platform: linux
     vcpu: 16
     memory: "32GB"
-    image: /ws/mananpat-ott/public/ixia-c.qcow2
+    image: /auto/vxr/vxr_images/ixia/ixia-c.qcow2
     linux_username: vxr
     linux_password: "cisco123"
     linux_prompt: 'vxr@vxr-vm:~\$'
