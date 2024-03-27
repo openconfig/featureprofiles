@@ -428,6 +428,13 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	defer td.deleteStaticRoutes(t)
 
 	t.Run("Telemetry", func(t *testing.T) {
+
+		a := gnmi.Get(t, td.dut, gnmi.OC().NetworkInstance("default").
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+				deviations.StaticProtocolName(td.dut)).
+			Static("2001:db8:128:128::/64").State())
+		t.Log(a)
+
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
@@ -1138,14 +1145,14 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 
 	p1Name := td.dut.Port(t, "port1").Name()
 	p2Name := td.dut.Port(t, "port2").Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
-		p1Name += ".0"
-		p2Name += ".0"
-	}
+	//if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
+	//	p1Name += ".0"
+	//	p2Name += ".0"
+	//}
 	for _, intfName := range []string{p1Name, p2Name} {
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		//isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(td.dut) {
 			isisIntf.InterfaceRef = nil
 		}
