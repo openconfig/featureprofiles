@@ -104,7 +104,7 @@ func configureOTG(t *testing.T,
 	ateAggPorts := []*ondatra.Port{
 		ate.Port(t, "port1"),
 	}
-	configureOTGBundle(t, ate, top, ateAggPorts, aggID)
+	configureOTGBundle(t, top, ateAggPorts, aggID)
 
 	t.Log(top.String())
 	ate.OTG().PushConfig(t, top)
@@ -146,7 +146,7 @@ func OTGInterfaceDOWN(t *testing.T,
 }
 
 func configureOTGBundle(t *testing.T,
-	ate *ondatra.ATEDevice,
+
 	top gosnappi.Config,
 	aggPorts []*ondatra.Port,
 	aggID string) {
@@ -541,9 +541,10 @@ func TestTC5ShortDOWN(t *testing.T) {
 		Down: ygot.Uint32(2000),
 	}
 
-	t.Run("Update hold timer configs down"), func(t *testing.T) {
+	t.Run("Update hold timer configs down", func(t *testing.T) {
 		intfPath := gnmi.OC().Interface(dutPort1Intf.Name())
 		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
+
 	})
 
 	t.Run("Flap OTG Interfaces", func(t *testing.T) {
