@@ -133,7 +133,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+func configureOTG(t *testing.T) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
 	port1 := top.Ports().Add().SetName("port1")
@@ -239,7 +239,6 @@ func verifyTrafficStreams(t *testing.T,
 		lowerBound := txPkts * (1 - tolerance)
 		upperBound := txPkts * (1 + tolerance)
 
-		// Check if rxPkts falls outside of the acceptable range
 		if rxPkts < lowerBound || rxPkts > upperBound {
 			t.Errorf("Received packets for flow %s are outside of the acceptable range: %v (1%% tolerance from %v)", flowName, rxPkts, txPkts)
 		} else {
@@ -273,12 +272,11 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 	var v4flow, v6flow gosnappi.Flow
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
+	otgObj := ate.OTG()
 
 	t.Run("configureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		configureDUT(t, dut)
-
 	})
 
 	t.Run("Configure Static Route", func(t *testing.T) {
@@ -288,18 +286,16 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 
 	t.Run("ConfigureOTG", func(t *testing.T) {
 		t.Logf("Configure OTG")
-		top = configureOTG(t, otg)
+		top = configureOTG(t)
 		v4flow, v6flow = createTrafficFlows(t, ate, dut, top, ipv4DstPfx, ipv6DstPfx)
 
 		t.Log("pushing the following config to the OTG device")
 		t.Log(top.String())
-		otg.PushConfig(t, top)
-		otg.StartProtocols(t)
+		otgObj.PushConfig(t, top)
+		otgObj.StartProtocols(t)
 
 	})
-
 	t.Run("Start traffic and verify traffic", func(t *testing.T) {
-		verifyTrafficStreams(t, ate, top, otg, v4flow, v6flow)
+		verifyTrafficStreams(t, ate, top, otgObj, v4flow, v6flow)
 	})
-
 }
