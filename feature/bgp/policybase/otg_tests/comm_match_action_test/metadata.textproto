@@ -1,7 +1,22 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-plan_id: "RT-7.8"
-description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
-testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+uuid:  "384964cf-2e53-4ee5-b8a5-eb99f4345cc1"
+plan_id:  "RT-7.8"
+description:  "BGP Policy Match Standard Community and Add Community Import/Export Policy"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed:  true
+    explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+    bgp_conditions_match_community_set_unsupported:  true
+    bgp_actions_set_community_method_unsupported:  true
+  }
+}
+tags:  TAGS_AGGREGATION
+tags:  TAGS_TRANSIT
+tags:  TAGS_DATACENTER_EDGE
