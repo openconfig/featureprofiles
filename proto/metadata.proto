@@ -423,7 +423,7 @@ message Metadata {
     // Devices do not support BGP conditions match-community-set
     bool bgp_conditions_match_community_set_unsupported = 148;
     // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
-    bool pf_require_match_default_rule = 149;       
+    bool pf_require_match_default_rule = 149;  
     // Devices missing component tree mapping from hardware port
     // to optical channel.
     bool missing_port_to_optical_channel_component_mapping = 150;
@@ -464,6 +464,9 @@ message Metadata {
     // Device missing 400ZR optical-channel tunable parameters telemetry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Devices which do not support next statement in OC Config.
+    // Juniper : b/328280827
+    bool policy_result_type_next_statement_unsupported = 164;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;

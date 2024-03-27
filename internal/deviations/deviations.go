@@ -880,3 +880,9 @@ func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
 }
+
+// PolicyResultTypeNextStatementUnsupported returns true if devices which are not
+// supporting next statement in policy options.
+func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
+}
