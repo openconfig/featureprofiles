@@ -1,4 +1,4 @@
-package mpls_static_label
+package mplsStaticLabel
 
 import (
 	"fmt"
@@ -109,7 +109,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureATE configures port1 and port2 on the ATE.
-func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
+func configureOTG(t *testing.T) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
 	port1 := top.Ports().Add().SetName("port1")
@@ -202,7 +202,7 @@ func createTrafficFlow(t *testing.T,
 
 func ValidatePackets(t *testing.T,
 	filename string,
-	expextedLabel uint32,
+	expectedLabel uint32,
 	tolerancePercentage float64) {
 
 	handle, err := pcap.OpenOffline(filename)
@@ -235,12 +235,12 @@ func ValidatePackets(t *testing.T,
 			var mpls *layers.MPLS
 			mplsLayer := packet.Layer(layers.LayerTypeMPLS)
 			if mplsLayer != nil {
-				mpls, _ := mplsLayer.(*layers.MPLS)
+				mplsPkt, _ := mplsLayer.(*layers.MPLS)
 				// check if the expected label is found
-				if mpls.Label == expextedLabel {
+				if mplsPkt.Label == expectedLabel {
 					expectedMPLSPackets++
 				} else {
-					t.Errorf("Unexpected Label Found MPLS packet with label: %v", mpls.Label)
+					t.Errorf("Unexpected Label Found MPLS packet with label: %v", mplsPkt.Label)
 					unexpectedMPLSPackets++
 				}
 			} else {
@@ -253,17 +253,17 @@ func ValidatePackets(t *testing.T,
 	}
 
 	// Calculate the tolerance based on the number of expected MPLS packets
-	tolerance := int(float64(expectedMPLSPackets) * (tolerancePercentage / 100))
+	pktCount := int(float64(expectedMPLSPackets) * (tolerancePercentage / 100))
 
 	// Check if the unexpected packets are within the tolerance
-	if unexpectedMPLSPackets > tolerance {
+	if unexpectedMPLSPackets > pktCount {
 		t.Errorf("Test failed: found %d unexpected MPLS packets, "+
-			"which is above the tolerance of 1%% of expected MPLS packets (%d)", unexpectedMPLSPackets, tolerance)
+			"which is above the tolerance of 1%% of expected MPLS packets (%d)", unexpectedMPLSPackets, pktCount)
 	} else {
 		t.Logf("Test Passed: processed (%d) expected packets with top label "+
 			"popped and label RX on OTG is (%d) and found (%d) unexpected packets "+
-			"with a tolerance of %d", expectedMPLSPackets, expextedLabel,
-			unexpectedMPLSPackets, tolerance)
+			"with a tolerance of %d", expectedMPLSPackets, expectedLabel,
+			unexpectedMPLSPackets, pktCount)
 	}
 	t.Log("Finished checking packets for source IP.")
 }
@@ -296,7 +296,6 @@ func verifyTrafficStreams(t *testing.T,
 	lowerBound := txPkts * (1 - tolerance)
 	upperBound := txPkts * (1 + tolerance)
 
-	// Check if rxPkts falls outside of the acceptable range
 	if rxPkts < lowerBound || rxPkts > upperBound {
 		t.Fatalf("Received packets are outside of the acceptable range: %v (1%% tolerance from %v)", rxPkts, txPkts)
 	} else {
@@ -309,14 +308,21 @@ func verifyTrafficStreams(t *testing.T,
 	if err != nil {
 		t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 	}
-	if _, err := f.Write(bytes); err != nil {
-		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
+	if _, fileOutput := f.Write(bytes); fileOutput != nil {
+		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", fileOutput)
 	}
 
 	// Log the file name
 	t.Logf("Created temporary pcap file at: %s\n", f.Name())
 
-	f.Close()
+	if _, fileOutput := f.Write(bytes); fileOutput != nil {
+		t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", fileOutput)
+	}
+
+	fileClose := f.Close()
+	if fileClose != nil {
+		return
+	}
 	ValidatePackets(t, f.Name(), mplsLabel2, tolerance)
 
 }
@@ -327,7 +333,7 @@ func TestMplsStaticLabel(t *testing.T) {
 	var mplsFlow gosnappi.Flow
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
+	otgObj := ate.OTG()
 
 	t.Run(fmt.Sprintf("configureDUT Interfaces"), func(t *testing.T) {
 		// Configure the DUT
@@ -337,14 +343,14 @@ func TestMplsStaticLabel(t *testing.T) {
 
 	t.Run(fmt.Sprintf("ConfigureOTG"), func(t *testing.T) {
 		t.Logf("Configure ATE")
-		top = configureOTG(t, otg)
+		top = configureOTG(t)
 
 	})
 
 	t.Run(fmt.Sprintf("Configure static LSP on DUT"), func(t *testing.T) {
 		// configure static lsp from ateSrc to ateDst
 		configureStaticLSP(t, dut, "lsp1", mplsLabel1, ateDst.IPv4)
-		// confiugre static lsp from ateDst to ateSrc
+		// configure static lsp from ateDst to ateSrc
 		configureStaticLSP(t, dut, "lsp2", mplsLabel3, ateSrc.IPv4)
 
 	})
@@ -360,7 +366,7 @@ func TestMplsStaticLabel(t *testing.T) {
 	})
 
 	t.Run(fmt.Sprintf("Verify Static Label Traffic Flow"), func(t *testing.T) {
-		verifyTrafficStreams(t, ate, top, otg, mplsFlow)
+		verifyTrafficStreams(t, ate, top, otgObj, mplsFlow)
 
 	})
 
