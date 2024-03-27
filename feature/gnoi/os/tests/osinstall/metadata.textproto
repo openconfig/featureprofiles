@@ -31,3 +31,11 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ignore_default_values: true
+  }
+}

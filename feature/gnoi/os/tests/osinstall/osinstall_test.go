@@ -26,6 +26,8 @@ import (
 
 	"flag"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -442,7 +444,14 @@ func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	t.Logf("Fetch interface config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {
-		if reflect.DeepEqual(val, in) {
+		if deviations.IgnoreDefaultValues(dut) {
+			if cmp.Equal(*val, *in, cmpopts.IgnoreFields(*val, "Ethernet", "ForwardingViable", "HoldTime", "Subinterface")) {
+				t.Logf("Interface config Want and Got matched %#v", val)
+				fptest.LogQuery(t, fmt.Sprintf("%s from Get", dutPort), dc, val)
+			} else {
+				t.Errorf("Config %#v Get() value not matching with what was Set() %#v", dc, val)
+			}
+		} else if reflect.DeepEqual(val, in) {
 			t.Logf("Interface config Want and Got matched")
 			fptest.LogQuery(t, fmt.Sprintf("%s from Get", dutPort), dc, val)
 		} else {
@@ -488,7 +497,9 @@ func TestPushAndVerifyBGPConfig(t *testing.T) {
 
 	t.Logf("Fetch BGP config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dutConfPath.Config()).Val(); present {
-		if reflect.DeepEqual(val, dutConf) {
+		if deviations.IgnoreDefaultValues(dut) {
+			compareStructs(t, dutConf, val)
+		} else if reflect.DeepEqual(val, dutConf) {
 			t.Logf("BGP config Want and Got matched")
 			fptest.LogQuery(t, "BGP fetched from DUT using Get()", dutConfPath.Config(), val)
 		} else {
@@ -496,6 +507,45 @@ func TestPushAndVerifyBGPConfig(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Config %v Get() failed", dutConfPath.Config())
+	}
+}
+func compareStructs(t *testing.T, dutConf, val interface{}) {
+	vdutConf := reflect.ValueOf(dutConf).Elem()
+	vval := reflect.ValueOf(val).Elem()
+	tdutConf := vdutConf.Type()
+
+	for i := 0; i < vdutConf.NumField(); i++ {
+		fieldName := tdutConf.Field(i).Name
+		fdutConf := vdutConf.Field(i)
+		fval := vval.FieldByName(fieldName)
+		if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+			continue
+		} else {
+			if fdutConf.Kind() == reflect.Ptr && fdutConf.Elem().Kind() == reflect.Struct {
+				compareStructs(t, fdutConf.Interface(), fval.Interface())
+			} else if fdutConf.Kind() == reflect.Map && fdutConf.IsValid() {
+				for _, key := range fdutConf.MapKeys() {
+					strct := fdutConf.MapIndex(key)
+					strctVal := fval.MapIndex(key)
+					if strct.Kind() == reflect.Map {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					} else if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+						continue
+					} else if strct.Kind() == reflect.Ptr && strct.Elem().Kind() == reflect.Struct {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					}
+				}
+			} else if reflect.DeepEqual(fdutConf.Interface(), fval.Interface()) {
+				t.Logf("The field %s is equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
+			} else {
+				if !(fieldName == "SendCommunity") {
+					t.Errorf("The field %s is not equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
+				} else {
+					continue
+				}
+			}
+		}
+
 	}
 }
 

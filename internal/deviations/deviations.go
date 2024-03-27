@@ -880,3 +880,8 @@ func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
 }
+
+// IgnoreDefaultValues returns true for devices which ignore default values
+func IgnoreDefaultValues(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIgnoreDefaultValues()
+}

@@ -464,6 +464,8 @@ message Metadata {
     // Device missing 400ZR optical-channel tunable parameters telemetry.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Ignore default values for the device
+    bool ignore_default_values = 164;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
