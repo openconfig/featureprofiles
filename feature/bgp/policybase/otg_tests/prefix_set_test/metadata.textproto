@@ -17,6 +17,19 @@ platform_exceptions: {
     skip_prefix_set_mode: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+    skip_set_rp_match_set_options: true
+
+  }
+}
 tags: TAGS_AGGREGATION
 tags: TAGS_TRANSIT
 tags: TAGS_DATACENTER_EDGE
