@@ -275,18 +275,18 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
-	t.Run(fmt.Sprintf("configureDUT Interfaces"), func(t *testing.T) {
+	t.Run("configureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		configureDUT(t, dut)
 
 	})
 
-	t.Run(fmt.Sprintf("Configure Static Route"), func(t *testing.T) {
+	t.Run("Configure Static Route", func(t *testing.T) {
 		t.Log("Configure static route on DUT")
 		configureStaticRoute(t, dut)
 	})
 
-	t.Run(fmt.Sprintf("ConfigureOTG"), func(t *testing.T) {
+	t.Run("ConfigureOTG", func(t *testing.T) {
 		t.Logf("Configure OTG")
 		top = configureOTG(t, otg)
 		v4flow, v6flow = createTrafficFlows(t, ate, dut, top, ipv4DstPfx, ipv6DstPfx)
@@ -298,10 +298,8 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("Start traffic and verify traffic"), func(t *testing.T) {
+	t.Run("Start traffic and verify traffic", func(t *testing.T) {
 		verifyTrafficStreams(t, ate, top, otg, v4flow, v6flow)
 	})
-
-	t.Log("done")
 
 }
