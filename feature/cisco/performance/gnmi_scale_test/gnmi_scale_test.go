@@ -81,7 +81,7 @@ func TestMemCollector(t *testing.T) {
 	
 	collector.Wait()
 	for _, memLog := range collector.MemLogs {
-		t.Logf("Free memory: %s\n", memLog.FreeMemory)
+		t.Logf("Free memory: %d\n", memLog.FreeMemory)
 		t.Logf("Memory state: %s \n", memLog.MemoryState)
 		t.Logf("PhysicalMemory: %d\n", memLog.PhysicalMemory)
 	}

@@ -119,7 +119,7 @@ func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, e
 }
 
 type MemData struct {
-	FreeMemory string `json:"free-memory"`
+	FreeMemory uint32 `json:"free-memory,string"`
 	MemoryState string `json:"memory-state"`
 	PhysicalMemory uint32 `json:"physical-memory"`
 }
