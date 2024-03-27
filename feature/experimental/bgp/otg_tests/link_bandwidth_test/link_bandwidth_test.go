@@ -99,12 +99,12 @@ var (
 	advertisedIPv62 = ipAddr{address: v62Route, prefix: v6RoutePrefix}
 	advertisedIPv63 = ipAddr{address: v63Route, prefix: v6RoutePrefix}
 	extCommunitySet = map[string]string{
-		"linkbw_0":          "link-bandwidth:100:0",
-		"linkbw_1M":         "link-bandwidth:100:1M",
-		"inkbw_2G":          "link-bandwidth:100:2G",
-		"regex_match_as100": "^100:.*$",
-		"linkbw_any":        "^link-bandwidth:.*:.$",
-		"linkbw_any_0":      "^link-bandwidth:.*:.0",
+		"linkbw_0":            "link-bandwidth:100:0",
+		"linkbw_1M":           "link-bandwidth:100:1M",
+		"inkbw_2G":            "link-bandwidth:100:2G",
+		"regex_match_comm100": "^100:.*$",
+		"linkbw_any":          "^link-bandwidth:.*:.$",
+		"linkbw_any_0":        "^link-bandwidth:.*:0$",
 	}
 )
 
@@ -485,8 +485,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	ref = pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
 	ref.GetOrCreateReference().SetExtCommunitySetRef("linkbw_1M")
 	ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
-	ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
-	ref1.SetCommunitySet("regex_match_as100")
+	ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchExtCommunitySet()
+	ref1.SetExtCommunitySet("regex_match_comm100")
 	ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
 	pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	pdef2Stmt2, err := pdef2.AppendNewStatement("accept_all_routes")
@@ -506,8 +506,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	ref = pdef3Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
 	ref.GetOrCreateReference().SetExtCommunitySetRef("linkbw_2G")
 	ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
-	ref1 = pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
-	ref1.SetCommunitySet("regex_match_as100")
+	ref1 = pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchExtCommunitySet()
+	ref1.SetExtCommunitySet("regex_match_comm100")
 	ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	pdef3Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	pdef3Stmt2, err := pdef3.AppendNewStatement("accept_all_routes")
@@ -547,8 +547,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	ref.GetOrCreateReference().SetExtCommunitySetRef("linkbw_any_0")
 	ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
 	ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
-	ref1 = pdef5Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
-	ref1.SetCommunitySet("linkbw_any_0")
+	ref1 = pdef5Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchExtCommunitySet()
+	ref1.SetExtCommunitySet("linkbw_any_0")
 	pdef5Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	pdef5Stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(5)
 	pdef5Stmt2, err := pdef5.AppendNewStatement("accept_all_routes")
@@ -763,6 +763,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []g
 	return []gosnappi.Device{d1, d2}
 }
 
+// TODO to move base setup config in helper.
 func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.advertiseRoutesWithEBGP(t)
 	td.ate.OTG().PushConfig(t, td.top)
