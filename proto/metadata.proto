@@ -465,7 +465,13 @@ message Metadata {
     // min/max/avg.
     // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
-
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 164;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 165;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 166;  
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
