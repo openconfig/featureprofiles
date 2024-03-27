@@ -5,7 +5,6 @@ simulation:
   slurm_flags:
     hours: 72
     pending_timeout: 30
-    cluster: ott-slurm-m1
 devices:
   dut:
     cvac: $BASE_CONF_PATH
@@ -19,7 +18,7 @@ devices:
     platform: linux
     vcpu: 16
     memory: "32GB"
-    image: /auto/vxr/vxr_images/ixia/ixia-c.qcow2
+    image: /ws/kjahed-ott/public/images/otg/ixia-c.qcow2
     linux_username: vxr
     linux_password: "cisco123"
     linux_prompt: 'vxr@vxr-vm:~\$'
