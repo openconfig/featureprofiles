@@ -12,9 +12,9 @@ options {
   password: "cisco123"
   insecure: false 
   skip_verify: false
-  trust_bundle_file: "$TRUST_BUNDLE_FILE"
-  cert_file: "$CERT_FILE"
-  key_file:  "$KEY_FILE"
+  trust_bundle_file: "/nobackup/khrasool/test_PR/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/ca.cert.pem"
+  cert_file: "/nobackup/khrasool/test_PR/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/cafyauto.cert.pem"
+  key_file:  "/nobackup/khrasool/test_PR/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/cafyauto.key.pem"
 }
 
 duts {
