@@ -788,9 +788,11 @@ func attachInterface(dut *ondatra.DUTDevice, ni *oc.NetworkInstance, name string
 	niface := ni.GetOrCreateInterface(id)
 	niface.Interface = ygot.String(name)
 	niface.Subinterface = ygot.Uint32(uint32(sub))
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		id = fmt.Sprintf("%s.%d", id, sub)
-	}
+	// As per openconfig-interfaces.yang#L191.
+	// User-defined identifier for an interface, generally used to name a interface reference.
+	// The id can be arbitrary but a useful convention is to use a combination of base interface
+	// name and subinterface index.
+	id = fmt.Sprintf("%s.%d", id, sub)
 	return id
 }
 
