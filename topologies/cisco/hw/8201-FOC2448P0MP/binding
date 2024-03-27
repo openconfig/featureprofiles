@@ -11,7 +11,7 @@ options {
   username: "cafyauto"
   password: "cisco123"
   insecure: false 
-  skip_verify: true
+  skip_verify: false
   trust_bundle_file: "$TRUST_BUNDLE_FILE"
   cert_file: "$CERT_FILE"
   key_file:  "$KEY_FILE"
@@ -28,7 +28,7 @@ duts {
  
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
     mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
@@ -46,6 +46,7 @@ duts {
   }
   ssh{
     target: "64.103.223.33:9000"
+    skip_verify: true
   }
   p4rt{
      target: "64.103.223.33:9001"
