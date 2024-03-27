@@ -40,9 +40,9 @@ func TestMain(m *testing.M) {
 }
 
 // validateStreamOutput validates that the OC path is streamed in the most recent subscription interval.
-func validateStreamOutput(t *testing.T, dut *ondatra.DUTDevice, streams map[string]*samplestream.SampleStream[string]) {
+func validateStreamOutput(t *testing.T, streams map[string]*samplestream.SampleStream[string]) {
 	for key, stream := range streams {
-		output := stream.Next(t)
+		output := stream.Next()
 		if output == nil {
 			t.Fatalf("OC path for %s not streamed in the most recent subscription interval", key)
 		}
@@ -61,9 +61,9 @@ func validateStreamOutput(t *testing.T, dut *ondatra.DUTDevice, streams map[stri
 }
 
 // validateOutputPower validates that the output power is streamed in the most recent subscription interval.
-func validateOutputPower(t *testing.T, dut *ondatra.DUTDevice, streams map[string]*samplestream.SampleStream[float64]) {
+func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleStream[float64]) {
 	for key, stream := range streams {
-		outputStream := stream.Next(t)
+		outputStream := stream.Next()
 		if outputStream == nil {
 			t.Fatalf("OC path for %s not streamed in the most recent subscription interval", key)
 		}
@@ -118,11 +118,11 @@ func TestLowPowerMode(t *testing.T) {
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
-			validateStreamOutput(t, dut, allStream)
+			validateStreamOutput(t, allStream)
 
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
-			if opInstN := opInst.Next(t); opInstN != nil {
+			if opInstN := opInst.Next(); opInstN != nil {
 				if _, ok := opInstN.Val(); ok {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/instant is not expected to be reported")
 				}
@@ -130,7 +130,7 @@ func TestLowPowerMode(t *testing.T) {
 
 			opAvg := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
 			defer opAvg.Close()
-			if opAvgN := opAvg.Next(t); opAvgN != nil {
+			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if _, ok := opAvgN.Val(); ok {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/avg is not expected to be reported")
 				}
@@ -138,7 +138,7 @@ func TestLowPowerMode(t *testing.T) {
 
 			opMin := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Min().State(), samplingInterval)
 			defer opMin.Close()
-			if opMinN := opMin.Next(t); opMinN != nil {
+			if opMinN := opMin.Next(); opMinN != nil {
 				if _, ok := opMinN.Val(); ok {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/min is not expected to be reported")
 				}
@@ -146,7 +146,7 @@ func TestLowPowerMode(t *testing.T) {
 
 			opMax := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Max().State(), samplingInterval)
 			defer opMax.Close()
-			if opMaxN := opMax.Next(t); opMaxN != nil {
+			if opMaxN := opMax.Next(); opMaxN != nil {
 				if _, ok := opMaxN.Val(); ok {
 					t.Fatalf("streaming /components/component/optical-channel/state/output-power/max is not expected to be reported")
 				}
@@ -161,7 +161,7 @@ func TestLowPowerMode(t *testing.T) {
 				"max":  opMax,
 			}
 
-			validateOutputPower(t, dut, powerStreamMap)
+			validateOutputPower(t, powerStreamMap)
 
 			// Derive transceiver names from ports.
 			component := gnmi.OC().Component(tr)
