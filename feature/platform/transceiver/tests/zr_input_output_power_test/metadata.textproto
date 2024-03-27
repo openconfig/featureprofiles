@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "67be4256-6965-4a6d-bc68-322c878cbc73"
+plan_id:  "TRANSCEIVER-4"
+description:  "Telemetry: 400ZR RX input and TX output power telemetry values streaming."
+testbed:  TESTBED_DUT_ATE_2LINKS
