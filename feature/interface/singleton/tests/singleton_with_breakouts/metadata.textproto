@@ -1,24 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "bf9109a0-9117-40a4-8417-aecfe36820ea"
-plan_id:  "RT-8"
-description:  "Singleton with breakouts"
-testbed: TESTBED_DUT
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    explicit_port_speed: true
-    explicit_interface_in_default_vrf: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-  }
-  deviations: {
-    default_network_instance: "default"
-  }
-}
+uuid: "e0719b49-476a-4270-a1b8-1814d9f99eef"
+plan_id: "RT-8"
+description: "Singleton with breakouts"
+testbed: TESTBED_DUT_ATE_4LINKS

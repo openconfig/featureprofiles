@@ -1,5 +1,3 @@
-package singleton_with_breakouts
-
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +11,9 @@ package singleton_with_breakouts
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+package singleton_with_breakouts
+
 import (
 	"context"
 	"strings"
@@ -31,7 +32,7 @@ import (
 )
 
 const (
-	maxRebootTime   = 900
+	maxRebootTime   = 900 // Seconds.
 	maxCompWaitTime = 600
 )
 
@@ -39,7 +40,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// Method to run baseLine test
+// Method to run baseLine test.
 func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool, rebootCheck bool) {
 	if !rebootCheck {
 		configureDUT(t, dut, portsConfigured)
@@ -47,7 +48,7 @@ func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[stri
 	verifyConsistentPMD(t, dut, portsConfigured)
 }
 
-// Method to configure DUT interfaces along with breakout configurations
+// Method to configure DUT interfaces along with breakout configurations.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
 	topo := gnmi.OC()
 	for _, port := range dut.Ports() {
@@ -55,12 +56,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[stri
 		if port.PMD() == ondatra.PMD400GBASEDR4 {
 			numOfBreakouts := uint8(4)
 			hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
-			bmode := &oc.Component_Port_BreakoutMode{}
-			bmp := topo.Component(hardwarePort).Port().BreakoutMode()
-			group := bmode.GetOrCreateGroup(0)
+			comp := &oc.Component{Name: &hardwarePort}
+			bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
+			group := bmode.GetOrCreateGroup(1)
 			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			group.NumBreakouts = ygot.Uint8(numOfBreakouts)
-			gnmi.Replace(t, dut, bmp.Config(), bmode)
+			gnmi.Replace(t, dut, topo.Component(hardwarePort).Config(), comp)
 			t.Logf("Configured Port=%v with  PMD = %v with breakout configuration num_of_breakouts= %v , break_out_speed=%v ", port.Name(), port.PMD(), numOfBreakouts, group.BreakoutSpeed)
 		} else {
 			i := configureInterfaceDUT(t, dut, port)
@@ -70,12 +71,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[stri
 	}
 }
 
-// Method to configure the interface
+// Method to configure the interface.
 func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(port.Name())}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), 0)
-	}
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, port)
 	}
@@ -84,7 +82,7 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.P
 	return i
 }
 
-// Method to verify if hardwarePort is populated with a reference to componentName
+// Method to verify if hardwarePort is populated with a reference to componentName.
 func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
 	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, i := range interfaces {
@@ -99,7 +97,7 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
 			compName = gnmi.Get(t, dut, compNameQuery)
 		})
-		//removing channelization number
+		// Removing channelization number
 		colonIndex := strings.Index(interfaceName, ":")
 		if colonIndex != -1 {
 			interfaceName = interfaceName[:colonIndex]
@@ -109,12 +107,11 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 		if compNameFetchError != nil && isConfiguredInterface {
 			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for the interface  %v", compNameFetchError, hardwarePort, interfaceName)
 		} else if isConfiguredInterface {
-
 			portsConfigured[interfaceName] = true
 			t.Logf("HardwarePort = %v of interface = %v is populated with a reference to component name %v", hardwarePort, interfaceName, compName)
 		}
 	}
-	//Checking if all the configured interfaces have been checked for componentName reference
+	// Checking if all the configured interfaces have been checked for componentName reference.
 	for interfaceName, referenceChecked := range portsConfigured {
 		if referenceChecked == false {
 			t.Fatalf("Interface %v not found in the fetched Interface list", interfaceName)
@@ -123,7 +120,7 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 	}
 }
 
-// Method to reboot the DUT
+// Method to reboot the DUT.
 func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
@@ -185,7 +182,9 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 		}
 		if len(preRebootCompStatus) == len(postRebootCompStatus) {
-			t.Logf("All components on the DUT are in responsive state")
+			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+				t.Logf("All components on the DUT are in responsive state")
+			}
 			time.Sleep(10 * time.Second)
 			break
 		}
