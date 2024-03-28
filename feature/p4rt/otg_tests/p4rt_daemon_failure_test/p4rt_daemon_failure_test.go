@@ -85,7 +85,7 @@ var (
 		ondatra.ARISTA:  "P4Runtime",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "p4-switch",
-		ondatra.NOKIA:   "sr_p4rt_server",
+		ondatra.NOKIA:   "sr_grpc_server",
 	}
 )
 
@@ -359,7 +359,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	ate.OTG().StopTraffic(t)
 
 	// Skip check for CISCO devices that use the same process for P4RT & gNMI.
-	if dut.Vendor() != ondatra.CISCO {
+	if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.NOKIA {
 		// Verify interfaceID did not change since the last time we read it.
 		changedID, notOk := watchID.Await(t)
 		if notOk {
