@@ -19,6 +19,100 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func TestGnmiSubscriptionDuringPlq(t *testing.T) {
+	/*
+		during test, t1 ping t2 traceroute
+	*/
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
+
+	d1p := dut1.Port(t, "port1")
+	d2p := dut2.Port(t, "port1")
+	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
+	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", d1p.Name(), d2p.Name())
+
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
+	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
+	duts := []*ondatra.DUTDevice{dut1, dut2}
+
+	capResponse, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
+	t.Logf("LinkQualification().CapabilitiesResponse: %v", capResponse)
+	if err != nil {
+		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+	plqID := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
+
+	for i := 0; i < len(clients) && i < len(duts); i++ {
+		listAndDeleteResults(t, clients[i], duts[i])
+	}
+
+	genCreateReq := generatorCreateRequest(t, plqID, d1p, capResponse)
+	genCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), genCreateReq)
+	t.Logf("LinkQualification().Create() GeneratorCreateResponse: %v, err: %v", genCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
+	}
+	if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
+		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
+	}
+
+	refCreateReq := reflectorCreateRequest(t, plqID, d2p)
+	refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
+	t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
+	if err != nil {
+		t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
+	}
+	if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
+		t.Errorf("reflectorCreateResponse: got %v, want %v", got, want)
+	}
+
+	sleepTime := 30 * time.Second
+	minTestTime := plqDuration.testDuration + plqDuration.preSyncDuration + plqDuration.reflectorPostSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
+	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
+	genRunning, refRunning := false, false // flags for Generator and Reflector test status
+	for i := 0; i <= counter; i++ {
+		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
+		time.Sleep(sleepTime)
+		t.Logf("Check client. Iteration: %d", i+1)
+		generatorGetResponse, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{plqID}})
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Generator: %v", plqID, err)
+		}
+		reflectorGetResponse, err := gnoiClient2.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{plqID}})
+		if err != nil {
+			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Reflector: %v", plqID, err)
+		}
+		if generatorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+			genRunning = true
+		}
+		if reflectorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+			refRunning = true
+		}
+		if genRunning && refRunning {
+			// subscribe to interface path while test is running
+			t.Run("Subscribe to interface path on Generator during PLQ", func(t *testing.T) {
+				state := gnmi.OC().Interface(d1p.Name()).AdminStatus().State()
+				stateGot := gnmi.Get(t, dut1, state)
+				if got, want := stateGot.String(), "UP"; got != want {
+					t.Errorf("Interface status via gnmi during PLQ. Got %v, Want %v on Generator", got, want)
+				}
+			})
+			t.Run("Subscribe to interface path on Reflector during PLQ", func(t *testing.T) {
+				state := gnmi.OC().Interface(d2p.Name()).AdminStatus().State()
+				stateGot := gnmi.Get(t, dut2, state)
+				if got, want := stateGot.String(), "UP"; got != want {
+					t.Errorf("Interface status via gnmi during PLQ. Got %v, Want %v on Reflector", got, want)
+				}
+			})
+			break
+		}
+	}
+	if genRunning && refRunning == false {
+		t.Fatalf("PLQ test did not reach the desired RUNNING state. genRunning: %v, refRunning: %v", genRunning, refRunning)
+	}
+}
+
 func TestPlqInvalidEndpoints(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
@@ -181,100 +275,6 @@ func TestPlqGeneratorRequest(t *testing.T) {
 			}
 			t.Logf("PLQ status is %v", _generatorGetResponse.GetResults()[tc.plqID].GetState())
 		})
-	}
-}
-
-func TestGnmiSubscriptionDuringPlq(t *testing.T) {
-	/*
-		during test, t1 ping t2 traceroute
-	*/
-	dut1 := ondatra.DUT(t, "dut1")
-	dut2 := ondatra.DUT(t, "dut2")
-
-	d1p := dut1.Port(t, "port1")
-	d2p := dut2.Port(t, "port1")
-	t.Logf("dut1: %v, dut2: %v", dut1.Name(), dut2.Name())
-	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", d1p.Name(), d2p.Name())
-
-	gnoiClient1 := dut1.RawAPIs().GNOI(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI(t)
-	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
-	duts := []*ondatra.DUTDevice{dut1, dut2}
-
-	capResponse, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
-	t.Logf("LinkQualification().CapabilitiesResponse: %v", capResponse)
-	if err != nil {
-		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
-	}
-	plqID := dut1.Name() + ":" + d1p.Name() + "<->" + dut2.Name() + ":" + d2p.Name()
-
-	for i := 0; i < len(clients) && i < len(duts); i++ {
-		listAndDeleteResults(t, clients[i], duts[i])
-	}
-
-	genCreateReq := generatorCreateRequest(t, plqID, d1p, capResponse)
-	genCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), genCreateReq)
-	t.Logf("LinkQualification().Create() GeneratorCreateResponse: %v, err: %v", genCreateResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle generator LinkQualification().Create() for Generator: %v", err)
-	}
-	if got, want := genCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-		t.Errorf("generatorCreateResp: got %v, want %v", got, want)
-	}
-
-	refCreateReq := reflectorCreateRequest(t, plqID, d2p)
-	refCreateResp, err := gnoiClient2.LinkQualification().Create(context.Background(), refCreateReq)
-	t.Logf("LinkQualification().Create() ReflectorCreateResponse: %v, err: %v", refCreateResp, err)
-	if err != nil {
-		t.Fatalf("Failed to handle generator LinkQualification().Create() for Reflector: %v", err)
-	}
-	if got, want := refCreateResp.GetStatus()[plqID].GetCode(), int32(0); got != want {
-		t.Errorf("reflectorCreateResponse: got %v, want %v", got, want)
-	}
-
-	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.preSyncDuration + plqDuration.reflectorPostSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
-	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
-	genRunning, refRunning := false, false // flags for Generator and Reflector test status
-	for i := 0; i <= counter; i++ {
-		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
-		time.Sleep(sleepTime)
-		t.Logf("Check client. Iteration: %d", i+1)
-		generatorGetResponse, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{plqID}})
-		if err != nil {
-			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Generator: %v", plqID, err)
-		}
-		reflectorGetResponse, err := gnoiClient2.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{plqID}})
-		if err != nil {
-			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Reflector: %v", plqID, err)
-		}
-		if generatorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-			genRunning = true
-		}
-		if reflectorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-			refRunning = true
-		}
-		if genRunning && refRunning {
-			// subscribe to interface path while test is running
-			t.Run("Subscribe to interface path on Generator during PLQ", func(t *testing.T) {
-				state := gnmi.OC().Interface(d1p.Name()).AdminStatus().State()
-				stateGot := gnmi.Get(t, dut1, state)
-				if got, want := stateGot.String(), "UP"; got != want {
-					t.Errorf("Interface status via gnmi during PLQ. Got %v, Want %v on Generator", got, want)
-				}
-			})
-			t.Run("Subscribe to interface path on Reflector during PLQ", func(t *testing.T) {
-				state := gnmi.OC().Interface(d2p.Name()).AdminStatus().State()
-				stateGot := gnmi.Get(t, dut2, state)
-				if got, want := stateGot.String(), "UP"; got != want {
-					t.Errorf("Interface status via gnmi during PLQ. Got %v, Want %v on Reflector", got, want)
-				}
-			})
-			break
-		}
-	}
-	if genRunning && refRunning == false {
-		t.Fatalf("PLQ test did not reach the desired RUNNING state. genRunning: %v, refRunning: %v", genRunning, refRunning)
 	}
 }
 

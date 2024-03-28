@@ -6,6 +6,5 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
   }
 }
