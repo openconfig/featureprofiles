@@ -108,7 +108,7 @@ func configureOTG(t *testing.T,
 		i1 := top.Devices().Add().SetName(ate.Port(t, port.ID()).ID())
 		macAddress := fmt.Sprintf("02:00:01:0%v:01:01", i+1)
 		eth1 := i1.Ethernets().Add().SetName(port.ID() + ".Eth").SetMac(macAddress)
-		eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+		//eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
 		eth1.Ipv4Addresses().Add().SetName(port.ID() + ateIpAddress).
 			SetAddress(ateIpAddress).SetGateway(dutIpAddress).
 			SetPrefix(uint32(atePort1.IPv4Len))
