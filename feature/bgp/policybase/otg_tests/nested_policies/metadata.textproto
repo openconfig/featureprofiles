@@ -1,4 +1,4 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 uuid: "aa9b83cb-fd87-4098-ab3d-db05c66fc3c0"
 plan_id: "RT-1.30"
