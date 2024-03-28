@@ -1,4 +1,4 @@
-package static_route_test
+package static_route_test_test
 
 import (
 	"fmt"
