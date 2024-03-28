@@ -272,7 +272,6 @@ func configureRoutePolicy(ipPrefixSet string, prefixSet string,
 	if tagSetName != "" {
 		// Create or get the tag set and set its value.
 		tagSet := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(tagSetName)
-		//tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(100)})
 		tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{tagValue})
 
 		// Assuming conditions specific to tag set need to be set on the common statement.
