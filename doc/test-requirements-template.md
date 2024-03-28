@@ -45,16 +45,20 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
 ```yaml
-OCPaths:
-    # Configuration of policy
-  - name: /interfaces/interface/config/description
-  - name: /components/component/state/name
-    constraint: CHASSIS
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: "CHASSIS"
 
-OCRPCs:
-  - gnmi
-    method_name: gnmi.gNMI.Set.SetRequest.Update.union_replace
-    method_name: gnmi.gNMI.Subscribe
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
 ```
 
 ## Required DUT platform
