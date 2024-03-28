@@ -1,9 +1,9 @@
-# RT-7.5: BGP Policy - Set Link Bandwidth Community
+# RT-7.5: BGP Policy - Match and Set Link Bandwidth Community
 
 ## Summary
 
-Configure bgp policy to add statically configured BGP link bandwidth
-communities to routes based on a prefix match.
+Configure bgp policy to match, add and delete statically configured BGP link
+bandwidth communities to routes based on a prefix match.
 
 ## Testbed type
 
@@ -45,7 +45,7 @@ communities to routes based on a prefix match.
       * ext-community-member = [ "link-bandwidth:100:1M" ]
     * Create an ext-community-set named 'linkbw_2G' with members as follows:
       * ext-community-member = [ "link-bandwidth:100:2G" ]
-    * Create an community-set named 'regex_match_as100' with members as follows:
+    * Create an community-set named 'regex_match_comm100' with members as follows:
       * community-member = [ "^100:.*$" ]
     * Create an ext-community-set named 'linkbw_any' with members as follows:
       * ext-community-member = [ "^link-bandwidth:.*:.*$" ]
@@ -65,7 +65,7 @@ communities to routes based on a prefix match.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named **'not_match_100_set_linkbw_1M'** with the following `statements`
     * statement[name='1-megabit-match']/
-      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_comm100'
       * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_1M'
       * actions/config/policy-result = NEXT_STATEMENT
@@ -75,7 +75,7 @@ communities to routes based on a prefix match.
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named 'match_100_set_linkbw_2G' with the following `statements`
     * statement[name='2-gigabit-match']/
-      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_as100'
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_comm100'
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_2G'
       * actions/config/policy-result = NEXT_STATEMENT
@@ -116,7 +116,7 @@ communities to routes based on a prefix match.
       * `/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index`
 
     * Expected community values for each policy
-      |              | zero_linkbw                            | not_match_100_set_linkbw_1M |
+      |              | set_linkbw_0                           | not_match_100_set_linkbw_1M |
       | ------------ | -------------------------------------- | --------------------------- |
       | prefix-set-1 | [ "link-bandwidth:100:0" ]             | [none]                      |
       | prefix-set-2 | [  "100:100", "link-bandwidth:100:0" ] | [ "100:100" ]               |
@@ -158,11 +158,16 @@ communities to routes based on a prefix match.
 
 * /routing-policy/policy-definitions/policy-definition/config/name
 * /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/config/options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method
 * /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+
 
 ### Policy for community-set match configuration
 
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/community-set
 * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/match-set-options
 
 ### Policy attachment point configuration
