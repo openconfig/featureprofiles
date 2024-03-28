@@ -139,14 +139,16 @@ func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val any) *gpb.Update 
 }
 
 // extractMetadataAnnotation extracts the metadata protobuf message from a gNMI GetResponse.
-func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) string {
+func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) (string, int64) {
 	ns := getNotificationsUsingGNMIGet(t, gnmiClient, dut)
+	var getRespTimeStamp int64
 	if got := len(ns); got == 0 {
 		t.Fatalf("number of notifications got %d, want > 0", got)
 	}
 
 	var annotation any
 	for _, n := range ns {
+		getRespTimeStamp = n.GetTimestamp()
 		for _, u := range n.GetUpdate() {
 			path, err := util.JoinPaths(new(gpb.Path), u.GetPath())
 			if err != nil || len(path.GetElem()) > 0 {
@@ -185,7 +187,7 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 	if err := proto.Unmarshal(decoded, msg); err != nil {
 		t.Fatalf("cannot unmarshal received proto any msg, err: %v", err)
 	}
-	return msg.GetName()
+	return msg.GetName(), getRespTimeStamp
 }
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
@@ -239,13 +241,14 @@ func getNotificationsUsingGNMIGet(t *testing.T, gnmiClient gpb.GNMIClient, dut *
 }
 
 // checkMetadata checks protobuf-metadata
-func checkMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Bool) {
+func checkMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
 	t.Helper()
 
-	got := extractMetadataAnnotation(t, gnmiClient, dut)
+	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
 
 	want := metadata1
-	if done.Load() {
+	t.Logf("SetResp: %v, getResp: %v ", done.Load(), getRespTimeStamp)
+	if done.Load() > 0 && done.Load() < getRespTimeStamp {
 		want = metadata2
 	}
 	if got != want {
@@ -254,8 +257,7 @@ func checkMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevi
 }
 
 func TestLargeSetConsistency(t *testing.T) {
-	done := &atomic.Bool{}
-	done.Store(false)
+	done := &atomic.Int64{}
 	dut := ondatra.DUT(t, "dut")
 
 	// configuring basic interface and network instance as some devices only populate OC after configuration
@@ -289,12 +291,13 @@ func TestLargeSetConsistency(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		t.Log("gnmiClient Set 2nd large config")
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		setResp, err := gnmiClient.Set(context.Background(), gpbSetRequest)
+		if err != nil {
 			t.Errorf("gnmi.Set unexpected error: %v", err)
 			return
 		}
 		close(ch)
-		done.Store(true)
+		done.Store(setResp.GetTimestamp())
 	}()
 
 	// sending 4 Get requests concurrently every 5 seconds.

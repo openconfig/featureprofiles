@@ -225,14 +225,14 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			fn:   testBaseHierarchialNHG,
 		},
 		{
-			name: "testImplementDrain",
-			desc: "Usecase for Implementing Drain test",
-			fn:   testImplementDrain,
-		},
-		{
 			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
 			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
 			fn:   testBaseHierarchialNHGwithVrfPolW,
+		},
+		{
+			name: "testImplementDrain",
+			desc: "Usecase for Implementing Drain test",
+			fn:   testImplementDrain,
 		},
 	}
 	// Configure the gRIBI client
@@ -275,39 +275,20 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 	}()
 }
 
-func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
-	p1 := dut.Port(t, "port1")
-	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = interfaceID + ".0"
-	}
-
-	niP := vrfpolicy.BuildVRFSelectionPolicyW(t, dut, deviations.DefaultNetworkInstance(dut))
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-
-	intf := niP.GetOrCreateInterface(interfaceID)
-	intf.ApplyVrfSelectionPolicy = ygot.String(vrfPolW)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Interface(interfaceID).Config(), intf)
-}
-
 type transitKey struct{}
 
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	configureVrfSelectionPolicyW(t, args.dut)
+	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
+		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
+	//Delete Policy-forwarding PolicyW from the ingress interface
+	vrfpolicy.DeletePolicyForwarding(t, args.dut, "port1")
 }
 
 // TE3.7 - case 1: testBaseHierarchialNHG.
@@ -994,14 +975,15 @@ func generateIPAddress(dstP string, i int) string {
 func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	s := &oc.Root{}
-	static := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	ni := s.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	ipv4Nh := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("0")
 	ipv4Nh1 := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("1")
 	ipv4Nh2 := static.GetOrCreateStatic(innerDst).GetOrCreateNextHop("2")
 	ipv4Nh.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort2.IPv4)
 	ipv4Nh1.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort3.IPv4)
 	ipv4Nh2.NextHop, _ = ipv4Nh.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(atePort4.IPv4)
-	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+	gnmi.Update(t, dut, d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 }
 
 // getLossPct returns the loss percentage for a given flow
