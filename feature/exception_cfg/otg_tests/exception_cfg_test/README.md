@@ -2,15 +2,13 @@
 
 ## Summary
 
-Exception configlets are stanzas of native vendor config in CLI format.  The operational use case is in an emergency, configuration may need to be quickly applied to mitigate an impaired network.  When using CLI for configuration, config generation software creates a complete configuration for a device with an ordered list of CLI commands.  The exception configlets are added to the end of the ordered list of CLI commands.  CLI commands in the exception configlet are applied in order and override any conflicting commands that come before it.
+Exception configlets are stanzas of native vendor config in CLI format.  The operational use case is in an emergency, configuration may need to be quickly applied to mitigate an impaired network.  This test covers the scenario when the exception configlet is in CLI format.  
 
-With gNMI union_replace, the goal is to achieve the same behavior.  Configuration generation will generate a complete device configuration using both origin openconfig and origin CLI.  This data will then be placed into a single gnmi.Set using the union_replace action.
+CLI commands in the exception configlet are added to the end of the origin CLI data and should be applied in order by the DUT, overriding any overlapping commands that may have come before.
 
-The exception configuration items may be modeled and used in openconfig with the exception configlet overriding what is set in openconfig.  The configuration items may be vendor specific and not modeled in openconfig.
+gNMI union_replace is used for this scenario.  Configuration generation will create a both origin openconfig and origin CLI data and use a single gnmi.Set using the union_replace action to push all of the configuration in one RPC call to the DUT.
 
-The expected usage of exception configlets is:
-
-The origin CLI configuration will contain an ordered list of commands, with the exception configlet(s) appended to the end.   The device should merge the origin CLI configuration as per the union_replace specification.  If a CLI command appears which conflicts with other CLI, the latest CLI should be used.  If the resulting CLI command conflicts with origin openconfig, then the [union_replace conflict resolution method](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-union_replace.md#533-resolving-issues-with-union-between-the-origins) should be used.
+In each subtest, the device should merge the origin OC and CLI configurations as per the union_replace specification.  If a CLI command appears which conflicts with other CLI, the latest CLI should be used.  If the resulting CLI command conflicts with origin openconfig, then the [union_replace conflict resolution method](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-union_replace.md#533-resolving-issues-with-union-between-the-origins) should be used.  In the case where the DUT is expected to produce an error, the test should detect this error. In the case where the DUT is expected to override, the test should verify the over ridden configuration is in place.
 
 ## Testbed type
 
