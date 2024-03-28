@@ -228,10 +228,12 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Log(breakOutPorts)
 
 				Dutipv4Subnets, err = IncrementIPNetwork(dutIntfIp, tc.numbreakouts, true, 1)
-				Ateipv4Subnets, err = IncrementIPNetwork(ateIntfIp, tc.numbreakouts, true, 2)
-
 				if err != nil {
 					t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
+				}
+				Ateipv4Subnets, err = IncrementIPNetwork(ateIntfIp, tc.numbreakouts, true, 2)
+				if err != nil {
+					t.Fatalf("Failed to generate IPv4 subnet addresses for ATE: %v", err)
 				}
 
 				for idx, portName := range breakOutPorts {
