@@ -93,7 +93,7 @@ var (
 		ondatra.ARISTA:  "Gribi",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_gribi_server",
+		ondatra.NOKIA:   "sr_grpc_server",
 	}
 )
 

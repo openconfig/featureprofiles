@@ -853,3 +853,51 @@ func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) boo
 func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
 }
+
+// MissingStaticRouteNextHopMetricTelemetry returns true for devices missing
+// static route next-hop metric telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+func MissingStaticRouteNextHopMetricTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteNextHopMetricTelemetry()
+}
+
+// UnsupportedStaticRouteNextHopRecurse returns true for devices that don't support recursive
+// resolution of static route next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedStaticRouteNextHopRecurse()
+}
+
+// MissingStaticRouteDropNextHopTelemetry returns true for devices missing
+// static route telemetry with DROP next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
+}
+
+// MissingZROpticalChannelTunableParametersTelemetry returns true for devices missing 400ZR
+// optical-channel tunable parameters telemetry: min/max/avg.
+// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
+func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
+}
+
+// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
+func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
+func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
+}
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
+func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
+}
+
+// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
+func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
