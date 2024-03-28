@@ -79,9 +79,19 @@ policy-map type pbr my_pbr_policy
 
 ## OpenConfig Coverage
 
-[TODO: Add OC paths covered]
+[TODO: Complete list of OCPaths and OCRPCs covered]
 
-gnmi.Set.SetRequest.Update.union_replace
+```yaml
+
+- OCPaths
+    - name: /routing-policy/policy-definitions/policy-definition/config/name
+    - name: /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+
+- OCRPCs
+    - gnmi
+        method_name: gnmi.gNMI.Set.SetRequest.Update.union_replace
+        method_name: gnmi.gNMI.Subscribe
+```
 
 ## Minimum DUT Required
 
