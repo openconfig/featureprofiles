@@ -1,4 +1,4 @@
-package basic_static_route_support_test
+package static_route_isis_redistribution_test_test
 
 import (
 	"context"
