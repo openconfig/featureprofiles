@@ -1,4 +1,4 @@
-package mplsStaticLabel
+package mplsstaticlabel
 
 import (
 	"fmt"
@@ -335,19 +335,19 @@ func TestMplsStaticLabel(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otgObj := ate.OTG()
 
-	t.Run(fmt.Sprintf("configureDUT Interfaces"), func(t *testing.T) {
+	t.Run("configureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		configureDUT(t, dut)
 
 	})
 
-	t.Run(fmt.Sprintf("ConfigureOTG"), func(t *testing.T) {
+	t.Run("ConfigureOTG", func(t *testing.T) {
 		t.Logf("Configure ATE")
 		top = configureOTG(t)
 
 	})
 
-	t.Run(fmt.Sprintf("Configure static LSP on DUT"), func(t *testing.T) {
+	t.Run("Configure static LSP on DUT", func(t *testing.T) {
 		// configure static lsp from ateSrc to ateDst
 		configureStaticLSP(t, dut, "lsp1", mplsLabel1, ateDst.IPv4)
 		// configure static lsp from ateDst to ateSrc
@@ -355,7 +355,7 @@ func TestMplsStaticLabel(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("Build OTG Traffic Flow"), func(t *testing.T) {
+	t.Run("Build OTG Traffic Flow", func(t *testing.T) {
 		// Build MPLS Traffic Flow
 		mplsFlow = createTrafficFlow(t, ate, dut, top, mplsLabel1, mplsLabel2)
 
@@ -365,7 +365,7 @@ func TestMplsStaticLabel(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("Verify Static Label Traffic Flow"), func(t *testing.T) {
+	t.Run("Verify Static Label Traffic Flow", func(t *testing.T) {
 		verifyTrafficStreams(t, ate, top, otgObj, mplsFlow)
 
 	})
