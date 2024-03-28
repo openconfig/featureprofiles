@@ -45,15 +45,16 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
 ```yaml
-- OCPaths
+OCPaths:
     # Configuration of policy
-    ocpath: [ name: /routing-policy/policy-definitions/policy-definition/config/name ]
-    ocpath: [ name: /routing-policy/policy-definitions/policy-definition/statements/statement/config/name ]
+  - name: /interfaces/interface/config/description
+  - name: /components/component/state/name
+    constraint: CHASSIS
 
-- OCRPCs
-    - gnmi
-        method_name: gnmi.gNMI.Set.SetRequest.Update.union_replace
-        method_name: gnmi.gNMI.Subscribe
+OCRPCs:
+  - gnmi
+    method_name: gnmi.gNMI.Set.SetRequest.Update.union_replace
+    method_name: gnmi.gNMI.Subscribe
 ```
 
 ## Required DUT platform
