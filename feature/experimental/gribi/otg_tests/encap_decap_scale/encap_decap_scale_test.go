@@ -782,7 +782,7 @@ func createIPv4Entries(startIP string) []string {
 	firstIP := binary.BigEndian.Uint32(netCIDR.IP)
 	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
 	entries := []string{}
-	for i := firstIP; i <= lastIP; i++ {
+	for i := firstIP + 1; i <= lastIP; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
 		entries = append(entries, fmt.Sprint(ip))
@@ -792,7 +792,7 @@ func createIPv4Entries(startIP string) []string {
 
 // installEntries installs IPv4/IPv6 Entries in the VRF with the given nextHops and nextHopGroups using gRIBI.
 func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *testArgs) {
-
+	t.Helper()
 	entries := []fluent.GRIBIEntry{}
 	// Provision next-hops
 	nextHopIndices := []uint64{}
