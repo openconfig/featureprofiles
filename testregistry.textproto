@@ -769,7 +769,7 @@ test: {
 test: {
   id: "RT-7.5"
   description: "BGP Policy - Set Link Bandwidth Community"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/link_bandwidth_test/README.md"
 }
 test: {
   id: "RT-7.6"

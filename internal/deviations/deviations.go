@@ -896,3 +896,8 @@ func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
 func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
 	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
 }
+
+// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
+func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
