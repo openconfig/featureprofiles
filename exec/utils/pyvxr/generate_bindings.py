@@ -252,7 +252,7 @@ def parse_connection_end(devices, c):
 def is_otg(e):
     d = e.get('disks', [])
     if len(d) == 1 and isinstance(d[0], dict):
-        return d[0].get('hda_ref', {}).get('file', '') == '/ws/mananpat-ott/public/ixia-c.qcow2'
+        return d[0].get('hda_ref', {}).get('file', '') == '/ws/kjahed-ott/public/images/otg/ixia-c.qcow2'
     return False
     
 parser = argparse.ArgumentParser(description='Generate Ondatra bindings for PyVXR')
