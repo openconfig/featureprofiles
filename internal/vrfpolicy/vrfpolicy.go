@@ -197,9 +197,6 @@ func BuildVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice, niName strin
 func ConfigureVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-
 	port1 := dut.Port(t, "port1")
 	interfaceID := port1.Name()
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
