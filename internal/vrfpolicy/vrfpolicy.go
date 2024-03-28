@@ -220,7 +220,7 @@ func ConfigureVRFSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dutForwardingPath.Interface(interfaceID).Config(), interface1)
 }
 
-// deletePolicyForwarding deletes policy configured under given interface
+// DeletePolicyForwarding deletes policy configured under given interface.
 func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string) {
 	t.Helper()
 	p1 := dut.Port(t, portID)
