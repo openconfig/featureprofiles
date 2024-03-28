@@ -173,31 +173,6 @@ type nextHopIntfRef struct {
 	intfName         string
 }
 
-// Generate weights for next hops when assigning to a next-hop-group
-// Weights are allocated such that there is no common divisor
-func generateNextHopWeights(weightSum int, nextHopCount int) []int {
-	weights := []int{}
-
-	switch {
-	case nextHopCount == 1:
-		weights = append(weights, weightSum)
-	case weightSum <= nextHopCount:
-		for i := 0; i < nextHopCount; i++ {
-			weights = append(weights, 1)
-		}
-	case nextHopCount == 2:
-		weights = append(weights, 1, weightSum-1)
-	default:
-		weights = append(weights, 1, 2)
-		rem := (weightSum - 1 - 2) % (nextHopCount - 2)
-		weights = append(weights, rem+(weightSum-1-2)/(nextHopCount-2))
-		for i := 1; i < (nextHopCount - 2); i++ {
-			weights = append(weights, (weightSum-1-2)/(nextHopCount-2))
-		}
-	}
-	return weights
-}
-
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
