@@ -226,7 +226,6 @@ replace: {
   "!\n"
   "interface FourHundredGigE0/0/0/35\n"
   " description not connected interface\n"
-  " negotiation auto\n"
   "!\n"
   "interface PTP0/RP0/CPU0/0\n"
   " description not connected interface\n"
