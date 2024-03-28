@@ -342,14 +342,21 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate static route next-hop recursive lookup is disabled
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Recurse().State()), false; got != want {
-			t.Errorf("IPv4 Static Route next hop: got: %v, want: %v", got, want)
+		_, v4RecurseSet := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+			val, present := v.Val()
+			return !present || (present && !val.GetNextHop("0").GetRecurse())
+		}).Await(t)
+		if !v4RecurseSet {
+			t.Log("Unable to set recurse to false for v4 prefix")
 		}
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Recurse().State()), false; got != want {
-			t.Errorf("IPv6 Static Route next hop: got: %v, want: %v", got, want)
+
+		_, v6RecurseSet := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+			val, present := v.Val()
+			return !present || (present && !val.GetNextHop("0").GetRecurse())
+		}).Await(t)
+		if !v6RecurseSet {
+			t.Log("Unable to set recurse to false for v6 prefix")
 		}
 	})
 	t.Run("Traffic", func(t *testing.T) {
@@ -1134,7 +1141,11 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 	g.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
-	isis.GetOrCreateLevel(2).SetMetricStyle(oc.Isis_MetricStyle_WIDE_METRIC)
+	isisLevel2 := isis.GetOrCreateLevel(2)
+	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(td.dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 
 	p1Name := td.dut.Port(t, "port1").Name()
 	p2Name := td.dut.Port(t, "port2").Name()

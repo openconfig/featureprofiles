@@ -25,4 +25,12 @@ platform_exceptions: {
     missing_static_route_drop_next_hop_telemetry: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+} 
 tags: TAGS_DATACENTER_EDGE
