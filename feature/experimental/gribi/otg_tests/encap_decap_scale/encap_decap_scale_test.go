@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -667,16 +668,17 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string, 
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
 
+	res := []*client.OpResult{}
 	for i := 0; i < decapIPv4Count; i++ {
-		chk.HasResult(t, args.client.Results(t),
+		res = append(res,
 			fluent.OperationResult().
 				WithIPv4Operation(decapEntries[i]+"/32").
 				WithOperationType(constants.Add).
 				WithProgrammingResult(fluent.InstalledInFIB).
 				AsResult(),
-			chk.IgnoreOperationID(),
 		)
 	}
+	chk.HasResultsCache(t, args.client.Results(t), res, chk.IgnoreOperationID())
 
 	t.Logf("Installed %v Decap VRF IPv4 scale entries with prefix length 32", decapIPv4Count)
 }
@@ -898,30 +900,30 @@ func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *te
 	if err := awaitTimeout(args.ctx, args.client, t, 3*time.Minute); err != nil {
 		t.Fatalf("Could not program entries via client, got err: %v", err)
 	}
-
+	res := []*client.OpResult{}
 	if routeParams.isIPv6 {
 		for i := range routeParams.ipv6Entries {
-			chk.HasResult(t, args.client.Results(t),
+			res = append(res,
 				fluent.OperationResult().
 					WithIPv4Operation(routeParams.ipv6Entries[i]+"/128").
 					WithOperationType(constants.Add).
 					WithProgrammingResult(fluent.InstalledInFIB).
 					AsResult(),
-				chk.IgnoreOperationID(),
 			)
 		}
 	} else {
+
 		for i := range routeParams.ipEntries {
-			chk.HasResult(t, args.client.Results(t),
+			res = append(res,
 				fluent.OperationResult().
 					WithIPv4Operation(routeParams.ipEntries[i]+"/32").
 					WithOperationType(constants.Add).
 					WithProgrammingResult(fluent.InstalledInFIB).
 					AsResult(),
-				chk.IgnoreOperationID(),
 			)
 		}
 	}
+	chk.HasResultsCache(t, args.client.Results(t), res, chk.IgnoreOperationID())
 
 	if routeParams.isIPv6 {
 		t.Logf("Installed entries VRF %s - IPv6 entry count: %d, next-hop-group count: %d (index %d - %d), next-hop count: %d (index %d - %d)", vrf, len(routeParams.ipv6Entries), len(nextHopGroupIndices), nextHopGroupIndices[0], nextHopGroupIndices[len(nextHopGroupIndices)-1], len(nextHopIndices), nextHopIndices[0], nextHopIndices[len(nextHopIndices)-1])
