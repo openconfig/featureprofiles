@@ -417,14 +417,19 @@ func getPBRPolicyForwarding(args *testArgs, rules ...*oc.NetworkInstance_PolicyF
 
 func TestPBR(t *testing.T) {
 	t.Logf("Description: Test RT3.2 with multiple DSCP, IPinIP protocol rule based VRF selection")
+
+	// Clear otg config
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	dut := ondatra.DUT(t, "dut")
 
 	// configure DUT
 	configureDUT(t, dut)
 
 	// Configure ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate, dut)
+	top = configureATE(t, ate, dut)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 

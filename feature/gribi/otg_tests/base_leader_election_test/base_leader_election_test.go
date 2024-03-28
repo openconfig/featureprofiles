@@ -308,12 +308,12 @@ func TestElectionIDChange(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
+
+	// Configure the DUT
+	configureDUT(t, dut)
 
 	// Configure the gRIBI client clientA
 	clientA := gribi.Client{

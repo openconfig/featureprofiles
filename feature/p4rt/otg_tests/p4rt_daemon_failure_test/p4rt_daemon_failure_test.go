@@ -298,6 +298,8 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ond
 
 func TestP4RTDaemonFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	ate.OTG().PushConfig(t, gosnappi.NewConfig())
 
 	p4rtD, ok := p4rtDaemons[dut.Vendor()]
 	if !ok {
@@ -318,7 +320,6 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	watchID := subscribeOnChangeInterfaceID(t, dut)
 
 	t.Logf("Configure ATE")
-	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)

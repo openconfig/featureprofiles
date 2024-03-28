@@ -320,7 +320,7 @@ type OTGBGPPrefix struct {
 	PrefixLength uint32
 }
 
-func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
+func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, expectedOTGBGPPrefix OTGBGPPrefix) bool {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
@@ -345,7 +345,7 @@ func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 	return found
 }
 
-func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
+func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, expectedOTGBGPPrefix OTGBGPPrefix) bool {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
@@ -559,13 +559,13 @@ func TestBGP(t *testing.T) {
 				t.Skip(tc.skipReason)
 			}
 
-			tc.dut.Configure(t, dut)
-
 			ate := ondatra.ATE(t, "ate")
 
 			otg := ate.OTG()
 			ateList := []string{"port1", "port2"}
 			otgConfig := tc.ate.ConfigureOTG(t, otg, ateList)
+
+			tc.dut.Configure(t, dut)
 
 			t.Logf("Verify DUT BGP sessions up")
 			tc.dut.AwaitBGPEstablished(t, dut)
@@ -583,7 +583,7 @@ func TestBGP(t *testing.T) {
 					} else {
 						expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
 					}
-					if !checkOTGBGP4Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+					if !checkOTGBGP4Prefix(t, otg, expectedOTGBGPPrefix) {
 						t.Errorf("Prefix %v is not being learned", expectedOTGBGPPrefix.Address)
 					}
 				}
@@ -592,7 +592,7 @@ func TestBGP(t *testing.T) {
 					addr := strings.Split(prefix.v6, "/")[0]
 					prefixLen, _ := strconv.Atoi(strings.Split(prefix.v6, "/")[1])
 					expectedOTGBGPPrefix = OTGBGPPrefix{PeerName: "port2.dev.BGP6.peer", Address: addr, PrefixLength: uint32(prefixLen)}
-					if !checkOTGBGP6Prefix(t, otg, otgConfig, expectedOTGBGPPrefix) {
+					if !checkOTGBGP6Prefix(t, otg, expectedOTGBGPPrefix) {
 						t.Errorf("Prefix %v is not being learned", expectedOTGBGPPrefix.Address)
 					}
 				}
