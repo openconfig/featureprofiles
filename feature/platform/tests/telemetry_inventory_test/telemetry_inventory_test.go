@@ -16,12 +16,13 @@ package telemetry_inventory_test
 
 import (
 	"fmt"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
