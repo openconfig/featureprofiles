@@ -621,7 +621,7 @@ tests:
       - saarvind
     mustpass: true
     timeout: 4200
-    pr: 2803
+    pr: 2864
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
