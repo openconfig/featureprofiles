@@ -73,7 +73,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// configInterfaceDUT configures the interface with the Addrs.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
