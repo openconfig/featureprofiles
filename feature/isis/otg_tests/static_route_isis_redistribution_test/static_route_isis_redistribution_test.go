@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,33 +29,30 @@ const (
 	ipv4PrefixLen    = 30
 	ipv6PrefixLen    = 126
 	isisInstance     = "DEFAULT"
-	//dutAreaAddr      = "49.0001"
-	ateAreaAddr = "49.0002"
-	//dutSysID         = "1920.0000.2001"
-	ate1SysID = "640000000001"
-	//ate2SysID        = "640000000002"
-	v4Route         = "192.168.10.0"
-	v4TrafficStart  = "192.168.10.1"
-	v4RoutePrefix   = uint32(24)
-	v6Route         = "2024:db8:128:128::"
-	v6TrafficStart  = "2024:db8:128:128::1"
-	v6RoutePrefix   = uint32(64)
-	dp2v4Route      = "192.168.1.4"
-	dp2v4Prefix     = uint32(30)
-	dp2v6Route      = "2001:DB8::0"
-	dp2v6Prefix     = uint32(126)
-	v4Flow          = "v4Flow"
-	v6Flow          = "v6Flow"
-	trafficDuration = 30 * time.Second
-	prefixMatch     = "exact"
-	v4RoutePolicy   = "route-policy-v4"
-	v4Statement     = "statement-v4"
-	v4PrefixSet     = "prefix-set-v4"
-	v6RoutePolicy   = "route-policy-v6"
-	v6Statement     = "statement-v6"
-	v6PrefixSet     = "prefix-set-v6"
-	protoSrc        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	protoDst        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	ateAreaAddr      = "49.0002"
+	ate1SysID        = "640000000001"
+	v4Route          = "192.168.10.0"
+	v4TrafficStart   = "192.168.10.1"
+	v4RoutePrefix    = uint32(24)
+	v6Route          = "2024:db8:128:128::"
+	v6TrafficStart   = "2024:db8:128:128::1"
+	v6RoutePrefix    = uint32(64)
+	dp2v4Route       = "192.168.1.4"
+	dp2v4Prefix      = uint32(30)
+	dp2v6Route       = "2001:DB8::0"
+	dp2v6Prefix      = uint32(126)
+	v4Flow           = "v4Flow"
+	v6Flow           = "v6Flow"
+	trafficDuration  = 30 * time.Second
+	prefixMatch      = "exact"
+	v4RoutePolicy    = "route-policy-v4"
+	v4Statement      = "statement-v4"
+	v4PrefixSet      = "prefix-set-v4"
+	v6RoutePolicy    = "route-policy-v6"
+	v6Statement      = "statement-v6"
+	v6PrefixSet      = "prefix-set-v6"
+	protoSrc         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+	protoDst         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 )
 
 var (
@@ -219,14 +215,6 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 	}
 }
 
-func (ip *ipAddr) cidr(t *testing.T) string {
-	_, net, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.address, ip.prefix))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return net.String()
-}
-
 func IsisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string,
 	srcProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
@@ -234,7 +222,7 @@ func IsisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	metricPropagation bool) {
 
 	t.Log("configure redistribution under isis")
-	dut = ondatra.DUT(t, "dut")
+
 	dni := deviations.DefaultNetworkInstance(dut)
 
 	d := oc.Root{}
