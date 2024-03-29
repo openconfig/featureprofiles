@@ -901,3 +901,8 @@ func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
 func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
 }
+
+// SkipQosSamplingCounter returns true if device does not support qos counters sampling.
+func SkipQosSamplingCounter(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipQosSamplingCounter()
+}

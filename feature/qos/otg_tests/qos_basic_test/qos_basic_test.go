@@ -527,28 +527,29 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 					}
 				}
 			}
-
-			// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
-			subscribeTimeout := 30 * time.Second
-			for _, sampleInterval := range []time.Duration{10 * time.Second, 15 * time.Second} {
-				minWant := int(subscribeTimeout/sampleInterval) - 1
-				for _, data := range trafficFlows {
-					transmitPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), subscribeTimeout).Await(t)
-					if len(transmitPkts) < minWant {
-						t.Errorf("TransmitPkts: got %d, want >= %d", len(transmitPkts), minWant)
-					}
-					transmitOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), subscribeTimeout).Await(t)
-					if len(transmitOctets) < minWant {
-						t.Errorf("TransmitOctets: got %d, want >= %d", len(transmitOctets), minWant)
-					}
-					droppedPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), subscribeTimeout).Await(t)
-					if len(droppedPkts) < minWant {
-						t.Errorf("DroppedPkts: got %d, want >= %d", len(droppedPkts), minWant)
-					}
-					if !deviations.QOSDroppedOctets(dut) {
-						droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
-						if len(droppedOctets) < minWant {
-							t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
+			if !deviations.SkipQosSamplingCounter(dut) {
+				// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
+				subscribeTimeout := 30 * time.Second
+				for _, sampleInterval := range []time.Duration{10 * time.Second, 15 * time.Second} {
+					minWant := int(subscribeTimeout/sampleInterval) - 1
+					for _, data := range trafficFlows {
+						transmitPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), subscribeTimeout).Await(t)
+						if len(transmitPkts) < minWant {
+							t.Errorf("TransmitPkts: got %d, want >= %d", len(transmitPkts), minWant)
+						}
+						transmitOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), subscribeTimeout).Await(t)
+						if len(transmitOctets) < minWant {
+							t.Errorf("TransmitOctets: got %d, want >= %d", len(transmitOctets), minWant)
+						}
+						droppedPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), subscribeTimeout).Await(t)
+						if len(droppedPkts) < minWant {
+							t.Errorf("DroppedPkts: got %d, want >= %d", len(droppedPkts), minWant)
+						}
+						if !deviations.QOSDroppedOctets(dut) {
+							droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
+							if len(droppedOctets) < minWant {
+								t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
+							}
 						}
 					}
 				}
