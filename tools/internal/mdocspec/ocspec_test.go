@@ -207,7 +207,7 @@ paths:
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			gotOCPaths, gotOCRPCs, err := Parse([]byte(tt.inMD))
-			if gotNotFoundErr := errors.Is(err, OCSpecNotFound); gotNotFoundErr != tt.wantNotFoundErr {
+			if gotNotFoundErr := errors.Is(err, ErrNotFound); gotNotFoundErr != tt.wantNotFoundErr {
 				t.Fatalf("Parse gotNotFoundErr: %v, wantNotFoundErr: %v", gotNotFoundErr, tt.wantNotFoundErr)
 			}
 			if gotErr := err != nil; gotErr != tt.wantErr {

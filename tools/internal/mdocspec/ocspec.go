@@ -15,8 +15,8 @@ import (
 	rpb "github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto"
 )
 
-// OCSpecNotFound indicates the user was not found or is unknown.
-var OCSpecNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Coverage" yaml, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`)
+// ErrNotFound indicates the user was not found or is unknown.
+var ErrNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Coverage" yaml, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`)
 
 // Parse extracts sorted OpenConfig Path and RPC Coverage from an FNT README.
 //
@@ -54,7 +54,7 @@ func Parse(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 		return nil, nil, fmt.Errorf("MDOCSpec.Convert: %v", err)
 	}
 	if buf.Len() == 0 {
-		return nil, nil, OCSpecNotFound
+		return nil, nil, ErrNotFound
 	}
 
 	return parseYAML(buf.Bytes())
