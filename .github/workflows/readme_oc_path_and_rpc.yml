@@ -1,0 +1,39 @@
+name: README OpenConfig Path and RPC Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "49 0 * * *"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Validate Template README
+      run: |
+        go run tools/validate_readme_spec/validate_readme_spec.go -alsologtostderr doc/test-requirements-template.md; rm -rf tmp
+
+    - name: Validate Template README
+      run: |
+        # TODO: Add READMEs that have converted to the new format.
+
+    - name: Validate Bad Example
+      run: |
+        mkdir tmp
+        TESTFILE=tmp/test.md
+        cat "## Hello world\n```yaml\npaths:\nrpcs:\n```" > "${TESTFILE}"
+        if go run tools/validate_readme_spec/validate_readme_spec.go -alsologtostderr "${TESTFILE}"; then
+          echo "Validation passed, but failure expected"
+          exit 1
+        fi
+        rm -rf tmp
