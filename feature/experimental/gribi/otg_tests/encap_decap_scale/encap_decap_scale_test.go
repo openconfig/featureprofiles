@@ -116,8 +116,8 @@ const (
 	// Number of IP Address to install per encap vrf
 	perEncapVRFIPCount = 5000
 
-	// Number of NHGs per encap vrf. The total encap vrf NHGs would be 4 times this number.
-	perEncapVRFNHGCount = 50
+	// Number of NHGs per encap vrf. The total encap vrf NHGs would be 8 times this number.
+	perEncapVRFNHGCount = 25
 
 	nhWeightSum = 16
 
