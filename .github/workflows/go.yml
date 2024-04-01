@@ -25,6 +25,8 @@ jobs:
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Build
       run: go build -v ./...
+    - name: Build tests
+      run: go test -c -o=/dev/null ./...
   test:
     runs-on: ubuntu-latest
     steps:
