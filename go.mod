@@ -32,6 +32,7 @@ require (
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231213034307-d0abeba7f432
 	github.com/openconfig/kne v0.1.17
+	github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.5.4
 	github.com/openconfig/ovgs v0.0.0-20240314033340-1159fb50689e

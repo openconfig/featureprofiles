@@ -1,0 +1,12 @@
+name: pathz 
+owners: 
+  - khrasool
+testbeds:
+  - 8201-FOC2448P0MP
+tests:
+- name: Pathz
+  path: feature/security/gnsi/pathz/cisco/tests
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master
