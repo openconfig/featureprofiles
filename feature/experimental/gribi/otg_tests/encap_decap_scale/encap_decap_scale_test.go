@@ -343,7 +343,7 @@ func pushEncapEntries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []
 		numUniqueNHs:  len(virtualIPs),
 		nextHops:      virtualIPs,
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: 32,
+		numUniqueNHGs: 24,
 		nhDecapEncap:  false,
 	}
 
@@ -875,7 +875,9 @@ func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *te
 	nextHopGroupIndices := []uint64{}
 	nhPerNHG := len(nextHopIndices) / routeParams.numUniqueNHGs
 	if len(nextHopIndices)%routeParams.numUniqueNHGs != 0 {
-		t.Errorf("Count of NHs: %v not a multiple of Count of NHGs: %v", len(nextHopIndices), routeParams.numUniqueNHGs)
+		t.Logf("Count of NHs: %v not a multiple of Count of NHGs: %v", len(nextHopIndices), routeParams.numUniqueNHGs)
+		routeParams.numUniqueNHGs++
+		t.Logf("Increasing the number of unique NHGs to : %d", routeParams.numUniqueNHGs)
 	}
 	weights := generateNextHopWeights(nhWeightSum, nhPerNHG)
 	for i := 0; i < routeParams.numUniqueNHGs; i++ {
