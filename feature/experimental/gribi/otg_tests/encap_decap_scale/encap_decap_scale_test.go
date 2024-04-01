@@ -343,7 +343,7 @@ func pushEncapEntries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []
 		numUniqueNHs:  len(virtualIPs),
 		nextHops:      virtualIPs,
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: 24,
+		numUniqueNHGs: 32,
 		nhDecapEncap:  false,
 	}
 
