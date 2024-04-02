@@ -117,21 +117,21 @@ duts {
   ports {
     id: "port1"
     name: "HundredGigE0/0/0/30"  # Change this to the actual port name.
-    speed: S_10GB
+    speed: S_100GB
   }
   ports {
     id: "port2"
     name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
-    speed: S_10GB
+    speed: S_100GB
   }
   ports {
     id: "port3"
     name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
-    speed: S_10GB
+    speed: S_100GB
   }
   ports {
    id: "port4"
    name: "HundredGigE0/0/0/10"  # Change this to the actual port name.
-   speed: S_10GB
+   speed: S_100GB
   }
 }
