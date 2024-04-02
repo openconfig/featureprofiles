@@ -19,14 +19,14 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	"github.com/open_traffic_generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/ondatra"
 )
 
 const (
@@ -64,6 +64,7 @@ const (
 	matchCommPrefixAddCommuStatementResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
 	matchCommPrefixAddCommuSetOptions      = oc.BgpPolicy_MatchSetOptionsType_ANY
 	prefixSetNameSetOptions                = oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY
+	matchSetOptions                        = oc.BgpPolicy_MatchSetOptionsType_ANY
 )
 
 var prefixesV4 = [][]string{
@@ -86,22 +87,22 @@ var prefixesV6 = [][]string{
 
 var communityMembers = [][][]int{
 	{
-		{10, 1},
+		{10, 1}, {11, 1},
 	},
 	{
-		{20, 1},
+		{20, 1}, {21, 1},
 	},
 	{
-		{30, 1},
+		{30, 1}, {31, 1},
 	},
 	{
 		{20, 2}, {30, 3},
 	},
 	{
-		{40, 1},
+		{40, 1}, {41, 1},
 	},
 	{
-		{50, 1},
+		{50, 1}, {51, 1},
 	},
 }
 
@@ -134,7 +135,6 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	policyV4.SetExportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 
-	// TODO: create as-path-set on the DUT, match-as-path-set not support.
 }
 
 func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
@@ -338,7 +338,8 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 
 	for index, prefixes := range prefixesV4 {
 		bgp4PeerRoute := bgp4Peer.V4Routes().Add()
-		bgp4PeerRoute.SetName(bs.ATEPorts[0].Name + ".BGP4.peer.dut." + strconv.Itoa(index))
+		bgp4PeerRoute.SetName(bs.ATEPorts[0].Name + ".IPv4" + strconv.Itoa(index))
+		bgp4PeerRoute.SetName(bs.ATEPorts[1].Name + ".BGP4.peer.dut." + strconv.Itoa(index))
 		bgp4PeerRoute.SetNextHopIpv4Address(ipv4.Address())
 
 		route4Address1 := bgp4PeerRoute.Addresses().Add().SetAddress(prefixes[0])
@@ -347,7 +348,8 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route4Address2.SetPrefix(prefixV4Len)
 
 		bgp6PeerRoute := bgp6Peer.V6Routes().Add()
-		bgp6PeerRoute.SetName(bs.ATEPorts[0].Name + ".BGP6.peer.dut." + strconv.Itoa(index))
+		bgp6PeerRoute.SetName(bs.ATEPorts[0].Name + ".IPv6" + strconv.Itoa(index))
+		bgp6PeerRoute.SetName(bs.ATEPorts[1].Name + ".BGP6.peer.dut." + strconv.Itoa(index))
 		bgp6PeerRoute.SetNextHopIpv6Address(ipv6.Address())
 
 		route6Address1 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixesV6[index][0])
@@ -435,10 +437,10 @@ func verifyTrafficV4(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]boo
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 
-		if lossPct > 1 && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 1%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
-		} else if lossPct < 99 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >99%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+		if txPackets != rxPackets  && testResults[index] {
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+		} else if rxPackets != 0 && !testResults[index] {
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
 		} else {
 			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
 		}
@@ -494,27 +496,18 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
 	t.Logf("Verify Import Export Accept all bgp policy")
-	matchSetOptions := oc.BgpPolicy_MatchSetOptionsType_ANY
 	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6, matchSetOptions)
-
-	bs.ATETop.Flows().Clear()
 
 	configureFlowV4(t, bs)
 	configureFlowV6(t, bs)
 
 	bs.PushAndStartATE(t)
-	bs.ATE.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
 	testResults := [6]bool{true, true, true, true, true, true}
 	verifyTrafficV4(t, bs, testResults)
 	verifyTrafficV6(t, bs, testResults)
 
 	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6)
-	bs.ATE.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
 	testResults1 := [6]bool{false, true, false, false, true, true}
 	verifyTrafficV4(t, bs, testResults1)
