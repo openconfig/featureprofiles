@@ -119,7 +119,10 @@ const (
 	// Number of NHGs per encap vrf. The total encap vrf NHGs would be 8 times this number.
 	perEncapVRFNHGCount = 25
 
-	nhWeightSum = 16
+	// Upper Limit of the number of Next Hops to add per Next Hop Group.
+	maxNHPerNHG = 256
+
+	nhWeightSum = 32
 
 	encapNHsPerNHG = 8
 
@@ -874,6 +877,9 @@ func installEntries(t *testing.T, vrf string, routeParams *routesParam, args *te
 	// Provision next-hop-groups
 	nextHopGroupIndices := []uint64{}
 	nhPerNHG := len(nextHopIndices) / routeParams.numUniqueNHGs
+	if nhPerNHG > maxNHPerNHG {
+		t.Fatalf("Current NH per NHG for VRF: %s: %v, maximum allowed: %v", vrf, nhPerNHG, maxNHPerNHG)
+	}
 	if len(nextHopIndices)%routeParams.numUniqueNHGs != 0 {
 		t.Logf("Count of NHs: %v not a multiple of Count of NHGs: %v", len(nextHopIndices), routeParams.numUniqueNHGs)
 		routeParams.numUniqueNHGs++
@@ -1027,27 +1033,51 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 	}
 
 	lastNhgIndex = nextHopGroupStartIndex
-	primaryNHGIdx := uint64(lastNhgIndex)
-	nhgEntry := fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithID(primaryNHGIdx).
-		WithElectionID(args.electionID.Low, args.electionID.High)
-	for j := range primaryNextHopIndices {
-		nhgEntry.AddNextHop(primaryNextHopIndices[j], 1)
+	primaryNHGIndices := []uint64{}
+	nhPerNHG := maxNHPerNHG
+	numNHGs := len(primaryNextHopIndices) / nhPerNHG
+	if len(primaryNextHopIndices)%nhPerNHG != 0 {
+		numNHGs++
 	}
-	entries = append(entries, nhgEntry)
-	lastNhgIndex++
+	for i := 0; i < numNHGs; i++ {
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(uint64(lastNhgIndex)).
+			WithElectionID(args.electionID.Low, args.electionID.High)
+		for j := 0; j < nhPerNHG; j++ {
+			nhIdx := (i * nhPerNHG) + j
+			if nhIdx >= len(primaryNextHopIndices) {
+				break
+			}
+			nhgEntry.AddNextHop(primaryNextHopIndices[nhIdx], 1)
+		}
 
-	decapEncapNHGIdx := uint64(lastNhgIndex)
-	nhgEntry = fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-		WithID(decapEncapNHGIdx).
-		WithElectionID(args.electionID.Low, args.electionID.High)
-	for j := range decapEncapNextHopIndices {
-		nhgEntry.AddNextHop(decapEncapNextHopIndices[j], 1)
+		entries = append(entries, nhgEntry)
+		primaryNHGIndices = append(primaryNHGIndices, uint64(lastNhgIndex))
+		lastNhgIndex++
 	}
-	entries = append(entries, nhgEntry)
-	lastNhgIndex++
+
+	numNHGs = len(decapEncapNextHopIndices) / nhPerNHG
+	if len(decapEncapNextHopIndices)%nhPerNHG != 0 {
+		numNHGs++
+	}
+	decapEncapNHGIndices := []uint64{}
+	for i := 0; i < numNHGs; i++ {
+		nhgEntry := fluent.NextHopGroupEntry().
+			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
+			WithID(uint64(lastNhgIndex)).
+			WithElectionID(args.electionID.Low, args.electionID.High)
+		for j := 0; j < nhPerNHG; j++ {
+			nhIdx := (i * nhPerNHG) + j
+			if nhIdx >= len(decapEncapNextHopIndices) {
+				break
+			}
+			nhgEntry.AddNextHop(decapEncapNextHopIndices[nhIdx], 1)
+		}
+		entries = append(entries, nhgEntry)
+		decapEncapNHGIndices = append(decapEncapNHGIndices, uint64(lastNhgIndex))
+		lastNhgIndex++
+	}
 
 	virtualIPs := createIPv4Entries(ipBlockDefaultVRF)
 	primaryVirtualIPs := virtualIPs[0 : numVirtualIPsDefaultVRF/2]
@@ -1058,7 +1088,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 		entries = append(entries, fluent.IPv4Entry().
 			WithPrefix(primaryVirtualIPs[i]+"/32").
 			WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithNextHopGroup(primaryNHGIdx).
+			WithNextHopGroup(primaryNHGIndices[i%len(primaryNHGIndices)]).
 			WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 
@@ -1068,8 +1098,8 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 	}
 	t.Logf("Installed %s VRF \"primary\" next-hop count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(primaryNextHopIndices), primaryNextHopIndices[0], primaryNextHopIndices[len(primaryNextHopIndices)-1])
 	t.Logf("Installed %s VRF \"decap/encap\" next-hop count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(decapEncapNextHopIndices), decapEncapNextHopIndices[0], decapEncapNextHopIndices[len(decapEncapNextHopIndices)-1])
-	t.Logf("Installed %s VRF \"primary\" next-hop-group count: 1 (index %d)", deviations.DefaultNetworkInstance(args.dut), primaryNHGIdx)
-	t.Logf("Installed %s VRF \"decap/encap\" next-hop-group count: 1 (index %d)", deviations.DefaultNetworkInstance(args.dut), decapEncapNHGIdx)
+	t.Logf("Installed %s VRF \"primary\" next-hop-group count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(primaryNHGIndices), primaryNHGIndices[0], primaryNHGIndices[len(primaryNHGIndices)-1])
+	t.Logf("Installed %s VRF \"decap/encap\" next-hop-group count: %d (index %d - %d)", deviations.DefaultNetworkInstance(args.dut), len(decapEncapNHGIndices), decapEncapNHGIndices[0], decapEncapNHGIndices[len(decapEncapNHGIndices)-1])
 
 	for i := range primaryVirtualIPs {
 		chk.HasResult(t, args.client.Results(t),
@@ -1089,7 +1119,7 @@ func pushDefaultEntries(t *testing.T, args *testArgs, nextHops []*nextHopIntfRef
 			fluent.IPv4Entry().
 				WithPrefix(decapEncapVirtualIPs[i]+"/32").
 				WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-				WithNextHopGroup(decapEncapNHGIdx).
+				WithNextHopGroup(decapEncapNHGIndices[i%len(decapEncapNHGIndices)]).
 				WithElectionID(args.electionID.Low, args.electionID.High))
 	}
 	if err := awaitTimeout(args.ctx, args.client, t, time.Minute); err != nil {
