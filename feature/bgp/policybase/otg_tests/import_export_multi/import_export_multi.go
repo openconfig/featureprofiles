@@ -12,34 +12,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package import_export_multi
+package import_export_test
 
 import (
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/open_traffic_generator/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 const (
-	prefixV4Len           = 30
-	prefixV6Len           = 126
-	trafficPps            = 100
-	totalPackets          = 1200
-	bgpName               = "BGP"
-	parentPolicyName      = "multi_policy"
-	callPolicyName        = "match_community_regex"
-	parentPolicyStatement = "if_30:.*_and_not_20:1_nested_reject"
-	communitySetNameTC3   = "accept_communities"
-	callPolicyStatement   = "match_community_regex"
+	prefixV4Len                            = 30
+	prefixV6Len                            = 126
+	trafficPps                             = 100
+	totalPackets                           = 1200
+	bgpName                                = "BGP"
+	medValue                               = 100
+	parentPolicy                           = "multiPolicy"
+	callPolicy                             = "match_community_regex"
+	rejectStatement                        = "reject_route_community"
+	nestedRejectStatement                  = "if_30:.*_and_not_20:1_nested_reject"
+	callPolicyStatement                    = "match_community_regex"
+	addMissingCommunitiesStatement         = "add_communities_if_missing"
+	matchCommPrefixAddCommuStatement       = "match_comm_and_prefix_add_2_community_sets"
+	matchAspathSetMedStatement             = "match_aspath_set_med"
+	rejectPolicyStatementResult            = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+	nestedRejectPolicyStatementResult      = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+	callPolicyStatementResult              = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	addMissingCommunitiesStatementResult   = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	rejectCommunitySet                     = "reject_communities"
+	nestedRejectCommunitySet               = "accept_communities"
+	regexCommunitySet                      = "regex-community"
+	addCommunitiesSetRefs                  = "add-communities"
+	myCommunitySet                         = "my_community"
+	prefixSetName                          = "prefix-set-5"
+	myAsPathName                           = "my_aspath"
+	rejectMatchSetOptions                  = oc.BgpPolicy_MatchSetOptionsType_ANY
+	nestedRejectMatchSetOptions            = oc.BgpPolicy_MatchSetOptionsType_INVERT
+	regexMatchSetOptions                   = oc.BgpPolicy_MatchSetOptionsType_ANY
+	addCommunitiesSetRefsMatchSetOptions   = oc.BgpPolicy_MatchSetOptionsType_INVERT
+	bgpActionMethod                        = oc.SetCommunity_Method_REFERENCE
+	bgpSetCommunityOptionType              = oc.BgpPolicy_BgpSetCommunityOptionType_ADD
+	matchCommPrefixAddCommuStatementResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	matchCommPrefixAddCommuSetOptions      = oc.BgpPolicy_MatchSetOptionsType_ANY
+	prefixSetNameSetOptions                = oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY
 )
 
 var prefixesV4 = [][]string{
@@ -60,11 +84,32 @@ var prefixesV6 = [][]string{
 	{"2048:db1:64:64::12", "2048:db1:64:64::13"},
 }
 
+var communityMembers = [][][]int{
+	{
+		{10, 1},
+	},
+	{
+		{20, 1},
+	},
+	{
+		{30, 1},
+	},
+	{
+		{20, 2}, {30, 3},
+	},
+	{
+		{40, 1},
+	},
+	{
+		{50, 1},
+	},
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, communitySetName string, communityMatch [3]string, matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType) {
+func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition("routePolicy")
@@ -74,23 +119,6 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
-
-	cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch := range communityMatch {
-		if commMatch != "" {
-			cs = append(cs, oc.UnionString(commMatch))
-		}
-	}
-	communitySet.SetCommunityMember(cs)
-	communitySet.SetMatchSetOptions(matchSetOptions)
-
-	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
-	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
-	}
-
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	dni := deviations.DefaultNetworkInstance(dut)
@@ -106,130 +134,197 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	policyV4.SetExportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 
-	// TODO: create as-path-set on the DUT, match-as-path-set not support, vendor is working on it.
+	// TODO: create as-path-set on the DUT, match-as-path-set not support.
 }
 
-func configureImportExportRejectBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, communitySetName string, communityMatch [3]string, matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType) {
+func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
+	rejectCommunities := []string{"10:1"}
+	acceptCommunities := []string{"20:1"}
+	regexCommunities := []string{"^30:.*$"}
+	addCommunitiesRefs := []string{"40:1", "40:2"}
+	addCommunitiesSetRefsAction := []string{"add-communities"}
+	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
+	myCommunitySets := []string{"50:1"}
+
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	pdef1 := rp.GetOrCreatePolicyDefinition("multi_policy")
-	stmt1, err := pdef1.AppendNewStatement("reject_route_community")
+	pdef1 := rp.GetOrCreatePolicyDefinition(parentPolicy)
+	stmt1, err := pdef1.AppendNewStatement(rejectStatement)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "reject_route_community", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", rejectStatement, err)
 	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE)
+	stmt1.GetOrCreateActions().SetPolicyResult(rejectPolicyStatementResult)
 
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
+	communitySetReject := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(rejectCommunitySet)
 
-	cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch := range communityMatch {
-		if commMatch != "" {
-			cs = append(cs, oc.UnionString(commMatch))
+	cs1 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+	for _, commMatch1 := range rejectCommunities {
+		if commMatch1 != "" {
+			cs1 = append(cs1, oc.UnionString(commMatch1))
 		}
 	}
-	communitySet.SetCommunityMember(cs)
-	communitySet.SetMatchSetOptions(matchSetOptions)
+	communitySetReject.SetCommunityMember(cs1)
+	communitySetReject.SetMatchSetOptions(rejectMatchSetOptions)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(rejectCommunitySet)
 	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(rejectCommunitySet)
 	}
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
-	dni := deviations.DefaultNetworkInstance(dut)
-	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	policyV6 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policyV6.SetImportPolicy([]string{"routePolicy"})
-	policyV6.SetExportPolicy([]string{"routePolicy"})
-	gnmi.Replace(t, dut, pathV6.Config(), policyV6)
-
-	pathV4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	policyV4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policyV4.SetImportPolicy([]string{"routePolicy"})
-	policyV4.SetExportPolicy([]string{"routePolicy"})
-	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
-
-	// TODO: create as-path-set on the DUT, match-as-path-set not support, vendor is working on it.
-}
-
-func configureImportExportNestedBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-
-	// Configure a route-policy to set the local preference.
-	pdef1 := rp.GetOrCreatePolicyDefinition(parentPolicyName)
-	stmt1, err := pdef1.AppendNewStatement(parentPolicyStatement)
+	stmt2, err := pdef1.AppendNewStatement(nestedRejectStatement)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", parentPolicyStatement, err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", nestedRejectStatement, err)
 	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE)
+	stmt2.GetOrCreateActions().SetPolicyResult(nestedRejectPolicyStatementResult)
 
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetNameTC3)
+	communitySetNestedReject := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(nestedRejectCommunitySet)
 
-	communityMatch := [3]string{"20:1"}
-	cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch := range communityMatch {
-		if commMatch != "" {
-			cs = append(cs, oc.UnionString(commMatch))
+	cs2 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+	for _, commMatch2 := range acceptCommunities {
+		if commMatch2 != "" {
+			cs2 = append(cs2, oc.UnionString(commMatch2))
 		}
 	}
-	communitySet.SetCommunityMember(cs)
-	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_INVERT)
+	communitySetNestedReject.SetCommunityMember(cs2)
+	communitySetNestedReject.SetMatchSetOptions(nestedRejectMatchSetOptions)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetNameTC3)
+		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(nestedRejectCommunitySet)
 	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetNameTC3)
+		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(nestedRejectCommunitySet)
 	}
 
-	// Configure a route-policy to match the community_regex.
-	pdef2 := rp.GetOrCreatePolicyDefinition(callPolicyName)
-	stmt2, err := pdef2.AppendNewStatement(callPolicyStatement)
+	// defining policy "match_community_regex" will be called from "multiPolicy" policy
+
+	pdef2 := rp.GetOrCreatePolicyDefinition(callPolicy)
+	stmt3, err := pdef2.AppendNewStatement(callPolicyStatement)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", callPolicyStatement, err)
 	}
-	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stmt3.GetOrCreateActions().SetPolicyResult(callPolicyStatementResult)
+
+	communitySetRegex := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(regexCommunitySet)
+
+	cs3 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+	for _, commMatch3 := range regexCommunities {
+		if commMatch3 != "" {
+			cs3 = append(cs3, oc.UnionString(commMatch3))
+		}
+	}
+	communitySetRegex.SetCommunityMember(cs3)
+	communitySetRegex.SetMatchSetOptions(regexMatchSetOptions)
+
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt3.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(regexCommunitySet)
+	} else {
+		stmt3.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(regexCommunitySet)
+	}
+
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
 	rpPolicy := root.GetOrCreateRoutingPolicy()
-	statPath := rpPolicy.GetOrCreatePolicyDefinition(parentPolicyName).GetStatement(parentPolicyStatement).GetConditions()
-	statPath.SetCallPolicy(callPolicyName)
+	statPath := rpPolicy.GetOrCreatePolicyDefinition(parentPolicy).GetStatement(nestedRejectStatement).GetConditions()
+	statPath.SetCallPolicy(callPolicy)
+
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+
+	stmt4, err := pdef1.AppendNewStatement(addMissingCommunitiesStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", addMissingCommunitiesStatement, err)
+	}
+	stmt4.GetOrCreateActions().SetPolicyResult(addMissingCommunitiesStatementResult)
+
+	communitySetRefsAddCommunities := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(addCommunitiesSetRefs)
+
+	cs4 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+	for _, commMatch4 := range addCommunitiesRefs {
+		if commMatch4 != "" {
+			cs4 = append(cs4, oc.UnionString(commMatch4))
+		}
+	}
+	communitySetRefsAddCommunities.SetCommunityMember(cs4)
+	communitySetRefsAddCommunities.SetMatchSetOptions(addCommunitiesSetRefsMatchSetOptions)
+
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(addCommunitiesSetRefs)
+	} else {
+		if deviations.BgpCommunitySetRefsUnsupported(dut) {
+			t.Logf("TODO: community-set-refs not supported b/316833803")
+			stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(addCommunitiesSetRefs)
+		}
+	}
+
+	if deviations.BgpCommunitySetRefsUnsupported(dut) {
+		t.Logf("TODO: community-set-refs not supported b/316833803")
+	} else {
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(bgpActionMethod)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(bgpSetCommunityOptionType)
+	}
+
+	stmt5, err := pdef1.AppendNewStatement(matchCommPrefixAddCommuStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", matchCommPrefixAddCommuStatement, err)
+	}
+	stmt5.GetOrCreateActions().SetPolicyResult(matchCommPrefixAddCommuStatementResult)
+
+	communitySetMatchCommPrefixAddCommu := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(myCommunitySet)
+
+	cs5 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+	for _, commMatch5 := range myCommunitySets {
+		if commMatch5 != "" {
+			cs5 = append(cs5, oc.UnionString(commMatch5))
+		}
+	}
+	communitySetMatchCommPrefixAddCommu.SetCommunityMember(cs5)
+	communitySetMatchCommPrefixAddCommu.SetMatchSetOptions(matchCommPrefixAddCommuSetOptions)
+
+	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
+	stmt5.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
+
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(addCommunitiesSetRefs)
+	} else {
+		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(addCommunitiesSetRefs)
+	}
+
+	if deviations.BgpCommunitySetRefsUnsupported(dut) {
+		t.Logf("TODO: community-set-refs not supported b/316833803")
+	} else {
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+	}
+
+	stmt6, err := pdef2.AppendNewStatement(matchAspathSetMedStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", matchAspathSetMedStatement, err)
+	}
+	stmt6.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+
+	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
+	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	stmt6.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	// Configure the parent BGP import and export policy.
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policyV6 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policyV6.SetImportPolicy([]string{parentPolicyName})
-	policyV6.SetExportPolicy([]string{parentPolicyName})
-	gnmi.Update(t, dut, pathV6.Config(), policyV6)
+	policyV6.SetImportPolicy([]string{parentPolicy})
+	policyV6.SetExportPolicy([]string{parentPolicy})
+	gnmi.Replace(t, dut, pathV6.Config(), policyV6)
 
 	pathV4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policyV4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policyV4.SetImportPolicy([]string{parentPolicyName})
-	policyV4.SetExportPolicy([]string{parentPolicyName})
-	gnmi.Update(t, dut, pathV4.Config(), policyV4)
+	policyV4.SetImportPolicy([]string{parentPolicy})
+	policyV4.SetExportPolicy([]string{parentPolicy})
+	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 
-	// TODO: create as-path-set on the DUT, match-as-path-set not support, vendor is working on it.
-}
-
-func configureMultiStatementsBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, communitySetName string, communityMatch [3]string, matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType) {
-	root := &oc.Root{}
-	rp := root.GetOrCreateRoutingPolicy()
-	pdef1 := rp.GetOrCreatePolicyDefinition("multi_policy")
-	stmt1, err := pdef1.AppendNewStatement("add_communities_if_missing")
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "add_communities_if_missing", err)
-	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
-	
-	// TODO: Arista: community-set-refs is not supported
-
-	// TODO: create as-path-set on the DUT, match-as-path-set not support, vendor is working on it.
-
+	// TODO: create as-path-set on the DUT, match-as-path-set not support.
 }
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, communityMembers [][][]int) {
@@ -276,287 +371,116 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 	}
 }
 
-func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string, prefixType string, index int) {
-	flow := bs.ATETop.Flows().Add().SetName("flow" + prefixType)
-	flow.Metrics().SetEnable(true)
+func configureFlowV4(t *testing.T, bs *cfgplugins.BGPSession) {
+	for index, prefixPairV4 := range prefixesV4 {
+		flow := bs.ATETop.Flows().Add().SetName("flow" + "ipv4" + strconv.Itoa(index))
+		flow.Metrics().SetEnable(true)
 
-	if prefixType == "ipv4" {
 		flow.TxRx().Device().
-			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4"}).
+			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4" + strconv.Itoa(index)}).
 			SetRxNames([]string{bs.ATEPorts[1].Name + ".BGP4.peer.dut." + strconv.Itoa(index)})
-	} else {
-		flow.TxRx().Device().
-			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv6"}).
-			SetRxNames([]string{bs.ATEPorts[1].Name + ".BGP6.peer.dut." + strconv.Itoa(index)})
-	}
 
-	flow.Duration().FixedPackets().SetPackets(totalPackets)
-	flow.Size().SetFixed(1500)
-	flow.Rate().SetPps(trafficPps)
+		flow.Duration().FixedPackets().SetPackets(totalPackets)
+		flow.Size().SetFixed(1500)
+		flow.Rate().SetPps(trafficPps)
 
-	e := flow.Packet().Add().Ethernet()
-	e.Src().SetValue(bs.ATEPorts[1].MAC)
+		e := flow.Packet().Add().Ethernet()
+		e.Src().SetValue(bs.ATEPorts[1].MAC)
 
-	if prefixType == "ipv4" {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-		v4.Dst().SetValues(prefixPair)
-	} else {
+		v4.Dst().SetValues(prefixPairV4)
+	}
+}
+
+func configureFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
+	for index, prefixPairV6 := range prefixesV6 {
+		flow := bs.ATETop.Flows().Add().SetName("flow" + "ipv6" + strconv.Itoa(index))
+		flow.Metrics().SetEnable(true)
+
+		flow.TxRx().Device().
+			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv6" + strconv.Itoa(index)}).
+			SetRxNames([]string{bs.ATEPorts[1].Name + ".BGP6.peer.dut." + strconv.Itoa(index)})
+
+		flow.Duration().FixedPackets().SetPackets(totalPackets)
+		flow.Size().SetFixed(1500)
+		flow.Rate().SetPps(trafficPps)
+
+		e := flow.Packet().Add().Ethernet()
+		e.Src().SetValue(bs.ATEPorts[1].MAC)
+
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(bs.ATEPorts[0].IPv6)
-		v6.Dst().SetValues(prefixPair)
+		v6.Dst().SetValues(prefixPairV6)
 	}
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, ports int, testResults bool) {
-	framesTx := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	framesRx := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port2").ID()).Counters().InFrames().State())
-
-	if framesTx == 0 {
-		t.Error("No traffic was generated and frames transmitted were 0")
-	} else if (testResults && framesRx == framesTx) || (!testResults && framesRx == 0) {
-		t.Logf("Traffic validation successful for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
-	} else {
-		t.Errorf("Traffic validation failed for criteria [%t] FramesTx: %d FramesRx: %d", testResults, framesTx, framesRx)
-	}
-}
-
-type verifyPolicy struct {
-	desc             string
-	communitySetName string
-	communityMatch   [3]string
-	matchSetOptions  oc.E_BgpPolicy_MatchSetOptionsType
-	testResults      [6]bool
-}
-
-func TestAcceptAllPolicy(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
-		"port1", "port2"}, true, false)
-
-	var communityMembers = [][][]int{
-		{
-			{10, 1},
-		},
-		{
-			{20, 1},
-		},
-		{
-			{30, 1},
-		},
-		{
-			{20, 2}, {30, 3},
-		},
-		{
-			{40, 1},
-		},
-		{
-			{50, 1},
-		},
-	}
-
-	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
-	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
-	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
-
-	verifyPolicy := []verifyPolicy{
-		{
-			desc:             "Testing with reject_communities",
-			communitySetName: "reject_communities",
-			communityMatch:   [3]string{"10:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{true, false, false, false, false, false},
-		},
-		{
-			desc:             "Testing with accept_communities",
-			communitySetName: "accept_communities",
-			communityMatch:   [3]string{"20:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{false, true, false, false, false, false},
-		},
-		{
-			desc:             "Testing with regex_community",
-			communitySetName: "regex_community",
-			communityMatch:   [3]string{"^30:.*$"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{false, false, true, true, false, false},
-		},
-		{
-			desc:             "Testing with add_communities",
-			communitySetName: "add_communities",
-			communityMatch:   [3]string{"40:1", "40:2"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{false, false, false, false, true, false},
-		},
-		{
-			desc:             "Testing with my_community",
-			communitySetName: "my_community",
-			communityMatch:   [3]string{"50:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{false, false, false, false, false, true},
-		},
-	}
-	for _, vp := range verifyPolicy {
-
-		configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6, vp.communitySetName, vp.communityMatch, vp.matchSetOptions)
-
-		sleepTime := time.Duration(totalPackets/trafficPps) + 2
-
-		for index, prefixPairV4 := range prefixesV4 {
-
-			bs.ATETop.Flows().Clear()
-			configureFlow(t, bs, prefixPairV4, "ipv4", index)
-			configureFlow(t, bs, prefixesV6[index], "ipv6", index)
-			bs.PushAndStartATE(t)
-
-			t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], vp.testResults[index])
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
-
-			t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], vp.testResults[index])
-
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
-		}
-	}
-}
-
-func TestRejectPolicy(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
-		"port1", "port2"}, true, false)
-
-	var communityMembers = [][][]int{
-		{
-			{10, 1},
-		},
-	}
-
-	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
-	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
-	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
-
-	verifyPolicy := []verifyPolicy{
-		{
-			desc:             "Testing with reject_communities",
-			communitySetName: "reject_communities",
-			communityMatch:   [3]string{"10:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{false, true, true, true, true, true},
-		},
-	}
-	for _, vp := range verifyPolicy {
-
-		configureImportExportRejectBGPPolicy(t, bs.DUT, ipv4, ipv6, vp.communitySetName, vp.communityMatch, vp.matchSetOptions)
-
-		sleepTime := time.Duration(totalPackets/trafficPps) + 2
-
-		for index, prefixPairV4 := range prefixesV4 {
-
-			bs.ATETop.Flows().Clear()
-			configureFlow(t, bs, prefixPairV4, "ipv4", index)
-			configureFlow(t, bs, prefixesV6[index], "ipv6", index)
-			bs.PushAndStartATE(t)
-
-			t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], vp.testResults[index])
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
-
-			t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], vp.testResults[index])
-
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
-		}
-	}
-}
-
-func TestNestedBgpPolicy(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
-		"port1", "port2"}, true, false)
-
-	var communityMembers = [][][]int{
-		{
-			{10, 1},
-		},
-	}
-
-	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
-	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
-	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
-
-	configureImportExportNestedBGPPolicy(t, bs.DUT, ipv4, ipv6)
-	testResults := [6]bool{true, true, false, false, true, true}
+func verifyTrafficV4(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]bool) {
 
 	sleepTime := time.Duration(totalPackets/trafficPps) + 2
+	bs.ATE.OTG().StartTraffic(t)
+	time.Sleep(time.Second * sleepTime)
+	bs.ATE.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
 	for index, prefixPairV4 := range prefixesV4 {
-
-		bs.ATETop.Flows().Clear()
-		configureFlow(t, bs, prefixPairV4, "ipv4", index)
-		configureFlow(t, bs, prefixesV6[index], "ipv6", index)
-		bs.PushAndStartATE(t)
-
 		t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
-		bs.ATE.OTG().StartTraffic(t)
-		time.Sleep(sleepTime * time.Second)
-		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), testResults[index])
 
-		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
+		t.Log("Checking flow telemetry...")
+		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv4"+strconv.Itoa(index)).State())
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
 
-		bs.ATE.OTG().StartTraffic(t)
-		time.Sleep(sleepTime * time.Second)
-		bs.ATE.OTG().StopTraffic(t)
-		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), testResults[index])
+		if lossPct > 1 && testResults[index] {
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 1%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+		} else if lossPct < 99 && !testResults[index] {
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >99%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
+		}
+
 	}
 }
 
-func TestMultipleStatementsBgpPolicy(t *testing.T) {
+func verifyTrafficV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]bool) {
+
+	sleepTime := time.Duration(totalPackets/trafficPps) + 2
+	bs.ATE.OTG().StartTraffic(t)
+	time.Sleep(time.Second * sleepTime)
+	bs.ATE.OTG().StopTraffic(t)
+
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
+
+	for index, prefixPairV6 := range prefixesV6 {
+		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV6[0], prefixPairV6[1], testResults[index])
+
+		t.Log("Checking flow telemetry...")
+		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
+		txPackets := recvMetric.GetCounters().GetOutPkts()
+		rxPackets := recvMetric.GetCounters().GetInPkts()
+		lostPackets := txPackets - rxPackets
+		lossPct := lostPackets * 100 / txPackets
+
+		if lossPct > 1 && testResults[index] {
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 1%% traffic loss", lossPct, "flow"+"ipv6"+strconv.Itoa(index), prefixPairV6[0], prefixPairV6[1])
+		} else if lossPct < 99 && !testResults[index] {
+			t.Errorf("FAIL- got %v%% packet for %s flow and prefixes: [%s, %s]; want >99%% traffic loss", lossPct, "flow"+"ipv6"+strconv.Itoa(index), prefixPairV6[0], prefixPairV6[1])
+		} else {
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t]  PacketsTx: %d PacketsRx: %d", prefixPairV6[0], prefixPairV6[1], testResults[index], txPackets, rxPackets)
+		}
+
+	}
+}
+
+func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
-
-	var communityMembers = [][][]int{
-		{
-			{10, 1},
-		},
-	}
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
 	bs.PushAndStart(t)
@@ -569,56 +493,30 @@ func TestMultipleStatementsBgpPolicy(t *testing.T) {
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
-	verifyPolicy := []verifyPolicy{
-		{
-			desc:             "Testing with add_communities_if_missing",
-			communitySetName: "add-communities",
-			communityMatch:   [3]string{"40:1", "40:2"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_INVERT,
-			testResults:      [6]bool{true, true, false, false, true, true},
-		},
-		{
-			desc:             "Testing with match_comm_and_prefix_add_2_community_sets",
-			communitySetName: "my_community",
-			communityMatch:   [3]string{"50:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{true, true, false, false, true, true},
-		},
-		{
-			desc:             "Testing with match_aspath_set_med",
-			communitySetName: "my_aspath",
-			communityMatch:   [3]string{"50:1"},
-			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
-			testResults:      [6]bool{true, true, false, false, true, true},
-		},
-	}
-	for _, vp := range verifyPolicy {
+	t.Logf("Verify Import Export Accept all bgp policy")
+	matchSetOptions := oc.BgpPolicy_MatchSetOptionsType_ANY
+	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6, matchSetOptions)
 
-		configureMultiStatementsBgpPolicy(t, bs.DUT, ipv4, ipv6, vp.communitySetName, vp.communityMatch, vp.matchSetOptions)
+	bs.ATETop.Flows().Clear()
 
-		sleepTime := time.Duration(totalPackets/trafficPps) + 2
+	configureFlowV4(t, bs)
+	configureFlowV6(t, bs)
 
-		for index, prefixPairV4 := range prefixesV4 {
+	bs.PushAndStartATE(t)
+	bs.ATE.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
-			bs.ATETop.Flows().Clear()
-			configureFlow(t, bs, prefixPairV4, "ipv4", index)
-			configureFlow(t, bs, prefixesV6[index], "ipv6", index)
-			bs.PushAndStartATE(t)
+	testResults := [6]bool{true, true, true, true, true, true}
+	verifyTrafficV4(t, bs, testResults)
+	verifyTrafficV6(t, bs, testResults)
 
-			t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], vp.testResults[index])
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
+	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6)
+	bs.ATE.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv4")
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 
-			t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], vp.testResults[index])
-
-			bs.ATE.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			bs.ATE.OTG().StopTraffic(t)
-			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-			verifyTraffic(t, bs.ATE, int(cfgplugins.PortCount2), vp.testResults[index])
-		}
-	}
+	testResults1 := [6]bool{false, true, false, false, true, true}
+	verifyTrafficV4(t, bs, testResults1)
+	verifyTrafficV6(t, bs, testResults1)
 }
