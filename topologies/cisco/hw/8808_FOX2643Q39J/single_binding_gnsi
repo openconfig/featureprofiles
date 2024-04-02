@@ -105,6 +105,7 @@ duts {
   }
   ssh{
     target: "10.85.84.159:4999"
+    skip_verify: true
   }
   p4rt{
     #target: "10.85.84.159:54999"
