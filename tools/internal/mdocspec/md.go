@@ -28,18 +28,18 @@ var MDOCSpecs = &mdOCSpecs{}
 
 func (e *mdOCSpecs) Extend(m goldmark.Markdown) {
 	extension.GFM.Extend(m)
-	m.SetRenderer(&YAMLRenderer{})
+	m.SetRenderer(&yamlRenderer{})
 }
 
-type YAMLRenderer struct{}
+type yamlRenderer struct{}
 
-func (r *YAMLRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
+func (r *yamlRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
 	return ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		return yamlRenderer(w, source, n, entering)
+		return renderYAML(w, source, n, entering)
 	})
 }
 
-func (r *YAMLRenderer) AddOptions(...renderer.Option) {}
+func (r *yamlRenderer) AddOptions(...renderer.Option) {}
 
 func yamlCodeBlock(source []byte, n ast.Node) *ast.FencedCodeBlock {
 	if s, ok := n.(*ast.FencedCodeBlock); ok && s.Info != nil {
@@ -50,7 +50,7 @@ func yamlCodeBlock(source []byte, n ast.Node) *ast.FencedCodeBlock {
 	return nil
 }
 
-func yamlRenderer(w io.Writer, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+func renderYAML(w io.Writer, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if !entering {
 		return ast.WalkContinue, nil
 	}
