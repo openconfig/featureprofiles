@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -20,8 +22,37 @@ var (
 	reIPv6BySLAAC   = regexp.MustCompile(ipv6BySLAAC)
 )
 
+var (
+	plenIPv4 = uint8(30)
+	plenIPv6 = uint8(126)
+
+	dutPort1 = &attrs.Attributes{
+		Name:    "port1",
+		IPv4:    "192.0.2.1",
+		IPv4Len: plenIPv4,
+		IPv6:    "2001:0db8::192:0:2:1",
+		IPv6Len: plenIPv6,
+	}
+	atePort1 = &attrs.Attributes{
+		Name:    "port1",
+		MAC:     "02:00:01:01:01:01",
+		IPv4:    "192.0.2.2",
+		IPv4Len: plenIPv4,
+		IPv6:    "2001:0db8::192:0:2:2",
+		IPv6Len: plenIPv6,
+	}
+)
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func configureATEInterface(t *testing.T, ate *ondatra.ATEDevice, p2 *ondatra.Port, top gosnappi.Config) {
+	t.Helper()
+	atePort1.AddToOTG(top, p2, dutPort1)
+	otg := ate.OTG()
+	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 }
 
 func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) {
@@ -31,6 +62,7 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	intf.Description = ygot.String(intfDesc)
 	intf.GetOrCreateSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 	intf.GetOrCreateSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	intf.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateAutoconf()
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), intf)
 }
 
@@ -46,15 +78,16 @@ func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) 
 				allIPv6 = append(allIPv6, fmt.Sprintf("%s/%d", v6.GetIp(), v6.GetPrefixLength()))
 			}
 		}
-		if hasSLAACGeneratedAddress(allIPv6) {
+		if hasSLAACGeneratedAddress(t, allIPv6) {
 			break
 		}
 	}
 	return allIPv6
 }
 
-func hasSLAACGeneratedAddress(ipv6Addrs []string) bool {
+func hasSLAACGeneratedAddress(t *testing.T, ipv6Addrs []string) bool {
 	for _, ipv6Addr := range ipv6Addrs {
+		t.Logf("ipv6Addr: %s", ipv6Addr)
 		if reIPv6BySLAAC.MatchString(ipv6Addr) {
 			return true
 		}
@@ -65,9 +98,16 @@ func hasSLAACGeneratedAddress(ipv6Addrs []string) bool {
 func TestIpv6LinkLocakGenBySLAAC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
+	ate := ondatra.ATE(t, "ate")
+	p2 := ate.Port(t, "port1")
+
+	top := gosnappi.NewConfig()
+
+	configureATEInterface(t, ate, p2, top)
 	configureDUTLinkLocalInterface(t, dut, p1)
+
 	ipv6 := getAllIPv6Addresses(t, dut, p1)
-	if !hasSLAACGeneratedAddress(ipv6) {
+	if !hasSLAACGeneratedAddress(t, ipv6) {
 		t.Errorf("No SLAAC generated IPv6 address found , got: %s, want: %s", ipv6, ipv6BySLAAC)
 	}
 }
