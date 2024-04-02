@@ -7,8 +7,6 @@ owners:
 pre_tests:
   - name: set_clock
     path: exec/utils/settime
-  # - name: p4rt_base
-  #   path: feature/experimental/p4rt/tests/p4rt_election/p4rt_election_test.go
 tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
