@@ -245,18 +245,27 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.
 }
 
 func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, i1, i2 *interfaces.InterfacePath,
-	target uint64) (map[string]uint64, map[string]uint64) {
-	inPktsV, ok := gnmi.Watch(t, dut, i1.Counters().InUnicastPkts().State(), time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+	inTarget, outTarget uint64) (map[string]uint64, map[string]uint64) {
+	inWatcher := gnmi.Watch(t, dut, i1.Counters().InUnicastPkts().State(), time.Second*60, func(v *ygnmi.Value[uint64]) bool {
 		got, present := v.Val()
-		return present && got >= target
-	}).Await(t)
+		return present && got >= inTarget
+	})
+	outWatcher := gnmi.Watch(t, dut, i2.Counters().OutUnicastPkts().State(),
+		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+			got, present := v.Val()
+			return present && got >= outTarget
+		})
 
+	inPktsV, ok := inWatcher.Await(t)
 	if !ok {
-		t.Fatalf("Counters did not update in time")
+		t.Fatalf("InPkts counter did not update in time")
 	}
-
+	outPktsV, ok := outWatcher.Await(t)
+	if !ok {
+		t.Fatalf("OutPkts counter did not update in time")
+	}
 	inPkts, _ := inPktsV.Val()
-	outPkts := gnmi.Get(t, dut, i2.Counters().OutUnicastPkts().State())
+	outPkts, _ := outPktsV.Val()
 	return map[string]uint64{"parent": inPkts}, map[string]uint64{"parent": outPkts}
 }
 
@@ -396,8 +405,9 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic map[string]uint64
 	if deviations.InterfaceCountersUpdateDelayed(dut) {
-		target := dutInPktsBeforeTraffic["parent"] + ateInPkts["parent"]
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, i1, i2, target)
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, i1, i2,
+			dutInPktsBeforeTraffic["parent"]+ateInPkts["parent"],
+			dutOutPktsBeforeTraffic["parent"]+ateOutPkts["parent"])
 	} else {
 		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, i1, i2)
 	}

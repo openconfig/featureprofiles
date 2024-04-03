@@ -576,17 +576,21 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters())
 		}
 
-		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+		_, ok := gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
 			got, present := v.Val()
 			if !present {
 				return false
 			}
 			totalPks := uint64(0)
 			for _, port := range tc.dutPorts[1:] {
-				totalPks += got.GetInterface(port.Name()).GetCounters().GetInPkts()
+				totalPks += got.GetInterface(port.Name()).GetCounters().GetOutPkts() - beforeTrafficCounters[port.Name()].GetOutPkts()
 			}
 			return totalPks >= pkts
 		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Counters did not update in time")
+		}
 	}
 
 	afterTrafficCounters := tc.getCounters(t, "after")

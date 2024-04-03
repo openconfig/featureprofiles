@@ -780,20 +780,30 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.P
 	return inPkts, outPkts
 }
 
-func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port,
-	target uint64) (uint64, uint64) {
-	outPktsV, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(),
+func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice,
+	dp1, dp2 *ondatra.Port, inTarget, outTarget uint64) (uint64, uint64) {
+	inWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(),
 		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
 			got, present := v.Val()
-			return present && got >= target
-		}).Await(t)
+			return present && got >= inTarget
+		})
 
+	outWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(),
+		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
+			got, present := v.Val()
+			return present && got >= outTarget
+		})
+
+	inPktsV, ok := inWatcher.Await(t)
 	if !ok {
-		t.Fatalf("Counters did not update in time")
+		t.Fatalf("InPkts counter did not update in time")
 	}
-
+	outPktsV, ok := outWatcher.Await(t)
+	if !ok {
+		t.Fatalf("OutPkts counter did not update in time")
+	}
+	inPkts, _ := inPktsV.Val()
 	outPkts, _ := outPktsV.Val()
-	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
 	return inPkts, outPkts
 }
 
@@ -867,25 +877,26 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
-	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
+	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
-	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
+	lossPct := float32((ateOutPkts-ateInPkts)*100) / float32(ateOutPkts)
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
 	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
 	if deviations.InterfaceCountersUpdateDelayed(dut) {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2, dutOutPktsBeforeTraffic+uint64(ateInPkts))
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2,
+			dutInPktsBeforeTraffic+uint64(ateOutPkts), dutOutPktsBeforeTraffic+uint64(ateOutPkts))
 	} else {
 		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
 	}
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
+	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateOutPkts) {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
 	}
 	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
