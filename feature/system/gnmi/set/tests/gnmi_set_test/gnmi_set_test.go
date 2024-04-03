@@ -784,15 +784,14 @@ func verifyInterface(t testing.TB, dev gnmi.DeviceOrOpts, name string, a *attrs.
 
 // attachInterface attaches an interface name and subinterface sub to a network instance.
 func attachInterface(dut *ondatra.DUTDevice, ni *oc.NetworkInstance, name string, sub int) string {
-	id := name // Possibly vendor specific?  May have to use sub.
-	niface := ni.GetOrCreateInterface(id)
-	niface.Interface = ygot.String(name)
-	niface.Subinterface = ygot.Uint32(uint32(sub))
 	// As per openconfig-interfaces.yang#L191.
 	// User-defined identifier for an interface, generally used to name a interface reference.
 	// The id can be arbitrary but a useful convention is to use a combination of base interface
 	// name and subinterface index.
-	id = fmt.Sprintf("%s.%d", id, sub)
+	id := fmt.Sprintf("%s.%d", name, sub)
+	niface := ni.GetOrCreateInterface(name)
+	niface.Interface = ygot.String(name)
+	niface.Subinterface = ygot.Uint32(uint32(sub))
 	return id
 }
 
