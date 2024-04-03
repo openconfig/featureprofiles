@@ -39,7 +39,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestIFIPCfgs(t *testing.T) {
-	t.Skip() // TODO - skip till this function is clean and stable
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
