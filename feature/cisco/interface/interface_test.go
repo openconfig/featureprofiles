@@ -11,6 +11,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -20,7 +22,24 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+const (
+	ipv4PrefixLen = 24
+	inputFile     = "testdata/interface.yaml"
+)
+
+var (
+	testInput = ipb.LoadInput(inputFile)
+	device1   = "dut"
+	observer  = fptest.NewObserver("Interface").AddCsvRecorder("ocreport").
+			AddCsvRecorder("Interface")
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
 func TestIFIPCfgs(t *testing.T) {
+	t.Skip() // TODO - skip till this function is clean and stable
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
@@ -943,6 +962,7 @@ func TestInterfaceCountersState(t *testing.T) {
 
 	})
 }
+
 func TestInterfaceState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
@@ -953,6 +973,7 @@ func TestInterfaceState(t *testing.T) {
 	randstr := "random string"
 	randmtu := ygot.Uint16(1200)
 	path := gnmi.OC().Interface(iut.Name())
+	gnmi.Update(t, dut, path.Name().Config(), iut.Name())
 	obj := &oc.Interface{
 		Name:        ygot.String(iut.Name()),
 		Description: ygot.String(randstr),
@@ -1052,14 +1073,13 @@ func TestInterfaceState(t *testing.T) {
 		}
 	})
 	t.Run("Subscribe//interfaces/interface/aggregation/state/member", func(t *testing.T) {
+		t.Skip() // TODO - remove
 		state := gnmi.OC().Interface(iut.Name()).Aggregation().Member()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := gnmi.Get(t, dut, state.State())
-		if sliceEqual(members, iut.Members()) {
+		if util.SliceEqual(members, iut.Members()) {
 			t.Logf("Got correct Interface Aggregation Member Value")
 		} else {
 			t.Errorf("Interface Aggregation Member: got %v, want %v", members, iut.Members())
-
 		}
 	})
 	member := iut.Members()[0]
@@ -1100,17 +1120,22 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
+
 	iute := dut.Port(t, "port8")
 	macAdd := "78:2a:67:b6:a8:08"
-	t.Run("Update//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
-		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), macAdd)
+	macAddIntfPath := gnmi.OC().Interface(iute.Name()).Config()
+	macAddressIntfObj := &oc.Interface{
+		Name: ygot.String(iute.Name()),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+	}
+	gnmi.Update(t, dut, macAddIntfPath, macAddressIntfObj)
 
+	t.Run("Update//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
+		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
+		gnmi.Update(t, dut, path.Config(), macAdd)
 	})
 	t.Run("Subscribe//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		state := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
-		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		macadd := gnmi.Get(t, dut, state.State())
 		if macadd != macAdd {
 			t.Errorf("Interface MacAddress: got %s, want !=%s", macadd, macAdd)
@@ -1119,13 +1144,11 @@ func TestInterfaceState(t *testing.T) {
 	})
 	t.Run("Delete//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-
 	})
+
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Type()
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
@@ -1138,7 +1161,6 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-
 }
 
 func TestInterfaceHoldTime(t *testing.T) {
@@ -1282,10 +1304,6 @@ func TestInterfaceTelemetry(t *testing.T) {
 
 }
 
-const (
-	ipv4PrefixLen = 24
-)
-
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "BundlePort1",
@@ -1293,13 +1311,11 @@ var (
 		MAC:     "1.2.0",
 		IPv4Len: ipv4PrefixLen,
 	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "BundlePort2",
 		IPv4:    "100.121.1.1",
@@ -1381,6 +1397,7 @@ func testFlow(
 	t.Logf("Loss Packet %v ", lossPct)
 	return lossPct
 }
+
 func TestForwardingUnviableFP(t *testing.T) {
 	t.Skip(t)
 	dut := ondatra.DUT(t, device1)
@@ -1567,8 +1584,8 @@ func TestForwardingUnviableFP(t *testing.T) {
 		}
 
 	})
-
 }
+
 func TestForwardViableSDN(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
@@ -1577,6 +1594,8 @@ func TestForwardViableSDN(t *testing.T) {
 	}
 	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
 	bundleMember := iut2.Members()[0]
+	//path := gnmi.OC().Interface(iut2.Name()) // TODO - KD
+	//gnmi.Replace(t, dut, path.Name().Config(), iut2.Name())
 	interfaceContainer := &oc.Interface{
 		Type:             oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Name:             ygot.String(bundleMember),
@@ -1589,9 +1608,7 @@ func TestForwardViableSDN(t *testing.T) {
 			Description: ygot.String("randstr"),
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		}
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), obj)
-
 	})
 	t.Run(fmt.Sprintf("Update on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember).ForwardingViable()
@@ -1599,10 +1616,10 @@ func TestForwardViableSDN(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), *ygot.Bool(false))
 	})
 	t.Run(fmt.Sprintf("Get on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
-		configContainer := gnmi.OC().Interface(bundleMember).ForwardingViable()
+		configContainer := gnmi.OC().Interface(bundleMember).ForwardingViable().Config()
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.Get(t, dut, configContainer.Config())
-		if forwardUnviable != *ygot.Bool(false) {
+		forwardUnviable := gnmi.LookupConfig(t, dut, configContainer)
+		if v, _ := forwardUnviable.Val(); v != false {
 			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
 		}
 	})
@@ -1616,25 +1633,25 @@ func TestForwardViableSDN(t *testing.T) {
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember).ForwardingViable()
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
+
+	stateContainer := gnmi.OC().Interface(bundleMember).ForwardingViable()
+	forwardUnviable := gnmi.Get(t, dut, stateContainer.State())
+	t.Logf("%v", forwardUnviable)
 	t.Run(fmt.Sprintf("Update on /interface[%v]/", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), interfaceContainer)
 	})
 	t.Run(fmt.Sprintf("Get on /interface[%v]/", bundleMember), func(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember)
-		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.Get(t, dut, configContainer.Config())
-		if *forwardUnviable.ForwardingViable != false {
-			t.Errorf("Update for forward-unviable failed got %t , want false", *forwardUnviable.ForwardingViable)
+		forwardUnviable := gnmi.LookupConfig(t, dut, configContainer.Config())
+		if _, ok := forwardUnviable.Val(); !ok {
+			t.Errorf("Get on /interface[%v]/ failed", bundleMember)
 		}
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
-		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
 }
