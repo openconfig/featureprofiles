@@ -59,6 +59,8 @@ const (
 	v6PrefixSet    = "prefix-set-v6"
 	v6FlowName     = "flow-v6"
 	v6CommunitySet = "community-set-v6"
+	peerGrpNamev4  = "BGP-PEER-GROUP-V4"
+	peerGrpNamev6  = "BGP-PEER-GROUP-V6"
 )
 
 var (
@@ -214,13 +216,19 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
+	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
+	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
+	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
 	nV4 := bgp.GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv4)
 	nV4.SetPeerAs(ateAS)
 	nV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nV4.PeerGroup = ygot.String(peerGrpNamev4)
 
 	nV6 := bgp.GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv6)
 	nV6.SetPeerAs(ateAS)
 	nV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	nV6.PeerGroup = ygot.String(peerGrpNamev6)
 	gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Config(), dni)
 
 	// setup eBGP on ATE port2
