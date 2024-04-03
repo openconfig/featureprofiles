@@ -26,6 +26,13 @@ testbeds:
       controller_port: 40057
       gnmi_port: 50057
 
+  8201-FOC2448P0MP:
+    hw: 8201-FOC2448P0MP
+    owner: khrasool
+    testbed: topologies/cisco/hw/8201-FOC2448P0MP/testbed
+    binding: topologies/cisco/hw/8201-FOC2448P0MP/binding
+    baseconf: topologies/cisco/hw/8201-FOC2448P0MP/basic_config.proto
+
   8808-FOX2508P0JU: &8808_FOX2508P0JU_DEFAULTS
     hw: 8808-FOX2508P0JU
     owner: vbhan
