@@ -1,4 +1,4 @@
-package basetest
+package interface_test
 
 import (
 	"context"
