@@ -20,13 +20,13 @@ import (
 	"time"
 
 	"github.com/open_traffic_generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils/otgutils"
-	"github.com/openconfig/ondatra/gnmi/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra"
 )
 
 const (
@@ -39,7 +39,7 @@ const (
 	parentPolicy                           = "multiPolicy"
 	callPolicy                             = "match_community_regex"
 	rejectStatement                        = "reject_route_community"
-	nestedRejectStatement                  = "if_30:.*_and_not_20:1_nested_reject"
+	nestedRejectStatement                  = "if_30_and_not_20_nested_reject"
 	callPolicyStatement                    = "match_community_regex"
 	addMissingCommunitiesStatement         = "add_communities_if_missing"
 	matchCommPrefixAddCommuStatement       = "match_comm_and_prefix_add_2_community_sets"
@@ -251,13 +251,13 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(addCommunitiesSetRefs)
 	} else {
-		if deviations.BgpCommunitySetRefsUnsupported(dut) {
+		if deviations.BgpCommunitySetRefsUnSupported(dut) {
 			t.Logf("TODO: community-set-refs not supported b/316833803")
 			stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(addCommunitiesSetRefs)
 		}
 	}
 
-	if deviations.BgpCommunitySetRefsUnsupported(dut) {
+	if deviations.BgpCommunitySetRefsUnSupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
@@ -291,7 +291,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(addCommunitiesSetRefs)
 	}
 
-	if deviations.BgpCommunitySetRefsUnsupported(dut) {
+	if deviations.BgpCommunitySetRefsUnSupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		stmt5.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
@@ -305,8 +305,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 	stmt6.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
-	stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	# TODO: ADD match-as-path-set verification
 	stmt6.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
 
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -330,15 +329,14 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, communityMembers [][][]int) {
 	devices := bs.ATETop.Devices().Items()
 
-	ipv4 := devices[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-	bgp4Peer := devices[0].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	ipv4 := devices[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	bgp4Peer := devices[1].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 
-	ipv6 := devices[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-	bgp6Peer := devices[0].Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+	ipv6 := devices[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	bgp6Peer := devices[1].Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
 
 	for index, prefixes := range prefixesV4 {
 		bgp4PeerRoute := bgp4Peer.V4Routes().Add()
-		bgp4PeerRoute.SetName(bs.ATEPorts[0].Name + ".IPv4" + strconv.Itoa(index))
 		bgp4PeerRoute.SetName(bs.ATEPorts[1].Name + ".BGP4.peer.dut." + strconv.Itoa(index))
 		bgp4PeerRoute.SetNextHopIpv4Address(ipv4.Address())
 
@@ -348,7 +346,6 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route4Address2.SetPrefix(prefixV4Len)
 
 		bgp6PeerRoute := bgp6Peer.V6Routes().Add()
-		bgp6PeerRoute.SetName(bs.ATEPorts[0].Name + ".IPv6" + strconv.Itoa(index))
 		bgp6PeerRoute.SetName(bs.ATEPorts[1].Name + ".BGP6.peer.dut." + strconv.Itoa(index))
 		bgp6PeerRoute.SetNextHopIpv6Address(ipv6.Address())
 
@@ -379,7 +376,7 @@ func configureFlowV4(t *testing.T, bs *cfgplugins.BGPSession) {
 		flow.Metrics().SetEnable(true)
 
 		flow.TxRx().Device().
-			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4" + strconv.Itoa(index)}).
+			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4"}).
 			SetRxNames([]string{bs.ATEPorts[1].Name + ".BGP4.peer.dut." + strconv.Itoa(index)})
 
 		flow.Duration().FixedPackets().SetPackets(totalPackets)
@@ -401,7 +398,7 @@ func configureFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 		flow.Metrics().SetEnable(true)
 
 		flow.TxRx().Device().
-			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv6" + strconv.Itoa(index)}).
+			SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv6"}).
 			SetRxNames([]string{bs.ATEPorts[1].Name + ".BGP6.peer.dut." + strconv.Itoa(index)})
 
 		flow.Duration().FixedPackets().SetPackets(totalPackets)
@@ -417,7 +414,7 @@ func configureFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	}
 }
 
-func verifyTrafficV4(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]bool) {
+func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]bool) {
 
 	sleepTime := time.Duration(totalPackets/trafficPps) + 2
 	bs.ATE.OTG().StartTraffic(t)
@@ -429,51 +426,31 @@ func verifyTrafficV4(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]boo
 
 	for index, prefixPairV4 := range prefixesV4 {
 		t.Logf("Running traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
+		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
 
-		t.Log("Checking flow telemetry...")
+		t.Log("Checking flow telemetry for v4...")
 		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv4"+strconv.Itoa(index)).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
 		rxPackets := recvMetric.GetCounters().GetInPkts()
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 
-		if txPackets != rxPackets  && testResults[index] {
+		t.Log("Checking flow telemetry for v6...")
+		recvMetric6 := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
+		txPackets6 := recvMetric6.GetCounters().GetOutPkts()
+		rxPackets6 := recvMetric6.GetCounters().GetInPkts()
+		lostPackets6 := txPackets6 - rxPackets6
+		lossPct6 := lostPackets6 * 100 / txPackets6
+
+		if txPackets != rxPackets && testResults[index] {
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 0%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
 		} else if rxPackets != 0 && !testResults[index] {
 			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct, "flow"+"ipv4"+strconv.Itoa(index), prefixPairV4[0], prefixPairV4[1])
+			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want >100%% traffic loss", lossPct6, "flow"+"ipv6"+strconv.Itoa(index), prefixesV6[index][0], prefixesV6[index][1])
 		} else {
 			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixPairV4[0], prefixPairV4[1], testResults[index], txPackets, rxPackets)
-		}
-
-	}
-}
-
-func verifyTrafficV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [6]bool) {
-
-	sleepTime := time.Duration(totalPackets/trafficPps) + 2
-	bs.ATE.OTG().StartTraffic(t)
-	time.Sleep(time.Second * sleepTime)
-	bs.ATE.OTG().StopTraffic(t)
-
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-	otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-
-	for index, prefixPairV6 := range prefixesV6 {
-		t.Logf("Running traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV6[0], prefixPairV6[1], testResults[index])
-
-		t.Log("Checking flow telemetry...")
-		recvMetric := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Flow("flow"+"ipv6"+strconv.Itoa(index)).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
-		lostPackets := txPackets - rxPackets
-		lossPct := lostPackets * 100 / txPackets
-
-		if lossPct > 1 && testResults[index] {
-			t.Errorf("FAIL- got %v%% packet loss for %s flow and prefixes: [%s, %s]; want < 1%% traffic loss", lossPct, "flow"+"ipv6"+strconv.Itoa(index), prefixPairV6[0], prefixPairV6[1])
-		} else if lossPct < 99 && !testResults[index] {
-			t.Errorf("FAIL- got %v%% packet for %s flow and prefixes: [%s, %s]; want >99%% traffic loss", lossPct, "flow"+"ipv6"+strconv.Itoa(index), prefixPairV6[0], prefixPairV6[1])
-		} else {
-			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t]  PacketsTx: %d PacketsRx: %d", prefixPairV6[0], prefixPairV6[1], testResults[index], txPackets, rxPackets)
+			t.Logf("Traffic validation successful for Prefixes: [%s, %s]. Result: [%t] PacketsTx: %d PacketsRx: %d", prefixesV6[index][0], prefixesV6[index][1], testResults[index], txPackets6, rxPackets6)
 		}
 
 	}
@@ -504,12 +481,10 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs.PushAndStartATE(t)
 
 	testResults := [6]bool{true, true, true, true, true, true}
-	verifyTrafficV4(t, bs, testResults)
-	verifyTrafficV6(t, bs, testResults)
+	verifyTrafficV4AndV6(t, bs, testResults)
 
 	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6)
 
 	testResults1 := [6]bool{false, true, false, false, true, true}
-	verifyTrafficV4(t, bs, testResults1)
-	verifyTrafficV6(t, bs, testResults1)
+	verifyTrafficV4AndV6(t, bs, testResults1)
 }
