@@ -15,6 +15,9 @@
 // Command validate_readme_spec validates Paths and RPCs listed by MarkDown
 // (READMEs) against the most recent repository states in
 // github.com/openconfig.
+//
+// Note: For `rpcs`, only the RPC name and methods are validated. Any
+// attributes defined below RPC methods (e.g. union_replace) are not validated.
 package main
 
 import (

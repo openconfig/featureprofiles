@@ -20,10 +20,6 @@ var ErrNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Cove
 
 // Parse extracts sorted OpenConfig Path and RPC Coverage from an FNT README.
 //
-// The first yaml code block after a heading line named exactly as
-// "OpenConfig Path and RPC Coverage" will be used. Any other code blocks are
-// ignored.
-//
 // Expected markdown format:
 //
 //	## OpenConfig Path and RPC Coverage
@@ -43,8 +39,12 @@ var ErrNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Cove
 //	      on_change: true
 //	```
 //
-// Note: For `rpcs`, only the RPC name and methods are validated. Any
-// attributes defined below RPC methods (e.g. union_replace) are not validated.
+// The first yaml code block after a heading line named exactly as
+// "OpenConfig Path and RPC Coverage" will be parsed. Any other code blocks are
+// ignored.
+//
+// If such a coverage section is not found in the README, `ErrNotFound` will be
+// returned.
 func Parse(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 	var buf bytes.Buffer
 	md := goldmark.New(
