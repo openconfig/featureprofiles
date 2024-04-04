@@ -473,6 +473,8 @@ message Metadata {
     uint64 plq_generator_capabilities_max_pps = 166;  
     // Support for bgp extended community index
     bool bgp_extended_community_index_unsupported = 167;
+    // Support for bgp community set refs
+    bool bgp_community_set_refs_unsupported = 168;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

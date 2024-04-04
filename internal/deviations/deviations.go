@@ -47,10 +47,10 @@ import (
 	"fmt"
 	"regexp"
 
-	log "github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/metadata"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
-	"github.com/openconfig/ondatra"
+       log "github.com/golang/glog"
+       "github.com/openconfig/featureprofiles/internal/metadata"
+       mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+       "github.com/openconfig/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
@@ -900,4 +900,9 @@ func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
 // BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
 func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
+
+// BgpCommunitySetRefsUnSupported return true if BGP community set refs is not supported.
+func BgpCommunitySetRefsUnSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
