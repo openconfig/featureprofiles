@@ -305,7 +305,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 	stmt6.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	# TODO: ADD match-as-path-set verification
+	// TODO: ADD match-as-path-set verification
 	stmt6.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
 
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
