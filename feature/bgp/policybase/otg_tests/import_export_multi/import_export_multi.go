@@ -253,13 +253,13 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(addCommunitiesSetRefs)
 	} else {
-		if deviations.BgpCommunitySetRefsUnSupported(dut) {
+		if deviations.BgpCommunitySetRefsUnsupported(dut) {
 			t.Logf("TODO: community-set-refs not supported b/316833803")
 			stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(addCommunitiesSetRefs)
 		}
 	}
 
-	if deviations.BgpCommunitySetRefsUnSupported(dut) {
+	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
@@ -312,7 +312,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(myCommunitySet)
 	}
 
-	if deviations.BgpCommunitySetRefsUnSupported(dut) {
+	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		// TODO: Add bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement

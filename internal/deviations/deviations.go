@@ -902,7 +902,7 @@ func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
 }
 
-// BgpCommunitySetRefsUnSupported return true if BGP community set refs is not supported.
-func BgpCommunitySetRefsUnSupported(dut *ondatra.DUTDevice) bool {
+// BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
+func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
