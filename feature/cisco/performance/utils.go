@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -152,4 +154,55 @@ func DeserializeMemData(t testing.TB, dut *ondatra.DUTDevice) (*MemData, error) 
 		}
 	}
 	return &responseRawObj, nil
+}
+
+func TopCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) (float64, float64, float64, float64, float64, error) {
+	command := "run top -b | head -n 30"
+
+	gnmiClient := dut.RawAPIs().CLI(t)
+	cliOutput, err := gnmiClient.RunCommand(context.Background(), command)
+	if err != nil {
+		return 0, 0, 0, 0, 0, err
+	}
+
+	lines := strings.Split(cliOutput.Output(), "\n")
+	cpuRe := regexp.MustCompile(`^\s*\d+\s+\w+\s+\d+\s+-?\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+(\d+\.\d+)`)
+	memRe := regexp.MustCompile(`MiB Mem :\s+(\d+\.\d+) total,\s+(\d+\.\d+) free,\s+(\d+\.\d+) used`)
+
+	var totalCpu, totalMemUsage, totalMem, freeMem, usedMem float64
+
+	for _, line := range lines {
+		t.Log(line)
+		// Check for CPU and MEM usage
+		if cpuMatches := cpuRe.FindStringSubmatch(line); len(cpuMatches) > 2 {
+			cpuUsage, err := strconv.ParseFloat(cpuMatches[1], 64)
+			if err != nil {
+				continue
+			}
+			memUsage, err := strconv.ParseFloat(cpuMatches[2], 64)
+			if err != nil {
+				continue
+			}
+			totalCpu += cpuUsage
+			totalMemUsage += memUsage
+		}
+
+		// Check for total, free, and used memory
+		if memMatches := memRe.FindStringSubmatch(line); len(memMatches) > 3 {
+			totalMem, err = strconv.ParseFloat(memMatches[1], 64)
+			if err != nil {
+				return 0, 0, 0, 0, 0, err
+			}
+			freeMem, err = strconv.ParseFloat(memMatches[2], 64)
+			if err != nil {
+				return 0, 0, 0, 0, 0, err
+			}
+			usedMem, err = strconv.ParseFloat(memMatches[3], 64)
+			if err != nil {
+				return 0, 0, 0, 0, 0, err
+			}
+		}
+	}
+
+	return totalCpu, totalMemUsage, totalMem, freeMem, usedMem, nil
 }
