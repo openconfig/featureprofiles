@@ -752,6 +752,7 @@ tests:
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
+    timeout: 3600  
     mustpass: false
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
