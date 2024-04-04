@@ -1,6 +1,7 @@
 package performance
 
 import (
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur ti
 					if err != nil {
 						t.Logf("Memory collector failed: %s", err)
 					}
-					
+
 					// Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id
 					// nativeModelObj2, err := GetAllNativeModel(t, dut, "Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id")
 					// if err != nil {
@@ -147,4 +148,71 @@ func receiveMemData(t *testing.T, memChan chan MemData, collector *Collector) {
 		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), util.PrettyPrintJson(memData))
 		collector.MemLogs = append(collector.MemLogs, memData)
 	}
+}
+
+type MemVerifier struct {
+	freeMemoryAvgBefore int
+	usedMemoryAvgBefore int
+	freeMemoryAvgAfter  int
+	usedMemoryAvgAfter  int
+	memoryStateAfter    string
+}
+
+func NewVerifier() *MemVerifier {
+	return &MemVerifier{}
+}
+
+func (v *MemVerifier) SampleBefore(t *testing.T, dut *ondatra.DUTDevice) {
+	c := CollectMemData(t, dut, time.Second, 5*time.Second)
+	c.Wait()
+	totalFree := 0
+	totalUsed := 0
+	for _, mem := range c.MemLogs {
+		totalFree += int(mem.FreeMemory)
+		totalUsed += int(mem.PhysicalMemory - mem.FreeMemory)
+	}
+	// Integer floor divison
+	// susceptible to skew from missing data
+	v.freeMemoryAvgBefore = totalFree / (len(c.MemLogs))
+	v.usedMemoryAvgBefore = totalUsed / (len(c.MemLogs))
+}
+
+func (v *MemVerifier) SampleAfter(t *testing.T, dut *ondatra.DUTDevice) {
+	c := CollectMemData(t, dut, time.Second, 5*time.Second)
+	c.Wait()
+	totalFree := 0
+	totalUsed := 0
+	for _, mem := range c.MemLogs {
+		totalFree += int(mem.FreeMemory)
+		totalUsed += int(mem.PhysicalMemory - mem.FreeMemory)
+		v.memoryStateAfter = mem.MemoryState
+	}
+	// Integer floor divison
+	// susceptible to skew from missing data
+	v.freeMemoryAvgAfter = totalFree / (len(c.MemLogs))
+	v.usedMemoryAvgAfter = totalUsed / (len(c.MemLogs))
+}
+
+func (v *MemVerifier) Verify(t *testing.T) bool {
+	percentDiff := func(before, after int) float64 {
+		if after > before {
+			//1.25
+			return float64(after)/float64(before) - 1
+		} else {
+			//0.75
+			return (1 - float64(after)/float64(before)) * -1
+		}
+	}
+
+	diffFreeMem := percentDiff(v.freeMemoryAvgBefore, v.freeMemoryAvgAfter)
+	diffUsedMem := percentDiff(v.usedMemoryAvgBefore, v.usedMemoryAvgAfter)
+
+	t.Logf("Free memory avg\nbefore:\t%d\nafter:\t%d\ndelta:\t%+.2f%%\n", v.freeMemoryAvgBefore, v.freeMemoryAvgAfter, math.Round(diffFreeMem*10000)/100)
+	t.Logf("Used memory avg\nbefore:\t%d\nafter:\t%d\ndelta:\t%+.2f%%\n", v.usedMemoryAvgBefore, v.usedMemoryAvgAfter, math.Round(diffUsedMem*10000)/100)
+	t.Logf("Memory state: %s", v.memoryStateAfter)
+
+	if math.Abs(diffFreeMem) > 0.25 || math.Abs(diffUsedMem) > 0.25 || v.memoryStateAfter != "normal" {
+		return false
+	}
+	return true
 }

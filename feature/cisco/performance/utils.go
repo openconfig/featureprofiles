@@ -93,12 +93,12 @@ func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, e
 	for _, path := range paths {
 		pathelems = append(pathelems, &gnmipb.PathElem{Name: path})
 	}
-	
+
 	req := &gnmipb.GetRequest{
 		Path: []*gnmipb.Path{
 			{
 				Origin: origin,
-				Elem: pathelems,
+				Elem:   pathelems,
 			},
 		},
 		Type:     gnmipb.GetRequest_ALL,
@@ -107,20 +107,20 @@ func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, e
 	var responseRawObj any
 	restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed GNMI GET request on native model: \n%v\n", req)
+		return nil, fmt.Errorf("failed GNMI GET request on native model: \n%v", req)
 	} else {
 		jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
 		err = json.Unmarshal(jsonIetfData, &responseRawObj)
 		if err != nil {
-			return nil, fmt.Errorf("Could not unmarshal native model GET json")
+			return nil, fmt.Errorf("could not unmarshal native model GET json")
 		}
 	}
 	return responseRawObj, nil
 }
 
 type MemData struct {
-	FreeMemory uint32 `json:"free-memory,string"`
-	MemoryState string `json:"memory-state"`
+	FreeMemory     uint32 `json:"free-memory,string"`
+	MemoryState    string `json:"memory-state"`
 	PhysicalMemory uint32 `json:"physical-memory"`
 }
 
@@ -139,16 +139,16 @@ func DeserializeMemData(t testing.TB, dut *ondatra.DUTDevice) (*MemData, error) 
 		Type:     gnmipb.GetRequest_ALL,
 		Encoding: gnmipb.Encoding_JSON_IETF,
 	}
-	
+
 	var responseRawObj MemData
 	restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed GNMI GET request on native model: \n%v\n", req)
+		return nil, fmt.Errorf("failed GNMI GET request on native model: \n%v", req)
 	} else {
 		jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
 		err = json.Unmarshal(jsonIetfData, &responseRawObj)
 		if err != nil {
-			return nil, fmt.Errorf("Could not unmarshal native model GET json")
+			return nil, fmt.Errorf("could not unmarshal native model GET json")
 		}
 	}
 	return &responseRawObj, nil

@@ -78,7 +78,7 @@ func TestMemCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting Memory data collection at %s", time.Now())
 	collector := perf.CollectMemData(t, dut, 50*time.Millisecond, 5*time.Second)
-	
+
 	collector.Wait()
 	for _, memLog := range collector.MemLogs {
 		t.Logf("Free memory: %d\n", memLog.FreeMemory)
