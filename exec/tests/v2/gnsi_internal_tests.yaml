@@ -65,7 +65,7 @@ tests:
       path: feature/experimental/p4rt/tests/p4rt_election/p4rt_election_test.go
   path: feature/security/gnsi/acctz/tests
   args:
-    - '-test.run="(?:TestPreAcctzGRPC)"'
+    - '-test.run="(?:TestPre)"'
   owners:
     - harikri4
   mustpass: true
