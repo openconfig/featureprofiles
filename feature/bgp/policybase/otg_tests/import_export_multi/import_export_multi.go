@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open_traffic_generator/snappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
