@@ -4,4 +4,4 @@
 plan_id: "RT-7.11"
 description: "BGP Policy - Import/Export Policy Action Using Multiple Criteria"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: TAGS_AGGREGATION, TAGS_DATACENTER_EDGE
+tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
