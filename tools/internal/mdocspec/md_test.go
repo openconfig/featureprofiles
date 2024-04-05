@@ -313,6 +313,123 @@ rpcs:
 `),
 		want: ``,
 	}, {
+		desc: "yaml-block-after-next-higher-heading-ignored",
+		inSource: []byte(`---
+name: New featureprofiles test requirement
+about: Use this template to document the requirements for a new test to be implemented.
+title: ''
+labels: enhancement
+assignees: ''
+---
+
+## Procedure
+
+* Test environment setup
+  * Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
+
+* TestID-x.y.z - Name of subtest
+  * Step 1
+  * Step 2
+  * Validation and pass/fail criteria
+
+* TestID-x.y.z - Name of subtest
+  * Step 1
+  * Step 2
+  * Validation and pass/fail criteria
+
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+# Required DUT platform
+
+Some text
+
+` + "```" + `yaml
+paths:
+  # interface configuration
+  /a/b/c:
+  /d/e/f:
+
+rpcs:
+  fooi:
+    fooi.Set:
+      union_replace: true
+    fooi.Subscribe:
+      on_change: true
+` + "```" + `
+
+* Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
+  * vRX - virtual router device
+`),
+		want: ``,
+	}, {
+		desc: "yaml-block-after-next-lower-heading-accepted",
+		inSource: []byte(`---
+name: New featureprofiles test requirement
+about: Use this template to document the requirements for a new test to be implemented.
+title: ''
+labels: enhancement
+assignees: ''
+---
+
+## Procedure
+
+* Test environment setup
+  * Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
+
+* TestID-x.y.z - Name of subtest
+  * Step 1
+  * Step 2
+  * Validation and pass/fail criteria
+
+* TestID-x.y.z - Name of subtest
+  * Step 1
+  * Step 2
+  * Validation and pass/fail criteria
+
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+### Required DUT platform
+
+Some text
+
+` + "```" + `yaml
+paths:
+  # interface configuration
+  /a/b/c:
+  /d/e/f:
+
+rpcs:
+  fooi:
+    fooi.Set:
+      union_replace: true
+    fooi.Subscribe:
+      on_change: true
+` + "```" + `
+
+* Specify the minimum DUT-type:
+  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+  * FFF - fixed form factor
+  * vRX - virtual router device
+`),
+		want: `paths:
+  # interface configuration
+  /a/b/c:
+  /d/e/f:
+
+rpcs:
+  fooi:
+    fooi.Set:
+      union_replace: true
+    fooi.Subscribe:
+      on_change: true
+`,
+	}, {
 		desc: "two-blocks-same-heading-first-language-not-specified-and-ignored",
 		inSource: []byte(`---
 name: New featureprofiles test requirement
