@@ -835,21 +835,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-1.1"
-  description: "Static ARP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/staticarp/ate_tests/static_arp_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-11.2"
   description: "Backup NHG: Multiple NH"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_multiple_nh_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-11.2"
-  description: "Backup NHG: Multiple NH"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/backup_nhg_multiple_nh_test/README.md"
   exec: " "
 }
 test: {
@@ -859,21 +847,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-14.1"
-  description: "gRIBI Scaling"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/gribi_scaling/README.md"
-  exec: " "
-}
-test: {
   id: "TE-15.1"
   description: "gRIBI Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribigo_compliance_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-15.1"
-  description: "gRIBI Compliance"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/gribigo_compliance_test/README.md"
   exec: " "
 }
 test: {
@@ -891,33 +867,15 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-2.1"
-  description: "gRIBI IPv4 Entry"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/ipv4_entry_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-3.1"
   description: "Base Hierarchical Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/base_hierarchical_route_installation_test/README.md"
   exec: " "
 }
 test: {
-  id: "TE-3.1"
-  description: "Base Hierarchical Route Installation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/base_hierarchical_route_installation_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-3.2"
   description: "Traffic Balancing According to Weights"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/weighted_balancing_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-3.2"
-  description: "Traffic Balancing According to Weights"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/weighted_balancing_test/README.md"
   exec: " "
 }
 test: {
@@ -933,21 +891,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-3.5"
-  description: "Ordering: ACK Received"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/ordering_ack_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-3.6"
   description: "ACK in the Presence of Other Routes"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ack_in_presence_other_routes/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-3.6"
-  description: "ACK in the Presence of Other Routes"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/ack_in_presence_other_routes/README.md"
   exec: " "
 }
 test: {
@@ -957,9 +903,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-3.7"
-  description: "Base Hierarchical NHG Update"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/base_hierarchical_nhg_update/README.md"
+  id: "TE-3.8"
+  description: "Drain Test: DataPlane"
+  readme: ""
   exec: " "
 }
 test: {
@@ -969,21 +915,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-4.1"
-  description: "Base Leader Election"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/base_leader_election_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-4.2"
   description: "Leader Failover"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/leader_failover_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-4.2"
-  description: "Leader Failover"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/leader_failover_test/README.md"
   exec: " "
 }
 test: {
@@ -993,21 +927,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-5.1"
-  description: "gRIBI Get RPC"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/get_rpc_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-6.1"
   description: "Route Removal via Flush"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_removal_via_flush_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-6.1"
-  description: "Route Removal via Flush"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/route_removal_via_flush_test/README.md"
   exec: " "
 }
 test: {
@@ -1017,21 +939,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-6.2"
-  description: "Route Removal In Non Default VRF"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/route_removal_non_default_vrf_test/README.md"
-  exec: " "
-}
-test: {
   id: "TE-8.2"
   description: "Supervisor Failure"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-8.2"
-  description: "Supervisor Failure"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/supervisor_failure_test/README.md"
   exec: " "
 }
 test: {
