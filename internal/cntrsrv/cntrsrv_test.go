@@ -98,7 +98,7 @@ type gRIBIServer struct {
 	*spb.UnimplementedGRIBIServer
 }
 
-func (g *gRIBIServer) Get(req *spb.GetRequest, stream spb.GRIBI_GetServer) error {
+func (g *gRIBIServer) Get(_ *spb.GetRequest, stream spb.GRIBI_GetServer) error {
 	if err := stream.Send(&spb.GetResponse{}); err != nil {
 		return status.Errorf(codes.Internal, "can't send")
 	}
@@ -127,7 +127,7 @@ type gNMIServer struct {
 	*gpb.UnimplementedGNMIServer
 }
 
-func (g *gNMIServer) Capabilities(ctx context.Context, req *gpb.CapabilityRequest) (*gpb.CapabilityResponse, error) {
+func (g *gNMIServer) Capabilities(context.Context, *gpb.CapabilityRequest) (*gpb.CapabilityResponse, error) {
 	return &gpb.CapabilityResponse{
 		GNMIVersion: "demo",
 	}, nil

@@ -293,6 +293,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+    pr: 2805
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/otg_tests/aggregate_test
     owners:
@@ -318,6 +319,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
+    pr: 2805
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
@@ -339,8 +341,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 34
-    internal: true
-    pr: 1058
+    pr: 2805
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
@@ -349,8 +350,7 @@ tests:
       - agvarghe
     priority: 35
     mustpass: true
-    internal: true
-    pr: 1058
+    pr: 2805
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -515,8 +515,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    internal: true
-    pr: 1054
+    pr: 2808
     priority: 80
     timeout: 7200
     args:
@@ -622,6 +621,7 @@ tests:
       - saarvind
     mustpass: true
     timeout: 4200
+    pr: 2864
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
@@ -658,6 +658,8 @@ tests:
     mustpass: true
     timeout: 2400
     pr: 2552
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
     path: feature/security/gnsi/authz/tests/authz
     args:
@@ -738,17 +740,19 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    internal: true
-    pr: 1057
+    pr: 2802
   - name: TE-16.1 (DCGate - basic encap test)
     path: feature/gribi/otg_tests/basic_encap_test
     owners:
       - arvbaska
     mustpass: true
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
+    timeout: 3600  
     mustpass: false
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
