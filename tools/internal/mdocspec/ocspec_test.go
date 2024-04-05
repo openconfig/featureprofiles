@@ -149,13 +149,54 @@ oc_protocols: {
 }
 `),
 	}, {
+		desc:            "empty",
+		inMD:            ``,
+		wantNotFoundErr: true,
+		wantErr:         true,
+	}, {
+		desc: "no-heading",
+		inMD: `
+` + "```" + `yaml
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: "CHASSIS"
+
+` + "```" + `
+		`,
+		wantNotFoundErr: true,
+		wantErr:         true,
+	}, {
+		desc: "zero-rpcs",
+		inMD: `---
+name: New featureprofiles test requirement
+---
+
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+` + "```" + `yaml
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: "CHASSIS"
+rpcs:
+` + "```" + `
+
+## Required DUT platform
+`,
+		wantErr: true,
+	}, {
 		desc: "no-rpcs",
 		inMD: `---
 name: New featureprofiles test requirement
-about: Use this template to document the requirements for a new test to be implemented.
-title: ''
-labels: enhancement
-assignees: ''
 ---
 
 ## OpenConfig Path and RPC Coverage
@@ -174,34 +215,88 @@ paths:
 ` + "```" + `
 
 ## Required DUT platform
-
-* Specify the minimum DUT-type:
-  * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
-  * FFF - fixed form factor
-  * vRX - virtual router device
 `,
 		wantErr: true,
 	}, {
-		desc:            "empty",
-		inMD:            ``,
-		wantNotFoundErr: true,
-		wantErr:         true,
-	}, {
-		desc: "empty-with-yaml-codeblock",
+		desc: "zero-paths-one-rpc",
 		inMD: `
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
 ` + "```" + `yaml
 paths:
-  # interface configuration
-  /interfaces/interface/config/description:
-  /interfaces/interface/config/enabled:
-  # name of chassis component
-  /components/component/state/name:
-    platform_type: "CHASSIS"
-
+rpcs:
+  gnoi:
+    healthz.Healthz.Get:
 ` + "```" + `
-		`,
-		wantNotFoundErr: true,
-		wantErr:         true,
+
+## Required DUT platform
+`,
+		wantOCPaths: mustOCPaths(t, ``),
+		wantOCRPCs: mustOCRPCs(t, `
+oc_protocols: {
+  key: "gnoi"
+  value: {
+    method_name: "gnoi.healthz.Healthz.Get"
+  }
+}
+`),
+	}, {
+		desc: "no-paths-one-rpc",
+		inMD: `
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+` + "```" + `yaml
+rpcs:
+  gnoi:
+    healthz.Healthz.Get:
+` + "```" + `
+
+## Required DUT platform
+`,
+		wantOCPaths: mustOCPaths(t, ``),
+		wantOCRPCs: mustOCRPCs(t, `
+oc_protocols: {
+  key: "gnoi"
+  value: {
+    method_name: "gnoi.healthz.Healthz.Get"
+  }
+}
+`),
+	}, {
+		desc: "zero-paths-one-rpc-zero-methods",
+		inMD: `
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+` + "```" + `yaml
+paths:
+rpcs:
+  gnoi:
+` + "```" + `
+
+## Required DUT platform
+`,
+		wantErr: true,
+	}, {
+		desc: "zero-paths-zero-rpcs",
+		inMD: `
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+` + "```" + `yaml
+paths:
+rpcs:
+` + "```" + `
+
+## Required DUT platform
+`,
+		wantErr: true,
 	}}
 
 	for _, tt := range tests {
@@ -315,7 +410,27 @@ oc_protocols: {
       healthz.Healthz.Check:
       bgp.BGP.ClearBGPNeighbor:
 `,
-		wantErr: true,
+		wantOCPaths: mustOCPaths(t, ``),
+		wantOCRPCs: mustOCRPCs(t, `
+oc_protocols: {
+  key: "gnmi"
+  value: {
+    method_name: "gnmi.gNMI.Set"
+    method_name: "gnmi.gNMI.Subscribe"
+  }
+}
+oc_protocols: {
+  key: "gnoi"
+  value: {
+    method_name: "gnoi.bgp.BGP.ClearBGPNeighbor"
+    method_name: "gnoi.healthz.Healthz.Acknowledge"
+    method_name: "gnoi.healthz.Healthz.Artifact"
+    method_name: "gnoi.healthz.Healthz.Check"
+    method_name: "gnoi.healthz.Healthz.Get"
+    method_name: "gnoi.healthz.Healthz.List"
+  }
+}
+`),
 	}, {
 		desc:    "empty",
 		inYAML:  ``,

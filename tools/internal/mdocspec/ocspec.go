@@ -3,7 +3,6 @@ package mdocspec
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -16,9 +15,10 @@ import (
 )
 
 // ErrNotFound indicates the user was not found or is unknown.
-var ErrNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Coverage" yaml, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`)
+var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading titled %q, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`, OCSpecHeading)
 
-// Parse extracts sorted OpenConfig Path and RPC Coverage from a featureprofiles README.
+// Parse extracts sorted OpenConfig Path and RPC Coverage from a
+// featureprofiles README.
 //
 // Expected markdown format:
 //
@@ -68,10 +68,7 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 
 	protoPaths := &ppb.OCPaths{}
 
-	paths, ok := s["paths"]
-	if !ok {
-		return nil, nil, fmt.Errorf("mdocspec: YAML does not have mandatory top-level `paths` attribute")
-	}
+	paths := s["paths"]
 	pathNames := maps.Keys(paths)
 	sort.Strings(pathNames)
 	for _, name := range pathNames {
@@ -111,8 +108,12 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 	}
 	rpcNames := maps.Keys(rpcs)
 	sort.Strings(rpcNames)
+	var hasMethod bool
 	for _, name := range rpcNames {
 		methods := maps.Keys(rpcs[name])
+		if len(methods) > 0 {
+			hasMethod = true
+		}
 		sort.Strings(methods)
 		for i, method := range methods {
 			methods[i] = name + "." + method
@@ -120,6 +121,9 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 		protoRPCs.OcProtocols[name] = &rpb.OCProtocol{
 			MethodName: methods,
 		}
+	}
+	if !hasMethod {
+		return nil, nil, fmt.Errorf("mdocspec: YAML does not have least one RPC method specified")
 	}
 
 	return protoPaths, protoRPCs, nil

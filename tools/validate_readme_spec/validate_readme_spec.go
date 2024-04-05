@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/tools/internal/mdocspec"
@@ -83,7 +84,9 @@ func main() {
 		}
 		ocPaths, ocRPCs, err := mdocspec.Parse(b)
 		if err != nil {
-			log.Exitf("file %v: %v", file, err)
+			log.Errorf("file %v: %v", file, err)
+			erredFiles[file] = struct{}{}
+			continue
 		}
 
 		paths, invalidPaths, err := ocpaths.ValidatePaths(ocPaths.GetOcpaths(), publicPath)
@@ -103,6 +106,6 @@ func main() {
 		}
 	}
 	if len(erredFiles) > 0 {
-		log.Exitf("The following files have errors: %+v", maps.Keys(erredFiles))
+		log.Exitf("The following files have errors:\n%v", strings.Join(maps.Keys(erredFiles), "\n"))
 	}
 }

@@ -1,6 +1,6 @@
 ## Hello world
 
 ```yaml
-path:
+paths:
 rpcs:
 ```

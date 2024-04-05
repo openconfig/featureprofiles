@@ -21,6 +21,10 @@ func cloneAPIRepo(downloadPath, api string) (string, error) {
 	}
 	repoPath := filepath.Join(downloadPath, api)
 
+	if _, err := os.Stat(repoPath); err == nil { // If NO error
+		return repoPath, nil
+	}
+
 	cmd := exec.Command("git", "clone", "--single-branch", "--depth", "1", fmt.Sprintf("https://github.com/openconfig/%s.git", api), repoPath)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {

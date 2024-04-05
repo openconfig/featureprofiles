@@ -262,7 +262,7 @@ rpcs:
       on_change: true
 `,
 	}, {
-		desc: "two-blocks-same-heading-first-language-not-specified",
+		desc: "two-blocks-same-heading-first-language-not-specified-and-ignored",
 		inSource: []byte(`---
 name: New featureprofiles test requirement
 about: Use this template to document the requirements for a new test to be implemented.

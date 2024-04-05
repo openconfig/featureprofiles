@@ -19,17 +19,14 @@ jobs:
         go-version: stable
         cache: false
 
+    - name: Validate Validation Script
+      run: |
+        cd tools/validate_readme_spec
+        ./validate_readme_spec_test.sh
+
     - name: Validate Template README
       run: |
         go run tools/validate_readme_spec/validate_readme_spec.go -alsologtostderr doc/test-requirements-template.md; rm -rf tmp
-
-    - name: Validate Bad Example
-      run: |
-        if go run tools/validate_readme_spec/validate_readme_spec.go -alsologtostderr tools/validate_readme_spec/invalid.md; then
-          echo "Validation passed, but failure expected"
-          exit 1
-        fi
-        rm -rf tmp
 
     - name: Validate Test READMEs
       run: |

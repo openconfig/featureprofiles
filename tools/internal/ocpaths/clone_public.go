@@ -3,6 +3,7 @@ package ocpaths
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -17,6 +18,10 @@ func ClonePublicRepo(downloadPath, branch string) (string, error) {
 		return "", fmt.Errorf("must provide download path")
 	}
 	publicPath := filepath.Join(downloadPath, "public")
+
+	if _, err := os.Stat(publicPath); err == nil { // If NO error
+		return publicPath, nil
+	}
 
 	args := []string{"clone", "--depth", "1", "https://github.com/openconfig/public.git", publicPath}
 	if branch != "" {
