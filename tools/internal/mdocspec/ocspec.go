@@ -18,7 +18,7 @@ import (
 // ErrNotFound indicates the user was not found or is unknown.
 var ErrNotFound = errors.New(`did not detect valid "OpenConfig Path and RPC Coverage" yaml, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`)
 
-// Parse extracts sorted OpenConfig Path and RPC Coverage from an FNT README.
+// Parse extracts sorted OpenConfig Path and RPC Coverage from a featureprofiles README.
 //
 // Expected markdown format:
 //
