@@ -1,4 +1,4 @@
-# TE-9.1: MPLS based forwarding Static LSP
+# TE-9.2: MPLS based forwarding Static LSP
 
 ## Summary
 

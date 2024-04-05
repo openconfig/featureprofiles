@@ -1035,14 +1035,14 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-9"
-  description: "MPLS based forwarding Static LSP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
-}
-test: {
   id: "TE-9.1"
   description: "Base gRIBI MPLS Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
+}
+test: {
+  id: "TE-9.2"
+  description: "MPLS based forwarding Static LSP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
 }
 test: {
   id: "TE-10"

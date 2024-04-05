@@ -39,11 +39,8 @@ import (
 	spb "github.com/openconfig/gribi/v1/proto/service"
 )
 
-func newClient(ctx context.Context, t *testing.T, port uint) (cpb.CntrClient, func()) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, fmt.Sprintf("localhost:%d", port), grpc.WithBlock(),
+func newClient(t *testing.T, port uint) (cpb.CntrClient, func()) {
+	conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", port),
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, // NOLINT
 		})))
@@ -181,6 +178,9 @@ func TestDial(t *testing.T) {
 		inServer:     startServer,
 		inServerPort: 60061,
 		inReq: &cpb.DialRequest{
+			Request: &cpb.DialRequest_Ping{
+				Ping: &cpb.PingRequest{},
+			},
 			Addr: "localhost:6666",
 		},
 		wantErr: true,
@@ -278,7 +278,7 @@ func TestDial(t *testing.T) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			client, stopC := newClient(ctx, t, 60061)
+			client, stopC := newClient(t, 60061)
 			defer stopC()
 
 			got, err := client.Dial(ctx, tt.inReq)
