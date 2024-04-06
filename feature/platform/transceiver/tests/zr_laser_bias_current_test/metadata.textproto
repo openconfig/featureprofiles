@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "3559ab05-7b5b-40e5-86d8-63eb0e668c8a"
+plan_id: "TRANSCEIVER-9"
+description: "Telemetry: 400ZR TX laser bias current telemetry values streaming."
+testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}
