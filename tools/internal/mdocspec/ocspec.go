@@ -20,6 +20,9 @@ var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading ti
 // Parse extracts sorted OpenConfig Path and RPC Coverage from a
 // featureprofiles README.
 //
+// If such a coverage section is not found in the README, `ErrNotFound` will be
+// returned.
+//
 // Expected markdown format:
 //
 //	## OpenConfig Path and RPC Coverage
@@ -42,9 +45,6 @@ var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading ti
 // The first yaml code block after a heading line named exactly as
 // "OpenConfig Path and RPC Coverage" will be parsed. Any other code blocks are
 // ignored.
-//
-// If such a coverage section is not found in the README, `ErrNotFound` will be
-// returned.
 func Parse(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 	var buf bytes.Buffer
 	md := goldmark.New(
