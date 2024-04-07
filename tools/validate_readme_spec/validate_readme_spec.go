@@ -69,10 +69,13 @@ func readmeFiles(featureDir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if _, file := filepath.Split(path); file != fpciutil.READMEname {
+		if d.Name() != fpciutil.READMEname {
 			return nil
 		}
 		relpath, err := filepath.Rel(filepath.Dir(featureDir), path)
+		if err != nil {
+			return fmt.Errorf("unexpected error: cannot take relative path of file %q against feature directory %q", path, featureDir)
+		}
 		if _, ok := nonTestREADMEs[relpath]; ok {
 			// Allowlist
 			return nil
