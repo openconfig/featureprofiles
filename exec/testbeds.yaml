@@ -161,11 +161,11 @@ testbeds:
     testbed: topologies/cisco/hw/2DUT-TB2/testbed
     binding: topologies/cisco/hw/2DUT-TB2/binding
     baseconf: 
-      dut1: topologies/cisco/hw/2DUT-TB2/DUT1_8808_FOX2506P5XE_baseconfig.proto
-      dut2: topologies/cisco/hw/2DUT-TB2/DUT2_8201_FLM27400BFZ_baseconfig.proto  
+      dut1: topologies/cisco/hw/2DUT-TB2/DUT1_8808_FOX2506P2QT_baseconfig.proto
+      dut2: topologies/cisco/hw/2DUT-TB2/DUT2_8808_FOX2506P5XE_baseconfig.proto
     otg:
       host: kne2-lnx
-      controller_port: 40052
+      controller_port: 
       gnmi_port: 50052
 #SIM
   8201-1DUT:
