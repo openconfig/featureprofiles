@@ -10,9 +10,13 @@ import (
 
 // ClonePublicRepo clones the openconfig/public repo at the given path.
 //
-// Note: A manual deletion of the public folder is required.
-//
 //   - branch is the branch to be downloaded (passed to git clone -b). If it is empty then the argument will be omitted.
+//
+// # Note
+//
+//   - If the "public" folder already exists, then no additional downloads will
+//     be made.
+//   - A manual deletion of the downloadPath folder is required if no longer used.
 func ClonePublicRepo(downloadPath, branch string) (string, error) {
 	if downloadPath == "" {
 		return "", fmt.Errorf("must provide download path")
