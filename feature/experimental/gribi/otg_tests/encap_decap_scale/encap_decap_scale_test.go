@@ -120,9 +120,9 @@ const (
 	perEncapVRFNHGCount = 25
 
 	// Upper Limit of the number of Next Hops to add per Next Hop Group.
-	maxNHPerNHG = 256
+	maxNHPerNHG = 32
 
-	nhWeightSum = 32
+	nhWeightSum = 16
 
 	encapNHsPerNHG = 8
 
@@ -343,10 +343,10 @@ func pushEncapEntries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []
 	// Add 1600 TE_VRF111 tunnels
 	vrfEntryParams[teVRF111] = &routesParam{
 		ipEntries:     tunnelIPEntries,
-		numUniqueNHs:  len(virtualIPs),
+		numUniqueNHs:  2,
 		nextHops:      virtualIPs,
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: 24,
+		numUniqueNHGs: len(virtualIPs) / 2,
 		nhDecapEncap:  false,
 	}
 
@@ -675,10 +675,14 @@ type flowArgs struct {
 }
 
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
+	rxNames := []string{}
+	for i := 0; i < subIntfCount; i++ {
+		rxNames = append(rxNames, fmt.Sprintf("dst%d.IPv4", i))
+	}
 	flow := gosnappi.NewFlow().SetName(flowValues.flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"})
-	flow.TxRx().Device().SetRxNames([]string{"dst0.IPv4"})
+	flow.TxRx().Device().SetRxNames(rxNames)
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(100)
 	flow.Duration().Continuous()
@@ -770,7 +774,7 @@ func pushIPv4Entries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []s
 		nextHops:      virtualIPs,
 		numUniqueNHs:  len(virtualIPs),
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: 8,
+		numUniqueNHGs: len(virtualIPs) / maxNHPerNHG,
 		backupNHG:     1,
 		nhDecapEncap:  false,
 	}
@@ -779,7 +783,7 @@ func pushIPv4Entries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []s
 		nextHops:      decapEncapVirtualIPs,
 		numUniqueNHs:  len(decapEncapVirtualIPs),
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: 8,
+		numUniqueNHGs: len(decapEncapVirtualIPs) / maxNHPerNHG,
 		backupNHG:     2,
 		nhDecapEncap:  false,
 	}
@@ -788,7 +792,7 @@ func pushIPv4Entries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []s
 		nextHops:      nonDefaultVIPs[0:numVirtualIPsNonDefaultVRF],
 		numUniqueNHs:  numVirtualIPsNonDefaultVRF,
 		nextHopVRF:    vrf2,
-		numUniqueNHGs: 8,
+		numUniqueNHGs: numVirtualIPsNonDefaultVRF / maxNHPerNHG,
 		backupNHG:     2,
 		nhDecapEncap:  true,
 	}
