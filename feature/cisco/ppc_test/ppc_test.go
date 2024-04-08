@@ -183,6 +183,7 @@ func TestOcPpc(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	var vrfs = []string{vrf1}
 	configVRF(t, dut, vrfs)
 	configureDUT(t, dut)

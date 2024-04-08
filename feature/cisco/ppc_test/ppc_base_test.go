@@ -28,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -1086,7 +1085,6 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 // t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}
 // configBasePBR creates class map, policy and configures them under source interface
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
@@ -1124,10 +1122,23 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType
 	if err != nil {
 		t.Error(err)
 	}
+	//InterfaceName := "Bundle-Ether121"
+	//intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
+	//intfRef.SetInterface(InterfaceName)
+	//intfRef.SetSubinterface(0)
+	//InterfaceRef := InterfaceName + ".0"
+	//pf.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
+	//	InterfaceRef: {
+	//		InterfaceId:             ygot.String(InterfaceRef),
+	//		ApplyVrfSelectionPolicy: ygot.String(pbrName),
+	//		InterfaceRef:            intfRef,
+	//	},
+	//}
 	intf := pf.GetOrCreateInterface("Bundle-Ether121.0")
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
+	intf.InterfaceId = ygot.String("Bundle-Ether121.0")
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 }
 
