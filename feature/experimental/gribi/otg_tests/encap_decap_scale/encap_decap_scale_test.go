@@ -343,10 +343,10 @@ func pushEncapEntries(t *testing.T, virtualIPs []string, decapEncapVirtualIPs []
 	// Add 1600 TE_VRF111 tunnels
 	vrfEntryParams[teVRF111] = &routesParam{
 		ipEntries:     tunnelIPEntries,
-		numUniqueNHs:  2,
-		nextHops:      virtualIPs,
+		numUniqueNHs:  4,
+		nextHops:      virtualIPs[0:4],
 		nextHopVRF:    deviations.DefaultNetworkInstance(args.dut),
-		numUniqueNHGs: len(virtualIPs) / 2,
+		numUniqueNHGs: 2,
 		nhDecapEncap:  false,
 	}
 
