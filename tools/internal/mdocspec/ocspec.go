@@ -14,7 +14,8 @@ import (
 	rpb "github.com/openconfig/featureprofiles/proto/ocrpcs_go_proto"
 )
 
-// ErrNotFound indicates the user was not found or is unknown.
+// ErrNotFound indicates the OpenConfig Path and RPC Coverage YAML block was
+// not found or was invalid.
 var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading titled %q, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`, OCSpecHeading)
 
 // Parse extracts sorted OpenConfig Path and RPC Coverage from a
