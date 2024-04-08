@@ -334,9 +334,15 @@ func configureP4RTDevice(t *testing.T, dut *ondatra.DUTDevice, npu string, nodei
 	ic := &oc.Component_IntegratedCircuit{}
 	ic.NodeId = ygot.Uint64(nodeid)
 
-	config := gnmi.OC().Component(npu).IntegratedCircuit()
-	defer observer.RecordYgot(t, "REPLACE", config)
-	gnmi.Replace(t, dut, config.Config(), ic)
+	c := &oc.Component{}
+	c.SetName(npu)
+	c.GetOrCreateIntegratedCircuit().SetNodeId(nodeid)
+
+	//path := gnmi.OC().Component(npu).IntegratedCircuit()
+	path := gnmi.OC().Component(npu)
+	defer observer.RecordYgot(t, "REPLACE", path)
+	//gnmi.Replace(t, dut, path.Config(), ic)
+	gnmi.Replace(t, dut, path.Config(), c)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
