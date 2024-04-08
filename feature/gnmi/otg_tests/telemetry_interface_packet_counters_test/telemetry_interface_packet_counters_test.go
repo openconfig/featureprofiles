@@ -382,10 +382,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {
-		if got, want := dutInPktsAfterTraffic[k]-dutInPktsBeforeTraffic[k], ateInPkts[k]; got < want {
+		if got, want := dutInPktsAfterTraffic[k]-dutInPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
 			t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 		}
-		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
+		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateInPkts[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
 	}
