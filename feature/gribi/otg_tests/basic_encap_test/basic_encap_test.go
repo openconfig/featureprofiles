@@ -104,6 +104,7 @@ const (
 	// observing on IXIA OTG: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port in the chassis
 	otgMutliPortCaptureSupported = false
+	seqIDBase                    = uint32(10)
 )
 
 var (
@@ -449,81 +450,81 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	vrfDefault := deviations.DefaultNetworkInstance(dut)
 	var pbrRules = []pbrRule{
 		{
-			sequence:    1,
+			sequence:    seqIDOffset(1),
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    2,
+			sequence:    seqIDOffset(2),
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    3,
+			sequence:    seqIDOffset(3),
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    4,
+			sequence:    seqIDOffset(4),
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    5,
+			sequence:    seqIDOffset(5),
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    6,
+			sequence:    seqIDOffset(6),
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    7,
+			sequence:    seqIDOffset(7),
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    8,
+			sequence:    seqIDOffset(8),
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    9,
+			sequence:    seqIDOffset(9),
 			protocol:    ipipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    10,
+			sequence:    seqIDOffset(10),
 			protocol:    ipv6ipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    11,
+			sequence:    seqIDOffset(11),
 			protocol:    ipipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    12,
+			sequence:    seqIDOffset(12),
 			protocol:    ipv6ipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
@@ -532,22 +533,22 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 
 	var encapRules = []pbrRule{
 		{
-			sequence: 13,
+			sequence: seqIDOffset(13),
 			dscpSet:  []uint8{dscpEncapA1, dscpEncapA2},
 			encapVrf: vrfEncapA,
 		},
 		{
-			sequence:  14,
+			sequence:  seqIDOffset(14),
 			dscpSetV6: []uint8{dscpEncapA1, dscpEncapA2},
 			encapVrf:  vrfEncapA,
 		},
 		{
-			sequence: 15,
+			sequence: seqIDOffset(15),
 			dscpSet:  []uint8{dscpEncapB1, dscpEncapB2},
 			encapVrf: vrfEncapB,
 		},
 		{
-			sequence:  16,
+			sequence:  seqIDOffset(16),
 			dscpSetV6: []uint8{dscpEncapB1, dscpEncapB2},
 			encapVrf:  vrfEncapB,
 		},
@@ -555,19 +556,19 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 
 	var defaultClassRule = []pbrRule{
 		{
-			sequence: 17,
+			sequence: seqIDOffset(17),
 			encapVrf: vrfDefault,
 		},
 	}
 
 	var splitDefaultClassRules = []pbrRule{
 		{
-			sequence:  17,
+			sequence:  seqIDOffset(17),
 			etherType: ethertypeIPv4,
 			encapVrf:  vrfDefault,
 		},
 		{
-			sequence:  18,
+			sequence:  seqIDOffset(18),
 			etherType: ethertypeIPv6,
 			encapVrf:  vrfDefault,
 		},
@@ -586,6 +587,13 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	}
 
 	return pbrRules
+}
+
+// seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
+// like 1, 10, 11, 12,..., 2, 21, 22, ... while being sent by Ondatra to the DUT.
+// It now generates sequences like 11, 12, 13, ..., 19, 20, 21,..., 99.
+func seqIDOffset(i uint32) uint32 {
+	return i + seqIDBase
 }
 
 // configDefaultRoute configures a static route in DEFAULT network-instance.
@@ -653,6 +661,11 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 			ra.DecapNetworkInstance = ygot.String(pRule.decapVrfSet[0])
 			ra.PostDecapNetworkInstance = ygot.String(pRule.decapVrfSet[1])
 			ra.DecapFallbackNetworkInstance = ygot.String(pRule.decapVrfSet[2])
+		}
+		if deviations.PfRequireMatchDefaultRule(dut) {
+			if pRule.etherType != nil {
+				r.GetOrCreateL2().Ethertype = pRule.etherType
+			}
 		}
 
 		if pRule.encapVrf != "" {
@@ -896,9 +909,6 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v4.Dst().SetValue(fa.dst)
 		v4.TimeToLive().SetValue(ttl)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
-		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().SetValues(randRange(50001, 10000))
-		udp.DstPort().SetValues(randRange(50001, 10000))
 
 		// add inner ipv4 headers
 		if flowType == "ipv4in4" {
@@ -919,10 +929,10 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v6.Dst().SetValue(fa.dst)
 		v6.HopLimit().SetValue(ttl)
 		v6.TrafficClass().SetValue(dscp << 2)
-		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().SetValues(randRange(50001, 10000))
-		udp.DstPort().SetValues(randRange(50001, 10000))
 	}
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 10000))
+	udp.DstPort().SetValues(randRange(50001, 10000))
 
 	return flow
 }
