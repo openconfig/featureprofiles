@@ -906,3 +906,8 @@ func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
+
+// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
+func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
+}
