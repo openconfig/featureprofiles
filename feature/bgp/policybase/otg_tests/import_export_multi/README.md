@@ -237,6 +237,7 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+    gNMI.Set:
 ```
 
 ## Minimum DUT Required
