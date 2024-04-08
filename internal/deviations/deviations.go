@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+x// Copyright 2022 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -377,7 +377,7 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
-// RibWecmp returns if device requires CLI knob to enable wecmp feature
+// RibWecmp returns if device requires CLI knob to enable wecmp feature.
 func RibWecmp(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRibWecmp()
 }
