@@ -290,8 +290,6 @@ func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
                 var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
                 status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
                         state, ok := val.Val()
-                        t.Logf("BGP neighbor %s state: %v", nbr.nbrAddr, state)
-                        t.Logf("BGP adjacency for %s: %v", nbr.nbrAddr, state)
                         return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
                 }).Await(t)
                 if !ok {
@@ -299,7 +297,6 @@ func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
                         t.Fatal("No BGP neighbor formed")
                 }
                 state, _ := status.Val()
-                t.Logf("BGP adjacency for %s: %v", nbr.nbrAddr, state)
                 if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
                         t.Errorf("BGP peer %s status got %d, want %d", nbr.nbrAddr, state, want)
                 }
@@ -426,19 +423,12 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
         // Configuring all 4 reqruired prefix-sets
         t.Run("Configure prefix-set", func(t *testing.T) {
                 configurePrefixSet(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4, prefixSet1V6, prefixSet2V6})
-                t.Logf("Configured prefix-set policies %v", prefixSet1V4)
-                t.Logf("Configured prefix-set policies %v", prefixSet2V4)
-                t.Logf("Configured prefix-set policies %v", prefixSet1V6)
-                t.Logf("Configured prefix-set policies %v", prefixSet2V6)
         })
 
         // Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-1
         t.Run("Validate acceptance based on prefix-set policy - import policy on neighbor", func(t *testing.T) {
-                t.Logf("Applying prefix-set policy for neighbour %v", ebgp1NbrV4)
                 applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4}, bgpImportIPv4, *ebgp1NbrV4, importPolicy)
-                t.Logf("Applying prefix-set policy for neighbour %v", ebgp1NbrV6)
                 applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6, prefixSet2V6}, bgpImportIPv6, *ebgp1NbrV6, importPolicy)
-                t.Logf("Default import policy is %v", importPolicy)
                 if !deviations.DefaultImportExportPolicy(dut) {
                         t.Logf("Validate for neighbour %v", ebgp1NbrV4)
                         validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
@@ -457,9 +447,7 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 
         // Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-2
         t.Run("Validate advertise based on prefix-set policy - export policy on neighbor", func(t *testing.T) {
-                t.Logf("Applying prefix-set policy for neighbour %v", ebgp2NbrV4)
                 applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet2V4}, bgpExportIPv4, *ebgp2NbrV4, !importPolicy)
-                t.Logf("Applying prefix-set policy for neighbour %v", ebgp2NbrV6)
                 applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6}, bgpExportIPv6, *ebgp2NbrV6, !importPolicy)
 
                 // route1, route2, route4 expected to be advertised based on prefix-set
