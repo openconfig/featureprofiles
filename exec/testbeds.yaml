@@ -26,6 +26,13 @@ testbeds:
       controller_port: 40057
       gnmi_port: 50057
 
+  8201-FOC2448P0MP:
+    hw: 8201-FOC2448P0MP
+    owner: khrasool
+    testbed: topologies/cisco/hw/8201-FOC2448P0MP/testbed
+    binding: topologies/cisco/hw/8201-FOC2448P0MP/binding
+    baseconf: topologies/cisco/hw/8201-FOC2448P0MP/basic_config.proto
+
   8808-FOX2508P0JU: &8808_FOX2508P0JU_DEFAULTS
     hw: 8808-FOX2508P0JU
     owner: vbhan
@@ -82,7 +89,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40053
       gnmi_port: 50053
 
@@ -138,12 +145,12 @@ testbeds:
      
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: saarvind
+    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
 
@@ -270,6 +277,6 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40051
       gnmi_port: 50051

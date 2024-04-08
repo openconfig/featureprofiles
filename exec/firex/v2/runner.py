@@ -590,6 +590,7 @@ def b4_chain_provider(ws, testsuite_id,
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
     if 'otg' in test_path and not reserved_testbed.get('sim', False):
+        chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
 
     if sanitizer:
@@ -943,7 +944,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
-    if os.path.exists(reserved_testbed['install_lock_file']):
+    if not force_install and os.path.exists(reserved_testbed['install_lock_file']):
         return
     
     logger.print("Performing Software Upgrade...")
@@ -1294,6 +1295,18 @@ def BringupIxiaController(self, reserved_testbed):
     docker_file = reserved_testbed["otg_docker_compose_file"]
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def CollectIxiaLogs(self, reserved_testbed, out_dir):
+    logger.print("Collecting OTG logs...")
+    try:
+        otg_log_collector_bin = "/auto/tftpboot-ottawa/b4/bin/otg_log_collector"
+        pname = reserved_testbed["id"].lower()
+        cmd = f'{otg_log_collector_bin} {pname} {out_dir}'
+        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    except:
+        logger.warning(f'Failed to collect OTG logs. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])

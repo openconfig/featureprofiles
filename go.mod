@@ -24,14 +24,15 @@ require (
 	github.com/openconfig/bootz v0.1.1
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.10.0
-	github.com/openconfig/gnoi v0.4.0
-	github.com/openconfig/gnoigo v0.0.0-20240214160338-8660e1580468
-	github.com/openconfig/gnsi v1.4.0
+	github.com/openconfig/gnoi v0.3.0
+	github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7
+	github.com/openconfig/gnsi v1.2.3
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.5
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231213034307-d0abeba7f432
 	github.com/openconfig/kne v0.1.17
+	github.com/openconfig/lemming v0.3.2-0.20230914210403-c6484d12af0a
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.5.4
 	github.com/openconfig/ovgs v0.0.0-20240314033340-1159fb50689e
