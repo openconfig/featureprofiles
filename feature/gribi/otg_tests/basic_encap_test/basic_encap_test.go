@@ -450,81 +450,81 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	vrfDefault := deviations.DefaultNetworkInstance(dut)
 	var pbrRules = []pbrRule{
 		{
-			sequence:    seqIDOffset(1),
+			sequence:    1,
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(2),
+			sequence:    2,
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(3),
+			sequence:    3,
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    seqIDOffset(4),
+			sequence:    4,
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapA1, dscpEncapA2},
 			decapVrfSet: []string{vrfDecap, vrfEncapA, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    seqIDOffset(5),
+			sequence:    5,
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(6),
+			sequence:    6,
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(7),
+			sequence:    7,
 			protocol:    ipipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    seqIDOffset(8),
+			sequence:    8,
 			protocol:    ipv6ipProtocol,
 			dscpSet:     []uint8{dscpEncapB1, dscpEncapB2},
 			decapVrfSet: []string{vrfDecap, vrfEncapB, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    seqIDOffset(9),
+			sequence:    9,
 			protocol:    ipipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(10),
+			sequence:    10,
 			protocol:    ipv6ipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfRepaired},
 			srcAddr:     ipv4OuterSrc222,
 		},
 		{
-			sequence:    seqIDOffset(11),
+			sequence:    11,
 			protocol:    ipipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
 		},
 		{
-			sequence:    seqIDOffset(12),
+			sequence:    12,
 			protocol:    ipv6ipProtocol,
 			decapVrfSet: []string{vrfDecap, vrfDefault, vrfTransit},
 			srcAddr:     ipv4OuterSrc111,
@@ -533,22 +533,22 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 
 	var encapRules = []pbrRule{
 		{
-			sequence: seqIDOffset(13),
+			sequence: 13,
 			dscpSet:  []uint8{dscpEncapA1, dscpEncapA2},
 			encapVrf: vrfEncapA,
 		},
 		{
-			sequence:  seqIDOffset(14),
+			sequence:  14,
 			dscpSetV6: []uint8{dscpEncapA1, dscpEncapA2},
 			encapVrf:  vrfEncapA,
 		},
 		{
-			sequence: seqIDOffset(15),
+			sequence: 15,
 			dscpSet:  []uint8{dscpEncapB1, dscpEncapB2},
 			encapVrf: vrfEncapB,
 		},
 		{
-			sequence:  seqIDOffset(16),
+			sequence:  16,
 			dscpSetV6: []uint8{dscpEncapB1, dscpEncapB2},
 			encapVrf:  vrfEncapB,
 		},
@@ -556,19 +556,19 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 
 	var defaultClassRule = []pbrRule{
 		{
-			sequence: seqIDOffset(17),
+			sequence: 17,
 			encapVrf: vrfDefault,
 		},
 	}
 
 	var splitDefaultClassRules = []pbrRule{
 		{
-			sequence:  seqIDOffset(17),
+			sequence:  17,
 			etherType: ethertypeIPv4,
 			encapVrf:  vrfDefault,
 		},
 		{
-			sequence:  seqIDOffset(18),
+			sequence:  18,
 			etherType: ethertypeIPv6,
 			encapVrf:  vrfDefault,
 		},
@@ -592,8 +592,11 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 // seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
 // like 1, 10, 11, 12,..., 2, 21, 22, ... while being sent by Ondatra to the DUT.
 // It now generates sequences like 11, 12, 13, ..., 19, 20, 21,..., 99.
-func seqIDOffset(i uint32) uint32 {
-	return i + seqIDBase
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
 }
 
 // configDefaultRoute configures a static route in DEFAULT network-instance.
@@ -638,7 +641,7 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
 	for _, pRule := range getPbrRules(dut, clusterFacing) {
-		r := p.GetOrCreateRule(pRule.sequence)
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.sequence))
 		r4 := r.GetOrCreateIpv4()
 
 		if pRule.dscpSet != nil {
