@@ -50,8 +50,8 @@
 # ipv4 address 5.78.26.28 
 
 duts {
-  id: "dut"
-  name: "SF-D"  # Change this to the device hostname.
+  id: "dut1"
+  name: "SF-D_DUT1"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
 
@@ -296,8 +296,8 @@ options {
 }
 
 duts {
-  id: "dut1"
-  name: "DUT1"  # Change this to the device hostname.
+  id: "dut2"
+  name: "SF-D_DUT2"  # Change this to the device hostname.
   # config:{
   #   gnmi_set_file: "$BASE_CONF_PATH"
   # }
@@ -320,7 +320,6 @@ duts {
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
      #target: "10.85.84.159:9339" 
   }
-
   gribi{
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
      #target: "10.85.84.159:9340"
@@ -328,13 +327,13 @@ duts {
   }
   ssh{
     target: "10.85.84.159:47403"
+    skip_verify: true
   }
   p4rt{
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
      #target: "10.85.84.159:9559"
      target: "10.85.84.159:47402"
   }
-  
   gnsi{
      # default grpc mapping : 57777  target: "10.85.84.159:47402"
      #target: "10.85.84.159:9559"

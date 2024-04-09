@@ -4,7 +4,7 @@ replace: {
   }
   val: {
     ascii_val:
-"hostname SF-D\n"
+"hostname SF-D_DUT1\n"
 "group BGP\n" 
 " router bgp '.*' instance '.*'\n"
 " nsr disable\n"
