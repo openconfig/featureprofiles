@@ -442,12 +442,7 @@ func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	t.Logf("Fetch interface config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {
-		if reflect.DeepEqual(val, in) {
-			t.Logf("Interface config Want and Got matched")
-			fptest.LogQuery(t, fmt.Sprintf("%s from Get", dutPort), dc, val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dc)
-		}
+		compareStructs(t, in, val)
 	} else {
 		t.Errorf("Config %v Get() failed", dc)
 	}
@@ -488,14 +483,56 @@ func TestPushAndVerifyBGPConfig(t *testing.T) {
 
 	t.Logf("Fetch BGP config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dutConfPath.Config()).Val(); present {
-		if reflect.DeepEqual(val, dutConf) {
-			t.Logf("BGP config Want and Got matched")
-			fptest.LogQuery(t, "BGP fetched from DUT using Get()", dutConfPath.Config(), val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dutConfPath.Config())
-		}
+		compareStructs(t, dutConf, val)
 	} else {
 		t.Errorf("Config %v Get() failed", dutConfPath.Config())
+	}
+}
+
+// compareStructs iterates over want comparing values with got
+func compareStructs(t *testing.T, want, got interface{}) {
+	vwant := reflect.ValueOf(want).Elem()
+	vgot := reflect.ValueOf(got).Elem()
+	twant := vwant.Type()
+
+	// Iterate over the fields of the struct
+	for i := 0; i < vwant.NumField(); i++ {
+		fieldName := twant.Field(i).Name
+		fwant := vwant.Field(i)
+		fgot := vgot.FieldByName(fieldName)
+		// check if the field is a pointer and is nil, this means its the end of the leaf node
+		if fwant.Kind() == reflect.Ptr && fwant.IsNil() {
+			continue
+		} else {
+			// check if the field is a struct or a pointer to a struct, if so call compareStructs recursively
+			if fwant.Kind() == reflect.Ptr && fwant.Elem().Kind() == reflect.Struct {
+				compareStructs(t, fwant.Interface(), fgot.Interface())
+				// check if the field is a slice and non empty, if so iterate over the slice and call compareStructs recursively
+			} else if fwant.Kind() == reflect.Map && fwant.IsValid() {
+				for _, key := range fwant.MapKeys() {
+					strct := fwant.MapIndex(key)
+					strctVal := fgot.MapIndex(key)
+					// if there is a map inside a struct, call compareStructs recursively
+					if strct.Kind() == reflect.Map {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					} else if fwant.Kind() == reflect.Ptr && fwant.IsNil() {
+						continue
+					} else if strct.Kind() == reflect.Ptr && strct.Elem().Kind() == reflect.Struct {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					}
+				}
+				// check if the enum type is 0, this means the field is not set and should be skipped
+			} else if fwant.Kind() == reflect.Int64 && fwant.Int() == 0 {
+				t.Logf("Skipping default value with the field %s\n", fieldName)
+				continue
+				// compare the field values if they are the same or not
+			} else if reflect.DeepEqual(fwant.Interface(), fgot.Interface()) {
+				t.Logf("The field %s is equal in both structs\n got: %#v \t want: %#v \n", fieldName, fwant.Interface(), fgot.Interface())
+			} else {
+				t.Errorf("The field %s is not equal in both structs\n got: %#v \t want: %#v \n", fieldName, fwant.Interface(), fgot.Interface())
+			}
+		}
+
 	}
 }
 
