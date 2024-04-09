@@ -54,10 +54,9 @@ duts {
   name: "SF-D_DUT1"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
-
-  config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
+  # config:{
+  #   gnmi_set_file: "$BASE_CONF_PATH"
+  # }
   options {
     username: "cafyauto"
     password: "cisco123"
