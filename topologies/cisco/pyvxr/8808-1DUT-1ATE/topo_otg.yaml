@@ -5,7 +5,6 @@ simulation:
   sim_flags: 
     - "-k ConfigEnableNgdp=true"
   slurm_flags: 
-    cluster: ott-slurm-m1
     hours: 72
     pending_timeout: 30
 devices: 
@@ -13,7 +12,7 @@ devices:
     platform: linux
     vcpu: 16
     memory: "32GB"
-    image: /ws/mananpat-ott/public/ixia-c.qcow2
+    image: /ws/kjahed-ott/public/images/otg/ixia-c.qcow2
     linux_username: vxr
     linux_password: "cisco123"
     linux_prompt: 'vxr@vxr-vm:~\$'

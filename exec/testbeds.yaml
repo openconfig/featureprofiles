@@ -6,9 +6,14 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40055
       gnmi_port: 50055
+
+  8808_FOX2506P2QT_MTLS: 
+    <<: *8808_FOX2506P2QT_DEFAULTS
+    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_mtls
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
 
   8808-36FH_FOX2613PHWL:
     hw: 8808-36FH_FOX2613PHWL
@@ -20,6 +25,13 @@ testbeds:
       host: kne2-lnx
       controller_port: 40057
       gnmi_port: 50057
+
+  8201-FOC2448P0MP:
+    hw: 8201-FOC2448P0MP
+    owner: khrasool
+    testbed: topologies/cisco/hw/8201-FOC2448P0MP/testbed
+    binding: topologies/cisco/hw/8201-FOC2448P0MP/binding
+    baseconf: topologies/cisco/hw/8201-FOC2448P0MP/basic_config.proto
 
   8808-FOX2508P0JU: &8808_FOX2508P0JU_DEFAULTS
     hw: 8808-FOX2508P0JU
@@ -66,7 +78,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40054
       gnmi_port: 50054
 
@@ -77,7 +89,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40053
       gnmi_port: 50053
 
@@ -133,12 +145,12 @@ testbeds:
      
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: saarvind
+    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
 
@@ -167,6 +179,14 @@ testbeds:
       host: kne2-lnx
       controller_port: 
       gnmi_port: 50052
+  
+  8608-FOX2543PNNM:
+    hw: 8608-FOX2543PNNM
+    owner: anidamod
+    testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
+    binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
+    baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
+
 #SIM
   8201-1DUT:
     sim: true
@@ -257,6 +277,6 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40051
       gnmi_port: 50051

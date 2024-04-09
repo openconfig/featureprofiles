@@ -20,9 +20,9 @@ devices:
       - 1/8
       - 1/9
     ixia_images: 
-      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.10_KVM.qcow2
-      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.10_KVM.qcow2
-      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.10.2011.180.qcow2
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
+      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.30.2309.34.qcow2
     platform: ixia
   dut: 
     cvac: $BASE_CONF_PATH
