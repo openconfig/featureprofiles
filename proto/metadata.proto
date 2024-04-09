@@ -461,10 +461,20 @@ message Metadata {
     // Device missing telemetry for static route that has DROP next hop.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
     bool missing_static_route_drop_next_hop_telemetry = 162;
-    // Device missing 400ZR optical-channel tunable parameters telemetry.
-    // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+    // Device missing 400ZR optical-channel tunable parameters telemetry:
+    // min/max/avg.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
-
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 164;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 165;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 166;  
+    // Support for bgp extended community index
+    bool bgp_extended_community_index_unsupported = 167;
+    // Support for bgp community set refs
+    bool bgp_community_set_refs_unsupported = 168;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
