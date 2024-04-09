@@ -441,42 +441,42 @@ duts {
    speed: S_40GB   
   }   
   ports {
-   id: "dut1_ate_port1"
+   id: "dut2_ate_port1"
    name: "TenGigE0/0/0/0/0"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port2"
+   id: "dut2_ate_port2"
    name: "TenGigE0/0/0/20/3"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port3"
+   id: "dut2_ate_port3"
    name: "TenGigE0/0/0/0/2"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port4"
+   id: "dut2_ate_port4"
    name: "TenGigE0/0/0/0/3"  # Change this to the actual port name.
    speed: S_10GB   
   }   
   ports {
-   id: "dut1_ate_port5"
+   id: "dut2_ate_port5"
    name: "TenGigE0/0/0/20/0"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port6"
+   id: "dut2_ate_port6"
    name: "TenGigE0/0/0/20/1"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port7"
+   id: "dut2_ate_port7"
    name: "TenGigE0/0/0/20/2"  # Change this to the actual port name.
    speed: S_10GB   
   }
   ports {
-   id: "dut1_ate_port8"
+   id: "dut2_ate_port8"
    name: "TenGigE0/0/0/0/1"  # Change this to the actual port name.
    speed: S_10GB   
   }      
