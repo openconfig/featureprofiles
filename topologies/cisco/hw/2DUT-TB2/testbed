@@ -206,35 +206,35 @@ duts {
     speed: S_40GB  
   }    
   ports {
-    id: "dut1_ate_port1"
+    id: "dut2_ate_port1"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port2"
+    id: "dut2_ate_port2"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port3"
+    id: "dut2_ate_port3"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port4"
+    id: "dut2_ate_port4"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port5"
+    id: "dut2_ate_port5"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port6"
+    id: "dut2_ate_port6"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port7"
+    id: "dut2_ate_port7"
     speed: S_10GB  
   }
   ports {
-    id: "dut1_ate_port8"
+    id: "dut2_ate_port8"
     speed: S_10GB  
   }         
 }
@@ -272,7 +272,7 @@ ates {
     id: "dut1_ate_port8"
     speed: S_10GB  
   }
-    ports {
+  ports {
     id: "dut2_ate_port1"
     speed: S_10GB   
   }

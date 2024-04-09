@@ -539,7 +539,7 @@ ates {
    name: "10/11"  # Change this to the actual port name.
     speed: S_10GB
   }
-    ports {
+  ports {
     id: "dut2_ate_port1"
     name: "9/17"  # Change this to the actual port name.
     speed: S_10GB
