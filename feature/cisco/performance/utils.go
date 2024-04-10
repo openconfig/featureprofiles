@@ -206,3 +206,125 @@ func TopCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) (float64, flo
 
 	return totalCpu, totalMemUsage, totalMem, freeMem, usedMem, nil
 }
+
+type TopCpuMemData struct {
+	TotalCPU float64	
+	TotalMemUsage float64	
+	TotalMem float64	
+	FreeMem float64	
+	UsedMem float64	
+}
+
+type LineCardCpuMemData struct {
+	SlotNum int
+	TopCpuMemData
+}
+
+func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]LineCardCpuMemData, error) {
+	gnmiClient := dut.RawAPIs().CLI(t)
+
+	//Get nodes
+	
+	getCommand := "show platform"
+	
+	cliShowOutput, err := gnmiClient.RunCommand(context.Background(), getCommand)
+	if err != nil {
+		return nil, err
+	}
+	nodeLines := strings.Split(cliShowOutput.Output(), "\n")
+	nodesRe := regexp.MustCompile(`^\d+\/(\d+)\/CPU\d+\s+\d+-LC-\w+\s+IOS XR RUN\s+\w+`)
+	var nodeList []int
+
+	for _, line := range nodeLines {
+		t.Log(line)
+		if nodeStr := nodesRe.FindStringSubmatch(line); len(nodeStr) > 1 {
+			node, err := strconv.ParseFloat(nodeStr[1], 64)
+			if err != nil {
+				continue
+			}
+			nodeList = append(nodeList, int(node))
+		}
+	}
+
+	t.Logf("LC node list: %v", nodeList)
+
+	var lineCardsTopData []LineCardCpuMemData
+	commandFormat := "run ssh 172.0.%d.1 top -b | head -n 30"
+	
+	for _, node := range nodeList {
+		t.Logf("Top of LC%d", node)
+		
+		command := fmt.Sprintf(commandFormat, node)
+		t.Logf("Command running: %s", command)
+		var totalCpu, totalMemUsage, totalMem, freeMem, usedMem float64
+		cliOutput, err := gnmiClient.RunCommand(context.Background(), command)
+		if err != nil {
+			return nil, err
+		}
+
+		lines := strings.Split(cliOutput.Output(), "\n")
+		cpuRe := regexp.MustCompile(`^\s*\d+\s+\w+\s+\d+\s+-?\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+(\d+\.\d+)`)
+		memRe := regexp.MustCompile(`MiB Mem :\s+(\d+\.\d+) total,\s+(\d+\.\d+) free,\s+(\d+\.\d+) used`)
+
+
+		for _, line := range lines {
+			t.Log(line)
+			// Check for CPU and MEM usage
+			if cpuMatches := cpuRe.FindStringSubmatch(line); len(cpuMatches) > 2 {
+				cpuUsage, err := strconv.ParseFloat(cpuMatches[1], 64)
+				if err != nil {
+					continue
+				}
+				memUsage, err := strconv.ParseFloat(cpuMatches[2], 64)
+				if err != nil {
+					continue
+				}
+				totalCpu += cpuUsage
+				totalMemUsage += memUsage
+			}
+
+			// Check for total, free, and used memory
+			if memMatches := memRe.FindStringSubmatch(line); len(memMatches) > 3 {
+				totalMem, err = strconv.ParseFloat(memMatches[1], 64)
+				if err != nil {
+					return nil, err
+				}
+				freeMem, err = strconv.ParseFloat(memMatches[2], 64)
+				if err != nil {
+					return nil, err
+				}
+				usedMem, err = strconv.ParseFloat(memMatches[3], 64)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+		
+		lineCardsTopData = append(lineCardsTopData,
+			LineCardCpuMemData{
+				SlotNum: node,	
+				TopCpuMemData: TopCpuMemData{
+					TotalCPU: totalCpu,	
+					TotalMemUsage: totalMemUsage,
+					TotalMem: totalMem,
+					FreeMem: freeMem,
+					UsedMem: usedMem,
+				}, 
+			},
+		)
+	}
+	//Get top data
+
+	return lineCardsTopData, nil
+
+}
+
+func TopCpuMemoryUtilOC(t *testing.T, dut *ondatra.DUTDevice) []*oc.System_Process {
+	topArray := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	return topArray
+}
+
+func TopCpuMemoryFromPID(t *testing.T, dut *ondatra.DUTDevice, processName uint64) *oc.System_Process {
+	topArray := gnmi.Get(t, dut, gnmi.OC().System().Process(processName).State())
+	return topArray
+}
