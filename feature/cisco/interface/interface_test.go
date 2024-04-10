@@ -1074,6 +1074,7 @@ func TestInterfaceState(t *testing.T) {
 	t.Run("Subscribe//interfaces/interface/aggregation/state/member", func(t *testing.T) {
 		t.Skip() // TODO - remove
 		state := gnmi.OC().Interface(iut.Name()).Aggregation().Member()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := gnmi.Get(t, dut, state.State())
 		if util.SliceEqual(members, iut.Members()) {
 			t.Logf("Got correct Interface Aggregation Member Value")
@@ -1131,10 +1132,12 @@ func TestInterfaceState(t *testing.T) {
 
 	t.Run("Update//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), macAdd)
 	})
 	t.Run("Subscribe//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		state := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
+		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		macadd := gnmi.Get(t, dut, state.State())
 		if macadd != macAdd {
 			t.Errorf("Interface MacAddress: got %s, want !=%s", macadd, macAdd)
@@ -1143,11 +1146,13 @@ func TestInterfaceState(t *testing.T) {
 	})
 	t.Run("Delete//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
 
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Type()
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 	})
@@ -1607,6 +1612,7 @@ func TestForwardViableSDN(t *testing.T) {
 			Description: ygot.String("randstr"),
 			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		}
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), obj)
 	})
 	t.Run(fmt.Sprintf("Update on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
@@ -1632,6 +1638,7 @@ func TestForwardViableSDN(t *testing.T) {
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember).ForwardingViable()
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
 
@@ -1640,10 +1647,12 @@ func TestForwardViableSDN(t *testing.T) {
 	t.Logf("%v", forwardUnviable)
 	t.Run(fmt.Sprintf("Update on /interface[%v]/", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), interfaceContainer)
 	})
 	t.Run(fmt.Sprintf("Get on /interface[%v]/", bundleMember), func(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember)
+		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
 		forwardUnviable := gnmi.LookupConfig(t, dut, configContainer.Config())
 		if _, ok := forwardUnviable.Val(); !ok {
 			t.Errorf("Get on /interface[%v]/ failed", bundleMember)
@@ -1651,6 +1660,7 @@ func TestForwardViableSDN(t *testing.T) {
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
+		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
 }
