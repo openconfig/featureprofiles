@@ -331,12 +331,13 @@ func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uin
 
 // configureP4RTDevice configures device-id for a specified npu instance
 func configureP4RTDevice(t *testing.T, dut *ondatra.DUTDevice, npu string, nodeid uint64) {
-	ic := &oc.Component_IntegratedCircuit{}
-	ic.NodeId = ygot.Uint64(nodeid)
+	c := &oc.Component{}
+	c.SetName(npu)
+	c.GetOrCreateIntegratedCircuit().SetNodeId(nodeid)
 
-	config := gnmi.OC().Component(npu).IntegratedCircuit()
-	defer observer.RecordYgot(t, "REPLACE", config)
-	gnmi.Replace(t, dut, config.Config(), ic)
+	path := gnmi.OC().Component(npu)
+	defer observer.RecordYgot(t, "REPLACE", path)
+	gnmi.Replace(t, dut, path.Config(), c)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.
