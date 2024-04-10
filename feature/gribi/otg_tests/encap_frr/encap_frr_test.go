@@ -492,7 +492,6 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		networkInstance: niEncapTeVrfB}
 	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		networkInstance: niEncapTeVrfB}
-	// pfRule17 := &policyFwRule{SeqID: 17, networkInstance: deviations.DefaultNetworkInstance(dut)}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
@@ -519,7 +518,7 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	for _, pfRule := range pfRuleList {
-		pfR := niPf.GetOrCreateRule(pfRule.SeqID)
+		pfR := niPf.GetOrCreateRule(seqIDOffset(dut, pfRule.SeqID))
 
 		if pfRule.family == "ipv4" {
 			pfRProtoIP := pfR.GetOrCreateIpv4()
