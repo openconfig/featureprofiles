@@ -60,6 +60,21 @@ func TestMain(m *testing.M) {
 func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 	testcases := []Testcase{
 		{
+			name:      "drop/lookup-block/state/no-nexthop",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+			eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
+		},
+		{
+			name:      "drop/lookup-block/state/no-label",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
+			eventType: &eventEnableMplsLdp{config: true},
+		},
+		{
+			name:      "drop/lookup-block/state/fragment-total-drops",
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, frame_size: 1400}),
+			eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
+		},
+		{
 			name:      "drop/lookup-block/state/no-route",
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
 			eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
@@ -70,16 +85,8 @@ func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
 				eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true}, // todo - how to cleanup while exiting the function?
 			},
-			{
-				name:      "drop/lookup-block/state/no-nexthop",
-				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
-				eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
-			},
-			{
-				name:      "drop/lookup-block/state/no-label",
-				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
-				eventType: &eventEnableMplsLdp{config: true},
-			},
+
+
 			{
 				name: "drop/lookup-block/state/incorrect-software-state",
 				flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{mpls: true}),
@@ -88,11 +95,7 @@ func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 				name: "drop/lookup-block/state/invalid-packet",
 				flow: args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, ttl: true}),
 			},
-			{
-				name:      "drop/lookup-block/state/fragment-total-drops",
-				flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true, frame_size: 1400}),
-				eventType: &eventInterfaceConfig{config: true, mtu: 500, port: sortPorts(args.dut.Ports())[1:]},
-			},
+
 
 		*/
 
@@ -162,11 +165,11 @@ func (args *testArgs) OcPpcDropBlock(t *testing.T) {
 				//<-doneClientsTrigger
 
 				// following reload, we can have pre data bigger than post data. So using absolute value
-				want := math.Abs(float64(postCounters - preCounters))
+				want := math.Abs(float64(postCounters - preCounters)) // from DUT
 
 				t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
 				t.Logf("Final counters for path %s: %d", tt.name, postCounters)
-				t.Logf("Expected counters for path %s: %f", tt.name, want)
+				t.Logf("Expected counters for path %s: %d", tt.name, uint64(want))
 
 				if (math.Abs(tgnData-want)/(tgnData))*100 > float64(tolerance) {
 					t.Errorf("Data doesn't match for path %s, got: %f, want: %f", tt.name, tgnData, want)

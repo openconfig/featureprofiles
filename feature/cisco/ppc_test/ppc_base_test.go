@@ -56,7 +56,7 @@ const (
 	policyTypeIsis        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	dutAreaAddress        = "47.0001"
 	dutSysId              = "0000.0000.0001"
-	isisName              = "osiris"
+	isisName              = "osisis"
 	policyTypeBgp         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	bgpAs                 = 65000
 )
@@ -833,7 +833,8 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 	//stopClientsTrigger = make(chan struct{})
 	//runMultipleClientBackground(t, stopClientsTrigger, doneClientsTrigger)
 
-	time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
+	time.Sleep(60 * time.Second)
+	//time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	args.ate.Traffic().Stop(t)
 
 	// remove set configs before further check
