@@ -86,6 +86,7 @@ func CreateInterfaceSetFromOCRoot(ocRoot *oc.Root, replace bool) *gnmi.SetBatch 
 	return batchRep
 }
 
+// Takes a GNMI path and retrieves all elements from the DUT
 func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, error) {
 
 	split := strings.Split(str, ":")
@@ -156,6 +157,7 @@ func DeserializeMemData(t testing.TB, dut *ondatra.DUTDevice) (*MemData, error) 
 	return &responseRawObj, nil
 }
 
+// CLI Parser that runs the top linux command on the DUT
 func TopCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) (float64, float64, float64, float64, float64, error) {
 	command := "run top -b | head -n 30"
 
@@ -220,6 +222,7 @@ type LineCardCpuMemData struct {
 	TopCpuMemData
 }
 
+// CLI Parser that runs the top linux command on each line card in the DUT
 func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]LineCardCpuMemData, error) {
 	gnmiClient := dut.RawAPIs().CLI(t)
 
@@ -318,11 +321,13 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 
 }
 
+// Queries the OC GNMI model that returns all DUT process (top equivalent) data
 func TopCpuMemoryUtilOC(t *testing.T, dut *ondatra.DUTDevice) []*oc.System_Process {
 	topArray := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
 	return topArray
 }
 
+// Queries the OC GNMI model that returns DUT process (top equivalent) data of a given PID
 func TopCpuMemoryFromPID(t *testing.T, dut *ondatra.DUTDevice, processName uint64) *oc.System_Process {
 	topArray := gnmi.Get(t, dut, gnmi.OC().System().Process(processName).State())
 	return topArray
