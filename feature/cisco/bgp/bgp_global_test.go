@@ -8,24 +8,15 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
-
 const (
-	telemetryTimeout time.Duration = 10 * time.Second
-	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
-	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
-	dutName          string        = "dut"
-	bgpInstance      string        = "TEST"
-	bgpAs            uint32        = 40000
+	bgpInstance string = "TEST"
+	bgpAs       uint32 = 40000
 )
 
 func baseBgpGlobalConfig(bgpAs uint32) *oc.NetworkInstance_Protocol_Bgp {
@@ -34,11 +25,6 @@ func baseBgpGlobalConfig(bgpAs uint32) *oc.NetworkInstance_Protocol_Bgp {
 			As: ygot.Uint32(bgpAs),
 		},
 	}
-}
-
-func cleanup(t *testing.T, dut *ondatra.DUTDevice, bgpInst string) {
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Config())
-	time.Sleep(configDeleteTime)
 }
 
 // TestAs tests the configuration of the BGP global AS leaf

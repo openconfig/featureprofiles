@@ -7,11 +7,16 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
 
 func TestBGPState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)

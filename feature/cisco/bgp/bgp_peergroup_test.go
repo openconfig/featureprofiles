@@ -1,12 +1,13 @@
 package bgp_test
 
+// TODO
+// --testbed /Users/karremil/GolandProjects/featureprofiles/files/extra_sim/testbed -binding /Users/karremil/GolandProjects/featureprofiles/files/extra_sim/binding -v 5 -alsologtostderr
 import (
 	"fmt"
 	"testing"
 	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -14,28 +15,11 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
-
 const (
-	telemetryTimeout time.Duration = 10 * time.Second
-	configApplyTime  time.Duration = 5 * time.Second // FIXME: Workaround
-	configDeleteTime time.Duration = 5 * time.Second // FIXME: Workaround
-	dutName          string        = "dut"
-	bgpInstance_0    string        = "TEST_PG"
-	bgpAs_0          uint32        = 60000
-	peerGroup        string        = "TestPeerGroup"
+	bgpInstancePeergroup string = "TEST_PG"
+	bgpAsPeergroup       uint32 = 60000
+	peerGroup            string = "TestPeerGroup"
 )
-
-var index uint32 = 1
-
-// Workaround for back-to-back BGP config and deletes, which XR fails on
-func getNextBgpInstance() (string, uint32) {
-	i := index
-	index++
-	return fmt.Sprintf("%s_%d", bgpInstance_0, i), i + bgpAs_0
-}
 
 func baseBgpPeerGroupConfig(bgpAs uint32) *oc.NetworkInstance_Protocol_Bgp {
 	return &oc.NetworkInstance_Protocol_Bgp{
@@ -48,11 +32,6 @@ func baseBgpPeerGroupConfig(bgpAs uint32) *oc.NetworkInstance_Protocol_Bgp {
 	}
 }
 
-func cleanup(t *testing.T, dut *ondatra.DUTDevice, bgpInst string) {
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInst).Bgp().Config())
-	time.Sleep(configDeleteTime)
-}
-
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-group-name
 func TestPeerGroupName(t *testing.T) {
@@ -63,14 +42,16 @@ func TestPeerGroupName(t *testing.T) {
 		// "100",
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpInstance, bgpAs := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 
 	// Base config for BGP instance. Only run once.
-	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgp_as)
+	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgpAs)
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name using value %v", input), func(t *testing.T) {
@@ -100,7 +81,7 @@ func TestPeerGroupName(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as
-func TestPeerAs(t *testing.T) {
+func TestPeerGroupPeerAs(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint32{
@@ -108,14 +89,16 @@ func TestPeerAs(t *testing.T) {
 		// 1469169603,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpInstance, bgpAs := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 
 	// Base config for BGP instance. Only run once.
-	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgpAs))
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as using value %v", input), func(t *testing.T) {
@@ -145,7 +128,7 @@ func TestPeerAs(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as
-func TestLocalAs(t *testing.T) {
+func TestPeerGroupLocalAs(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint32{
@@ -154,14 +137,16 @@ func TestLocalAs(t *testing.T) {
 		2182860066,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpInstance, bgpAs := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 
 	// BGP Base config
-	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgpAs))
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/local-as using value %v", input), func(t *testing.T) {
@@ -191,7 +176,7 @@ func TestLocalAs(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/route-flap-damping
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/route-flap-damping
-func TestRouteFlapDamping(t *testing.T) {
+func TestPeerGroupRouteFlapDamping(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []bool{
@@ -199,14 +184,14 @@ func TestRouteFlapDamping(t *testing.T) {
 		false,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-
+	bgpInstance, bgpAs := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	// BGP Base config
-	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgpAs))
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/route-flap-damping using value %v", input), func(t *testing.T) {
@@ -236,7 +221,7 @@ func TestRouteFlapDamping(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/remove-private-as
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/remove-private-as
-func TestRemovePrivateAs(t *testing.T) {
+func TestPeerGroupRemovePrivateAs(t *testing.T) {
 	t.Skip("Not supported by XR - Planned drop D2")
 
 	dut := ondatra.DUT(t, dutName)
@@ -246,7 +231,7 @@ func TestRemovePrivateAs(t *testing.T) {
 		oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REPLACE_ALL,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 
@@ -282,7 +267,7 @@ func TestRemovePrivateAs(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/connect-retry
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/connect-retry
-func TestTimersConnectRetry(t *testing.T) {
+func TestPeerGroupTimersConnectRetry(t *testing.T) {
 	t.Skip("Not supported by XR - Planned drop D2")
 
 	dut := ondatra.DUT(t, dutName)
@@ -293,7 +278,7 @@ func TestTimersConnectRetry(t *testing.T) {
 		// (30 * time.Second).Seconds(),
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -328,7 +313,7 @@ func TestTimersConnectRetry(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/hold-time
-func TestTimersHoldTime(t *testing.T) {
+func TestPeerGroupTimersHoldTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
@@ -336,12 +321,13 @@ func TestTimersHoldTime(t *testing.T) {
 		360,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
+	bgpInstance, bgpAs := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
+	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgpAs))
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/hold-time using value %v", input), func(t *testing.T) {
@@ -378,7 +364,7 @@ func TestTimersHoldTime(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/keepalive-interval
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/keepalive-interval
-func TestTimersKeepaliveInterval(t *testing.T) {
+func TestPeerGroupTimersKeepaliveInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
@@ -386,9 +372,10 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 		360,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
@@ -428,7 +415,7 @@ func TestTimersKeepaliveInterval(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/config/minimum-advertisement-interval
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/timers/state/minimum-advertisement-interval
-func TestTimersMinimumAdvertisementInterval(t *testing.T) {
+func TestPeerGroupTimersMinimumAdvertisementInterval(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
@@ -436,9 +423,10 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 		43,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
@@ -471,7 +459,7 @@ func TestTimersMinimumAdvertisementInterval(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/local-address
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/local-address
-func TestTransportLocalAddress(t *testing.T) {
+func TestPeerGroupTransportLocalAddress(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []string{
@@ -479,9 +467,10 @@ func TestTransportLocalAddress(t *testing.T) {
 		"Bundle-Ether100",
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
@@ -514,7 +503,7 @@ func TestTransportLocalAddress(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/enabled
-func TestGracefulRestartEnabled(t *testing.T) {
+func TestPeerGroupGracefulRestartEnabled(t *testing.T) {
 	t.Skip("Not supported by XR - Planned drop D2")
 
 	dut := ondatra.DUT(t, dutName)
@@ -524,7 +513,7 @@ func TestGracefulRestartEnabled(t *testing.T) {
 		true,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -559,7 +548,7 @@ func TestGracefulRestartEnabled(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/restart-time
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/restart-time
-func TestGracefulRestartRestartTime(t *testing.T) {
+func TestPeerGroupGracefulRestartRestartTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
@@ -567,9 +556,10 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 		312,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgp_instance)
@@ -601,7 +591,7 @@ func TestGracefulRestartRestartTime(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/stale-routes-time
-func TestGracefulRestartStaleRoutesTime(t *testing.T) {
+func TestPeerGroupGracefulRestartStaleRoutesTime(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint16{
@@ -609,12 +599,13 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 		10,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
-	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
-	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
+	bgpInstance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
+	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
 	time.Sleep(configApplyTime)
-	defer cleanup(t, dut, bgp_instance)
+	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/stale-routes-time using value %v", input), func(t *testing.T) {
@@ -644,7 +635,7 @@ func TestGracefulRestartStaleRoutesTime(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/state/helper-only
-func TestGracefulRestartHelperOnly(t *testing.T) {
+func TestPeerGroupGracefulRestartHelperOnly(t *testing.T) {
 	t.Skip("Not supported by XR - Planned drop TBD")
 
 	dut := ondatra.DUT(t, dutName)
@@ -654,7 +645,7 @@ func TestGracefulRestartHelperOnly(t *testing.T) {
 		true,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -689,7 +680,7 @@ func TestGracefulRestartHelperOnly(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/state/enabled
-func TestAfiSafiEnabled(t *testing.T) {
+func TestPeerGroupAfiSafiEnabled(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []bool{
@@ -697,7 +688,7 @@ func TestAfiSafiEnabled(t *testing.T) {
 		true,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpPeerGroupConfig(bgp_as)
@@ -726,7 +717,7 @@ func TestAfiSafiEnabled(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/max-prefixes
-func TestAfiSafiMaxPrefixes(t *testing.T) {
+func TestPeerGroupAfiSafiMaxPrefixes(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []uint32{
@@ -735,7 +726,7 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 		// 234567,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpPeerGroupConfig(bgp_as)
@@ -772,7 +763,7 @@ func TestAfiSafiMaxPrefixes(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/route-reflector/config/route-reflector-client
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/route-reflector/state/route-reflector-client
-func TestRouteReflectorClient(t *testing.T) {
+func TestPeerGroupRouteReflectorClient(t *testing.T) {
 	t.Skip("Not supported by XR - Planned drop TBD")
 
 	dut := ondatra.DUT(t, dutName)
@@ -782,7 +773,7 @@ func TestRouteReflectorClient(t *testing.T) {
 		true,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -817,7 +808,7 @@ func TestRouteReflectorClient(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/config/treat-as-withdraw
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/error-handling/state/treat-as-withdraw
-func TestErrHndlTreatasWDR(t *testing.T) {
+func TestPeerGroupErrorHandlingTreatAsWithdraw(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
@@ -826,7 +817,7 @@ func TestErrHndlTreatasWDR(t *testing.T) {
 		false,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -864,7 +855,7 @@ func TestErrHndlTreatasWDR(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/disable-peer-as-filter
 // State:  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/disable-peer-as-filter
-func TestASPathOptDisablePeerAS(t *testing.T) {
+func TestPeerGroupASPathOptDisablePeerAS(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
@@ -873,7 +864,7 @@ func TestASPathOptDisablePeerAS(t *testing.T) {
 		false,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -910,7 +901,7 @@ func TestASPathOptDisablePeerAS(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as
 // State:  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as
-func TestASPathOptAllowOwnAS(t *testing.T) {
+func TestPeerGroupASPathOptAllowOwnAS(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
@@ -919,7 +910,7 @@ func TestASPathOptAllowOwnAS(t *testing.T) {
 		7,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -957,7 +948,7 @@ func TestASPathOptAllowOwnAS(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community
 // State:  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/send-community
-func TestSendCommunity(t *testing.T) {
+func TestPeerGroupSendCommunity(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
@@ -968,7 +959,7 @@ func TestSendCommunity(t *testing.T) {
 		oc.Bgp_CommunityType_NONE,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -1006,7 +997,7 @@ func TestSendCommunity(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/replace-peer-as
 // State:  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/replace-peer-as
-func TestASPathOptReplacePeerAS(t *testing.T) {
+func TestPeerGroupASPathOptReplacePeerAS(t *testing.T) {
 
 	dut := ondatra.DUT(t, dutName)
 
@@ -1015,7 +1006,7 @@ func TestASPathOptReplacePeerAS(t *testing.T) {
 		false,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpPeerGroupConfig(bgp_as))
@@ -1052,7 +1043,7 @@ func TestASPathOptReplacePeerAS(t *testing.T) {
 
 // Config: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
 // State: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/state/enabled
-func TestPeerGrpAfiSafiUseMultiplePathsEnabled(t *testing.T) {
+func TestPeerGroupAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 	dut := ondatra.DUT(t, dutName)
 
 	inputs := []bool{
@@ -1060,7 +1051,7 @@ func TestPeerGrpAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 		false,
 	}
 
-	bgp_instance, bgp_as := getNextBgpInstance()
+	bgp_instance, bgp_as := getNextBgpInstance(bgpInstancePeergroup, bgpAsPeergroup)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp_instance).Bgp()
 	baseConfig := baseBgpPeerGroupConfig(bgp_as)
