@@ -26,8 +26,11 @@ jobs:
 
     - name: Validate Template README
       run: |
-        go run tools/validate_readme_spec/validate_readme_spec.go -alsologtostderr doc/test-requirements-template.md; rm -rf tmp
+        go install ./tools/validate_readme_spec
+        validate_readme_spec -alsologtostderr doc/test-requirements-template.md
 
     - name: Validate Test READMEs
       run: |
-        # TODO: Add READMEs here that have converted to the new format.
+        go install ./tools/validate_readme_spec
+        # TODO: Remove -feature-dir argument after all READMEs have converted to the new format.
+        validate_readme_spec -alsologtostderr -feature-dir feature/bgp/policybase/otg_tests/import_export_multi

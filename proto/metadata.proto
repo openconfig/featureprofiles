@@ -499,5 +499,9 @@ message Metadata {
   // The `tags` used to identify the area(s) testcase applies to. An empty tag
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
+
+  // Whether this test only checks paths for presence rather than semantic
+  // checks.
+  bool path_presence_test = 7;
 }
 

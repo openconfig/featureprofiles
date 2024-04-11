@@ -1,3 +1,17 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package mdocspec
 
 import (
@@ -581,6 +595,24 @@ This example yaml defines the OC paths intended to be covered by this test.  OC 
   * MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
   * FFF - fixed form factor
   * vRX - virtual router device
+`),
+		want: ``,
+	}, {
+		desc: "yaml-block-empty",
+		inSource: []byte(`---
+name: New featureprofiles test requirement
+about: Use this template to document the requirements for a new test to be implemented.
+title: ''
+labels: enhancement
+assignees: ''
+---
+
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+
+` + "```" + `yaml
+` + "```" + `
 `),
 		want: ``,
 	}}
