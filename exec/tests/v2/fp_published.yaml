@@ -755,6 +755,7 @@ tests:
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
+    timeout: 3600    
     mustpass: false
     pr: 2889
   - name: TE-14.2 (DCGate - encap and decap scale)
