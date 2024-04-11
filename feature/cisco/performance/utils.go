@@ -208,11 +208,11 @@ func TopCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) (float64, flo
 }
 
 type TopCpuMemData struct {
-	TotalCPU float64	
-	TotalMemUsage float64	
-	TotalMem float64	
-	FreeMem float64	
-	UsedMem float64	
+	TotalCPU      float64
+	TotalMemUsage float64
+	TotalMem      float64
+	FreeMem       float64
+	UsedMem       float64
 }
 
 type LineCardCpuMemData struct {
@@ -224,9 +224,9 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 	gnmiClient := dut.RawAPIs().CLI(t)
 
 	//Get nodes
-	
+
 	getCommand := "show platform"
-	
+
 	cliShowOutput, err := gnmiClient.RunCommand(context.Background(), getCommand)
 	if err != nil {
 		return nil, err
@@ -250,10 +250,10 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 
 	var lineCardsTopData []LineCardCpuMemData
 	commandFormat := "run ssh 172.0.%d.1 top -b | head -n 30"
-	
+
 	for _, node := range nodeList {
 		t.Logf("Top of LC%d", node)
-		
+
 		command := fmt.Sprintf(commandFormat, node)
 		t.Logf("Command running: %s", command)
 		var totalCpu, totalMemUsage, totalMem, freeMem, usedMem float64
@@ -265,7 +265,6 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 		lines := strings.Split(cliOutput.Output(), "\n")
 		cpuRe := regexp.MustCompile(`^\s*\d+\s+\w+\s+\d+\s+-?\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+(\d+\.\d+)`)
 		memRe := regexp.MustCompile(`MiB Mem :\s+(\d+\.\d+) total,\s+(\d+\.\d+) free,\s+(\d+\.\d+) used`)
-
 
 		for _, line := range lines {
 			t.Log(line)
@@ -299,17 +298,17 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 				}
 			}
 		}
-		
+
 		lineCardsTopData = append(lineCardsTopData,
 			LineCardCpuMemData{
-				SlotNum: node,	
+				SlotNum: node,
 				TopCpuMemData: TopCpuMemData{
-					TotalCPU: totalCpu,	
+					TotalCPU:      totalCpu,
 					TotalMemUsage: totalMemUsage,
-					TotalMem: totalMem,
-					FreeMem: freeMem,
-					UsedMem: usedMem,
-				}, 
+					TotalMem:      totalMem,
+					FreeMem:       freeMem,
+					UsedMem:       usedMem,
+				},
 			},
 		)
 	}

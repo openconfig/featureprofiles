@@ -49,7 +49,7 @@ func TestGNMIBigSetRequest(t *testing.T) {
 
 func TestTopOCModel(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	top := perf.TopCpuMemoryUtilOC(t, dut)
 
 	t.Logf("Top results: %s\n", util.PrettyPrintJson(top))
@@ -57,7 +57,7 @@ func TestTopOCModel(t *testing.T) {
 
 func TestTopLineCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	top, err := perf.TopLineCardCpuMemoryUtilization(t, dut)
 	if err != nil {
 		t.Error(err)
