@@ -36,6 +36,7 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyHz             = 193100000
 	targetFrequencyToleranceHz    = 100000
+	intUpdateTime                 = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
