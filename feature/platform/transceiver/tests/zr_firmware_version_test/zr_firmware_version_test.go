@@ -154,5 +154,4 @@ func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwar
 		}
 		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
 	}
-	return false
 }
