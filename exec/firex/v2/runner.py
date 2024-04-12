@@ -35,7 +35,6 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
-TBLOCK_BIN = '/auto/tftpboot-ottawa/b4/bin/tblock'
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -382,9 +381,12 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         if testbed.get('sim', False): 
             return testbed
 
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
+        output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            return output['testbed']
+            # Do we ever need multiple testbeds?
+            return output['testbeds'][0]
         return None
     except:
         return None
@@ -407,7 +409,9 @@ def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
+        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
+        output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j release {id}')
         if output['status'] != 'ok':
             logger.warn(f'Cannot release testbed {id}: {output["status"]}')
         return True
@@ -436,6 +440,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                     repo_branch=internal_fp_repo_branch,
                     repo_rev=internal_fp_repo_rev,
                     target_dir=internal_fp_repo_dir)
+        c |= CreatePythonVirtEnv.s(internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
@@ -944,7 +949,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
-    if os.path.exists(reserved_testbed['install_lock_file']):
+    if not force_install and os.path.exists(reserved_testbed['install_lock_file']):
         return
     
     logger.print("Performing Software Upgrade...")
@@ -1259,29 +1264,35 @@ def InstallGoDelve(self, ws, internal_fp_repo_dir):
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=internal_fp_repo_dir)
     )
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed])
+def CreatePythonVirtEnv(self, internal_fp_repo_dir):
+    logger.print("Creating python venv...")
+    requirements = [
+        os.path.join(internal_fp_repo_dir, 'exec/utils/tblock/requirements.txt'),
+        os.path.join(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
+    ]
+    
+    venv_path = os.path.join(internal_fp_repo_dir, 'venv')
+    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
+    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+
+    if os.path.exists(venv_python_bin): 
+        return
         
+    logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
+    logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
+     
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
-    venv_path = os.path.join(ws, 'ixia_venv')
-    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
-    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
-    
     try:
-        if not os.path.exists(venv_python_bin):
-            logger.print(
-                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
-            )
-            
-            ixia_release_req = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
-            logger.print(
-                check_output(f'{venv_pip_bin} install -r {ixia_release_req}')
-            )
-
+        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
-            check_output(f'{venv_python_bin} {ixia_release_bin} {binding_file}')
+            check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')

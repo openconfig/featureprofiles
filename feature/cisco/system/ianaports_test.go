@@ -2,12 +2,11 @@ package basetest
 
 import (
 	"context"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	spb "github.com/openconfig/gnoi/system"
@@ -23,6 +22,7 @@ func TestIanaPorts(t *testing.T) {
 	// This Sub-Test will Restart The EMSD Process and Get the
 
 	t.Run("Process restart EMSD and get updated listen-address", func(t *testing.T) {
+		// TODO - Harish to take a look
 		// Opened TZ to track this Issue: https://techzone.cisco.com/t5/IOS-XR-PI-GNMI-GNOI-Infra-Eng/GB4-RPC-Errors-on-Fetching-GRPC-Listen-Addresses-of-GRPC-Server/td-p/9282368
 		// config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc name  DEFAULT \n commit \n", 10*time.Second)
 		// config.TextWithSSH(context.Background(), t, dut, "vty-pool default 0 18 line-template default", 10*time.Second)
@@ -41,6 +41,7 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Reload Router and check grpc before and after ", func(t *testing.T) {
+		// TODO - Harish to take a look
 		// 	path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 		// 	gnmi.Update(t, dut, path.Config(), []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)})
 		// 	gotbefore := gnmi.Get(t, dut, path.State())[0]
@@ -87,9 +88,9 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
@@ -106,7 +107,6 @@ func TestIanaPorts(t *testing.T) {
 		}
 		configs := gnmi.OC().System()
 		gnmi.Get(t, dut, configs.Config())
-
 	})
 
 	t.Run("GRPC Server Update Test", func(t *testing.T) {

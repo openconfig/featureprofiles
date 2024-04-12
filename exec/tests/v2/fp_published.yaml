@@ -78,7 +78,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2648    
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -100,7 +99,6 @@ tests:
     skip: false
     mustpass: true
     priority: 3
-    pr: 2648
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -127,7 +125,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2648   
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -135,14 +132,12 @@ tests:
     mustpass: true
     priority: 3
     internal: false
-    pr: 2648
   - name: TE-11.3 (Backup NHG Actions)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action/
     owners:
       - wdolaast
     mustpass: true
     priority: 3
-    pr: 2648
   - name: TE-11.4 (Gribi Programming with reload)
     path: feature/experimental/gribi/otg_tests/programming_with_reload
     owners:
@@ -426,6 +421,8 @@ tests:
     mustpass: true
     priority: 48
     skip: false
+    pr: 1112  
+    internal: true
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
@@ -637,12 +634,13 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
       - wdolaast
     mustpass: false
+    testbeds:
+      - 2DUT-TB2
     skip: true # requires 2 dut
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
@@ -740,7 +738,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 2802
   - name: TE-16.1 (DCGate - basic encap test)
     path: feature/gribi/otg_tests/basic_encap_test
     owners:
@@ -748,17 +745,21 @@ tests:
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    pr: 2885  
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
     timeout: 3600  
     mustpass: false
+    pr: 2887
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
+    timeout: 3600    
     mustpass: false
+    pr: 2889
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/encap_decap_scale
     owners:
@@ -771,14 +772,12 @@ tests:
     mustpass: true
     priority: 3
     internal: false
-    pr: 2648    
   - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
     path: feature/experimental/gribi/otg_tests/backup_nhg_action_pbf
     owners:
       - arvbaska
     mustpass: true
     priority: 3
-    pr: 2648
   - name: TE-3.31 (DCGate - Hierarchical weight resolution with PBF)
     path: feature/gribi/ate_tests/hierarchical_weight_resolution_pbf_test
     owners:
@@ -786,4 +785,3 @@ tests:
     skip: false
     mustpass: true
     priority: 3
-    pr: 2648
