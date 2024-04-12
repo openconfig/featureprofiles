@@ -51,17 +51,17 @@ func TestNeighborAddress(t *testing.T) {
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgpAs)
 	time.Sleep(configApplyTime)
-	config := bgpConfig.Neighbor(neighborAddress).PeerAs()
-	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), 34) })
+	peerAs := bgpConfig.Neighbor(neighborAddress).PeerAs()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, peerAs.Config(), 34) })
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address using value %v", input), func(t *testing.T) {
-			config := bgpConfig.Neighbor(input).NeighborAddress()
+			neighborAddressPath := bgpConfig.Neighbor(input).NeighborAddress()
 			state := bgpState.Neighbor(input).NeighborAddress()
 
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, neighborAddressPath.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
