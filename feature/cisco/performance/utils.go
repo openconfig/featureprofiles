@@ -250,7 +250,7 @@ func TopLineCardCpuMemoryUtilization(t *testing.T, dut *ondatra.DUTDevice) ([]Li
 	}
 
 	if len(nodeList) < 1 {
-		return nil, fmt.Errorf("No line cards found")
+		return nil, fmt.Errorf("no line cards found")
 	}
 
 	t.Logf("LC node list: %v", nodeList)
