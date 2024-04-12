@@ -639,6 +639,8 @@ tests:
     owners:
       - wdolaast
     mustpass: false
+    testbeds:
+      - 2DUT-TB2
     skip: true # requires 2 dut
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
@@ -755,6 +757,7 @@ tests:
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
+    timeout: 3600    
     mustpass: false
     pr: 2889
   - name: TE-14.2 (DCGate - encap and decap scale)
