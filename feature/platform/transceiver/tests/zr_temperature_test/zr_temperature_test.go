@@ -57,7 +57,7 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 	})
 }
 func verifyTemperatureSensorValue(t *testing.T, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
-	temperatureSample := pStream.Next()
+	temperatureSample := pStream.Nexts(5)[4]
 	if temperatureSample == nil {
 		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", sensorName)
 	}
@@ -145,6 +145,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(false)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	component1 := gnmi.OC().Component(transceiverName)
 	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
@@ -206,18 +207,27 @@ func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
 	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
+	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for _, comp := range comps {
+		comp, ok := comp.Val()
+
+		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
+			return comp.GetName()
+		}
+	}
+	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
+	return ""
+}
+
+func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
 	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
+		if comp.GetName() == parentHardwarePortName {
+			return true
 		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
+			return false
 		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
+		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
 	}
 }
