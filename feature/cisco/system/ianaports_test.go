@@ -88,10 +88,9 @@ func TestIanaPorts(t *testing.T) {
 	})
 
 	t.Run("Assign a GNMI / GRIBI / P4RT Default Ports", func(t *testing.T) {
-		t.Skipf("Skipping till workaround is committed") // TODO - Harish to take a look
-		showresp := dut.Model()
-		t.Logf(showresp)
-		if strings.Contains(showresp, "VXR") {
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show version")
+		t.Logf(resp)
+		if strings.Contains(resp, "VXR") {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
