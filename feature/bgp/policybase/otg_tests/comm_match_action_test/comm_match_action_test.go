@@ -265,7 +265,7 @@ func TestCommunitySet(t *testing.T) {
 
 	t.Log("RT-7.8.1 - Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
+	t.Log("RT-7.8.1 - Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
