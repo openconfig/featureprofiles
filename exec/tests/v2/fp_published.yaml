@@ -4,6 +4,7 @@ owners:
 priority: 1
 testbeds:
   - 8808_FOX2506P2QT
+  - 8808_FOX2506P5XE
   - 8201-32FH_FLM254206E7
 
 tests:
@@ -436,7 +437,8 @@ tests:
       - agvarghe
     mustpass: true
     priority: 51
-    skip: true # requires 2 dut
+    testbeds:
+      - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
     path: feature/bgp/addpath/otg_tests/route_propagation_test
     owners:
@@ -464,7 +466,8 @@ tests:
       - sprem
     mustpass: true
     priority: 55
-    skip: true # requires 2 dut
+    testbeds:
+      - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -641,7 +644,6 @@ tests:
     mustpass: false
     testbeds:
       - 2DUT-TB2
-    skip: true # requires 2 dut
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
