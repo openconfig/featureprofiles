@@ -263,7 +263,7 @@ func TestCommunitySet(t *testing.T) {
 	configureOTG(t, bs, prefixesV4, prefixesV6)
 	bs.PushAndStart(t)
 
-	t.Log("Verify DUT BGP sessions up")
+	t.Log("RT-7.8.1 - Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 	t.Log("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
