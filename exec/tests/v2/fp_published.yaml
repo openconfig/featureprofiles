@@ -88,7 +88,6 @@ tests:
     path: feature/experimental/gribi/otg_tests/route_removal_during_failover_test/
     mustpass: true
     priority: 3
-    # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
     path: feature/experimental/gribi/otg_tests/route_addition_during_failover_test/
     mustpass: true
@@ -421,8 +420,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 48
-    skip: false
-    pr: 1112  
+    skip: false 
     internal: true
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
@@ -515,7 +513,6 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    pr: 2808
     priority: 80
     timeout: 7200
     args:
