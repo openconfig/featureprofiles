@@ -435,6 +435,8 @@ tests:
       - agvarghe
     mustpass: true
     priority: 92
+    pr: 1119
+    internal: true
     testbeds:
       - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
