@@ -190,7 +190,7 @@ tests:
     path: feature/experimental/p4rt/otg_tests/base_p4rt
     owners:
       - sprem
-    priority: 5
+    priority: 65
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -335,7 +335,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 34
+    priority: 65
     pr: 2805
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -434,7 +434,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 51
+    priority: 72
     testbeds:
       - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
@@ -463,7 +463,7 @@ tests:
     owners:
       - sprem
     mustpass: true
-    priority: 55
+    priority: 71
     testbeds:
       - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -513,7 +513,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 80
+    priority: 65
     timeout: 7200
     args:
       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
@@ -526,7 +526,7 @@ tests:
       - arvbaska
     mustpass: true
     skip: false
-    priority: 7
+    priority: 65
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -536,7 +536,7 @@ tests:
       - arvbaska
     mustpass: true
     skip: false
-    priority: 55
+    priority: 65
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -547,7 +547,7 @@ tests:
     skip: false
     mustpass: true
     timeout: 7200
-    priority: 4
+    priority: 65
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-1.1 (Static ARP)
@@ -561,19 +561,19 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    priority: 801
+    priority: 61
   - name: DP-1.2 (QoS policy feature config)
     path: feature/qos/tests/qos_policy_config_test
     owners:
       - saarvind
     mustpass: true
-    priority: 802
+    priority: 62
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/qos/tests/qos_ecn_config_test
     owners:
       - saarvind
     mustpass: true
-    priority: 802
+    priority: 63
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/otg_tests/mixed_sp_wrr_traffic_test
     owners:
@@ -639,6 +639,7 @@ tests:
     owners:
       - wdolaast
     mustpass: false
+    priority: 70
     testbeds:
       - 2DUT-TB2
   - name: gNOI-6.1 (Factory Reset)
@@ -654,6 +655,7 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
+    priority: 65
     pr: 2552
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -663,8 +665,11 @@ tests:
       - '-test_infra_id="cafyauto"'
     mustpass: true
     timeout: 21000
+    priority: 65
     owners:
       - harikri4
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
     
   #?
   - name: Health-1.1 (Generic Health Check)
@@ -744,6 +749,7 @@ tests:
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
+    priority: 65
     pr: 2885  
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
