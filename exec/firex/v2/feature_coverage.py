@@ -33,7 +33,7 @@ def B4FeatureCoverageRunTests(self, uid, feature_id, platforms=["8000"], testsui
             cov_testtype='dt',
             # Send data to Cerebro for DT reporting/dashboards,
             # but do not populate smart sanity DB
-            cerebro_export=False,
+            cerebro_export=True,
             cerebro_smart_sanity_export=False,
             # fail if converted TB file used for coverage
             # collection has no devices, since this guarantees
