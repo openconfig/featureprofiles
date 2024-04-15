@@ -27,15 +27,13 @@ func TestBGPState(t *testing.T) {
 	}
 	t.Log("Remove Flowspec Config")
 	configToChange := "no flowspec \n"
-	ctx := context.Background()
-	util.GNMIWithText(ctx, t, dut, configToChange)
+	util.GNMIWithText(context.Background(), t, dut, configToChange)
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
 	inputObj.StartAteProtocols(ate)
 	time.Sleep(30 * time.Second)
 	for _, bgp := range inputObj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
-
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -339,7 +337,5 @@ func TestBGPState(t *testing.T) {
 			})
 
 		}
-
 	}
-
 }

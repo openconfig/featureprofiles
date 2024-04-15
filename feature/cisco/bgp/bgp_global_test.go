@@ -3,6 +3,7 @@ package bgp_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -46,7 +47,7 @@ func TestAs(t *testing.T) {
 		bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 		config := bgpConfig.Global().As()
 		state := bgpState.Global().As()
-		fixBgpLeafRefConstraints(t, dut, "DEFAULT")
+		fixBgpLeafRefConstraints(t, dut, strconv.Itoa(int(input)))
 		t.Run(fmt.Sprintf("Update AS number using value %v", input), func(t *testing.T) {
 			gnmi.Update(t, dut, config.Config(), input)
 			time.Sleep(configApplyTime)
@@ -212,7 +213,6 @@ func TestGlobalAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 //
 // Config: /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/ignore-next-hop-igp-metric
 // State: /network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/ignore-next-hop-igp-metric
-
 func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -233,7 +233,7 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 		 * default VRF
 		 */
 		path := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
-
+		fixBgpLeafRefConstraints(t, dut, "default")
 		/*
 		 * Add ignore-next-hop-igp-metric config
 		 */
@@ -304,6 +304,13 @@ func Test_Bgp_Global_RouteSelectionOptions_IgnoreNextHopIgpMetric(t *testing.T) 
 			IgnoreNextHopIgpMetric: &booleanVal,
 		}
 		path = gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().RouteSelectionOptions()
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance("CISCO").Name().Config(), "CISCO")
+		// update identifier and name inside /protocols/protocol/ path to satisfy leafref constraint on the list key
+		protoPath := gnmi.OC().NetworkInstance("CISCO").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default")
+		batchSet := &gnmi.SetBatch{}
+		gnmi.BatchUpdate(batchSet, protoPath.Identifier().Config(), oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP)
+		gnmi.BatchUpdate(batchSet, protoPath.Name().Config(), "default")
+		batchSet.Set(t, dut)
 
 		/*
 		 * Add ignore-next-hop-igp-metric config

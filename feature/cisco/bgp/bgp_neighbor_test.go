@@ -49,6 +49,7 @@ func TestNeighborAddress(t *testing.T) {
 	bgpInstance, bgpAs := getNextBgpInstance(bgpInstanceNeighbor, bgpAsNeighbor)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgpAs)
 	time.Sleep(configApplyTime)
 	peerAs := bgpConfig.Neighbor(neighborAddress).PeerAs()
@@ -115,6 +116,7 @@ func TestNeighborPeerAs(t *testing.T) {
 	bgpInstance, bgpAs := getNextBgpInstance(bgpInstanceNeighbor, bgpAsNeighbor)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), &oc.NetworkInstance_Protocol_Bgp{
 		Global: &oc.NetworkInstance_Protocol_Bgp_Global{
 			As: ygot.Uint32(bgpAs),
@@ -167,6 +169,7 @@ func TestNeighborLocalAs(t *testing.T) {
 	bgpInstance, bgpAs := getNextBgpInstance(bgpInstanceNeighbor, bgpAsNeighbor)
 	bgpConfig := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
 	bgpState := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpInstance).Bgp()
+	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Config(), baseBgpNeighborConfig(bgpAs))
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
@@ -928,23 +931,23 @@ func TestNeighborAfiSafiEnabled(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled using value %v", input), func(t *testing.T) {
-
-			global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), input) })
+			globalAddrFamilyConfig := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			gnmi.Update(t, dut, bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName().Config(), oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, globalAddrFamilyConfig.Config(), input) })
 			time.Sleep(configApplyTime)
 
-			config := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-			state := bgpState.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			enabledConfigPath := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			enabledStatePath := bgpState.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
 
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, enabledConfigPath.Config(), input) })
 			time.Sleep(configApplyTime)
 
-			// CSCwe29261 : "config/enabled” is set to FALSE means neighbor under “router bgp <AS>” doesn’t have that AFI
+			// CSCwe29261 : "enabledConfigPath/enabled” is set to FALSE means neighbor under “router bgp <AS>” doesn’t have that AFI
 			if input == true {
 				t.Run("Subscribe", func(t *testing.T) {
-					stateGot := gnmi.Get(t, dut, state.State())
+					stateGot := gnmi.Get(t, dut, enabledStatePath.State())
 					if stateGot != input {
-						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/enabled: got %v, want %v", stateGot, input)
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/enabledStatePath/enabled: got %v, want %v", stateGot, input)
 					}
 				})
 			}
@@ -976,33 +979,33 @@ func TestNeighborAfiSafiMaxPrefixes(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(fmt.Sprintf("Testing /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes using value %v", input), func(t *testing.T) {
-
-			global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), true) })
+			globalAddrFamilyConfig := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			gnmi.Update(t, dut, bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName().Config(), oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, globalAddrFamilyConfig.Config(), true) })
 			time.Sleep(configApplyTime)
 
-			config_neighbor_addr := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config_neighbor_addr.Config(), true) })
+			configNeighborAddr := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, configNeighborAddr.Config(), true) })
 			time.Sleep(configApplyTime)
 
-			config := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
-			state := bgpState.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
+			maxPrefixesConfigPath := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
+			maxPrefixesStatePath := bgpState.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 
-			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), input) })
+			t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, maxPrefixesConfigPath.Config(), input) })
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := gnmi.Get(t, dut, state.State())
+				stateGot := gnmi.Get(t, dut, maxPrefixesStatePath.State())
 				if stateGot != input {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/max-prefixes: got %v, want %v", stateGot, input)
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/maxPrefixesStatePath/max-prefixes: got %v, want %v", stateGot, input)
 				}
 			})
 
 			t.Run("Delete", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
+				gnmi.Delete(t, dut, maxPrefixesConfigPath.Config())
 				time.Sleep(configDeleteTime)
-				if qs, _ := gnmi.Lookup(t, dut, state.State()).Val(); qs != uint32(4294967295) {
-					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes fail: got %v,want %v", qs, uint32(4294967295))
+				if qs, _ := gnmi.Lookup(t, dut, maxPrefixesStatePath.State()).Val(); qs != uint32(4294967295) {
+					t.Errorf("Delete /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/maxPrefixesConfigPath/max-prefixes fail: got %v,want %v", qs, uint32(4294967295))
 				}
 			})
 		})
@@ -1376,7 +1379,7 @@ func TestNeighborAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 		false,
 	}
 
-	// Remove any existing BGP config
+	// Remove any existing BGP enabledPath
 	config.TextWithGNMI(context.Background(), t, dut, "no router bgp")
 
 	bgpInstance, bgpAs := getNextBgpInstance(bgpInstanceNeighbor, bgpAsNeighbor)
@@ -1389,11 +1392,12 @@ func TestNeighborAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
-	global_addr_family_config := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, global_addr_family_config.Config(), true) })
+	globalAddrFamilyConfig := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, globalAddrFamilyConfig.Config(), true) })
 	time.Sleep(configApplyTime)
-	config := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
-	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), true) })
+	enabledPath := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	gnmi.Update(t, dut, bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName().Config(), oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, enabledPath.Config(), true) })
 	time.Sleep(configApplyTime)
 
 	for _, input := range inputs {
