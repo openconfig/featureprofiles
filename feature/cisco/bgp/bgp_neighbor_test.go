@@ -75,7 +75,11 @@ func TestNeighborAddress(t *testing.T) {
 			t.Run("Update /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled=true", func(t *testing.T) {
 				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), true)
 				time.Sleep(configApplyTime)
-				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
+				stateGot, _ := gnmi.Watch(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, func(y *ygnmi.Value[bool]) bool {
+					val, present := y.Val()
+					return present && val
+				}).Await(t)
+				//stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
 				value, _ := stateGot.Val()
 				if value == false {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", stateGot, true)
@@ -1393,6 +1397,7 @@ func TestNeighborAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 	defer cleanup(t, dut, bgpInstance)
 
 	globalAddrFamilyConfig := bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
+	gnmi.Update(t, dut, bgpConfig.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AfiSafiName().Config(), oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, globalAddrFamilyConfig.Config(), true) })
 	time.Sleep(configApplyTime)
 	enabledPath := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled()
@@ -1401,8 +1406,8 @@ func TestNeighborAfiSafiUseMultiplePathsEnabled(t *testing.T) {
 	time.Sleep(configApplyTime)
 
 	for _, input := range inputs {
-		ump_config := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled()
-		t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, ump_config.Config(), input) })
+		umpConfig := bgpConfig.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled()
+		t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, umpConfig.Config(), input) })
 		time.Sleep(configApplyTime)
 		t.Run("UseMultiplePathsEnabled_State", func(t *testing.T) {
 			stateGot := gnmi.Get(t, dut, bgpState.Neighbor(neighborAddress).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Enabled().State())

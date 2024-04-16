@@ -335,7 +335,6 @@ func TestBGPState(t *testing.T) {
 					t.Errorf("BGP Neighbor Queues Output: got %v, want  %v", val, oc.Bgp_Neighbor_SessionState_ACTIVE)
 				}
 			})
-
 		}
 	}
 }
