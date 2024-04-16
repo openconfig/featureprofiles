@@ -1,7 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
+uuid: "b2029c09-69fb-41d8-b82a-92966b5d1bc8"
 plan_id: "RT-7.8"
 description: "BGP Policy Match Standard Community and Add Community Import/Export Policy"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+tags: TAGS_AGGREGATION
+tags: TAGS_TRANSIT
+tags: TAGS_DATACENTER_EDGE
