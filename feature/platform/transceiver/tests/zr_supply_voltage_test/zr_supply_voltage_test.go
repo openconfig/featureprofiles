@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -40,19 +39,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp.Name())
-	i.Enabled = ygot.Bool(true)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
-		Frequency:         ygot.Uint64(targetFrequencyHz),
-	})
-}
-
 func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64], path string) float64 {
 	voltageSample := pStream.Next()
 	if voltageSample == nil {
@@ -70,46 +56,17 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 	return voltageVal
 }
 
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			return fmt.Sprintf("%s-Optical0", transceiverName)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
-	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for _, comp := range comps {
-		comp, ok := comp.Val()
-
-		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
-			return comp.GetName()
-		}
-	}
-	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
-	return ""
-}
-
-func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
-	for {
-		if comp.GetName() == parentHardwarePortName {
-			return true
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
-			return false
-		}
-		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
-	}
-}
-
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureInterface(t, dut, dut.Port(t, "port1"))
-	configureInterface(t, dut, dut.Port(t, "port2"))
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	cfgplugins.configureInterface(t, dut, p1)
+	cfgplugins.configureTargetOutputPowerAndFrequency(t, dut, p1, targetOutputPowerdBm, targetFrequencyHz)
+
+	cfgplugins.configureInterface(t, dut, p2)
+	cfgplugins.configureTargetOutputPowerAndFrequency(t, dut, p2, targetOutputPowerdBm, targetFrequencyHz)
+
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -118,7 +75,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			opticalCompName := opticalChannelComponentFromPort(t, dut, dp)
+			opticalCompName := cfgplugins.opticalChannelComponentFromPort(t, dut, dp)
 			opticalComp := gnmi.OC().Component(opticalCompName)
 			component := gnmi.OC().Component(tr)
 
