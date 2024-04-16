@@ -15,8 +15,6 @@
 package management_ha_test
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -29,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -210,8 +207,6 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, nextHopIP string
 	nh.NextHop = oc.UnionString(nextHopIP)
 	if deviations.SetMetricAsPreference(dut) {
 		nh.Metric = ygot.Uint32(220)
-	} else if deviations.SetRoutePrefNative(dut) {
-		configNativeRoutePref(t, dut)
 	} else {
 		nh.Preference = ygot.Uint32(220)
 	}
@@ -338,49 +333,6 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 		gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRF).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
 
 		batchSet.Set(t, dut)
-	}
-}
-
-func configNativeRoutePref(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		var prefVal = []any{
-			map[string]any{
-				"preference": 220,
-			},
-		}
-		prefValUpdate, err := json.Marshal(prefVal)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instance", Key: map[string]string{"name": mgmtVRF}},
-							{Name: "static-routes"},
-							{Name: "route", Key: map[string]string{"prefix": "::/0"}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: prefValUpdate,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring static-route preference: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'SetRoutePrefNative'", dut.Vendor())
 	}
 }
 
