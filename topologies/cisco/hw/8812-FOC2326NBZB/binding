@@ -15,6 +15,7 @@ options {
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
+  vendor: CISCO
  config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -33,17 +34,20 @@ duts {
   }
 
   # Options specific to gNMI.  Remove if not needed.
-  gnoi{
-    target: "10.106.211.41:57783"
+   ssh: {
+    target: "173.39.33.231:62646"
   }
-  gnmi {
-    target: "10.106.211.41:57783"
+  gnmi: {
+    target: "173.39.33.231:57735"
   }
-  gribi{
-    target: "10.106.211.41:57783"
+  gnoi: {
+    target: "173.39.33.231:57735"
   }
-  ssh{
-    target: "10.106.211.41:62643"
+  gribi: {
+    target: "173.39.33.231:57735"
+  }
+  p4rt: {
+    target: "173.39.33.231:57735"
   }
 
   # Before this binding can be used with a topology, add ports mapping
@@ -90,9 +94,9 @@ ates {
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
-    target: "10.85.84.194"
+    target: "10.85.84.119"
     username: "admin"
-    password: "ixia123!"
+    password: "Admin@123"
     skip_verify: true
     #session_id: 1 
   }
