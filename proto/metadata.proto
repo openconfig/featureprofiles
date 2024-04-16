@@ -475,6 +475,12 @@ message Metadata {
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
     bool bgp_community_set_refs_unsupported = 168;
+    // Configure tag-set using vendor native model
+    bool use_vendor_native_tag_set_config = 169;
+    // Skip setting send-community-type in bgp global config
+    bool skip_bgp_send_community_type = 170;
+    // Device not supporting table-connection based redistribution need to set this true
+    bool unsupported_table_connection_redistribution = 171;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
