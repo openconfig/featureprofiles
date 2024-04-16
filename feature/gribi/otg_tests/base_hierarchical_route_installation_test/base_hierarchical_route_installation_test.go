@@ -175,11 +175,6 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func deleteVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-}
-
 type policyFwRule struct {
 	SeqId           uint32
 	protocol        oc.UnionUint8
@@ -624,7 +619,6 @@ func testRecursiveIPv4EntrywithVrfPolW(t *testing.T, args *testArgs) {
 	}
 	t.Log("Delete existing vrf selection policy and Apply vrf selectioin policy W")
 	configNonDefaultNetworkInstance(t, args.dut)
-	deleteVrfSelectionPolicy(t, args.dut)
 	configureVrfSelectionPolicyW(t, args.dut)
 
 	t.Logf("Adding IP %v with NHG %d NH %d with IP %v as NH via gRIBI", ateIndirectNH, nhgIndex2, nhIndex2, atePort2.IPv4)
