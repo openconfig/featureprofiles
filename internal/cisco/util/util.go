@@ -520,3 +520,28 @@ func LoadJsonFileToOC(t *testing.T, path string) *oc.Root {
 	}
 	return &ocRoot
 }
+
+// SliceEqual checks if two slices of strings contain the same elements in any order.
+// It returns true if both slices have the same elements with the same frequencies (counts),
+// otherwise it returns false. The function does not modify the input slices.
+func SliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	counts := make(map[string]int)
+	// count the occurrences of each string in the first slice
+	for _, v := range a {
+		counts[v]++
+	}
+
+	for _, v := range b {
+		// if we find a string in the second slice that is not in the map or the count goes below zero, we know the slices are not equal and return false
+		if count, ok := counts[v]; !ok || count == 0 {
+			return false
+		}
+		counts[v]--
+	}
+
+	return true
+}
