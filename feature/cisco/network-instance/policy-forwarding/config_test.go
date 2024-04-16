@@ -10,7 +10,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -33,10 +32,7 @@ const (
 	vrfINDIGO     = "INDIGO"
 	vrfBLACK      = "BLACK"
 	vrfPURPLE     = "PURPLE"
-	defaultNI     = "DEFAULT"
 )
-
-var defaultNetworkInstanceConfigQuery = gnmi.OC().NetworkInstance("DEFAULT").Name().Config()
 
 func Test_Type(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -62,7 +58,7 @@ func Test_Type(t *testing.T) {
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -111,7 +107,7 @@ func Test_Policy_id(t *testing.T) {
 
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -159,7 +155,7 @@ func Test_Sequence_id(t *testing.T) {
 
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -211,7 +207,7 @@ func Test_Ethertype(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -244,7 +240,7 @@ func Test_Policy_Type_PBR_POLICY(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Update", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -303,7 +299,7 @@ func Test_Ipv4_Dscp_set(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -351,7 +347,7 @@ func Test_Ipv6_Dscp_set(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -398,7 +394,7 @@ func Test_Ipv4_Protocol(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -433,7 +429,7 @@ func Test_Ipv4_Protocol_Ip_Gre(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -468,7 +464,7 @@ func Test_Ipv4_Protocol_Ip_Udp(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Logf("Update policy with ipv4 protocol IP_UDP")
 		t.Run("Update", func(t *testing.T) {
@@ -526,7 +522,7 @@ func Test_Ipv6_Protocol(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -561,7 +557,7 @@ func Test_Ipv6_Protocol_Ip_Gre(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -596,7 +592,7 @@ func Test_Ipv6_Protocol_Ip_Udp(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Logf("Update policy with ipv6 protocol IP_UDP")
 		t.Run("Update", func(t *testing.T) {
@@ -654,7 +650,7 @@ func Test_Network_instance(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -712,7 +708,7 @@ func Test_Interface_ApplyVrfSelectionPolicy(t *testing.T) {
 				InterfaceRef: &ifRef,
 			},
 		}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 		// openconfig-network-instance:network-instances/network-instance/policy-forwarding/interfaces/interface/interface-id
@@ -766,7 +762,7 @@ func Test_Interface_InterfaceId(t *testing.T) {
 		store["id1"] = r3
 		policy.Interface = store
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
 
@@ -805,7 +801,7 @@ func Test_Ipv4_Source_Addr(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -851,7 +847,7 @@ func Test_Ipv4_Destination_Address(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -913,7 +909,7 @@ func Test_Ipv6_Source_Addr(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -975,7 +971,7 @@ func Test_Ipv6_Destination_Address(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -1042,7 +1038,7 @@ func Test_Source_Port(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -1080,7 +1076,7 @@ func Test_Destination_Port(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Run("Replace", func(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding().Config(), &policy)
@@ -1113,7 +1109,7 @@ func Test_Discard(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Logf("TC: Configuring discard to true")
 		t.Run("Update", func(t *testing.T) {
@@ -1182,7 +1178,7 @@ func Test_IntfRef(t *testing.T) {
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 		policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{InterfaceName: &i}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Logf("TC: Configuring interface-ref-interface-id")
 		t.Run("Update", func(t *testing.T) {
@@ -1232,7 +1228,7 @@ func Test_Decapgre(t *testing.T) {
 		p.Rule = map[uint32]*oc.NetworkInstance_PolicyForwarding_Policy_Rule{1: &r1}
 		policy := oc.NetworkInstance_PolicyForwarding{}
 		policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
-		fixLeafRef(t, dut, defaultNetworkInstanceConfigQuery, defaultNI)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		t.Logf("TC: Configuring decapgre to true")
 		t.Run("Update", func(t *testing.T) {
@@ -2224,10 +2220,4 @@ func Test_Decap_feature(t *testing.T) {
 	t.Run("Cleanup", func(t *testing.T) {
 		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(NetworkInstanceDefault).PolicyForwarding().Config())
 	})
-}
-
-func fixLeafRef(t *testing.T, dut *ondatra.DUTDevice, path ygnmi.ConfigQuery[string], val string) {
-	t.Helper()
-
-	gnmi.Update(t, dut, path, val)
 }
