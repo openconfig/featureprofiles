@@ -907,6 +907,11 @@ func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
 
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
 // UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
 func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
@@ -915,9 +920,4 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 // SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
-}
-
-// UnsupportedTableConnectionRedistribution return true if device does not support table-connection based route-redistribution
-func UnsupportedTableConnectionRedistribution(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUnsupportedTableConnectionRedistribution()
 }
