@@ -141,22 +141,24 @@ func testP4RTConfigurationWithBundleInterface(t *testing.T, args *testArgs) {
 		t.Fatalf("Device IDs: want %v , got %v", deviceID, got)
 	}
 
-	config := gnmi.OC().Interface(int1).Id()
+	intf := gnmi.Get(t, args.dut, gnmi.OC().Interface(int1).Aggregation().Member().State())[0]
+	config := gnmi.OC().Interface(intf).Id()
 	defer observer.RecordYgot(t, "REPLACE", config)
 	gnmi.Replace(t, args.dut, config.Config(), uint32(int1ID))
 
-	state1 := gnmi.OC().Interface(int1).Id()
+	state1 := gnmi.OC().Interface(intf).Id()
 	defer observer.RecordYgot(t, "GET", state1)
 
 	if got := gnmi.Get(t, args.dut, state1.State()); got != uint32(int1ID) {
 		t.Fatalf("Interface port-id: want %v, got %v", int1ID, got)
 	}
 
-	config = gnmi.OC().Interface(int2).Id()
+	intf = gnmi.Get(t, args.dut, gnmi.OC().Interface(int2).Aggregation().Member().State())[0]
+	config = gnmi.OC().Interface(intf).Id()
 	defer observer.RecordYgot(t, "REPLACE", config)
 	gnmi.Replace(t, args.dut, config.Config(), uint32(int2ID))
 
-	state1 = gnmi.OC().Interface(int2).Id()
+	state1 = gnmi.OC().Interface(intf).Id()
 	defer observer.RecordYgot(t, "GET", state1)
 
 	if got := gnmi.Get(t, args.dut, state1.State()); got != uint32(int2ID) {

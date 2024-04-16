@@ -166,8 +166,8 @@ var (
 			fn:   testConfigDeviceIDPortIDWithInterfaceDown,
 		},
 		{
-			name: "Test Configuration Of DeviceID PortID Using Bundle Interfaces",
-			desc: "Configure P4RT with device-id and port-id with Bundle Interface",
+			name: "Test Configuration Of DeviceID PortID Using Bundle Member Interfaces",
+			desc: "Configure P4RT with device-id and port-id with Bundle Member Interface",
 			fn:   testP4RTConfigurationWithBundleInterface,
 		},
 		{

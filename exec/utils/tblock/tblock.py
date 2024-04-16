@@ -10,9 +10,12 @@ import os
 def _find_owner(filename):
     return getpwuid(os.stat(filename).st_uid).pw_name
 
+_session_locked_files = []
 def _lockfile(filename):
     try:
-        os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
+        if not filename in _session_locked_files:
+            os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
+            _session_locked_files.append(filename)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False
