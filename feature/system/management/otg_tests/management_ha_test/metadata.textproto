@@ -30,7 +30,6 @@ platform_exceptions:  {
     skip_set_rp_match_set_options:  true
     skip_prefix_set_mode: true
     table_connections_unsupported: true
-    set_route_pref_native: true
   }
 }
 tags:  TAGS_TRANSIT
