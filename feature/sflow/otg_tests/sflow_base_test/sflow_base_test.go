@@ -124,6 +124,7 @@ func TestSFlowTraffic(t *testing.T) {
 	configureDUTBaseline(t, dut)
 
 	srBatch := &gnmi.SetBatch{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	cfgplugins.NewStaticRouteCfg(srBatch, staticRoute, dut)
 	srBatch.Set(t, dut)
 
