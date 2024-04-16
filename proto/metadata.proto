@@ -475,6 +475,10 @@ message Metadata {
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
     bool bgp_community_set_refs_unsupported = 168;
+    // Support for Table Creation unsupported
+    bool table_connections_unsupported = 169;
+    // Support for setting route preference via native
+    bool set_route_pref_native = 170;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

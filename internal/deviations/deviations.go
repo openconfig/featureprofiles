@@ -906,3 +906,13 @@ func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
+
+// TableConnectionUnsupported returns true if Table Connections are unsupported.
+func TableConnectionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// SetRoutePrefNative() returns true if route preference requires to be set via native model.
+func SetRoutePrefNative(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetRoutePrefNative()
+}

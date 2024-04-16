@@ -20,5 +20,18 @@ platform_exceptions:  {
     set_metric_as_preference:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    interface_enabled:  true
+    static_protocol_name: "static"
+    skip_set_rp_match_set_options:  true
+    skip_prefix_set_mode: true
+    table_connections_unsupported: true
+    set_route_pref_native: true
+  }
+}
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE
