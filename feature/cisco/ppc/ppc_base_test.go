@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	gnps "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
@@ -243,14 +244,13 @@ func (eventArgs eventStaticRouteToNull) staticRouteToNull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
-	var static_route string
+	var staticRoute string
 	if eventArgs.config {
-		static_route = fmt.Sprintf("router static address-family ipv4 unicast %s null 0", eventArgs.prefix)
+		staticRoute = fmt.Sprintf("router static address-family ipv4 unicast %s null 0", eventArgs.prefix)
 	} else {
-		static_route = fmt.Sprintf("no router static address-family ipv4 unicast %s null 0", eventArgs.prefix)
+		staticRoute = fmt.Sprintf("no router static address-family ipv4 unicast %s null 0", eventArgs.prefix)
 	}
-	gnmi.Update(t, dut, cliPath, static_route)
-
+	gnmi.Update(t, dut, cliPath, staticRoute)
 }
 
 type eventEnableMplsLdp struct {
@@ -621,10 +621,10 @@ func runMultipleClientBackground(t *testing.T, stop <-chan struct{}, done chan<-
 // TgnOptions are optional parameters to a validate traffic function.
 type TgnOptions struct {
 	drop, mpls, ipv4, ttl bool
-	traffic_timer         int
+	trafficTimer          int
 	fps                   uint64
 	fpercent              float64
-	frame_size            uint32
+	frameSize             uint32
 	event                 eventType
 }
 
@@ -762,8 +762,8 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 		flow.WithFrameRatePct(100)
 	}
 
-	if opts[0].frame_size != 0 {
-		flow.WithFrameSize(opts[0].frame_size)
+	if opts[0].frameSize != 0 {
+		flow.WithFrameSize(opts[0].frameSize)
 	} else {
 		flow.WithFrameSize(300)
 	}
@@ -1086,7 +1086,7 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 // t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}
 // configBasePBR creates class map, policy and configures them under source interface
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
-
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
 	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
