@@ -400,3 +400,15 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   2. Reboot the device.
   3. Reconnect to the device, issue `gNSI.Get` and `gNMI.Get` and validate the value of `version`, `created_on` and gRPC policy content does not change.
   4. Ensure actual corresponding clients are authorized per the the above table for policy `policy-normal-1`.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
+rpcs:
+  gnsi:
+    # Note this is a placeholder function, may not be correct nor complete.
+    authz.v1.Authz.Get:
+```
+

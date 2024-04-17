@@ -14,14 +14,17 @@ Test RecordSubscribe connection termination after idle timeout following 1 Recor
 - Wait at least longer than the idletimeout period
 - Verify that the DUT closes the gNSI connection at or shortly after the idletimeout period.
 
-## Config Parameter
-### Prefix:
-/gnsi/acctz/v1/Acctz/RecordSubscribe
+## OpenConfig Path and RPC Coverage
 
-### Parameter:
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Coverage
-gnsi.acctz.v1
+```yaml
+paths:
+rpcs:
+  gnsi:
+    # Note this is a placeholder function, may not be correct nor complete.
+    acctz.v1.Acctz.RecordSubscribe:
+```
 
 ## Minimum DUT
 vRX

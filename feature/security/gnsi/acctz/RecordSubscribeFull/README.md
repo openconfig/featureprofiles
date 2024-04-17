@@ -37,20 +37,21 @@ Test RecordSubscribe for all (since epoch) records
  
 - task_ids might be populate with platform-specific information
 
-## Config Parameter
-### Prefix:
-/gnsi/acctz/v1/Acctz/RecordSubscribe
+## OpenConfig Path and RPC Coverage
 
-### Parameter:
-RecordRequest.timestamp=0
-RecordResponse.service_request = GrpcService
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Coverage
-### Prefix:
-Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
-
-## Protocol/RPC
-gnsi.acctz.v1
+```yaml
+paths:
+    ### Prefix:
+    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+rpcs:
+  gnsi:
+    # Note this is a placeholder function, may not be correct nor complete.
+    acctz.v1.Acctz.RecordSubscribe:
+      "RecordRequest.timestamp=0": true
+      "RecordResponse.service_request = GrpcService": true
+```
 
 ## Minimum DUT
 vRX

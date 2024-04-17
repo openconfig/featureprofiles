@@ -13,19 +13,22 @@ Validate that the active supervisor can be switched.
 *   Validate the standby RE/SUP becomes the active after switchover
 *   Validate that all connected ports are re-enabled.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-N/A
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  ## State Paths ##
+  /system/state/current-datetime:
+  /components/component[name=<supervisor>]/state/last-switchover-time:
+  /components/component[name=<supervisor>]/state/last-switchover-reason/trigger:
+  /components/component[name=<supervisor>]/state/last-switchover-reason/details:
 
-*   /system/state/current-datetime
-*   /components/component[name=<supervisor>]/state/last-switchover-time
-*   /components/component[name=<supervisor>]/state/last-switchover-reason/trigger
-*   /components/component[name=<supervisor>]/state/last-switchover-reason/details
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+  gnoi:
+    gNOI.System.SwitchControlProcessor
+```
 
-## Protocol/RPC Parameter Coverage
-
-*   gNOI
-    *   System
-        *   SwitchControlProcessor

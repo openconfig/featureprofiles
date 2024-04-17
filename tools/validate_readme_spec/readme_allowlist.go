@@ -19,5 +19,6 @@ var (
 	nonTestREADMEs = map[string]struct{}{
 		"security/gnsi/certz/test_data/README.md": {},
 		"experimental/p4rt/README.md":             {},
+		"feature/security/gnsi/acctz/README.md":   {},
 	}
 )

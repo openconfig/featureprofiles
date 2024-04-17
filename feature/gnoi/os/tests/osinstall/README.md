@@ -65,5 +65,17 @@
      Note: For the test configuration, please include interface and BGP configuration.
   
 
-## Telemetry Parameter Coverage
-*   /system/state/boot-time
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## State Paths ##
+  /system/state/boot-time:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
+

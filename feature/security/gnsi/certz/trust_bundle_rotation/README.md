@@ -82,13 +82,17 @@ Perform this test with both the RSA and ECDSA types.
    5) Verify that the server is still serving the certifcate properly.
 
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Protocol/RPC Parameter Coverage
+```yaml
+rpcs:
+  gnsi:
+    # Note this is a placeholder function, may not be correct.
+    certz.v1.Certz.Rotate:
+```
 
-None
 
 ## Minimum DUT Platform Requirement
 

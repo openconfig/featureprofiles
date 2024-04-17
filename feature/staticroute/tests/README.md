@@ -12,24 +12,31 @@ Validate static route functionality in Management network-instance (VRF).
 *  Generate IPv4 and IPv6 traffic from ATE1 to any destination.
 *  Verify that traffic is received at ATE2 interface
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/config/name
-*   /network-instances/network-instance/config/description
-*   /network-instances/network-instance/config/type
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-*   /network-instances/network-instance/interfaces/interface/config/id
+```yaml
+paths:
+  ## Config Paths ##
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/description:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/protocols/protocol/static-routes/static:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config:
 
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state:
 
-*   /network-instances/network-instance/protocols/protocol/static-routes/static
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config
-
-
-## Telemetry Parameter coverage
-    *   /network-instances/network-instance/protocols/protocol/static-routes/static/state
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
