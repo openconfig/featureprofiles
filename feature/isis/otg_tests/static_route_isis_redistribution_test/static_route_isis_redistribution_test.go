@@ -56,8 +56,8 @@ const (
 )
 
 var (
-	advertisedIPv4 ipAddr = ipAddr{address: dp2v4Route, prefix: dp2v4Prefix}
-	advertisedIPv6 ipAddr = ipAddr{address: dp2v6Route, prefix: dp2v6Prefix}
+	advertisedIPv4 = ipAddr{address: dp2v4Route, prefix: dp2v4Prefix}
+	advertisedIPv6 = ipAddr{address: dp2v6Route, prefix: dp2v6Prefix}
 
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -121,12 +121,13 @@ type ipAddr struct {
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowsData []string) {
+
 	for _, flowName := range flowsData {
 
 		t.Logf("getting flow data for %v", flowName)
 		flow := gnmi.Get(t, ate.OTG(), gnmi.OC().Flow(flowName).Counters().State())
 
-		// Calculate the lower and upper bounds of the tolerance
+		//Calculate the lower and upper bounds of the tolerance
 		lowerBound := float64(*flow.InPkts) * (1 - tolerancePercent)
 		upperBound := float64(*flow.InPkts) * (1 + tolerancePercent)
 
@@ -304,7 +305,9 @@ func configureStaticRoute(t *testing.T,
 		static)
 }
 
-func configureOTGFlows(t *testing.T, top gosnappi.Config, devs []gosnappi.Device) {
+func configureOTGFlows(t *testing.T,
+	top gosnappi.Config,
+	devs []gosnappi.Device) {
 	t.Helper()
 
 	otgP1 := devs[0]
@@ -345,6 +348,7 @@ func configureOTGFlows(t *testing.T, top gosnappi.Config, devs []gosnappi.Device
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
 	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
+
 }
 
 func awaitISISAdjacency(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, isisName string) error {
@@ -682,37 +686,36 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			if tc.verifyTrafficStats {
 				t.Run(fmt.Sprintf("Verify traffic for %s", tc.trafficFlows), func(t *testing.T) {
 
-					top.Flows().Clear()
 					ate.OTG().StartTraffic(t)
 					time.Sleep(trafficDuration)
-					ate.OTG().StopTraffic(t)
 					verifyTraffic(t, ate, tc.trafficFlows)
+					ate.OTG().StopTraffic(t)
 				})
 
 			}
 
-			// TODO: Verify routes are learned on the ATE device. This is pending a fix from IXIA and OTG
-			// TODO: https://github.com/open-traffic-generator/fp-testbed-cisco/issues/10#issuecomment-2015756900
+			t.Run(fmt.Sprintf("Verify Route on OTG"), func(t *testing.T) {
+				// TODO: Verify routes are learned on the ATE device. This is pending a fix from IXIA and OTG
+				// TODO: https://github.com/open-traffic-generator/fp-testbed-cisco/issues/10#issuecomment-2015756900
+				t.Skip("Skipping this due to OTG issue not learning routes.")
 
-			//t.Run(fmt.Sprintf("Verify Route on OTG"), func(t *testing.T) {
-			//
-			//	configuredMetric := uint32(100)
-			//	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("atePort1.ISIS").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
-			//		metric, present := v.Val()
-			//		if present {
-			//			if metric == configuredMetric {
-			//				return true
-			//			}
-			//		}
-			//		return false
-			//	}).Await(t)
-			//
-			//	metricInReceivedLsp := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter("atePort1.ISIS").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
-			//	if !ok {
-			//		t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
-			//	}
-			//
-			//})
+				configuredMetric := uint32(100)
+				_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().IsisRouter("atePort1.ISIS").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+					metric, present := v.Val()
+					if present {
+						if metric == configuredMetric {
+							return true
+						}
+					}
+					return false
+				}).Await(t)
+
+				metricInReceivedLsp := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter("atePort1.ISIS").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
+				if !ok {
+					t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
+				}
+
+			})
 		})
 	}
 }
