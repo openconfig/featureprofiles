@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: ""
-plan_id: "RT-1.29"
+plan_id: "RT-1.27"
 description: "Static Route BGP Redistribution"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
