@@ -375,13 +375,13 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
             return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
-def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
+def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
         testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
         if testbed.get('sim', False): 
             return testbed
 
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = os.path.join(ws, 'venv/bin/python')
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
@@ -391,25 +391,25 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     except:
         return None
 
-def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
+def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
+            reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(5)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
-def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
+def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     if reserved_testbed.get('sim', False): 
         return True
             
     id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = os.path.join(ws, 'venv/bin/python')
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j release {id}')
         if output['status'] != 'ok':
@@ -444,7 +444,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
-    reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
+    reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
     if not reserved_testbed:
         raise Exception(f'Could not reserve testbed')
     
@@ -489,7 +489,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     try:
         result = self.enqueue_child_and_get_results(c)
     except Exception as e:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
         raise e
 
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
@@ -506,7 +506,7 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
             block=True
         )
     elif reserved_testbed:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
 
 def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
@@ -1267,14 +1267,14 @@ def InstallGoDelve(self, ws, internal_fp_repo_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed])
-def CreatePythonVirtEnv(self, internal_fp_repo_dir):
+def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
     logger.print("Creating python venv...")
     requirements = [
         os.path.join(internal_fp_repo_dir, 'exec/utils/tblock/requirements.txt'),
         os.path.join(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
     ]
     
-    venv_path = os.path.join(internal_fp_repo_dir, 'venv')
+    venv_path = os.path.join(ws, 'venv')
     venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
     venv_python_bin = os.path.join(venv_path, 'bin', 'python')
 
@@ -1293,7 +1293,7 @@ def CreatePythonVirtEnv(self, internal_fp_repo_dir):
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
     try:
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = os.path.join(ws, 'venv/bin/python')
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
             check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
