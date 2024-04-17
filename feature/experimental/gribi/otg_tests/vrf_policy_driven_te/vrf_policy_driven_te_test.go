@@ -366,11 +366,6 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
 }
 
-func deleteVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config())
-}
-
 func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
@@ -2075,7 +2070,6 @@ func TestGribiDecap(t *testing.T) {
 	})
 
 	t.Log("Delete vrf selection policy W and Apply vrf selectioin policy C.")
-	deleteVrfSelectionPolicy(t, dut)
 	configureVrfSelectionPolicyC(t, dut)
 
 	t.Run("Test-4: Tunneled traffic with no decap", func(t *testing.T) {
@@ -2083,7 +2077,6 @@ func TestGribiDecap(t *testing.T) {
 	})
 
 	t.Log("Delete vrf selection policy C and Apply vrf selectioin policy W.")
-	deleteVrfSelectionPolicy(t, dut)
 	configureVrfSelectionPolicyW(t, dut)
 
 	t.Run("Test-5: Match on default term and send to default VRF", func(t *testing.T) {
