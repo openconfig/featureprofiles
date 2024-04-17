@@ -1280,10 +1280,14 @@ def CreatePythonVirtEnv(self, internal_fp_repo_dir):
 
     if os.path.exists(venv_python_bin): 
         return
-        
-    logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
-    logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
-     
+    
+    try:
+        logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
+        logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
+    except Exception as e:
+        check_output(f'rm -rf {venv_path}')
+        raise e
+
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
