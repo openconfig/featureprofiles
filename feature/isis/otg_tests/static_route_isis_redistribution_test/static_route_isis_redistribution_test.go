@@ -473,8 +473,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
-	var devs []gosnappi.Device
-	devs = configureOTG(t, ate, top)
+	devs := configureOTG(t, ate, top)
 	p1Dut := dut.Port(t, "port1")
 	p2Dut := dut.Port(t, "port2")
 
@@ -694,7 +693,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 			}
 
-			t.Run(fmt.Sprintf("Verify Route on OTG"), func(t *testing.T) {
+			t.Run("Verify Route on OTG", func(t *testing.T) {
 				// TODO: Verify routes are learned on the ATE device. This is pending a fix from IXIA and OTG
 				// TODO: https://github.com/open-traffic-generator/fp-testbed-cisco/issues/10#issuecomment-2015756900
 				t.Skip("Skipping this due to OTG issue not learning routes.")
