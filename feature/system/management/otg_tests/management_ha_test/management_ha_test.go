@@ -310,7 +310,7 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
 	batchSet.Set(t, dut)
-	if deviations.TableConnectionUnsupported(dut) {
+	if deviations.TableConnectionsUnsupported(dut) {
 		stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
 		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {

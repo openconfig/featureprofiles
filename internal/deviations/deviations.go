@@ -908,6 +908,6 @@ func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // TableConnectionUnsupported returns true if Table Connections are unsupported.
-func TableConnectionUnsupported(dut *ondatra.DUTDevice) bool {
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
 }
