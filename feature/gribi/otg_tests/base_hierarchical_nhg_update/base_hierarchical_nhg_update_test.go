@@ -48,11 +48,11 @@ const (
 
 	// Destination ATE MAC address for port-2 and port-3.
 	pMAC = "00:1A:11:00:1A:BC"
-	// 12-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
-	pMACFilter      = "0xabc"
-	pMACFilterport2 = "0xab9"
-	pMACFilterport3 = "0xaba"
-	pMACFilterport4 = "0xabb"
+	// 8-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
+	pMACFilter      = "0xbc"
+	pMACFilterport2 = "0xb9"
+	pMACFilterport3 = "0xba"
+	pMACFilterport4 = "0xbb"
 
 	// port-2 nexthop ID.
 	p2NHID = 40
@@ -99,7 +99,7 @@ const (
 	port4mac        = "00:1A:11:00:1A:BB"
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
-	fps             = 1000000 // traffic frames per second
+	fps             = 300000 // traffic frames per second
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700
@@ -565,7 +565,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transi
 	flowipv4.Rate().SetPps(fps)
 	eth := flowipv4.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(40).SetLength(8)
 
 	return flowipv4
 }
@@ -648,7 +648,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
 		} else {
-			t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
+			t.Logf("Received %d packets with %s as the last 8 bits in the dst MAC", got, macFilter)
 		}
 
 	}
