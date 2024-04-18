@@ -922,7 +922,7 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
 }
 
-// SkipSetRpSetCommunityMethod return true if device needs to skip setting set-community method while configuring routing-policy statement action
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }

@@ -762,7 +762,7 @@ type Metadata_Deviations struct {
 	UseVendorNativeTagSetConfig bool `protobuf:"varint,170,opt,name=use_vendor_native_tag_set_config,json=useVendorNativeTagSetConfig,proto3" json:"use_vendor_native_tag_set_config,omitempty"`
 	// Skip setting send-community-type in bgp global config
 	SkipBgpSendCommunityType bool `protobuf:"varint,171,opt,name=skip_bgp_send_community_type,json=skipBgpSendCommunityType,proto3" json:"skip_bgp_send_community_type,omitempty"`
-	// Skip setting set-community method while configuring routing-policy statement action
+	// Support for bgp actions set-community method
 	BgpActionsSetCommunityMethodUnsupported bool `protobuf:"varint,172,opt,name=bgp_actions_set_community_method_unsupported,json=bgpActionsSetCommunityMethodUnsupported,proto3" json:"bgp_actions_set_community_method_unsupported,omitempty"`
 }
 
