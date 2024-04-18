@@ -140,7 +140,7 @@ paths:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
-    platform_type: "INTEGRATED_CIRCUIT"
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/state/parent:
     platform_type: [
         "CONTROLLER_CARD",
