@@ -74,12 +74,12 @@ paths:
   ## State Paths ##
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/out-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv4/state/counters/in-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv4/state/counters/out-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/in-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/out-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/in-discarded-pkts:
-  /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/out-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
   /interfaces/interface/ethernet/state/counters/in-maxsize-exceeded:
   /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
   /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
