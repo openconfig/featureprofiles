@@ -18,7 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+
 	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
@@ -52,38 +53,26 @@ var prefixesV6 = [][]string{
 	{"2048:db1:64:64::32", "2048:db1:64:64::40"},
 }
 
-var matchStdCcomms = [][][]int{
-	{
-		{5, 5},
-	},
-}
-
-var addStdComms = [][][]int{
-	{
-		{10, 10}, {20, 20}, {30, 30},
-	},
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
 
-	communitySetName := "add_std_comms"
+	communitySetAddStd := "add_std_comms"
 	// TODO: actions/bgp-actions/set-community/config/method = REFERENCE.
 	// At the moment no support for oc.BgpPolicy_SetCommunityMethodType_REFERENCE.
 
-	communitySetName2 := "accept_all_routes"
+	commNameMatchStd := "match_std_comms"
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	pdef1 := rp.GetOrCreatePolicyDefinition("routePolicy")
-	stmt1, err := pdef1.AppendNewStatement("match_community")
+	add_std_comms := rp.GetOrCreatePolicyDefinition("routePolicy")
+	stmt1, err := add_std_comms.AppendNewStatement("match_community")
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", "match_community", err)
 	}
-	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(add_std_comms)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition("routePolicy")
 	stmt2, err := pdef2.AppendNewStatement("match_community")
@@ -92,22 +81,22 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	}
 	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
+	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetAddStd)
 	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetAddStd)
 	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetAddStd)
 	}
 
-	communitySet2 := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName2)
+	communitySet2 := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(commNameMatchStd)
 	communitySet2.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName2)
+		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(commNameMatchStd)
 	} else {
-		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName2)
+		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(commNameMatchStd)
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
