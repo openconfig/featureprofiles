@@ -216,7 +216,7 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 	}
 }
 
-func IsisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string,
+func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string,
 	srcProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	addfmly oc.E_Types_ADDRESS_FAMILY,
@@ -509,7 +509,6 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				}
 			})
 		})
-
 	})
 
 	cases := []struct {
@@ -644,7 +643,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 				})
 				t.Run(fmt.Sprintf("Attach RPL %v Type %v to ISIS %v", tc.RplName, tc.policyStmtType.String(), dni), func(t *testing.T) {
-					IsisImportPolicyConfig(t, dut, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
+					isisImportPolicyConfig(t, dut, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
 				})
 
 				t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
@@ -713,7 +712,6 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				if !ok {
 					t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
 				}
-
 			})
 		})
 	}
