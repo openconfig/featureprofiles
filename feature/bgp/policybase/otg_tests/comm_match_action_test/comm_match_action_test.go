@@ -18,8 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
@@ -62,6 +61,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	communitySetAddStd := "add_std_comms"
 	// TODO: actions/bgp-actions/set-community/config/method = REFERENCE.
 	// At the moment no support for oc.BgpPolicy_SetCommunityMethodType_REFERENCE.
+	oc.SetCommunity_Method_REFERENCE
 
 	commNameMatchStd := "match_std_comms"
 
@@ -119,28 +119,8 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string) {
 	var communityMembers = [][][]int{
 		{
-			{100, 1}, {200, 2}, {300, 3},
+			{5, 5}, {6, 6},
 		},
-		{
-			{100, 1},
-		},
-		{
-			{109, 1},
-		},
-		{
-			{200, 1},
-		},
-		{
-			{100, 1},
-		},
-	}
-
-	var aspathMembers = [][]uint32{
-		{100, 200, 300},
-		{100, 400, 300},
-		{109},
-		{200},
-		{300},
 	}
 
 	devices := bs.ATETop.Devices().Items()
@@ -165,16 +145,10 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		route4Address2 := bgp4PeerRoute.Addresses().Add().SetAddress(prefixes[1])
 		route4Address2.SetPrefix(prefixV4Len)
 
-		asp4 := bgp4PeerRoute.AsPath().Segments().Add()
-		asp4.SetAsNumbers(aspathMembers[index])
-
 		route6Address1 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixesV6[index][0])
 		route6Address1.SetPrefix(prefixV6Len)
 		route6Address2 := bgp6PeerRoute.Addresses().Add().SetAddress(prefixesV6[index][1])
 		route6Address2.SetPrefix(prefixV6Len)
-
-		asp6 := bgp6PeerRoute.AsPath().Segments().Add()
-		asp6.SetAsNumbers(aspathMembers[index])
 
 		for _, commu := range communityMembers[index] {
 			if commu[0] != 0 {
