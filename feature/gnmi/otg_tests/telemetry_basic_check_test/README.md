@@ -125,14 +125,32 @@ paths:
 
   ## State Paths ##
   /interfaces/interface/state/admin-status:
-  /lacp/interfaces/interface/members/member:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
+  /lacp/interfaces/interface/members/member/state/aggregatable:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/partner-id:
+  /lacp/interfaces/interface/members/member/state/partner-key:
+  /lacp/interfaces/interface/members/member/state/partner-port-num:
   /interfaces/interface/ethernet/state/mac-address:
-  /interfaces/interface/state/hardware-port /interfaces/interface/state/id:
+  /interfaces/interface/state/hardware-port/interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
+    platform_type: "INTEGRATED_CIRCUIT"
   /components/component/state/parent:
+    platform_type: "CONTROLLER_CARD"
+  /components/component/state/parent:
+    platform_type: "LINECARD"
+  /components/component/state/parent:
+    platform_type: "FABRIC"
+  /components/component/state/parent:
+    platform_type: "POWER_SUPPLY"
+  /components/component/state/parent:
+    platform_type: "INTEGRATED_CIRCUIT"
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/in-broadcast-pkts:
