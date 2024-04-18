@@ -98,23 +98,23 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 			case "platform_type":
 				ps, ok := property.([]any)
 				if !ok {
-					return nil, nil, fmt.Errorf("mdocspec: got (%T, %v) for `platform_type` attribute, but expected []any", property, property)
+					return nil, nil, fmt.Errorf("mdocspec: path %q: got (%T, %v) for `platform_type` attribute, but expected []any", name, property, property)
 				}
 				if len(ps) == 0 {
-					return nil, nil, fmt.Errorf("mdocspec: `platform_type` attribute must not be empty")
+					return nil, nil, fmt.Errorf("mdocspec: path %q: `platform_type` attribute must not be empty", name)
 				}
 				for i, p := range ps {
 					sp, ok := p.(string)
 					if !ok {
-						return nil, nil, fmt.Errorf("mdocspec: got (%T, %v), for `platform_type` element index %v, but must be string", p, p, i)
+						return nil, nil, fmt.Errorf("mdocspec: path %q: got (%T, %v), for `platform_type` element index %v, but must be string", name, p, p, i)
 					}
 					if _, ok := platformTypes[sp]; ok {
-						return nil, nil, fmt.Errorf("mdocspec: got duplicate element %q for `platform_type` element index %v", sp, i)
+						return nil, nil, fmt.Errorf("mdocspec: path %q: got duplicate element %q for `platform_type` element index %v", name, sp, i)
 					}
 					platformTypes[sp] = struct{}{}
 				}
 			default:
-				return nil, nil, fmt.Errorf("mdocspec: only `platform_type` is expected as a valid attribute for paths, got %q", propertyName)
+				return nil, nil, fmt.Errorf("mdocspec: path %q: only `platform_type` is expected as a valid attribute for paths, got %q", name, propertyName)
 			}
 		}
 		if len(platformTypes) == 0 {
