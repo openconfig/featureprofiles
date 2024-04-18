@@ -40,8 +40,8 @@ jobs:
         validate_readme_spec -alsologtostderr -feature-dir feature/security
         validate_readme_spec -alsologtostderr -feature-dir feature/bgp/policybase/otg_tests/import_export_multi
         validate_readme_spec -alsologtostderr -feature-dir feature/aft/aft_summary/otg_tests/route_summary_counters_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_basic_check_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
+        validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_basic_check_test
+        validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
         #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_port_speed_test
         validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/subscribe/tests/gnmi_sample_mode_test
         #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
