@@ -135,7 +135,8 @@ paths:
   /lacp/interfaces/interface/members/member/state/partner-key:
   /lacp/interfaces/interface/members/member/state/partner-port-num:
   /interfaces/interface/ethernet/state/mac-address:
-  /interfaces/interface/state/hardware-port/interfaces/interface/state/id:
+  /interfaces/interface/state/hardware-port:
+  /interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/physical-channel:
