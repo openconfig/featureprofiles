@@ -671,7 +671,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 					})
 					t.Run(fmt.Sprintf("Attach RPL %v To ISIS", tc.RplName), func(t *testing.T) {
-						IsisImportPolicyConfig(t, dut, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
+						isisImportPolicyConfig(t, dut, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
 					})
 
 					t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
