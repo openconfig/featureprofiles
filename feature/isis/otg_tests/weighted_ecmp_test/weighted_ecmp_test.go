@@ -660,3 +660,4 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
         gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
+
