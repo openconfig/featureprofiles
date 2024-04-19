@@ -35,7 +35,6 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
-TBLOCK_BIN = '/auto/tftpboot-ottawa/b4/bin/tblock'
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -376,38 +375,43 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
             return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
-def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
+def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
         testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
         if testbed.get('sim', False): 
             return testbed
 
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j lock {testbed_id}')
+        python_bin = os.path.join(ws, 'venv/bin/python')
+        tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
+        output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
-            return output['testbed']
+            # Do we ever need multiple testbeds?
+            return output['testbeds'][0]
         return None
     except:
         return None
 
-def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
+def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
+            reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(5)
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
-def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
+def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     if reserved_testbed.get('sim', False): 
         return True
             
     id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
-        output = _check_json_output(f'{TBLOCK_BIN} -d {_get_locks_dir(testbed_logs_dir)} -f {_get_testbeds_file(internal_fp_repo_dir)} -j release {id}')
+        python_bin = os.path.join(ws, 'venv/bin/python')
+        tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
+        output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j release {id}')
         if output['status'] != 'ok':
             logger.warn(f'Cannot release testbed {id}: {output["status"]}')
         return True
@@ -436,10 +440,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                     repo_branch=internal_fp_repo_branch,
                     repo_rev=internal_fp_repo_rev,
                     target_dir=internal_fp_repo_dir)
+        c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
-    reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
+    reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
     if not reserved_testbed:
         raise Exception(f'Could not reserve testbed')
     
@@ -484,7 +489,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     try:
         result = self.enqueue_child_and_get_results(c)
     except Exception as e:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
         raise e
 
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
@@ -501,7 +506,7 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
             block=True
         )
     elif reserved_testbed:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
 
 def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
@@ -640,6 +645,9 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
+    
+    with open(reserved_testbed['test_list_file'], "a+") as fp:
+        fp.write(f'{test_name}\n')
     
     go_args = ''
     test_args = test_args or ''
@@ -847,6 +855,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+    testbed_test_list_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_tests_list.txt')
     otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
@@ -898,7 +907,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             f'testbed_{reserved_testbed["id"]}_info.txt')
         install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_install.lock')
-
+        testbed_test_list_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_tests_list.txt')
+        
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
@@ -935,7 +946,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['otg_docker_compose_file'] = otg_docker_compose_file
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-
+    reserved_testbed['test_list_file'] = testbed_test_list_file
+    
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
@@ -1259,29 +1271,39 @@ def InstallGoDelve(self, ws, internal_fp_repo_dir):
     logger.print(
         check_output(f'{GO_BIN} install github.com/go-delve/delve/cmd/dlv@latest', env=env, cwd=internal_fp_repo_dir)
     )
-        
+
+# noinspection PyPep8Naming
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed])
+def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
+    logger.print("Creating python venv...")
+    requirements = [
+        os.path.join(internal_fp_repo_dir, 'exec/utils/tblock/requirements.txt'),
+        os.path.join(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
+    ]
+    
+    venv_path = os.path.join(ws, 'venv')
+    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
+    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+
+    if os.path.exists(venv_python_bin): 
+        return
+    
+    try:
+        logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
+        logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
+    except Exception as e:
+        check_output(f'rm -rf {venv_path}')
+        raise e
+
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
-    venv_path = os.path.join(ws, 'ixia_venv')
-    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
-    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
-    
     try:
-        if not os.path.exists(venv_python_bin):
-            logger.print(
-                check_output(f'{PYTHON_BIN} -m venv {venv_path}')
-            )
-            
-            ixia_release_req = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
-            logger.print(
-                check_output(f'{venv_pip_bin} install -r {ixia_release_req}')
-            )
-
+        python_bin = os.path.join(ws, 'venv/bin/python')
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
-            check_output(f'{venv_python_bin} {ixia_release_bin} {binding_file}')
+            check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
         )
     except:
         logger.warning(f'Failed to release ixia ports. Ignoring...')
