@@ -176,62 +176,68 @@ This replace method should guarantee that the previous step's import-policy is r
   | prefix-set-5 | True     | [ "40:1","40:2", "60:1", "70:1" ] | 65000 65100 | 5     | 100 | accepted and match_comm_and_prefix_add_2_community_sets   |
   | prefix-set-6 | True     | [ "10:1", "40:1", "40:2"  ]       | 65000 65100 | n/a   | 100 | accepted                                                  |
 
-## OpenConfig Path Coverage
+## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
-config_paths:
+paths:
+  ## Config Paths ##
   # Policy definition
-  - /routing-policy/policy-definitions/policy-definition/config/name
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 
   # Policy for community-set configuration
-  - /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/community-set-name
-  - /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/community-member
+  /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-member:
 
   # Policy for match configuration
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
 
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/match-set-options
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/match-set-options:
 
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
 
   # Policy for bgp actions
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/options
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
 
   # Policy for bgp attachment
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
 
-state_paths:
+  ## State Paths ##
   # Policy definition state
-  - /routing-policy/policy-definitions/policy-definition/state/name
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/state/name
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
 
   # Policy for community-set match state
-  - /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name
-  - /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/state/match-set-options
-  - /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
 
   # Paths to verify policy state
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
 
   # Paths to verify prefixes sent and received
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
 ```
 
 ## Minimum DUT Required
