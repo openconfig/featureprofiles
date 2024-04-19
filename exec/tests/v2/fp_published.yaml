@@ -640,7 +640,7 @@ tests:
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
       - wdolaast
-    mustpass: false
+    mustpass: true
     priority: 90
     testbeds:
       - 2DUT-TB2
@@ -758,14 +758,14 @@ tests:
     owners:
       - arvbaska
     timeout: 3600  
-    mustpass: false
+    mustpass: true
     pr: 2887
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
     timeout: 3600    
-    mustpass: false
+    mustpass: true
     pr: 2889
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/encap_decap_scale
