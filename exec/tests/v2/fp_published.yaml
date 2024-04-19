@@ -439,7 +439,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 92
+    priority: 192
     pr: 1119
     internal: true
     testbeds:
@@ -470,7 +470,7 @@ tests:
     owners:
       - sprem
     mustpass: true
-    priority: 91
+    priority: 191
     testbeds:
       - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -646,7 +646,7 @@ tests:
     owners:
       - wdolaast
     mustpass: true
-    priority: 90
+    priority: 190
     testbeds:
       - 2DUT-TB2
   - name: gNOI-6.1 (Factory Reset)
