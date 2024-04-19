@@ -50,6 +50,7 @@ const (
 	v6RoutePrefix   = uint32(64)
 	dutAS           = uint32(65656)
 	ateAS           = uint32(65657)
+	peerGrpName     = "BGP-PEER-GROUP"
 	bgpName         = "BGP"
 	maskLenExact    = "exact"
 	localPref       = 200
@@ -632,19 +633,27 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(ateAS)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	nV41.SetPeerAs(ateAS)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nV41.PeerGroup = ygot.String(peerGrpName)
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(dutAS)
 	nV42.SetSendCommunity(oc.Bgp_CommunityType_BOTH)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nV42.PeerGroup = ygot.String(peerGrpName)
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nV61.SetPeerAs(ateAS)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	nV61.PeerGroup = ygot.String(peerGrpName)
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(dutAS)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	nV62.PeerGroup = ygot.String(peerGrpName)
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
 	// Configure eBGP on OTG port1.
