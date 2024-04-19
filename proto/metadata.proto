@@ -475,12 +475,14 @@ message Metadata {
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
     bool bgp_community_set_refs_unsupported = 168;
+    // Arista device needs CLI knob to enable WECMP feature
+    bool rib_wecmp = 169;
     // Device not supporting table-connection need to set this true
-    bool table_connections_unsupported = 169;
+    bool table_connections_unsupported = 170;
     // Configure tag-set using vendor native model
-    bool use_vendor_native_tag_set_config = 170;
+    bool use_vendor_native_tag_set_config = 171;
     // Skip setting send-community-type in bgp global config
-    bool skip_bgp_send_community_type = 171;
+    bool skip_bgp_send_community_type = 172;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
