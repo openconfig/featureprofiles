@@ -18,16 +18,16 @@ import (
         "testing"
         "time"
 
-        "google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-        "google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-        "google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-        "google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-        "google3/third_party/openconfig/ondatra/gnmi/gnmi"
-        "google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-        "google3/third_party/openconfig/ondatra/ondatra"
+        "github.com/open-traffic-generator/snappi/gosnappi"
+        "github.com/openconfig/featureprofiles/internal/attrs"
+        "github.com/openconfig/featureprofiles/internal/deviations"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
         otg "google3/third_party/openconfig/ondatra/otg/otg"
-        "google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
-        "github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
