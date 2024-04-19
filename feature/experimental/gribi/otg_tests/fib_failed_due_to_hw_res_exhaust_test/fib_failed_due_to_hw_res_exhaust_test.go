@@ -370,14 +370,17 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 		t.Errorf("Traffic stats are not correct %v", recvMetric)
 	}
 	if wantLoss {
-		etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
-		ets := gnmi.GetAll(t, args.otg, etPath.State())
-		for _, et := range ets {
-			tags := et.Tags
-			for _, tag := range tags {
-				if tag.GetTagName() == dstTrackingf2 && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
-					trafficPassed = true
-					break
+		// If no rxPackets are received, the first route is fibFailedRoute, resulting in no packets being generated with tagged metrics.
+		if rxPackets > 0 {
+			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
+			ets := gnmi.GetAll(t, args.otg, etPath.State())
+			for _, et := range ets {
+				tags := et.Tags
+				for _, tag := range tags {
+					if tag.GetTagName() == dstTrackingf2 && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
+						trafficPassed = true
+						break
+					}
 				}
 			}
 		}
