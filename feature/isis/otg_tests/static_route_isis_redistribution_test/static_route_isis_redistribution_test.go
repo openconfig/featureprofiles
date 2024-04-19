@@ -25,34 +25,34 @@ import (
 )
 
 const (
-	tolerancePercent = 0.01
-	ipv4PrefixLen    = 30
-	ipv6PrefixLen    = 126
-	isisInstance     = "DEFAULT"
-	ateAreaAddr      = "49.0002"
-	ate1SysID        = "640000000001"
-	v4Route          = "192.168.10.0"
-	v4TrafficStart   = "192.168.10.1"
-	v4RoutePrefix    = uint32(24)
-	v6Route          = "2024:db8:128:128::"
-	v6TrafficStart   = "2024:db8:128:128::1"
-	v6RoutePrefix    = uint32(64)
-	dp2v4Route       = "192.168.1.4"
-	dp2v4Prefix      = uint32(30)
-	dp2v6Route       = "2001:DB8::0"
-	dp2v6Prefix      = uint32(126)
-	v4Flow           = "v4Flow"
-	v6Flow           = "v6Flow"
-	trafficDuration  = 30 * time.Second
-	prefixMatch      = "exact"
-	v4RoutePolicy    = "route-policy-v4"
-	v4Statement      = "statement-v4"
-	v4PrefixSet      = "prefix-set-v4"
-	v6RoutePolicy    = "route-policy-v6"
-	v6Statement      = "statement-v6"
-	v6PrefixSet      = "prefix-set-v6"
-	protoSrc         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
-	protoDst         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	lossTolerance   = float64(1)
+	ipv4PrefixLen   = 30
+	ipv6PrefixLen   = 126
+	isisInstance    = "DEFAULT"
+	ateAreaAddr     = "49.0002"
+	ate1SysID       = "640000000001"
+	v4Route         = "192.168.10.0"
+	v4TrafficStart  = "192.168.10.1"
+	v4RoutePrefix   = uint32(24)
+	v6Route         = "2024:db8:128:128::"
+	v6TrafficStart  = "2024:db8:128:128::1"
+	v6RoutePrefix   = uint32(64)
+	dp2v4Route      = "192.168.1.4"
+	dp2v4Prefix     = uint32(30)
+	dp2v6Route      = "2001:DB8::0"
+	dp2v6Prefix     = uint32(126)
+	v4Flow          = "v4Flow"
+	v6Flow          = "v6Flow"
+	trafficDuration = 30 * time.Second
+	prefixMatch     = "exact"
+	v4RoutePolicy   = "route-policy-v4"
+	v4Statement     = "statement-v4"
+	v4PrefixSet     = "prefix-set-v4"
+	v6RoutePolicy   = "route-policy-v6"
+	v6Statement     = "statement-v6"
+	v6PrefixSet     = "prefix-set-v6"
+	protoSrc        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC
+	protoDst        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 )
 
 var (
@@ -118,27 +118,6 @@ func TestMain(m *testing.M) {
 type ipAddr struct {
 	address string
 	prefix  uint32
-}
-
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowsData []string) {
-
-	for _, flowName := range flowsData {
-
-		t.Logf("getting flow data for %v", flowName)
-		flow := gnmi.Get(t, ate.OTG(), gnmi.OC().Flow(flowName).Counters().State())
-
-		//Calculate the lower and upper bounds of the tolerance
-		lowerBound := float64(*flow.InPkts) * (1 - tolerancePercent)
-		upperBound := float64(*flow.InPkts) * (1 + tolerancePercent)
-
-		if float64(*flow.OutPkts) < lowerBound || float64(*flow.OutPkts) > upperBound {
-			t.Errorf("Failed: Flow %s due to Traffic TX %v Traffic RX %v tolerance range [%v - %v]",
-				flowName, *flow.InPkts, *flow.OutPkts, lowerBound, upperBound)
-		} else {
-			t.Logf("Passed: Flow %s Traffic TX %v Traffic RX %v within tolerance range [%v - %v]",
-				flowName, *flow.InPkts, *flow.OutPkts, lowerBound, upperBound)
-		}
-	}
 }
 
 type TableConnectionConfig struct {
@@ -648,6 +627,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 				t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
 					getAndVerifyIsisImportPolicy(t, dut, tc.metricPropogation, tc.RplName, tc.protoAf.String())
+
 				})
 			}
 
@@ -686,8 +666,16 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 					ate.OTG().StartTraffic(t)
 					time.Sleep(trafficDuration)
-					verifyTraffic(t, ate, tc.trafficFlows)
 					ate.OTG().StopTraffic(t)
+
+					for _, flow := range tc.trafficFlows {
+						loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow, 20*time.Second)
+						if loss > lossTolerance {
+							t.Errorf("Traffic loss too high for flow %s", flow)
+						} else {
+							t.Logf("Traffic loss for flow %s is %v", flow, loss)
+						}
+					}
 				})
 
 			}
