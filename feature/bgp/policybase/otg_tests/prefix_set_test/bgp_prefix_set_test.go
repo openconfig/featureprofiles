@@ -18,7 +18,6 @@ import (
         "testing"
         "time"
 
-        "google3/third_party/golang/ygot/ygot/ygot"
         "google3/third_party/open_traffic_generator/gosnappi/gosnappi"
         "google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
         "google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
@@ -28,6 +27,7 @@ import (
         "google3/third_party/openconfig/ondatra/ondatra"
         otg "google3/third_party/openconfig/ondatra/otg/otg"
         "google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+        "github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
