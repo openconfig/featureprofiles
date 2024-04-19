@@ -911,3 +911,18 @@ func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
 }
+
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
+func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
+}
+
+// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
