@@ -1,22 +1,23 @@
 package weighted_ecmp_test
 
 import (
-	"fmt"
-	"testing"
-	"time"
-	"math/rand"
+        "fmt"
+        "testing"
+        "time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
+        "math/rand"
+
+        "google3/third_party/golang/ygot/ygot/ygot"
+        "google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+        "google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+        "google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+        "google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+        "google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+        "google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+        "google3/third_party/openconfig/ondatra/gnmi/gnmi"
+        "google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+        "google3/third_party/openconfig/ondatra/netutil/netutil"
+        "google3/third_party/openconfig/ondatra/ondatra"
 )
 
 const (
@@ -28,14 +29,14 @@ const (
         dutSysID          = "1920.0000.2001"
         asn               = 64501
         acceptRoutePolicy = "PERMIT-ALL"
-        trafficPPS        = 50000
-        trafficv6PPS      = 50000
+        trafficPPS        = 50000 // Should be 5000000
+        trafficv6PPS      = 50000 // Should be 5000000
         srcTrafficV4      = "100.0.2.1"
         srcTrafficV6      = "2001:db8:64:65::1"
         dstTrafficV4      = "100.0.1.1"
         dstTrafficV6      = "2001:db8:64:64::1"
         v4Count           = 254
-        v6Count           = 1000
+        v6Count           = 1000 // Should be 10000000
 )
 
 type aggPortData struct {
@@ -660,4 +661,3 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
         gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
-
