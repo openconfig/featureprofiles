@@ -427,6 +427,7 @@ tests:
     priority: 48
     skip: false 
     internal: true
+    pr: 1112
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
