@@ -286,7 +286,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		SetTxNames([]string{intf1.Name() + ".IPv4"}).
 		SetRxNames([]string{intf2.Name() + ".IPv4"})
 	flowipv4.Size().SetFixed(100)
-	flowipv4.Rate().SetPps(15)
+	flowipv4.Rate().SetPps(50)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(eth1.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -299,7 +299,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		SetTxNames([]string{intf1.Name() + ".IPv6"}).
 		SetRxNames([]string{intf2.Name() + ".IPv6"})
 	flowipv6.Size().SetFixed(100)
-	flowipv6.Rate().SetPps(15)
+	flowipv6.Rate().SetPps(50)
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(eth1.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
@@ -382,10 +382,10 @@ func TestIntfCounterUpdate(t *testing.T) {
 
 	t.Logf("inPkts: %v and outPkts: %v after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 	for k := range dutInPktsAfterTraffic {
-		if got, want := dutInPktsAfterTraffic[k]-dutInPktsBeforeTraffic[k], ateInPkts[k]; got < want {
+		if got, want := dutInPktsAfterTraffic[k]-dutInPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
 			t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 		}
-		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateOutPkts[k]; got < want {
+		if got, want := dutOutPktsAfterTraffic[k]-dutOutPktsBeforeTraffic[k], ateInPkts[k]; got < want {
 			t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 		}
 	}
