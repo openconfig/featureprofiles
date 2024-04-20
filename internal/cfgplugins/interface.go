@@ -23,7 +23,7 @@ func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwar
 	}
 }
 
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
 		switch dut.Vendor() {
@@ -47,7 +47,7 @@ func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 	return ""
 }
 
-func configureInterface(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+func ConfigureInterface(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 	i.Enabled = ygot.Bool(true)
@@ -55,8 +55,8 @@ func configureInterface(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) 
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 }
 
-func configureTargetOutputPowerAndFrequency(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, frequency uint64, targetOutputPower float64) {
-	OCcomponent := opticalChannelComponentFromPort(t, dut, dp)
+func ConfigureTargetOutputPowerAndFrequency(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPower float64, frequency uint64) {
+	OCcomponent := OpticalChannelComponentFromPort(t, dut, dp)
 	gnmi.Replace(t, dut, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),

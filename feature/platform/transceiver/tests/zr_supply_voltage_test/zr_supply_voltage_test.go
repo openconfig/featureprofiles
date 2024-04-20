@@ -20,13 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 )
 
 const (
@@ -62,11 +62,11 @@ func TestZrSupplyVoltage(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
-	cfgplugins.configureInterface(t, dut, p1)
-	cfgplugins.configureTargetOutputPowerAndFrequency(t, dut, p1, targetOutputPowerdBm, targetFrequencyHz)
+	cfgplugins.ConfigureInterface(t, dut, p1)
+	cfgplugins.ConfigureTargetOutputPowerAndFrequency(t, dut, p1, targetOutputPowerdBm, targetFrequencyHz)
 
-	cfgplugins.configureInterface(t, dut, p2)
-	cfgplugins.configureTargetOutputPowerAndFrequency(t, dut, p2, targetOutputPowerdBm, targetFrequencyHz)
+	cfgplugins.ConfigureInterface(t, dut, p2)
+	cfgplugins.ConfigureTargetOutputPowerAndFrequency(t, dut, p2, targetOutputPowerdBm, targetFrequencyHz)
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			opticalCompName := cfgplugins.opticalChannelComponentFromPort(t, dut, dp)
+			opticalCompName := cfgplugins.OpticalChannelComponentFromPort(t, dut, dp)
 			opticalComp := gnmi.OC().Component(opticalCompName)
 			component := gnmi.OC().Component(tr)
 
