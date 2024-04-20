@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// isSubCompOfHardwarePort is a helper function to check if the given component is a subComponent of the given hardwarePort.
 func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
 	for {
 		if comp.GetName() == parentHardwarePortName {
@@ -23,6 +24,7 @@ func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwar
 	}
 }
 
+// OpticalChannelComponentFromPort returns the OpticalChannelComponent name for the provided  port.
 func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
@@ -47,6 +49,7 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 	return ""
 }
 
+// ConfigureInterface configures the interface with portName and interfaceType.
 func ConfigureInterface(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
@@ -55,6 +58,7 @@ func ConfigureInterface(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) 
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 }
 
+// ConfigureTargetOutputPowerAndFrequency configures TargetOutputPower and Frequency for the given transceiver port.
 func ConfigureTargetOutputPowerAndFrequency(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port, targetOutputPower float64, frequency uint64) {
 	OCcomponent := OpticalChannelComponentFromPort(t, dut, dp)
 	gnmi.Replace(t, dut, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
