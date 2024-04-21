@@ -90,11 +90,11 @@ const (
 	niEncapTeVrfB          = "ENCAP_TE_VRF_B"
 	niTeVrf111             = "TE_VRF_111"
 	niTeVrf222             = "TE_VRF_222"
-	niDefault              = "DEFAULT"
 	tolerancePct           = 2
 	tolerance              = 0.2
 	encapFlow              = "encapFlow"
 	correspondingHopLimit  = 64
+	magicIP                = "192.168.1.1"
 	magicMac               = "02:00:00:00:00:01"
 	gribiIPv4EntryDefVRF1  = "192.0.2.101"
 	gribiIPv4EntryDefVRF2  = "192.0.2.102"
@@ -125,6 +125,7 @@ const (
 	ateSrcNetCIDR    = "198.51.100.0/24"
 	ateSrcNetFirstIP = "198.51.100.1"
 	ateSrcNetCount   = 250
+	ipOverIPProtocol = 4
 
 	checkEncap = true
 	wantLoss   = true
@@ -213,7 +214,7 @@ type testArgs struct {
 }
 
 type policyFwRule struct {
-	SeqId           uint32
+	SeqID           uint32
 	family          string
 	protocol        oc.UnionUint8
 	dscpSet         []uint8
@@ -349,42 +350,42 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
-	pfRule1 := &policyFwRule{SeqId: 1, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
+	pfRule1 := &policyFwRule{SeqID: 1, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule2 := &policyFwRule{SeqId: 2, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
+	pfRule2 := &policyFwRule{SeqID: 2, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule3 := &policyFwRule{SeqId: 3, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
+	pfRule3 := &policyFwRule{SeqID: 3, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
-	pfRule4 := &policyFwRule{SeqId: 4, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
+	pfRule4 := &policyFwRule{SeqID: 4, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
 
-	pfRule5 := &policyFwRule{SeqId: 5, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
+	pfRule5 := &policyFwRule{SeqID: 5, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule6 := &policyFwRule{SeqId: 6, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
+	pfRule6 := &policyFwRule{SeqID: 6, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule7 := &policyFwRule{SeqId: 7, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
+	pfRule7 := &policyFwRule{SeqID: 7, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
-	pfRule8 := &policyFwRule{SeqId: 8, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
+	pfRule8 := &policyFwRule{SeqID: 8, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
-	pfRule9 := &policyFwRule{SeqId: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
-	pfRule10 := &policyFwRule{SeqId: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
-	pfRule11 := &policyFwRule{SeqId: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
-	pfRule12 := &policyFwRule{SeqId: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+	pfRule9 := &policyFwRule{SeqID: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222Addr + "/32",
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
+	pfRule10 := &policyFwRule{SeqID: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222Addr + "/32",
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
+	pfRule11 := &policyFwRule{SeqID: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111Addr + "/32",
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
+	pfRule12 := &policyFwRule{SeqID: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111Addr + "/32",
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
-	pfRule13 := &policyFwRule{SeqId: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule13 := &policyFwRule{SeqID: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		networkInstance: niEncapTeVrfA}
-	pfRule14 := &policyFwRule{SeqId: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule14 := &policyFwRule{SeqID: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		networkInstance: niEncapTeVrfA}
-	pfRule15 := &policyFwRule{SeqId: 15, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule15 := &policyFwRule{SeqID: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		networkInstance: niEncapTeVrfB}
-	pfRule16 := &policyFwRule{SeqId: 16, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
+	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
 		networkInstance: niEncapTeVrfB}
-	pfRule17 := &policyFwRule{SeqId: 17, networkInstance: niDefault}
+	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: deviations.DefaultNetworkInstance(dut)}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
@@ -396,7 +397,7 @@ func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
 	for _, pfRule := range pfRuleList {
-		pfR := niPf.GetOrCreateRule(pfRule.SeqId)
+		pfR := niPf.GetOrCreateRule(pfRule.SeqID)
 
 		if pfRule.family == "ipv4" {
 			pfRProtoIP := pfR.GetOrCreateIpv4()
@@ -455,45 +456,122 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// configStaticArp configures static arp entries
+func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
+}
+
+func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	sb := &gnmi.SetBatch{}
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+	p5 := dut.Port(t, "port5")
+	p6 := dut.Port(t, "port6")
+	p7 := dut.Port(t, "port7")
+	portList := []*ondatra.Port{p2, p3, p4, p5, p6, p7}
+	for idx, p := range portList {
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix: ygot.String(magicIP + "/32"),
+			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
+				strconv.Itoa(idx): {
+					Index: ygot.String(strconv.Itoa(idx)),
+					InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+						Interface: ygot.String(p.Name()),
+					},
+				},
+			},
+		}
+		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), s)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(p.Name()).Config(), configStaticArp(p.Name(), magicIP, magicMac))
+	}
+	sb.Set(t, dut)
+}
+
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
 	// Programming AFT entries for prefixes in DEFAULT VRF
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		args.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).WithIPAddress(magicIP),
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).WithIPAddress(magicIP),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()).WithIPAddress(magicIP),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(12).AddNextHop(13, 2),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()).WithIPAddress(magicIP),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(13).AddNextHop(14, 1),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()).WithIPAddress(magicIP),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(14).AddNextHop(15, 1),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()).WithIPAddress(magicIP),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(15).AddNextHop(16, 1),
+		)
+	} else {
+		args.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(12).AddNextHop(13, 2),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(13).AddNextHop(14, 1),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(14).AddNextHop(15, 1),
+
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+				WithID(15).AddNextHop(16, 1),
+		)
+	}
+	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+
 	args.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()),
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
-
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(12).AddNextHop(13, 2),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
-
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(13).AddNextHop(14, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
-
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(14).AddNextHop(15, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
-
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(15).AddNextHop(16, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryDefVRF5+"/"+maskLen32).WithNextHopGroup(15),
 	)
@@ -530,14 +608,14 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIndex(3).WithIPAddress(gribiIPv4EntryDefVRF3),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(2).AddNextHop(3, 1).WithBackupNHG(2000),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(5).WithIPAddress(gribiIPv4EntryDefVRF5),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(4).AddNextHop(5, 1).WithBackupNHG(2000),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -584,14 +662,14 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(1000),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(3).AddNextHop(4, 1).WithBackupNHG(1001),
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -622,7 +700,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(18),
-		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101),
 	)
 	if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
@@ -667,7 +745,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfi.Metric = ygot.Uint32(200)
-	isisIntfLevelAfi.Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		isisIntf.Af = nil
+	}
+	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+		isisIntfLevelAfi.Enabled = nil
+	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
@@ -1094,10 +1177,28 @@ func TestEncapFrr(t *testing.T) {
 	t.Log("Configure Non-Default Network Instances")
 	configNonDefaultNetworkInstance(t, dut)
 
+	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		pf := ni.GetOrCreatePolicyForwarding()
+		fp1 := pf.GetOrCreatePolicy("match-ipip")
+		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+		fp1.GetOrCreateRule(1).GetOrCreateIpv4().Protocol = oc.UnionUint8(ipOverIPProtocol)
+		fp1.GetOrCreateRule(1).GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
+		p1 := dut.Port(t, "port1")
+		intf := pf.GetOrCreateInterface(p1.Name())
+		intf.ApplyVrfSelectionPolicy = ygot.String("match-ipip")
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+	}
+
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
 	configureVrfSelectionPolicy(t, dut)
+
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+		staticARPWithMagicUniversalIP(t, dut)
+	}
 
 	t.Log("Install BGP route resolved by ISIS.")
 	t.Log("Configure ISIS on DUT")
@@ -1242,8 +1343,10 @@ func TestEncapFrr(t *testing.T) {
 			if tc.encapUnviable == "primaryBackupRoutingSingle" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1000).AddNextHop(1100, 1),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1252,11 +1355,15 @@ func TestEncapFrr(t *testing.T) {
 			if tc.encapUnviable == "primaryBackupRoutingAll" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1000).AddNextHop(1100, 1),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1101).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1001).AddNextHop(1101, 1),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1269,7 +1376,7 @@ func TestEncapFrr(t *testing.T) {
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1003).AddNextHop(1003, 1),
 					fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-						WithPrefix("0.0.0.0/0").WithNextHopGroup(1003),
+						WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)

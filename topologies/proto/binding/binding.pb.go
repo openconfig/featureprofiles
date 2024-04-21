@@ -21,11 +21,12 @@
 package binding
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -615,8 +616,8 @@ type Link struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	A string `protobuf:"bytes,1,opt,name=a,proto3" json:"a,omitempty"` // First port in the format "<device-id>:<port-id>".
-	B string `protobuf:"bytes,2,opt,name=b,proto3" json:"b,omitempty"` // Second port in the format "<device-id>:<port-id>".
+	A string `protobuf:"bytes,1,opt,name=a,proto3" json:"a,omitempty"` // First port in the format "<device-name>:<port-name>".
+	B string `protobuf:"bytes,2,opt,name=b,proto3" json:"b,omitempty"` // Second port in the format "<device-name>:<port-name>".
 }
 
 func (x *Link) Reset() {
