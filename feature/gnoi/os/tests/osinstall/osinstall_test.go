@@ -473,8 +473,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTD
 
 func TestPushAndVerifyBGPConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Logf("Create and push BGP config to the DUT")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
