@@ -965,14 +965,24 @@ func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 	p5 := dut.Port(t, "port5")
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), dutPort5DummyIP.NewOCInterface(p5.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+}
+
+// override ip address type as secondary
+func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice) *oc.Interface {
+	intf := a.NewOCInterface(port, dut)
+	s := intf.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	a4 := s4.GetOrCreateAddress(a.IPv4)
+	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
+	return intf
 }
 
 func configureVIP1(t *testing.T, args *testArgs) {
