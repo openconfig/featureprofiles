@@ -25,5 +25,5 @@ Enable IPv6 on interface level so ipv6 address of link-local scope is generated/
 ## Protocol/RPC Parameter Coverage
 None
 
-## Required DUT platform
+## Minimum required DUT platform
 * FFF - fixed form factor
