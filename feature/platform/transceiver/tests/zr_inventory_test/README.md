@@ -1,4 +1,4 @@
-# TRANSCEIVER-7: Telemetry: 400ZR module inventory information. 
+# TRANSCEIVER-7: Telemetry: 400ZR Optics inventory info streaming
 
 ## Summary
 
@@ -30,7 +30,7 @@ Validate 400ZR modules report correct inventory information.
         streaming telemetry paths above.
     *   Reset the optic by enabling and disabling the transceiver state
         through /components/component/transceiver/config/enabled.
-    *   Wait atleast 20 seconds in between toggling transceiver state.
+    *   Wait at least 20 seconds in between toggling transceiver state.
     *   Verify the ZR optics still reports correct inventory information.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.

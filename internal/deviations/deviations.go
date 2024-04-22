@@ -377,6 +377,11 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
+// RibWecmp returns if device requires CLI knob to enable wecmp feature.
+func RibWecmp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRibWecmp()
+}
+
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
@@ -875,8 +880,9 @@ func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
 }
 
-// Device missing 400ZR optical-channel tunable parameters telemetry.
-// Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+// MissingZROpticalChannelTunableParametersTelemetry returns true for devices missing 400ZR
+// optical-channel tunable parameters telemetry: min/max/avg.
+// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
 func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
 }
@@ -884,4 +890,44 @@ func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) b
 // Devices does not support bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
+}  
+
+// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
+func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
+func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
+}
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
+func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
+}
+
+// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
+func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
+
+// BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
+func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
+}
+
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
+func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
+}
+
+// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
 }
