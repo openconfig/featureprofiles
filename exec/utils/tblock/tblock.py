@@ -23,6 +23,12 @@ def _lockfile(filename):
             raise
     return True
 
+def _unlockfile(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+    if filename in _session_locked_files:
+        _session_locked_files.remove(filename)
+
 def _lock_hw(hw):
     if type(hw) == str:
         return _lockfile(os.path.join(ldir, hw))
@@ -33,7 +39,7 @@ def _lock_hw(hw):
             locked.append(e)
         else:
             for lf in locked:
-                os.remove(lf)
+                _unlockfile(lf)
             return False
     return True
 
@@ -106,8 +112,7 @@ def _release_helper(tb):
 
     for e in tb['hw']:
         lock_file = os.path.join(ldir, e)
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
+        _unlockfile(lock_file)
 
 def _release_all(tbs):
     for tb in tbs:
