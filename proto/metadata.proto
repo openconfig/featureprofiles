@@ -483,6 +483,9 @@ message Metadata {
     bool use_vendor_native_tag_set_config = 171;
     // Skip setting send-community-type in bgp global config
     bool skip_bgp_send_community_type = 172;
+    // Support for bgp actions set-community method
+    bool bgp_actions_set_community_method_unsupported = 173;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
