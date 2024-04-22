@@ -486,7 +486,7 @@ message Metadata {
     // Devices does not support bgp max multipaths
     // Juniper: b/319301559
     bool bgp_max_multipath_paths_unsupported = 173;
-    
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

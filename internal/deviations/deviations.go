@@ -887,11 +887,6 @@ func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) b
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
 }
 
-// Devices does not support bgp max multipaths.
-func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
-}  
-
 // PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
 func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
@@ -930,4 +925,9 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 // SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
+
+// Devices does not support bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
