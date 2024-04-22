@@ -12,7 +12,27 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+const (
+	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
+	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+)
+
 func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *ProcessState {
+
+	activeRP := "0/RP0/CPU0"
+	standbyRP := "0/RP1/CPU0"
+	role := gnmi.Get(t, dut, gnmi.OC().Component(activeRP).RedundantRole().State())
+	t.Logf("Component(%s).RedundantRole().Get(t): Role: %s", activeRP, role)
+
+	switch role {
+	case standbyController:
+		standbyRP, activeRP = activeRP, standbyRP
+	case activeController:
+		// No need to change activeRP and standbyRP
+	default:
+		t.Fatalf("Expected controller to be active or standby, got %v", role)
+	}
+	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
 
 	timeout := time.Second * 30
 	req := &gnmipb.GetRequest{
@@ -21,7 +41,7 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 				Origin: "Cisco-IOS-XR-sysmgr-oper", Elem: []*gnmipb.PathElem{
 					{Name: "system-process"},
 					{Name: "node-table"},
-					{Name: "node", Key: map[string]string{"node-name": "*"}},
+					{Name: "node", Key: map[string]string{"node-name": activeRP}},
 					{Name: "processes"},
 					{Name: "process", Key: map[string]string{"name": processName}},
 				},
@@ -35,6 +55,8 @@ func getProcessState(t *testing.T, dut *ondatra.DUTDevice, processName string) *
 
 	for stay, timeout := true, time.After(timeout); stay; {
 		restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
+		t.Logf("Error: %v", err)
+		t.Logf("Process Response: %v", restartResp)
 		select {
 		case <-timeout:
 			if err != nil {

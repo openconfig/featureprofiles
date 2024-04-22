@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/gnmi/errdiff"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	pathzpb "github.com/openconfig/gnsi/pathz"
@@ -40,20 +43,30 @@ import (
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
 type UsersMap map[string]pathz.Spiffe
 
-var (
-	username = flag.String("username", "cafyauto", "username to be sent as gRPC metadata")
-)
+// var (
+// 	username = flag.String("username", d.sshUser, "username to be sent as gRPC metadata")
+// )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 type setOperation int
+type targetInfo struct {
+	dut      string
+	gnmiIp   string
+	gnmiUser string
+	sshIp    string
+	sshPort  string
+	sshUser  string
+	sshPass  string
+}
 
 const (
 	// deletePath represents a SetRequest delete.
@@ -63,6 +76,7 @@ const (
 	// updatePath represents a SetRequest update.
 	updatePath
 	isisInstance = "B4"
+	processName  = "emsd"
 )
 
 func configwithprefix(t *testing.T, dut *ondatra.DUTDevice, op setOperation, origin string, config string) {
@@ -427,122 +441,262 @@ func TestInvalidProbeUser(t *testing.T) {
 }
 
 func TestInvalidProbePath(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// Define the expected error string
-	wantErr := "Nil Probe Request or Path"
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_READ,
-		User:           *username,
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		// Define the expected error string
+		wantErr := "Nil Probe Request or Path"
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_READ,
+			User:           d.sshUser,
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	client := start(t)
-	_, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Rec Err %v", err)
+		client := start(t)
+		_, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Rec Err %v", err)
 
-	// Check if the error string matches the expected error string
-	if d := errdiff.Check(err, wantErr); d != "" {
-		t.Fatalf("Probe() unexpected err: %s", d)
+		// Check if the error string matches the expected error string
+		if d := errdiff.Check(err, wantErr); d != "" {
+			t.Fatalf("Probe() unexpected err: %s", d)
+		}
+		//PerformgNMIOperations.
+		performOperations(t, dut)
 	}
-	//PerformgNMIOperations.
-	performOperations(t, dut)
 }
 
 func TestInvalidProbeInst(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// Define the expected error string
-	wantErr := "Unknown instance type"
-	probeReq := &pathzpb.ProbeRequest{
-		Mode: pathzpb.Mode_MODE_READ,
-		User: *username,
-		Path: &gpb.Path{},
-	}
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		// Define the expected error string
+		wantErr := "Unknown instance type"
+		probeReq := &pathzpb.ProbeRequest{
+			Mode: pathzpb.Mode_MODE_READ,
+			User: d.sshUser,
+			Path: &gpb.Path{},
+		}
 
-	client := start(t)
-	_, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Rec Err %v", err)
+		client := start(t)
+		_, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Rec Err %v", err)
 
-	// Check if the error string matches the expected error string
-	if d := errdiff.Check(err, wantErr); d != "" {
-		t.Fatalf("Probe() unexpected err: %s", d)
+		// Check if the error string matches the expected error string
+		if d := errdiff.Check(err, wantErr); d != "" {
+			t.Fatalf("Probe() unexpected err: %s", d)
+		}
+		//PerformgNMIOperations.
+		performOperations(t, dut)
 	}
-	//PerformgNMIOperations.
-	performOperations(t, dut)
 }
 
 func TestProbeInstWithoutReq(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// Define the expected error string
-	wantErr := "requested policy instance is nil"
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_READ,
-		User:           *username,
-		Path:           &gpb.Path{},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		// Define the expected error string
+		wantErr := "requested policy instance is nil"
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_READ,
+			User:           d.sshUser,
+			Path:           &gpb.Path{},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	client := start(t)
-	_, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Rec Err %v", err)
+		client := start(t)
+		_, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Rec Err %v", err)
 
-	// Check if the error string matches the expected error string
-	if d := errdiff.Check(err, wantErr); d != "" {
-		t.Fatalf("Probe() unexpected err: %s", d)
+		// Check if the error string matches the expected error string
+		if d := errdiff.Check(err, wantErr); d != "" {
+			t.Fatalf("Probe() unexpected err: %s", d)
+		}
+		//PerformgNMIOperations.
+		performOperations(t, dut)
 	}
-	//PerformgNMIOperations.
-	performOperations(t, dut)
 }
 
 func TestInvalidProbeMode(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// Define the expected error string
-	wantErr := "mode not specified"
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		// Define the expected error string
+		wantErr := "mode not specified"
 
-	probeReq := &pathzpb.ProbeRequest{
-		User:           *username,
-		Path:           &gpb.Path{},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		probeReq := &pathzpb.ProbeRequest{
+			User:           d.sshUser,
+			Path:           &gpb.Path{},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		client := start(t)
+		_, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Rec Err %v", err)
+
+		// Check if the error string matches the expected error string
+		if d := errdiff.Check(err, wantErr); d != "" {
+			t.Fatalf("Probe() unexpected err: %s", d)
+		}
+		//PerformgNMIOperations.
+		performOperations(t, dut)
 	}
-
-	client := start(t)
-	_, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Rec Err %v", err)
-
-	// Check if the error string matches the expected error string
-	if d := errdiff.Check(err, wantErr); d != "" {
-		t.Fatalf("Probe() unexpected err: %s", d)
-	}
-	//PerformgNMIOperations.
-	performOperations(t, dut)
 }
 
 func TestProbeReqWithoutFinalize(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
 
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := true
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+		t.Logf("GET sandbox Request : %v", getReq_Sand)
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+		t.Logf("GET Sandbox Response : %v", sand_res)
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+		t.Logf("GET Active Request : %v", getReq_Actv)
+
+		actv_res, _ := client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+		t.Logf("GET Active Response : %v", actv_res)
+
+		// Perform gNMI operations
+		performOperations(t, dut)
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+		t.Logf("GET Sandbox Response after process restart: %v", sand_res_after_process_restart)
+
+		// Perform GET operations for active policy instance after process restart
+		actv_res_after_process_restart, _ := client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+		t.Logf("GET Active Response after process restart: %v", sand_res_after_process_restart)
+
+		// Perform gNMI operations after process restart
+		performOperations(t, dut)
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform GET operations for sandbox policy instance after RP Switchover.
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+		}
+		t.Logf("GET Sandbox Response after RP Switchover: %v", sand_res_after_RP_Switchover)
+
+		// Perform GET operations for active policy instance after after_RP_Switchover
+		actv_res_after_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res_after_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after after_RP_Switchover: %s", d)
+		}
+		t.Logf("GET Active Response after after_RP_Switchover: %v", sand_res_after_RP_Switchover)
+
+		// Perform gNMI operations after after RP Switchover
+		performOperations(t, dut)
 	}
-	createdtime := uint64(time.Now().UnixMicro())
+}
 
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
+func TestWildcard(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := true
+		// Define expected response
+		wantErr := "invalid policy: wildcard path names are not permitted"
 
-	// Start gRPC client
-	client := start(t)
+		// Start gRPC client
+		client := start(t)
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
 		// Define rotate request
 		req := &pathzpb.RotateRequest{
 			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
@@ -551,8 +705,8 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 					CreatedOn: createdtime,
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
+							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "*"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_DENY,
 						}},
@@ -560,106 +714,28 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 				},
 			},
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		rot, err := client.Rotate(context.Background())
+		if err != nil {
+			t.Fatal(err)
 		}
+
+		t.Logf("Rotate Req : %v", req)
+		if err := rot.Send(req); err != nil {
+			t.Fatalf("failed to send: %v", err)
+		}
+
+		resp, err := rot.Recv()
+		t.Logf("Response Sent: %s", resp)
+		t.Logf("Err: %s", err)
+
+		if d := errdiff.Check(err, wantErr); d != "" {
+			t.Fatalf("Rotate() unexpected err: %s", d)
+		}
+
+		// Perform gNMI operations
+		performOperations(t, dut)
 	}
-
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-	t.Logf("GET sandbox Request : %v", getReq_Sand)
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-	t.Logf("GET Sandbox Response : %v", sand_res)
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-	t.Logf("GET Active Request : %v", getReq_Actv)
-
-	actv_res, _ := client.Get(context.Background(), getReq_Actv)
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-	t.Logf("GET Active Response : %v", actv_res)
-
-	// Perform gNMI operations
-	performOperations(t, dut)
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-	t.Logf("GET Sandbox Response after process restart: %v", sand_res_after_process_restart)
-
-	// Perform GET operations for active policy instance after process restart
-	actv_res_after_process_restart, _ := client.Get(context.Background(), getReq_Actv)
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-	t.Logf("GET Active Response after process restart: %v", sand_res_after_process_restart)
-
-	// Perform gNMI operations after process restart
-	performOperations(t, dut)
-
-	// Perform RP Switchover
-	utils.Dorpfo(context.Background(), t, true)
-
-	// Perform GET operations for sandbox policy instance after RP Switchover.
-	sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
-	}
-	t.Logf("GET Sandbox Response after RP Switchover: %v", sand_res_after_RP_Switchover)
-
-	// Perform GET operations for active policy instance after after_RP_Switchover
-	actv_res_after_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Actv)
-	if d := cmp.Diff(get_res, actv_res_after_after_RP_Switchover, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after after_RP_Switchover: %s", d)
-	}
-	t.Logf("GET Active Response after after_RP_Switchover: %v", sand_res_after_RP_Switchover)
-
-	// Perform gNMI operations after after RP Switchover
-	performOperations(t, dut)
 }
 
 func TestInvalidWithFinalize(t *testing.T) {
@@ -755,35 +831,7147 @@ func TestInvalidWithFinalize(t *testing.T) {
 }
 
 func TestInvalidXpathFinalize(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		want := &pathzpb.GetResponse{
+			Version: "1",
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		req := &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+				UploadRequest: &pathzpb.UploadRequest{
+					Version: "1",
+					Policy: &pathzpb.AuthorizationPolicy{
+						Rules: []*pathzpb.AuthorizationRule{{
+							Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						}},
+					},
+				},
+			},
+		}
+
+		client := start(t)
+		rot, err := client.Rotate(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("Request Sent: %s", req)
+		if err := rot.Send(req); err != nil {
+			t.Logf("Rec Err %v", err)
+			t.Fatal(err)
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getSandboxResponse(t, want)
+
+		// Finalize
+		req = &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_FinalizeRotation{},
+		}
+
+		t.Logf("Request Sent: %s", req)
+		if err := rot.Send(req); err != nil {
+			t.Logf("Rec Err %v", err)
+			t.Fatal(err)
+		}
+
+		time.Sleep(5 * time.Second)
+
+		// Perform GET operations for active policy instance
+		getReq := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		got, err := client.Get(context.Background(), getReq)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		t.Logf("GET Active Response : %v", got)
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after finalize: %s", d)
+		}
+
+		// Perfrom gNMI Operations.
+		isPermissionDeniedError(t, dut, "InvalidXpathFinalize")
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Pathz GET after process restart
+		got, err = client.Get(context.Background(), getReq)
+		t.Logf("GET Active Response after Process Restart : %v", got)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed after process restart: %s", dut.Name())
+		}
+
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz.Get request is failed after process restart: %s", d)
+		}
+
+		// Perfrom gNMI Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+	}
+}
+
+func TestProbeReqWithFinalize(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_PERMIT,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform gNMI operations
+		performOperations(t, dut)
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform gNMI operations after Process Restart.
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI Operations after Router Reload
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+	}
+}
+
+func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule5",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule6",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule7",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule8",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule9",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule10",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule11",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule12",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule13",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule14",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule5",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule6",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule7",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule8",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule9",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule10",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule11",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule12",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule13",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule14",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after emsd process restart.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after router reload.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+	}
+}
+
+func TestConflictBwExplicitKeyAnsAsterisk_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule5",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule6",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule7",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule8",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule9",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule10",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule11",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule12",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule13",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule14",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule15",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule5",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule6",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule7",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule8",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule9",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule10",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule11",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule12",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule13",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule14",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule15",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS Overwrite using gNMI.Update/Replace and Delete ISIS
+		configISIS(t, dut)
+	}
+}
+
+func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule5",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule6",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule7",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule8",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule9",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule10",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule11",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule12",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule13",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule14",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule5",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule6",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule7",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule8",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule9",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule10",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule11",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule12",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule13",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule14",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+
+		// Configure Protcol ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+		gnmi.Update(t, dut, config.Config(), true)
+		gnmi.Delete(t, dut, config.Config())
+		gnmi.Replace(t, dut, config.Config(), true)
+	}
+}
+
+func TestConflictBwGroupAndUser_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: "cafyauto1",
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: "cafyauto1",
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform Rotate request
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Perform Rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_response := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sandbox := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_response, _ := client.Get(context.Background(), getReq_Sandbox)
+		if d := cmp.Diff(get_response, sand_response, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Active := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_response, err := client.Get(context.Background(), getReq_Active)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_response, actv_response, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
+}
+
+func TestConflictBwGroupAndUser_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
+}
+
+func TestConflictBwGroupAndUser_3(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
+}
+
+func TestConflictBwGroupAndUser_4(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
+}
+
+func TestConflictBwGroupAndUser_5(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule5",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule6",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule5",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule6",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Configure ISIS Overwrite using gNMI.Update/Replace and Delete ISIS
+		configISIS(t, dut)
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update after emsd restart.
+		configISIS(t, dut)
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update after router reload
+		configISIS(t, dut)
+	}
+}
+
+func TestGnmiOriginCli(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AfterFinalize")
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Verify gNMI Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Verify gNMI Operations after router reload.
+		isPermissionDeniedError(t, dut, "AfterRouterReload")
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
+	}
+}
+
+func TestConflictBwUsers_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto1"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto1"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform Rotate request-2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Perform Rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_response := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sandbox := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_response, _ := client.Get(context.Background(), getReq_Sandbox)
+		if d := cmp.Diff(get_response, sand_response, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Active := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_response, err := client.Get(context.Background(), getReq_Active)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_response, actv_response, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
+}
+
+func TestConflictBwUsers_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after router reload.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+	}
+}
+
+func TestLongestPrefixMatch_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+		gnmi.Update(t, dut, config.Config(), true)
+		gnmi.Delete(t, dut, config.Config())
+		gnmi.Replace(t, dut, config.Config(), true)
+	}
+}
+
+func TestLongestPrefixMatch_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+		gnmi.Update(t, dut, config.Config(), true)
+		gnmi.Delete(t, dut, config.Config())
+		gnmi.Replace(t, dut, config.Config(), true)
+	}
+}
+
+func TestLongestPrefixMatch_3(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}, {
+					Name: "admin",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+	}
+}
+
+func TestConflictBwGroups(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}, {
+					Name: "admin",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Delete ISIS using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Replace ISIS using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update after process restart
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete ISIS using gNMI.Delete after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Replace ISIS using gNMI.Replace after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after reouter reload")
+		}
+
+		// Delete ISIS using gNMI.Delete after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		// Replace ISIS using gNMI.Replace after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_emsd_restart := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_emsd_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+	}
+}
+
+func TestPathz_txt_bak_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Rotate request 2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "Pathz_txt_bak")
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete Pathz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz Backup file.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz Backup file: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz Backup file.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz Backup file: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz backup policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz Backup file.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after after deleting pathz Backup file: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz Backup file")
+		}
+
+		// Perform eMSD process restart after deleting Pathz backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy:")
+		}
+
+		// Perform eMSD process restart after deleting Pathz file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart.
+		gnmi.Update(t, dut, path.Config(), true)
+	}
+}
+
+func TestCiscoNative(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		performOperations(t, dut)
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// gNMI.SET Operation using XR Model
+		stationMAC := "00:ba:ba:ba:ba:ba"
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		hostname := "XR-Native"
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+
+		// Reload router
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI Operations after Router Reload.
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after reouter reload")
+		}
+
+		// gNMI.SET Operation using XR Model after router reload.
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI Operations after process restart.
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_process_restart := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_process_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		// gNMI.SET Operation using XR Model after process restart.
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+	}
+}
+
+func TestPathz_txt_bak_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Rotate request 2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "Pathz_txt_bak")
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Delete Pathz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz backup policy.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz backup policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz Backup file.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz backup policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz backup policy")
+		}
+
+		get_res = &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		// Perform eMSD process restart after deleting Pathz backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz policy.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
+		}
+
+		//Reload router after deleting Authz Policy & verify the behaviour.
+		perf.ReloadRouter(t, dut)
+
+		client = start(t)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff bafter router reload: %s", d)
+		}
+
+		actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI SET Operations after router reload.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after router reload.
+		portNum_after_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_reload == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz policy.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after deleting pathz file.
+		portNum_after_pathz_del = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
+		}
+
+		// Perform eMSD process restart after deleting Pathz file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
+		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", actv_res_after_reload)
+
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Logf("gNMI Update : %v", d)
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		performOperations(t, dut)
+	}
+}
+
+func TestPathz_txt_bak_3(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_PERMIT,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Rotate request 2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Verify gNMI SET Operations.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete Pathz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Errorf("Pathz Get unexpected diff deleting pathz backup policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz backup policy.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff deleting pathz backup policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz backup policy.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after deleting pathz backup policy.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz backup policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz backup policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz backup policy")
+		}
+
+		get_res = &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}, {
+					Name: "admin",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform eMSD process restart after deleting Pathz backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform gNMI operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Backup Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting backup policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting backup policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting backup policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting backup policy: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "bak_pathz_delete")
+
+		// Get and store the result in portNum after deleting backup pathz policy.
+		portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting backup pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting backup pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed deleting backup pathz policy")
+		}
+
+		// Perform eMSD process restart after deleting Pathz backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		// Get and store the result in portNum deleting Authz Backup file.
+		portNum_after_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_reload == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "pathz_delete")
+
+		// Get and store the result in portNum after deleting pathz file.
+		portNum_after_pathz_del = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
+		}
+
+		// Perform eMSD process restart after deleting Pathz file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
+		t.Logf("Got GET Response : %s", actv_res_after_emsd_restart)
+
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Logf("GET Difference : %v", d)
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		performOperations(t, dut)
+	}
+}
+
+func TestPathz_txt_bak_4(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Rotate request 2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}, {
+					Name: "admin",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations.
+		isPermissionDeniedError(t, dut, "Pathz_txt_bak")
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete Pathz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz backup policy.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz backup policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz Backup file.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz Backup file: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz Backup file")
+		}
+
+		//Reload router after deleting Authz Policy & verify the behaviour.
+		perf.ReloadRouter(t, dut)
+		client = start(t)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI SET Operations after after router reload.
+		isPermissionDeniedError(t, dut, "AfterRouterReload")
+
+		// Get and store the result in portNum after router reload.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting Pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting Pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting Pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting Pathz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting Authz policy.
+		isPermissionDeniedError(t, dut, "AfterPathzDelete")
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting Pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting Pathz policy")
+		}
+
+		// Perform eMSD process restart after deleting Pathz file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router_reload.
+		actv_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Actv)
+		t.Logf("Got GET Response : %s", actv_res_after_emsd_restart)
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Logf("GET Difference : %v", d)
+			t.Fatalf("Pathz Get unexpected diff after router_reload: %s", d)
+		}
+
+		// Verify gNMI SET Operations after router_reload.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum deleting Authz Backup file.
+		portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router_reload: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
+		gnmi.Update(t, dut, path.Config(), true)
+	}
+}
+
+func TestAuthzPathz_1(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
+
+		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
+		newpolicy, ok := policyMap["policy-gNMI-set"]
+		if !ok {
+			t.Fatal("policy-gNMI-set is not loaded from policy json file")
+		}
+		newpolicy.AddAllowRules("base", []string{d.sshUser}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		// Rotate the policy.
+		newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_PERMIT,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_PERMIT,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AuthzPathz")
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform eMSD process restart.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterEmsdRestart")
+
+		// Get and store the result in portNum deleting Authz Backup file.
+		portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Authz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "authz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting Authz backup policy.
+		sand_res_after_del_Authzbkup, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_del_Authzbkup, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting Authz backup policy.
+		actv_res_after_del_Authzbkup, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_del_Authzbkup, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations deleting Authz Backup file.
+		isPermissionDeniedError(t, dut, "AfterAuthzBackupDelete")
+
+		// Get and store the result in portNum deleting Authz Backup file.
+		portNum_after_del_Authzbkup := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Authzbkup == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting Authz backup policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz Backup file
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting Authz backup policy")
+		}
+
+		// Perform eMSD process restart after deleting Authz Backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		t.Logf("Got sandbox policy instance %s", sand_res_after_emsd_restart)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Logf("Pathz sandbox policy instance diff %s", d)
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterEmsdRestart")
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Authz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "authz_policy.txt")
+
+		// Perform GET operations for active policy instance after deleting authz policy.
+		sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting Authz policy.
+		isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
+
+		// Get and store the result in portNum after router reload.
+		portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting authz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting authz policy")
+		}
+
+		//Reload router after deleting Authz Policy & verify the behaviour.
+		perf.ReloadRouter(t, dut)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_reload_after_del_authz, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_reload_after_del_authz, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_reload_after_del_authz, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_reload_after_del_authz, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI SET Operations after router reload.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after router reload.
+		portNum_reload_after_del_authz := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_reload_after_del_authz == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after router reload
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
+
+		// Delete Authz backup policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "authz_policy.bak")
+
+		// Perform eMSD process restart after deleting Authz Backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		client = start(t)
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after process restart.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_process_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_process_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+	}
+}
+
+func TestAuthzPathz_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
+
+		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
+		newpolicy, ok := policyMap["policy-gNMI-set"]
+		if !ok {
+			t.Fatal("policy-gNMI-set is not loaded from policy json file")
+		}
+		newpolicy.AddAllowRules("base", []string{d.sshUser}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		// Rotate the policy.
+		newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
+
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+								Mode:      pathzpb.Mode_MODE_WRITE,
+								Action:    pathzpb.Action_ACTION_DENY,
+							}},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_DENY,
+				}},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AuthzPathz")
+
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number: %v", portNum)
+		}
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete Authz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "authz_policy.txt")
+
+		// Perform GET operations for active policy instance after deleting authz policy.
+		sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting Authz policy.
+		isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
+
+		// Get and store the result in portNum after deleting authz policy.
+		portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting authz policy")
+		}
+
+		// Perform eMSD process restart after deleting Authz Backup file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after after process restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		// Get and store the result in portNum deleting Authz Backup file.
+		portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz policy.
+		isPermissionDeniedError(t, dut, "AfterBakupPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
+		}
+
+		// Perform eMSD process restart after deleting Pathz file.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for active policy instance after process restart.
+		sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
+		t.Logf("GOT Response: %v", actv_res_after_emsd_restart)
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
+			t.Logf("GET Difference : %v", d)
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI SET Operations after proces restart.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+		// Get and store the result in portNum deleting after process restart.
+		portNum_after_router_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_router_reload == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after Router reload")
+		}
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting pathz policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
+		}
+
+		// Reload router after deleting Authz Policy & verify the behaviour.
+		perf.ReloadRouter(t, dut)
+		client = start(t)
+
+		// Perform GET operations for sandbox policy instance after router reload.
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, _ := client.Get(context.Background(), getReq_Actv)
+		t.Logf("GOT Response: %v", actv_res_after_router_reload)
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Logf("GET Difference : %v", d)
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
+
+		// Verify gNMI SET Operations after router reload.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after router reload.
+		portNum_after_router_reload = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_router_reload == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after router reload
+		gnmi.Update(t, dut, path.Config(), true)
+	}
+}
+
+func TestRpSwitchover1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	want := &pathzpb.GetResponse{
-		Version: "1",
 		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
+			Rules: []*pathzpb.AuthorizationRule{},
 		},
 	}
 
 	req := &pathzpb.RotateRequest{
 		RotateRequest: &pathzpb.RotateRequest_UploadRequest{
 			UploadRequest: &pathzpb.UploadRequest{
-				Version: "1",
 				Policy: &pathzpb.AuthorizationPolicy{
-					Rules: []*pathzpb.AuthorizationRule{{
-						Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
-						Principal: &pathzpb.AuthorizationRule_User{User: *username},
-						Mode:      pathzpb.Mode_MODE_WRITE,
-						Action:    pathzpb.Action_ACTION_PERMIT,
-					}},
+					Rules: []*pathzpb.AuthorizationRule{},
 				},
 			},
 		},
 	}
-
 	client := start(t)
 	rot, err := client.Rotate(context.Background())
 	if err != nil {
@@ -810,79 +7998,68 @@ func TestInvalidXpathFinalize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Perform GET operations for active policy instance
+	time.Sleep(5 * time.Second)
+
+	// Perform GET operations for active policy instance.
 	getReq := &pathzpb.GetRequest{
 		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 	}
 
+	// Perform GET operations for active policy instance
 	got, err := client.Get(context.Background(), getReq)
 	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		t.Fatal(err)
 	}
-	t.Logf("GET Active Response : %v", got)
 	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
 		t.Fatalf("Pathz Get unexpected diff after finalize: %s", d)
 	}
 
-	// Perfrom gNMI Operations.
-	isPermissionDeniedError(t, dut, "InvalidXpathFinalize")
+	// Perform gNMI operations
+	isPermissionDeniedError(t, dut, "InvalidWithFinalize")
 
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+	// Perform RP Switchover
+	utils.Dorpfo(context.Background(), t, true)
 
-	// Pathz GET after process restart
+	client = start(t)
 	got, err = client.Get(context.Background(), getReq)
-	t.Logf("GET Active Response after Process Restart : %v", got)
+	t.Logf("Rec Err %v", err)
+	t.Logf("got response %v", got)
+
 	if err != nil {
-		t.Fatalf("Pathz.Get request is failed after process restart: %s", dut.Name())
+		t.Fatal(err)
 	}
 
 	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz.Get request is failed after process restart: %s", d)
+		t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 	}
 
 	// Perfrom gNMI Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
+	isPermissionDeniedError(t, dut, "AfterRPSwitchover")
 }
 
-func TestProbeReqWithFinalize(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+func TestRpSwitchover_2(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		want := &pathzpb.GetResponse{
+			Version: "1",
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+			},
+		}
 
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_PERMIT,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
 		req := &pathzpb.RotateRequest{
 			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
 				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
+					Version: "1",
 					Policy: &pathzpb.AuthorizationPolicy{
 						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
+							Path:      &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "hostname"}}},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 							Mode:      pathzpb.Mode_MODE_WRITE,
 							Action:    pathzpb.Action_ACTION_PERMIT,
 						}},
@@ -890,6903 +8067,2607 @@ func TestProbeReqWithFinalize(t *testing.T) {
 				},
 			},
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		client := start(t)
+		rot, err := client.Rotate(context.Background())
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
+		t.Logf("Request Sent: %s", req)
+		if err := rot.Send(req); err != nil {
+			t.Logf("Rec Err %v", err)
+			t.Fatal(err)
+		}
 
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
+		// Perform GET operations for sandbox policy instance
+		getSandboxResponse(t, want)
 
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
+		// Finalize
+		req = &pathzpb.RotateRequest{
+			RotateRequest: &pathzpb.RotateRequest_FinalizeRotation{},
+		}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
+		t.Logf("Request Sent: %s", req)
+		if err := rot.Send(req); err != nil {
+			t.Logf("Rec Err %v", err)
+			t.Fatal(err)
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		time.Sleep(5 * time.Second)
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
+		// Perform GET operations for active policy instance
+		getReq := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		got, err := client.Get(context.Background(), getReq)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		t.Logf("GET Active Response : %v", got)
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after finalize: %s", d)
+		}
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
+		// Perfrom gNMI Operations.
+		isPermissionDeniedError(t, dut, "InvalidXpathFinalize")
 
-	// Perform gNMI operations
-	performOperations(t, dut)
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
 
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		// Pathz GET after RP Switchover
+		client = start(t)
+		got, err = client.Get(context.Background(), getReq)
+		t.Logf("GET Active Response after RP Switchover : %v", got)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed after RP Switchover: %s", dut.Name())
+		}
 
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz.Get request is failed after RP Switchover: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform gNMI operations after Process Restart.
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI Operations after Router Reload
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
+		// Perfrom gNMI Operations after RP Switchover.
+		isPermissionDeniedError(t, dut, "AfterProcessRestart")
 	}
 }
 
-func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+func TestRpSwitchover_3(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Start gRPC client
-	client := start(t)
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_PERMIT,
+		}
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule5",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule6",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule7",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule8",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule9",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule10",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule11",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule12",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule13",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule14",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
+							}},
 						},
 					},
 				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+					Mode:      pathzpb.Mode_MODE_WRITE,
+					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
 			},
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
 		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule5",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule6",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule7",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule8",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule9",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule10",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule11",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule12",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule13",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule14",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Perform gNMI operations
+		performOperations(t, dut)
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
 
-	// Configure Network Instance using gNMI.Update
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
 
-	// Configure Protcol ISIS using gNMI.Update
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		// Perform GET operations for sandbox policy instance after RP Switchover
+		client = start(t)
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+		}
 
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+		// Perform GET operations for active policy instance after RP Switchover.
+		actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+		}
 
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		// Perform gNMI operations after RP Switchover.
+		performOperations(t, dut)
 
-	// Delete ISIS overload bit using gNMI.Delete
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
 
-	// Configure ISIS overload bit using gNMI.Replace
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		// Reload router
+		perf.ReloadRouter(t, dut)
 
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+		// Perform GET operations for sandbox policy instance after router reload
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
+		// Perform GET operations for active policy instance after router reload
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+		}
 
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
+		// Verify gNMI Operations after Router Reload
+		performOperations(t, dut)
 
-	// Configure Network Instance using gNMI.Update after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure Protcol ISIS using gNMI.Update after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure ISIS overload bit using gNMI.Update after emsd process restart.
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Configure Network Instance using gNMI.Update after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure Protcol ISIS using gNMI.Update after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure ISIS overload bit using gNMI.Update after router reload.
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete ISIS overload bit using gNMI.Delete after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Configure ISIS overload bit using gNMI.Replace after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
 	}
 }
 
-func TestConflictBwExplicitKeyAnsAsterisk_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+func TestRpSwitchover_4(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
 
-	// Start gRPC client
-	client := start(t)
+		// Start gRPC client
+		client := start(t)
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule5",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule6",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule7",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule8",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule9",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule10",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule11",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule12",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule13",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule14",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule15",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule5",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule6",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule7",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "openconfig-policy-types:ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule8",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule9",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule10",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule11",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule12",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule13",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule14",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule15",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS Overwrite using gNMI.Update/Replace and Delete ISIS
-	configISIS(t, dut)
-}
-
-func TestConflictBwExplicitKeyAnsAsterisk_3(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule5",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule6",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule7",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule8",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule9",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule10",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule11",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule12",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "config"},
-										{Name: "identifier"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule13",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule14",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule5",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule6",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule7",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule8",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule9",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule10",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule11",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule12",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "config"},
-							{Name: "identifier"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule13",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule14",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure Network Instance using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
-	// Configure Protcol ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-	gnmi.Update(t, dut, config.Config(), true)
-	gnmi.Delete(t, dut, config.Config())
-	gnmi.Replace(t, dut, config.Config(), true)
-}
-
-func TestConflictBwGroupAndUser_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: "cafyauto1",
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: "cafyauto1",
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Perform Rotate request
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
 		// Perform Rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
 								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_response := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sandbox := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_response, _ := client.Get(context.Background(), getReq_Sandbox)
-	if d := cmp.Diff(get_response, sand_response, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Active := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_response, err := client.Get(context.Background(), getReq_Active)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_response, actv_response, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-}
-
-func TestConflictBwGroupAndUser_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
 								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-}
-
-func TestConflictBwGroupAndUser_3(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
 								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
+									Id: "Rule3",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "identifier"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-}
-
-func TestConflictBwGroupAndUser_4(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
 								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
+									Id: "Rule4",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-						},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-}
-
-func TestConflictBwGroupAndUser_5(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
 								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
+									Id: "Rule5",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
+								{
+									Id: "Rule6",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule3",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
+								{
+									Id: "Rule7",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
 								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule4",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
+								{
+									Id: "Rule8",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule5",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
+								{
+									Id: "Rule9",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule6",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
+								{
+									Id: "Rule10",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "identifier"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
+								{
+									Id: "Rule11",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule12",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "identifier"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule13",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule14",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
 							},
 						},
 					},
 				},
-			},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
 					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule3",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule4",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule5",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule6",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Configure ISIS Overwrite using gNMI.Update/Replace and Delete ISIS
-	configISIS(t, dut)
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update after emsd restart.
-	configISIS(t, dut)
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update after router reload
-	configISIS(t, dut)
-}
-
-func TestGnmiOriginCli(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
-		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AfterFinalize")
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
-	gnmiwithcli(t, dut, deletePath, "no hostname")
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Verify gNMI Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart ")
-	}
-
-	gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
-	gnmiwithcli(t, dut, deletePath, "no hostname")
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Verify gNMI Operations after router reload.
-	isPermissionDeniedError(t, dut, "AfterRouterReload")
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
-	gnmiwithcli(t, dut, deletePath, "no hostname")
-}
-
-func TestConflictBwUsers_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto1"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
 							},
 						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule3",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule4",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule5",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule6",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule7",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule8",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule9",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule10",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule11",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule12",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "identifier"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule13",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule14",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "*", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
 					},
 				},
 			},
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform GET operations for sandbox policy instance after RP_Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after RP_Switchover.
+		actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed RP_Switchover")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed RP_Switchover")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after router reload.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed RP_Switchover")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed RP_Switchover")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed RP_Switchover")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure Network Instance using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure Protcol ISIS using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after emsd process restart.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
 		}
 	}
+}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: "cafyauto1"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
+func TestRpSwitchover_5(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		// Start gRPC client
+		client := start(t)
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Perform Rotate request-2
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
 		// Perform Rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
 
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "config"},
-										{Name: "name"},
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: "cafyauto1",
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "name"},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
 							},
 						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: "cafyauto1",
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
 					},
 				},
 			},
 		}
 
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
 		}
-	}
 
-	get_response := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "config"},
-							{Name: "name"},
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS using gNMI.Update
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform Rotate request after RP_Switchover
+		client = start(t)
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Perform Rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "config"},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig-legacy",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "name"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
 				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "name"},
+			}
+
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_response := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
 						},
 					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "config"},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig-legacy",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "name"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sandbox := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Perform GET operations for sandbox policy instance after RP_Switchover.
+		getReq_Sandbox := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
 
-	sand_response, _ := client.Get(context.Background(), getReq_Sandbox)
-	if d := cmp.Diff(get_response, sand_response, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		sand_response, _ := client.Get(context.Background(), getReq_Sandbox)
+		if d := cmp.Diff(get_response, sand_response, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Active := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Perform GET operations for active policy instance after RP_Switchover.
+		getReq_Active := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	actv_response, err := client.Get(context.Background(), getReq_Active)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_response, actv_response, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		actv_response, err := client.Get(context.Background(), getReq_Active)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_response, actv_response, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
 
-	// Configure ISIS using gNMI.Update
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+		// Configure ISIS using gNMI.Update after RP_Switchover.
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+	}
 }
 
-func TestConflictBwUsers_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+func TestRpSwitchover_6(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
 
-	// Start gRPC client
-	client := start(t)
+		// Start gRPC client
+		client := start(t)
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "*"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "*"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
 									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
 							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "*"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover ")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform GET operations for sandbox policy instance after RP_Switchover.
+		client = start(t)
+		sand_res_after_RPFO, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RPFO, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		actv_res_after_RPFO, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RPFO, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after RP_Switchover.
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after RP_Switchover.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after RP_Switchover.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+	}
+}
+
+func TestRpSwitchover_7(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
-							},
+							}},
 						},
 					},
 				},
-			},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "*"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
-				},
+				}},
 			},
-		},
-	}
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AfterFinalize")
 
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
 
-	// Delete ISIS overload bit using gNMI.Delete
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
 
-	// Configure ISIS overload bit using gNMI.Replace
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
 
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
+		// Perform GET operations for sandbox policy instance after RP_Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
+		// Perform GET operations for active policy instance after RP_Switchover.
+		actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
 
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
+		// Verify gNMI Operations after process restart.
+		isPermissionDeniedError(t, dut, "AfterRP_Switchover")
 
-	// Configure ISIS overload bit using gNMI.Update after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart ")
-	}
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_RP_Switchover := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_RP_Switchover)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
 
-	// Delete ISIS overload bit using gNMI.Delete after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
 
-	// Configure ISIS overload bit using gNMI.Replace after emsd process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart ")
-	}
+		// Reload router
+		perf.ReloadRouter(t, dut)
 
-	// Reload router
-	perf.ReloadRouter(t, dut)
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+		}
 
-	actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
+		// Verify gNMI Operations after router reload.
+		isPermissionDeniedError(t, dut, "AfterRouterReload")
 
-	// Configure ISIS overload bit using gNMI.Update after router reload.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_reload)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
+		}
 
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	// Delete ISIS overload bit using gNMI.Delete after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	// Configure ISIS overload bit using gNMI.Replace after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
+		gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+		gnmiwithcli(t, dut, deletePath, "no hostname")
 	}
 }
 
-func TestLongestPrefixMatch_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+func TestRpSwitchover_8(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
 
-	// Start gRPC client
-	client := start(t)
+		// Start gRPC client
+		client := start(t)
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Groups: []*pathzpb.Group{{
+								Name: "pathz",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
 									},
 								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
+							}, {
+								Name: "admin",
+								Users: []*pathzpb.User{
+									{
+										Name: d.sshUser,
+									},
+								},
+							}},
+							Rules: []*pathzpb.AuthorizationRule{
+								{
+									Id: "Rule1",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+											{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+											{Name: "isis"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								},
+								{
+									Id: "Rule2",
+									Path: &gpb.Path{
+										Origin: "openconfig",
+										Elem: []*gpb.PathElem{
+											{Name: "network-instances"},
+											{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+											{Name: "protocols"},
+										},
+									},
+									Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								},
+							},
+						},
+					},
+				},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Groups: []*pathzpb.Group{{
+					Name: "pathz",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}, {
+					Name: "admin",
+					Users: []*pathzpb.User{
+						{
+							Name: d.sshUser,
+						},
+					},
+				}},
+				Rules: []*pathzpb.AuthorizationRule{
+					{
+						Id: "Rule1",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+								{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+								{Name: "isis"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					},
+					{
+						Id: "Rule2",
+						Path: &gpb.Path{
+							Origin: "openconfig",
+							Elem: []*gpb.PathElem{
+								{Name: "network-instances"},
+								{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+								{Name: "protocols"},
+							},
+						},
+						Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					},
+				},
+			},
+		}
+
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update
+		config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed")
+		}
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform GET operations for sandbox policy instance after RP_Switchover
+		client = start(t)
+		getReq_Sand = &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
+
+		sand_res, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after RP_Switchover
+		getReq_Actv = &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		actv_res, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Configure ISIS overload bit using gNMI.Update after RP_Switchover
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Delete ISIS overload bit using gNMI.Delete after RP_Switchover
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Delete(t, dut, config.Config())
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Configure ISIS overload bit using gNMI.Replace after RP_Switchover
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Replace(t, dut, config.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+	}
+}
+
+func TestRpSwitchover_9(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
+							}},
 						},
 					},
 				},
-			},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
+				}},
 			},
-		},
-	}
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Perform GET operations for sandbox policy instance
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff: %s", d)
+		}
 
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-	gnmi.Update(t, dut, config.Config(), true)
-	gnmi.Delete(t, dut, config.Config())
-	gnmi.Replace(t, dut, config.Config(), true)
+		// Perform gNMI operations
+		performOperations(t, dut)
+
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed ")
+		}
+
+		// gNMI.SET Operation using XR Model
+		stationMAC := "00:ba:ba:ba:ba:ba"
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		hostname := "XR-Native"
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Perform GET operations for sandbox policy instance after RP Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after RP_Switchover.
+		actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Verify gNMI Operations after RP_Switchover.
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_RPFO := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_RPFO)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// gNMI.SET Operation using XR Model after RP_Switchover.
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+
+		// Perform eMSD process restart
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart
+		sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Perform GET operations for active policy instance after process restart
+		actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
+		}
+
+		// Verify gNMI Operations after process restart.
+		performOperations(t, dut)
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got_after_process_restart := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got_after_process_restart)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after process restart ")
+		}
+
+		// gNMI.SET Operation using XR Model after process restart.
+		configwithprefix(t, dut, replacePath, "native", stationMAC)
+		configwithprefix(t, dut, updatePath, "native", stationMAC)
+		configwithprefix(t, dut, deletePath, "native", stationMAC)
+
+		configwithoutprefix(t, dut, updatePath, hostname)
+		configwithoutprefix(t, dut, replacePath, hostname)
+		configwithoutprefix(t, dut, deletePath, hostname)
+	}
 }
 
-func TestLongestPrefixMatch_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+func TestRpSwitchover_10(t *testing.T) {
+	for _, d := range parseBindingFile(t) {
+		dut := ondatra.DUT(t, "dut")
+		createdtime := uint64(time.Now().UnixMicro())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
-	// Start gRPC client
-	client := start(t)
+		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
+		newpolicy, ok := policyMap["policy-gNMI-set"]
+		if !ok {
+			t.Fatal("policy-gNMI-set is not loaded from policy json file")
+		}
+		newpolicy.AddAllowRules("base", []string{d.sshUser}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		// Rotate the policy.
+		newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+		// Define probe request
+		probeReq := &pathzpb.ProbeRequest{
+			Mode:           pathzpb.Mode_MODE_WRITE,
+			User:           d.sshUser,
+			Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
+
+		// Define expected response
+		want := &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_PERMIT,
+		}
+
+		// Declare probeBeforeFinalize
+		probeBeforeFinalize := false
+
+		// Start gRPC client
+		client := start(t)
+
+		// Perform Rotate request
+		rc, err := client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_User{User: *username},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
+							}},
 						},
 					},
 				},
-			},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err := client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res := &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_User{User: *username},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
+				}},
 			},
-		},
-	}
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Perform GET operations for sandbox policy instance after RP_Switchover.
+		getReq_Sand := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+		}
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		sand_res, _ := client.Get(context.Background(), getReq_Sand)
+		t.Logf("Response : %v", sand_res)
+		if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Perform GET operations for active policy instance
+		getReq_Actv := &pathzpb.GetRequest{
+			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+		}
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		actv_res, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
 
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-	gnmi.Update(t, dut, config.Config(), true)
-	gnmi.Delete(t, dut, config.Config())
-	gnmi.Replace(t, dut, config.Config(), true)
-}
+		// Perform gNMI operations
+		isPermissionDeniedError(t, dut, "AuthzPathz")
 
-func TestLongestPrefixMatch_3(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
+		// Get and store the result in portNum
+		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
 
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
+		if portNum == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after RP_Switchover: %v", portNum)
+		}
 
-	// Start gRPC client
-	client := start(t)
+		path := gnmi.OC().Lldp().Enabled()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
 
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}, {
-							Name: "admin",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-										{Name: "isis"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+		// Delete Authz policy file and verify the behaviour after RP_Switchover
+		pathz.DeletePolicyData(t, dut, "authz_policy.txt")
+
+		// Perform GET operations for active policy instance after deleting authz policy.
+		sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
+		}
+
+		// Verify gNMI SET Operations after deleting Authz policy.
+		isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
+
+		// Get and store the result in portNum after deleting authz policy.
+		portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after deleting Authz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting authz policy")
+		}
+
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
+
+		// Get standby Nsr sate information after RP Switchover.
+		pathz.GetRedundancyInfo(t, dut)
+
+		// Perform GET operations for active policy instance after RP Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+		}
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP_Switchover: %s", d)
+		}
+
+		// Verify gNMI SET Operations after RP_Switchover.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after RP_Switchover.
+		portNum_after_RP_Switchover := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_RP_Switchover == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after RP_Switchover: %v", portNum)
+		}
+
+		// Verify gNMI SET Operation for different xpath after RP_Switchover.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP_Switchover")
+		}
+
+		// Perform Rotate request 2
+		rc, err = client.Rotate(context.Background())
+		if err == nil {
+			// Define rotate request
+			req := &pathzpb.RotateRequest{
+				RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+					UploadRequest: &pathzpb.UploadRequest{
+						Version:   "1",
+						CreatedOn: createdtime,
+						Policy: &pathzpb.AuthorizationPolicy{
+							Rules: []*pathzpb.AuthorizationRule{{
+								Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+								Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 								Mode:      pathzpb.Mode_MODE_WRITE,
 								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
+							}},
 						},
 					},
 				},
-			},
+			}
+			mustSendAndRecv(t, rc, req)
+			if !probeBeforeFinalize {
+				mustFinalize(t, rc)
+			}
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
-		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}, {
-				Name: "admin",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-							{Name: "isis"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+		time.Sleep(5 * time.Second)
+
+		// Define expected response
+		want = &pathzpb.ProbeResponse{
+			Version: "1",
+			Action:  pathzpb.Action_ACTION_DENY,
+		}
+
+		// Perform Probe request
+		t.Logf("Probe Request : %v", probeReq)
+		got, err = client.Probe(context.Background(), probeReq)
+		t.Logf("Probe Response : %v", got)
+
+		if err != nil {
+			t.Fatalf("Probe() unexpected error: %v", err)
+		}
+
+		// Check for differences between expected and actual responses
+		if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+			t.Fatalf("Probe() unexpected diff: %s", d)
+		}
+
+		get_res = &pathzpb.GetResponse{
+			Version:   "1",
+			CreatedOn: createdtime,
+			Policy: &pathzpb.AuthorizationPolicy{
+				Rules: []*pathzpb.AuthorizationRule{{
+					Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+					Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
 					Mode:      pathzpb.Mode_MODE_WRITE,
 					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS overload bit using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Delete ISIS overload bit using gNMI.Delete
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Configure ISIS overload bit using gNMI.Replace
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-}
-
-func TestConflictBwGroups(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}, {
-							Name: "admin",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{
-							{
-								Id: "Rule1",
-								Path: &gpb.Path{
-									Origin: "openconfig",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_DENY,
-							},
-							{
-								Id: "Rule2",
-								Path: &gpb.Path{
-									Origin: "openconfig-legacy",
-									Elem: []*gpb.PathElem{
-										{Name: "network-instances"},
-										{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-										{Name: "protocols"},
-										{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									},
-								},
-								Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-								Mode:      pathzpb.Mode_MODE_WRITE,
-								Action:    pathzpb.Action_ACTION_PERMIT,
-							},
-						},
-					},
-				},
+				}},
 			},
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
 		}
-	}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}, {
-				Name: "admin",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{
-				{
-					Id: "Rule1",
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_DENY,
-				},
-				{
-					Id: "Rule2",
-					Path: &gpb.Path{
-						Origin: "openconfig-legacy",
-						Elem: []*gpb.PathElem{
-							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "protocols"},
-							{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-						},
-					},
-					Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-					Mode:      pathzpb.Mode_MODE_WRITE,
-					Action:    pathzpb.Action_ACTION_PERMIT,
-				},
-			},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update
-	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Delete ISIS using gNMI.Delete
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Replace ISIS using gNMI.Replace
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update after process restart
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete ISIS using gNMI.Delete after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Replace ISIS using gNMI.Replace after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Configure ISIS using gNMI.Update after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Update(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after reouter reload")
-	}
-
-	// Delete ISIS using gNMI.Delete after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Delete(t, dut, config.Config())
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	// Replace ISIS using gNMI.Replace after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_emsd_restart := gnmi.Replace(t, dut, config.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_emsd_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-}
-
-func TestPathz_txt_bak_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
+		t.Logf("Required Response : %v", get_res)
+		t.Logf("Got Response : %v", actv_res_after_pathz_del)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
 		}
-	}
 
-	// Perform Rotate request 2
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
+		// Verify gNMI SET Operations after deleting pathz policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
+		// Reload router after deleting pathz policy & verify the behaviour.
+		perf.ReloadRouter(t, dut)
 
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "Pathz_txt_bak")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete Pathz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz Backup file.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz Backup file: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz Backup file.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz Backup file: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz backup policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz Backup file.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after after deleting pathz Backup file: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz Backup file")
-	}
-
-	// Perform eMSD process restart after deleting Pathz backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy:")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	gnmi.Update(t, dut, path.Config(), true)
-}
-
-func TestCiscoNative(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		// Perform GET operations for sandbox policy instance after router reload.
+		client = start(t)
+		sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Perform GET operations for active policy instance after router reload.
+		actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
+		t.Logf("Required Response : %v", get_res)
+		t.Logf("Got Response : %v", actv_res_after_router_reload)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 		}
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	performOperations(t, dut)
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// gNMI.SET Operation using XR Model
-	stationMAC := "00:ba:ba:ba:ba:ba"
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	hostname := "XR-Native"
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-
-	// Reload router
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload
-	client = start(t)
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload
-	actv_res_after_router_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI Operations after Router Reload.
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_reload)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after reouter reload")
-	}
-
-	// gNMI.SET Operation using XR Model after router reload.
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-
-	// Perform eMSD process restart
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart
-	actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI Operations after process restart.
-	performOperations(t, dut)
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got_after_process_restart := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got_after_process_restart)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart ")
-	}
-
-	// gNMI.SET Operation using XR Model after process restart.
-	configwithprefix(t, dut, replacePath, "native", stationMAC)
-	configwithprefix(t, dut, updatePath, "native", stationMAC)
-	configwithprefix(t, dut, deletePath, "native", stationMAC)
-
-	configwithoutprefix(t, dut, updatePath, hostname)
-	configwithoutprefix(t, dut, replacePath, hostname)
-	configwithoutprefix(t, dut, deletePath, hostname)
-}
-
-func TestPathz_txt_bak_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		if d := cmp.Diff(get_res, actv_res_after_router_reload, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Verify gNMI SET Operations after router reload.
+		isPermissionDeniedError(t, dut, "AfterRouterReload")
+
+		// Get and store the result in portNum after router reload.
+		portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
 		}
-	}
 
-	// Perform Rotate request 2
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
+		// Verify gNMI SET Operation for different xpath after router reload
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after router reload")
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Delete Pathz policy file and verify the behaviour
+		pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+		// Perform GET operations for sandbox policy instance after deleting pathz policy.
+		sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "Pathz_txt_bak")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed")
-	}
-
-	// Delete Pathz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz backup policy.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz backup policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz Backup file.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz backup policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz backup policy")
-	}
-
-	get_res = &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform eMSD process restart after deleting Pathz backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	//Reload router after deleting Authz Policy & verify the behaviour.
-	perf.ReloadRouter(t, dut)
-
-	client = start(t)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff bafter router reload: %s", d)
-	}
-
-	actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after router reload.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after router reload.
-	portNum_after_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_reload == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after deleting pathz file.
-	portNum_after_pathz_del = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	client = start(t)
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", actv_res_after_reload)
-
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("gNMI Update : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-}
-
-func TestPathz_txt_bak_3(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_PERMIT,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}, {
-							Name: "admin",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
+		// Perform GET operations for active policy instance after deleting pathz policy.
+		actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+		if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
 		}
-	}
 
-	// Perform Rotate request 2
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		// Verify gNMI SET Operations after deleting pathz policy.
+		isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
+
+		// Get and store the result in portNum after deleting pathz policy.
+		portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Verify gNMI SET Operation for different xpath after deleting pathz policy.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after deleting pathz policy")
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
+		// Perform RP Switchover after deleting Pathz file
+		utils.Dorpfo(context.Background(), t, true)
 
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
+		// Get standby Nsr state information after RP Switchover.
+		pathz.GetRedundancyInfo(t, dut)
 
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Verify gNMI SET Operations.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete Pathz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Errorf("Pathz Get unexpected diff deleting pathz backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz backup policy.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff deleting pathz backup policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz backup policy.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after deleting pathz backup policy.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz backup policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz backup policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz backup policy")
-	}
-
-	get_res = &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}, {
-				Name: "admin",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform eMSD process restart after deleting Pathz backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform gNMI operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Backup Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting backup policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting backup policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting backup policy: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "bak_pathz_delete")
-
-	// Get and store the result in portNum after deleting backup pathz policy.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting backup pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting backup pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed deleting backup pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_reload == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "pathz_delete")
-
-	// Get and store the result in portNum after deleting pathz file.
-	portNum_after_pathz_del = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	t.Logf("Got GET Response : %s", actv_res_after_emsd_restart)
-
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-}
-
-func TestPathz_txt_bak_4(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}, {
-							Name: "admin",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		// Perform GET operations for sandbox policy instance after RP Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Perform GET operations for active policy instance after RP Switchover.
+		actv_res_after_RP_Switchover, err = client.Get(context.Background(), getReq_Actv)
+		t.Logf("GOT Response: %v", actv_res_after_RP_Switchover)
+		if err != nil {
+			t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 		}
-	}
-
-	// Perform Rotate request 2
-	rc, err = client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Groups: []*pathzpb.Group{{
-							Name: "pathz",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}, {
-							Name: "admin",
-							Users: []*pathzpb.User{
-								{
-									Name: *username,
-								},
-							},
-						}},
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Verify gNMI SET Operations after RP Switchover.
+		isPermissionDeniedError(t, dut, "AfterRPSwitchover")
+
+		// Get and store the result in portNum deleting after RP Switchover..
+		portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after RP Switchover.: %v", portNum)
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Groups: []*pathzpb.Group{{
-				Name: "pathz",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}, {
-				Name: "admin",
-				Users: []*pathzpb.User{
-					{
-						Name: *username,
-					},
-				},
-			}},
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations.
-	isPermissionDeniedError(t, dut, "Pathz_txt_bak")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete Pathz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz backup policy.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz backup policy.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz backup policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz backup policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz Backup file.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz Backup file: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz Backup file")
-	}
-
-	//Reload router after deleting Authz Policy & verify the behaviour.
-	perf.ReloadRouter(t, dut)
-	client = start(t)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	sand_res_after_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_reload, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_reload, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after after router reload.
-	isPermissionDeniedError(t, dut, "AfterRouterReload")
-
-	// Get and store the result in portNum after router reload.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting Pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting Pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting Authz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzDelete")
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_del_Pathzpolicy = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting Pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting Pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	// perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router_reload.
-	actv_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Actv)
-	t.Logf("Got GET Response : %s", actv_res_after_emsd_restart)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after router_reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after router_reload.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router_reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	gnmi.Update(t, dut, path.Config(), true)
-}
-
-func TestAuthzPathz_1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
-
-	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
-	newpolicy, ok := policyMap["policy-gNMI-set"]
-	if !ok {
-		t.Fatal("policy-gNMI-set is not loaded from policy json file")
-	}
-	newpolicy.AddAllowRules("base", []string{*username}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
-	// Rotate the policy.
-	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_PERMIT,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						}},
-					},
-				},
-			},
+		// Verify gNMI SET Operation for different xpath after RP Switchover.
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			got := gnmi.Update(t, dut, path.Config(), true)
+			t.Logf("gNMI Update : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+		} else {
+			t.Errorf("This gNMI Update should have failed after RP Switchover")
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Perform eMSD process restart after RP_Switchover.
+		t.Logf("Restarting emsd at %s", time.Now())
+		perf.RestartEmsd(t, dut)
+		t.Logf("Restart emsd finished at %s", time.Now())
+
+		// Perform GET operations for sandbox policy instance after process restart.
+		sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
-
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
-
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
-
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_PERMIT,
-			}},
-		},
-	}
-
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
-
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AuthzPathz")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Perform eMSD process restart.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Authz backup policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting Authz backup policy.
-	sand_res_after_del_Authzbkup, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzbkup, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting Authz backup policy.
-	actv_res_after_del_Authzbkup, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzbkup, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting Authz backup policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations deleting Authz Backup file.
-	isPermissionDeniedError(t, dut, "AfterAuthzBackupDelete")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_del_Authzbkup := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzbkup == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting Authz backup policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting Authz backup policy")
-	}
-
-	// Perform eMSD process restart after deleting Authz Backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	t.Logf("Got sandbox policy instance %s", sand_res_after_emsd_restart)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("Pathz sandbox policy instance diff %s", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	isPermissionDeniedError(t, dut, "AfterEmsdRestart")
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Authz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.json")
-
-	// Perform GET operations for active policy instance after deleting authz policy.
-	sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting Authz policy.
-	isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
-
-	// Get and store the result in portNum after router reload.
-	portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting authz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting authz policy")
-	}
-
-	//Reload router after deleting Authz Policy & verify the behaviour.
-	perf.ReloadRouter(t, dut)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	client = start(t)
-	sand_res_reload_after_del_authz, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_reload_after_del_authz, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_reload_after_del_authz, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_reload_after_del_authz, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after router reload.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after router reload.
-	portNum_reload_after_del_authz := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_reload_after_del_authz == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after router reload: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after router reload
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after router reload")
-	}
-}
-
-func TestAuthzPathz_2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	createdtime := uint64(time.Now().UnixMicro())
-
-	policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
-
-	// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
-	newpolicy, ok := policyMap["policy-gNMI-set"]
-	if !ok {
-		t.Fatal("policy-gNMI-set is not loaded from policy json file")
-	}
-	newpolicy.AddAllowRules("base", []string{*username}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
-	// Rotate the policy.
-	newpolicy.Rotate(t, dut, createdtime, "policy-gNMI-set", false)
-
-	// Define probe request
-	probeReq := &pathzpb.ProbeRequest{
-		Mode:           pathzpb.Mode_MODE_WRITE,
-		User:           *username,
-		Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
-
-	// Define expected response
-	want := &pathzpb.ProbeResponse{
-		Version: "1",
-		Action:  pathzpb.Action_ACTION_DENY,
-	}
-
-	// Declare probeBeforeFinalize
-	probeBeforeFinalize := false
-
-	// Start gRPC client
-	client := start(t)
-
-	// Perform Rotate request
-	rc, err := client.Rotate(context.Background())
-	if err == nil {
-		// Define rotate request
-		req := &pathzpb.RotateRequest{
-			RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-				UploadRequest: &pathzpb.UploadRequest{
-					Version:   "1",
-					CreatedOn: createdtime,
-					Policy: &pathzpb.AuthorizationPolicy{
-						Rules: []*pathzpb.AuthorizationRule{{
-							Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-							Principal: &pathzpb.AuthorizationRule_User{User: *username},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						}},
-					},
-				},
-			},
+		// Perform GET operations for active policy instance after process restart.
+		actv_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
 		}
-		mustSendAndRecv(t, rc, req)
-		if !probeBeforeFinalize {
-			mustFinalize(t, rc)
+
+		// Verify gNMI SET Operations after after process restart.
+		performOperations(t, dut)
+
+		// Get and store the result in portNum after process restart.
+		portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
 		}
-	}
 
-	// Perform Probe request
-	t.Logf("Probe Request : %v", probeReq)
-	got, err := client.Probe(context.Background(), probeReq)
-	t.Logf("Probe Response : %v", got)
+		// Verify gNMI SET Operation for different xpath after process restart.
+		gnmi.Update(t, dut, path.Config(), true)
 
-	if err != nil {
-		t.Fatalf("Probe() unexpected error: %v", err)
-	}
+		// Perform RP Switchover
+		utils.Dorpfo(context.Background(), t, true)
 
-	// Check for differences between expected and actual responses
-	if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-		t.Fatalf("Probe() unexpected diff: %s", d)
-	}
+		// Perform GET operations for sandbox policy instance after RP Switchover.
+		client = start(t)
+		sand_res_after_RP_Switchover, _ = client.Get(context.Background(), getReq_Sand)
+		if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+		}
 
-	get_res := &pathzpb.GetResponse{
-		Version:   "1",
-		CreatedOn: createdtime,
-		Policy: &pathzpb.AuthorizationPolicy{
-			Rules: []*pathzpb.AuthorizationRule{{
-				Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				Principal: &pathzpb.AuthorizationRule_User{User: *username},
-				Mode:      pathzpb.Mode_MODE_WRITE,
-				Action:    pathzpb.Action_ACTION_DENY,
-			}},
-		},
-	}
+		// Perform GET operations for active policy instance after RP Switchover.
+		actv_res_after_RP_Switchover, _ = client.Get(context.Background(), getReq_Actv)
+		if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+			t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+		}
 
-	// Perform GET operations for sandbox policy instance
-	getReq_Sand := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-	}
+		// Verify gNMI SET Operations after RP Switchover.
+		performOperations(t, dut)
 
-	sand_res, _ := client.Get(context.Background(), getReq_Sand)
-	t.Logf("Response : %v", sand_res)
-	if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
+		// Get and store the result in portNum after RP Switchover.
+		portNum_after_RP_Switchover = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+		if portNum_after_RP_Switchover == uint16(0) || portNum > uint16(0) {
+			t.Logf("Got the expected port number")
+		} else {
+			t.Fatalf("Unexpected value for port number after RP Switchover: %v", portNum)
+		}
 
-	// Perform GET operations for active policy instance
-	getReq_Actv := &pathzpb.GetRequest{
-		PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-	}
+		// Verify gNMI SET Operation for different xpath after RP Switchover.
+		gnmi.Update(t, dut, path.Config(), true)
 
-	actv_res, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff: %s", d)
-	}
-
-	// Perform gNMI operations
-	isPermissionDeniedError(t, dut, "AuthzPathz")
-
-	// Get and store the result in portNum
-	portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-	if portNum == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number: %v", portNum)
-	}
-
-	path := gnmi.OC().Lldp().Enabled()
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed ")
-	}
-
-	// Delete Authz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "authz_policy.json")
-
-	// Perform GET operations for active policy instance after deleting authz policy.
-	sand_res_after_del_Authzpolicy, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_del_Authzpolicy, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	actv_res_after_del_Authzpolicy, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_del_Authzpolicy, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting authz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting Authz policy.
-	isPermissionDeniedError(t, dut, "AfterAuthzPolicyDelete")
-
-	// Get and store the result in portNum after deleting authz policy.
-	portNum_after_del_Authzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Authzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting authz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting authz policy")
-	}
-
-	// Perform eMSD process restart after deleting Authz Backup file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-
-	// Perform GET operations for sandbox policy instance after process restart.
-	sand_res_after_emsd_restart, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after after process restart.
-	isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-	// Get and store the result in portNum deleting Authz Backup file.
-	portNum_after_emsd_restart := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath deleting Authz Backup file.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err := client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterBakupPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_pathz_del := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_pathz_del == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	//Reload router after deleting Authz Policy & verify the behaviour.
-	perf.ReloadRouter(t, dut)
-	client = start(t)
-
-	// Perform GET operations for sandbox policy instance after router reload.
-	sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_router_reload, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after router reload.
-	actv_res_after_router_reload, _ := client.Get(context.Background(), getReq_Actv)
-	t.Logf("GOT Response: %v", actv_res_after_router_reload)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d != "" {
-		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
-	}
-
-	// Verify gNMI SET Operations after Router reload.
-	isPermissionDeniedError(t, dut, "AfterRouterReload")
-
-	// Get and store the result in portNum deleting after process restart.
-	portNum_after_router_reload := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_router_reload == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after Router reload.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after Router reload")
-	}
-
-	// Delete Pathz policy file and verify the behaviour
-	pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-	// Perform GET operations for sandbox policy instance after deleting pathz policy.
-	sand_res_after_pathz_del, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_pathz_del, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after deleting pathz policy.
-	actv_res_after_pathz_del, err = client.Get(context.Background(), getReq_Actv)
-	if err != nil {
-		t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-	}
-	if d := cmp.Diff(get_res, actv_res_after_pathz_del, protocmp.Transform()); d != "" {
-		t.Fatalf("Pathz Get unexpected diff after deleting pathz policy: %s", d)
-	}
-
-	// Verify gNMI SET Operations after deleting pathz policy.
-	isPermissionDeniedError(t, dut, "AfterPathzPolicyDelete")
-
-	// Get and store the result in portNum after deleting pathz policy.
-	portNum_after_del_Pathzpolicy := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_del_Pathzpolicy == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after deleting pathz policy: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after deleting pathz policy.
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after deleting pathz policy")
-	}
-
-	// Perform eMSD process restart after deleting Pathz file.
-	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
-	t.Logf("Restart emsd finished at %s", time.Now())
-	// Perform GET operations for active policy instance after process restart.
-	sand_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Sand)
-	if d := cmp.Diff(get_res, sand_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Perform GET operations for active policy instance after process restart.
-	actv_res_after_emsd_restart, _ = client.Get(context.Background(), getReq_Actv)
-	t.Logf("GOT Response: %v", actv_res_after_emsd_restart)
-	if d := cmp.Diff(get_res, actv_res_after_emsd_restart, protocmp.Transform()); d == "" {
-		t.Logf("GET Difference : %v", d)
-		t.Fatalf("Pathz Get unexpected diff after process restart: %s", d)
-	}
-
-	// Verify gNMI SET Operations after process restart.
-	performOperations(t, dut)
-
-	// Get and store the result in portNum after process restart.
-	portNum_after_emsd_restart = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-	if portNum_after_emsd_restart == uint16(0) || portNum > uint16(0) {
-		t.Logf("Got the expected port number")
-	} else {
-		t.Fatalf("Unexpected value for port number after process restart: %v", portNum)
-	}
-
-	// Verify gNMI SET Operation for different xpath after process restart
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		got := gnmi.Update(t, dut, path.Config(), true)
-		t.Logf("gNMI Update : %v", got)
-	}); errMsg != nil {
-		t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-	} else {
-		t.Errorf("This gNMI Update should have failed after process restart")
 	}
 }
 
@@ -7824,6 +10705,58 @@ func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, want
 		t.Fatalf("grpc.Dial failed to: %q", dialer.DialTarget)
 	}
 	return conn
+}
+
+func parseBindingFile(t *testing.T) []targetInfo {
+	t.Helper()
+
+	bindingFile := flag.Lookup("binding").Value.String()
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		t.Fatalf("unable to read binding file")
+	}
+
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(in, b); err != nil {
+		t.Fatalf("unable to parse binding file")
+	}
+
+	targets := []targetInfo{}
+	for _, dut := range b.Duts {
+
+		sshUser := dut.Ssh.Username
+		if sshUser == "" {
+			sshUser = dut.Options.Username
+		}
+		if sshUser == "" {
+			sshUser = b.Options.Username
+		}
+
+		sshPass := dut.Ssh.Password
+		if sshPass == "" {
+			sshPass = dut.Options.Password
+		}
+		if sshPass == "" {
+			sshPass = b.Options.Password
+		}
+
+		sshTarget := strings.Split(dut.Ssh.Target, ":")
+		sshIp := sshTarget[0]
+		sshPort := "22"
+		if len(sshTarget) > 1 {
+			sshPort = sshTarget[1]
+		}
+
+		targets = append(targets, targetInfo{
+			dut:     dut.Id,
+			sshIp:   sshIp,
+			sshPort: sshPort,
+			sshUser: sshUser,
+			sshPass: sshPass,
+		})
+	}
+
+	return targets
 }
 
 func start(t *testing.T) pathzpb.PathzClient {
