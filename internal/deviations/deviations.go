@@ -926,3 +926,8 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
 }
+
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
+}
