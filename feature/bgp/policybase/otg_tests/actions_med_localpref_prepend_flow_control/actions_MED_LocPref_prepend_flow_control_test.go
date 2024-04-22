@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actions_MED_LocPref_prepend_flow_control_test
+package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -71,6 +69,7 @@ const (
 	setNxtPolicy                = "flow-control-policy"
 	matchStatement2             = "match-statement-2"
 	chkLocPref                  = true
+	asnRepeatN                  = 10
 )
 
 var (
@@ -161,7 +160,6 @@ func createNewBgpSession(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	for _, nb := range nbs {
-		//routerID := nb.localIP
 		peerV4 := nb.peerIP[0]
 		peerV6 := nb.peerIP[1]
 		peerGrpNameV4 := nb.peerGrpName[0]
@@ -264,7 +262,10 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 			t.Fatal(err)
 		}
 		actions2 := stmt2.GetOrCreateActions()
-		actions2.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
+		// actions2.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
+		asPrepend := actions2.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
+		asPrepend.Asn = ygot.Uint32(ASN)
+		asPrepend.RepeatN = ygot.Uint8(asnRepeatN)
 		actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	default:
 		rp = nil
@@ -422,24 +423,18 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut1Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	// eBGP v4 and v6 sessions on port2
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
 	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
 	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	// iBGP V4 routes from Port1 and set MED, Local Preference.
@@ -449,8 +444,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv4Net1).SetPrefix(advertisedRoutesv4PrefixLen)
-	bgpNeti1Bgp4PeerRoutes.Advanced().SetMultiExitDiscriminator(50)
-	bgpNeti1Bgp4PeerRoutes.Advanced().SetLocalPreference(50)
+	bgpNeti1Bgp4PeerRoutes.Advanced().SetIncludeMultiExitDiscriminator(true).SetMultiExitDiscriminator(50)
+	bgpNeti1Bgp4PeerRoutes.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(50)
 
 	// iBGP V6 routes from Port1 and set MED, Local Preference.
 	bgpNeti1Bgp6PeerRoutes := iDut1Bgp6Peer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
@@ -459,8 +454,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv6Net1).SetPrefix(advertisedRoutesv6PrefixLen)
-	bgpNeti1Bgp6PeerRoutes.Advanced().SetMultiExitDiscriminator(50)
-	bgpNeti1Bgp6PeerRoutes.Advanced().SetLocalPreference(50)
+	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeMultiExitDiscriminator(true).SetMultiExitDiscriminator(50)
+	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(50)
 
 	// eBGP V4 routes from Port2 and set MED, Local Preference.
 	bgpNeti2Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route")
@@ -469,8 +464,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv4Net2).SetPrefix(advertisedRoutesv4PrefixLen)
-	bgpNeti2Bgp4PeerRoutes.Advanced().SetMultiExitDiscriminator(50)
-	bgpNeti2Bgp4PeerRoutes.Advanced().SetLocalPreference(50)
+	bgpNeti2Bgp4PeerRoutes.Advanced().SetIncludeMultiExitDiscriminator(true).SetMultiExitDiscriminator(50)
+	bgpNeti2Bgp4PeerRoutes.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(50)
 
 	// eBGP V6 routes from Port2 and set MED, Local Preference.
 	bgpNeti2Bgp6PeerRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route")
@@ -479,8 +474,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv6Net2).SetPrefix(advertisedRoutesv6PrefixLen)
-	bgpNeti2Bgp6PeerRoutes.Advanced().SetMultiExitDiscriminator(50)
-	bgpNeti2Bgp6PeerRoutes.Advanced().SetLocalPreference(50)
+	bgpNeti2Bgp6PeerRoutes.Advanced().SetIncludeMultiExitDiscriminator(true).SetMultiExitDiscriminator(50)
+	bgpNeti2Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(50)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
@@ -489,48 +484,49 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 }
 
 // validateOTGBgpPrefixV4AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
-func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32, chkLocalPref, chkNoRoute bool) {
-	t.Helper()
+func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
+	// t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
-		time.Minute,
+		30*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			_, present := v.Val()
 			return present
 		}).Await(t)
 	var foundPrefix = false
-
 	if ok {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State())
+		bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Verify path attributes for the prefix %v", bgpPrefix.GetAddress())
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
 				switch pathAttr {
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					if chkLocalPref {
-						if bgpPrefix.GetLocalPreference() != metric {
-							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
-						}
-					}
+					validateImportRoutingPolicy(t, dut, ipAddr, metric)
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
-						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
 					}
 				case setNxtPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
-					if !strings.Contains(peerName, atePort2.Name) {
-						if bgpPrefix.GetLocalPreference() != metric {
-							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
-						}
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != asnRepeatN+1 {
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), asnRepeatN+1)
 					}
 				default:
 					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
@@ -549,47 +545,49 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config 
 }
 
 // validateOTGBgpPrefixV6AndASLocalPrefMED verifies that the IPv6 prefix is received on OTG.
-func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32, chkLocalPref, chkNoRoute bool) {
-	t.Helper()
+func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
+	// t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State(),
-		time.Minute,
+		30*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
 			_, present := v.Val()
 			return present
 		}).Await(t)
 	var foundPrefix = false
 	if ok {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State())
+		bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Verify path attributes for the prefix %v", bgpPrefix.GetAddress())
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
 				switch pathAttr {
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					if chkLocalPref {
-						if bgpPrefix.GetLocalPreference() != metric {
-							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
-						}
-					}
+					validateImportRoutingPolicyV6(t, dut, ipAddr, metric)
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
-						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
 					}
 				case setNxtPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
-					if !strings.Contains(peerName, atePort2.Name) {
-						if bgpPrefix.GetLocalPreference() != metric {
-							t.Errorf("For Prefix %v, got Local Preference %d want Local Preference %d", bgpPrefix.GetAddress(), bgpPrefix.GetLocalPreference(), metric)
-						}
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != asnRepeatN+1 {
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
+					} else {
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), asnRepeatN+1)
 					}
 				default:
 					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
@@ -806,7 +804,7 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		metricValue:     11,
+		metricValue:     asnRepeatN + 1,
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
@@ -886,7 +884,7 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		metricValue:     70,
+		metricValue:     asnRepeatN + 1,
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
@@ -903,18 +901,19 @@ func TestBGPPolicy(t *testing.T) {
 				}
 			}
 
-			// Configure Routing Policy on the DUT.
-			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
-			// Configure BGP default import export policy on Port1
-			configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
-			// Configure BGP default import export policy on Port1
-			configureBGPDefaultImportExportPolicy(t, dut, atePort2.IPv4, atePort2.IPv6, tc.defPolicyPort2)
-			// Configure BGP import export policy
-			configureBGPImportExportPolicy(t, dut, tc.polNbrv4, tc.polNbrv6, tc.rpPolicy)
 			// Delete BGP import export policy
 			if tc.isDeletePolicy {
 				deleteBGPImportExportPolicy(t, dut, tc.deleteNbrv4, tc.deleteNbrv6)
 			}
+			// Configure Routing Policy on the DUT.
+			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
+			// Configure BGP default import export policy on Port1
+			configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
+			// Configure BGP default import export policy on Port2
+			configureBGPDefaultImportExportPolicy(t, dut, atePort2.IPv4, atePort2.IPv6, tc.defPolicyPort2)
+			// Configure BGP import export policy
+			configureBGPImportExportPolicy(t, dut, tc.polNbrv4, tc.polNbrv6, tc.rpPolicy)
+
 			// Verify BGP policy
 			verifyBgpPolicyTelemetry(t, dut, atePort1.IPv4, tc.defPolicyPort1, tc.policyTypePort1, true)
 			verifyBgpPolicyTelemetry(t, dut, atePort1.IPv6, tc.defPolicyPort1, tc.policyTypePort1, false)
@@ -932,15 +931,70 @@ func TestBGPPolicy(t *testing.T) {
 				eBGPMetric = uint32(0)
 			}
 
-			// Validate Prefixes.
+			/*// Validate Prefixes.
 			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, otgConfig, atePort1.Name+".BGP4.peer", tc.port1v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, tc.metricValue, chkLocPref, chkNoRoutePresence)
 			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, otgConfig, atePort1.Name+".BGP6.peer", tc.port1v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue, chkLocPref, chkNoRoutePresence)
 			// The LOCAL_PREF attribute must not be advertised within an update between eBGP peers. If this is done, the eBGP peer must ignore it.
 			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, otgConfig, atePort2.Name+".BGP4.peer", tc.port2v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, eBGPMetric, !chkLocPref, chkNoRoutePresence)
 			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, otgConfig, atePort2.Name+".BGP6.peer", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, eBGPMetric, !chkLocPref, chkNoRoutePresence)
 
-			// Delete referenced import-export policy in bgp before applying next policy.
+			
+		})*/
+
+			// Validate Prefixes
+			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, atePort1.Name+".BGP4.peer", tc.port1v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, atePort1.Name+".BGP6.peer", tc.port1v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, atePort2.Name+".BGP4.peer", tc.port2v4Prefix, advertisedRoutesv4PrefixLen, tc.rpPolicy, tc.metricValue)
+			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, atePort2.Name+".BGP6.peer", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
+      // Delete referenced import-export policy in bgp before applying next policy.
 			deleteBGPImportExportPolicy(t, dut, tc.polNbrv4, tc.polNbrv6)
 		})
+	}
+}
+
+func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
+	found := false
+	for k, lr := range locRib.Route {
+		prefixAddr := strings.Split(lr.GetPrefix(), "/")
+		if prefixAddr[0] == prefix {
+			found = true
+			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
+			attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+			if attrSet == nil || attrSet.GetLocalPref() != metricValue {
+				t.Errorf("No local pref found for prefix %s", prefix)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("No Route found for prefix %s", prefix)
+	}
+}
+
+func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
+	found := false
+	for k, lr := range locRib.Route {
+		prefixAddr := strings.Split(lr.GetPrefix(), "/")
+		if prefixAddr[0] == prefix {
+			found = true
+			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
+			attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+			if attrSet == nil || attrSet.GetLocalPref() != metricValue {
+				t.Errorf("No local pref found for prefix %s", prefix)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("No Route found for prefix %s", prefix)
+
 	}
 }

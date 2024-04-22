@@ -461,12 +461,31 @@ message Metadata {
     // Device missing telemetry for static route that has DROP next hop.
     // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
     bool missing_static_route_drop_next_hop_telemetry = 162;
-    // Device missing 400ZR optical-channel tunable parameters telemetry.
-    // Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+    // Device missing 400ZR optical-channel tunable parameters telemetry:
+    // min/max/avg.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
     bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 164;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 165;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 166;  
+    // Support for bgp extended community index
+    bool bgp_extended_community_index_unsupported = 167;
+    // Support for bgp community set refs
+    bool bgp_community_set_refs_unsupported = 168;
+    // Arista device needs CLI knob to enable WECMP feature
+    bool rib_wecmp = 169;
+    // Device not supporting table-connection need to set this true
+    bool table_connections_unsupported = 170;
+    // Configure tag-set using vendor native model
+    bool use_vendor_native_tag_set_config = 171;
+    // Skip setting send-community-type in bgp global config
+    bool skip_bgp_send_community_type = 172;
     // Devices which do not support next statement in OC Config.
     // Juniper : b/328280827
-    bool policy_result_type_next_statement_unsupported = 164;
+    bool policy_result_type_next_statement_unsupported = 173;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
@@ -492,5 +511,9 @@ message Metadata {
   // The `tags` used to identify the area(s) testcase applies to. An empty tag
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
+
+  // Whether this test only checks paths for presence rather than semantic
+  // checks.
+  bool path_presence_test = 7;
 }
 
