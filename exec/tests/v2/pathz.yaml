@@ -3,6 +3,7 @@ owners:
   - khrasool
 testbeds:
   - 8800-FOC2330PAZK
+  - 8201-FOC2448P0MP
 tests:
 - name: Pathz
   path: feature/security/gnsi/pathz/cisco/tests
