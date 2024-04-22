@@ -389,10 +389,17 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 
 	// Configure source port on ATE : Port1.
 
-	// ip := a.ip(0)
-	// gateway := a.gateway(0)
-
 	top.Ports().Add().SetName(p.ID())
+	if a.numSubIntf == 0 {
+		ip := a.ip(0)
+		gateway := a.gateway(0)
+		dev := top.Devices().Add().SetName(a.Name)
+		eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
+		eth.Connection().SetPortName(p.ID())
+		ipObj := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
+		ipObj.SetAddress(ip).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
+		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(ip, int(a.IPv4Len)), gateway)
+	}
 	// Configure destination port on ATE : Port2.
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		name := fmt.Sprintf(`dst%d`, i)
