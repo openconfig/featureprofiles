@@ -59,13 +59,11 @@ func TestMain(m *testing.M) {
 
 type setOperation int
 type targetInfo struct {
-	dut      string
-	gnmiIp   string
-	gnmiUser string
-	sshIp    string
-	sshPort  string
-	sshUser  string
-	sshPass  string
+	dut     string
+	sshIp   string
+	sshPort string
+	sshUser string
+	sshPass string
 }
 
 const (
