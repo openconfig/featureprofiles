@@ -588,6 +588,8 @@ func main() {
 
 			if len(testbeds) > 0 {
 				suite[i].Tests[j].Testbeds = testbeds
+				suite[i].Tests[j].TestbedsInclude = []string{}
+				suite[i].Tests[j].TestbedsExclude = []string{}
 			}
 
 			if len(outDir) > 0 {
