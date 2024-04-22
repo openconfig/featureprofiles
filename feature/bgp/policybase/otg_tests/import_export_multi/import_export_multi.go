@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
 package import_export_test
 
 import (
@@ -100,6 +101,7 @@ var communityMembers = [][][]int{
 	},
 }
 
+// Test triggers from TestMain
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -495,6 +497,7 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	}
 }
 
+// verifies RT-7.11
 func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
