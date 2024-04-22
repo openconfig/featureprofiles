@@ -81,7 +81,7 @@ func TestEncapFrr(t *testing.T) {
 		c.BecomeLeader(t)
 
 		// Flush all existing AFT entries on the router
-		c.FlushAll(t)
+		defer c.FlushAll(t)
 
 		tcArgs := &testArgs{
 			client: &c,
@@ -515,7 +515,7 @@ func TestTransitFrr(t *testing.T) {
 		c.BecomeLeader(t)
 
 		// Flush all existing AFT entries on the router
-		c.FlushAll(t)
+		defer c.FlushAll(t)
 
 		tcArgs := &testArgs{
 			client: &c,

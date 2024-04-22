@@ -241,7 +241,7 @@ func TestRegionalization(t *testing.T) {
 	client.BecomeLeader(t)
 
 	// Flush all existing AFT entries on the router
-	client.FlushAll(t)
+	defer client.FlushAll(t)
 
 	args := &testArgs{
 		client: &client,

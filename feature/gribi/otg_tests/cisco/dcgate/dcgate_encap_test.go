@@ -39,7 +39,7 @@ func TestBasicEncap(t *testing.T) {
 	c.BecomeLeader(t)
 
 	// Flush all existing AFT entries on the router
-	c.FlushAll(t)
+	defer c.FlushAll(t)
 
 	programEntries(t, dut, &c)
 
