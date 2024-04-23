@@ -81,7 +81,6 @@ In the topology above,
 *   Start 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to
     2001:db8:64:64::/64
 
-*   Ensure that the total traffic of all flows combined is ~20Gbps
 
 ### Verification
 
@@ -125,7 +124,6 @@ In the topology above,
 *   Restart 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to
     2001:db8:64:64::/64
 
-*   Ensure that the total traffic of all flows combined is ~20Gbps
 
 ### Verification
 
