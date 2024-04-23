@@ -12,10 +12,11 @@ def _find_owner(filename):
 
 _session_locked_files = []
 def _lockfile(filename):
+    if filename in _session_locked_files:
+        return True
     try:
-        if not filename in _session_locked_files:
-            os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
-            _session_locked_files.append(filename)
+        os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
+        _session_locked_files.append(filename)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False

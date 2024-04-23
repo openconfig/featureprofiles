@@ -7,11 +7,16 @@ import (
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	ft "github.com/openconfig/featureprofiles/tools/inputcisco/feature"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
 
 func TestBGPState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
@@ -22,15 +27,13 @@ func TestBGPState(t *testing.T) {
 	}
 	t.Log("Remove Flowspec Config")
 	configToChange := "no flowspec \n"
-	ctx := context.Background()
-	util.GNMIWithText(ctx, t, dut, configToChange)
+	util.GNMIWithText(context.Background(), t, dut, configToChange)
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
 	inputObj.StartAteProtocols(ate)
 	time.Sleep(30 * time.Second)
 	for _, bgp := range inputObj.Device(dut).Features().Bgp {
 		for _, neighbor := range bgp.Neighbors {
-
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/description", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Description()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -332,9 +335,6 @@ func TestBGPState(t *testing.T) {
 					t.Errorf("BGP Neighbor Queues Output: got %v, want  %v", val, oc.Bgp_Neighbor_SessionState_ACTIVE)
 				}
 			})
-
 		}
-
 	}
-
 }
