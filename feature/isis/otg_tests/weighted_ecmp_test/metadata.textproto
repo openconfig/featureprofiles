@@ -19,5 +19,6 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
     route_policy_under_afi_unsupported: true
     static_protocol_name: "STATIC"
+    rib_wecmp: true
   }
 }
