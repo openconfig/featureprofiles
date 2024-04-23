@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 
-	"github.com/golang/protobuf/proto"
 	cpb "github.com/openconfig/attestz/proto/common_definitions"
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	cert "github.com/openconfig/featureprofiles/internal/cisco/security/cert"
@@ -179,13 +178,12 @@ func getIakCert(conn grpc.ClientConnInterface, inputType string) (*enrollzpb.Get
 		}
 	}
 
-	// log.V(1).Info("GetIakCertRequest:\n", proto.MarshalTextString(request))
 	client := enrollzpb.NewTpmEnrollzServiceClient(conn)
 	resp, err := client.GetIakCert(context.Background(), request)
 	if err != nil {
 		return nil, err
 	}
-	log.Infof(proto.MarshalTextString(resp))
+	log.Infof("%v", resp)
 	return resp, nil
 }
 
@@ -217,14 +215,12 @@ func rotateOIAKCert(conn grpc.ClientConnInterface, inputType string, oIAKCert st
 		}
 	}
 
-	// log.V(1).Info("GetIakCertRequest:\n", proto.MarshalTextString(request))
 	client := enrollzpb.NewTpmEnrollzServiceClient(conn)
 	resp, err := client.RotateOIakCert(context.Background(), request)
 	if err != nil {
 		return nil, err
 	}
-	log.Infof(proto.MarshalTextString(resp))
-	log.V(1).Info("Roate OIAK cert success:\n", proto.MarshalTextString(resp))
+	log.Infof("%v", resp)
 	return resp, nil
 }
 
