@@ -1291,9 +1291,7 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	configureATEPort1(t, top)
 	configureATESubIfs(t, top, ap2, dut)
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
