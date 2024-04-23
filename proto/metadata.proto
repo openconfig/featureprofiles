@@ -475,15 +475,26 @@ message Metadata {
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
     bool bgp_community_set_refs_unsupported = 168;
+    // Arista device needs CLI knob to enable WECMP feature
+    bool rib_wecmp = 169;
+    // Device not supporting table-connection need to set this true
+    bool table_connections_unsupported = 170;
+    // Configure tag-set using vendor native model
+    bool use_vendor_native_tag_set_config = 171;
+    // Skip setting send-community-type in bgp global config
+    bool skip_bgp_send_community_type = 172;
+    // Device does not have a default deny action in the absence of a route policy
+    bool default_import_export_policy = 173;
+    // Support for bgp actions set-community method
+    bool bgp_actions_set_community_method_unsupported = 174;
     // support for ipv4 to ipv6 next hop
-    bool ipv4_static_route_with_ipv6_nh_unsupported = 169;
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 175;
     // support for ipv6 to ipv4 next hop
-    bool ipv6_static_route_with_ipv4_nh_unsupported = 170;
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 176;
     // support for static route with drop nh
-    bool static_route_with_drop_nh = 171;
+    bool static_route_with_drop_nh = 177;
     // support for static route with drop nh
-    bool static_route_with_explicit_metric = 172;
-
+    bool static_route_with_explicit_metric = 178;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
@@ -509,5 +520,9 @@ message Metadata {
   // The `tags` used to identify the area(s) testcase applies to. An empty tag
   // is the default implying it applies to all areas.
   repeated Tags tags = 6;
+
+  // Whether this test only checks paths for presence rather than semantic
+  // checks.
+  bool path_presence_test = 7;
 }
 
