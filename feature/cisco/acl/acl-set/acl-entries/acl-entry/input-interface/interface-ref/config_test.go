@@ -61,7 +61,7 @@ func TestInterface(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Interface != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/interface: got %v, want %v", configGot, input)
 					}
@@ -112,7 +112,7 @@ func TestSubinterface(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Subinterface != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface/interface-ref/config/subinterface: got %v, want %v", configGot, input)
 					}

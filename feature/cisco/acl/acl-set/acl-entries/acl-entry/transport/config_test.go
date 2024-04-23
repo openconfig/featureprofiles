@@ -58,7 +58,7 @@ func TestSourcePort(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.SourcePort != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port: got %v, want %v", configGot, input)
 					}
@@ -109,7 +109,7 @@ func TestDestinationPort(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.DestinationPort != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port: got %v, want %v", configGot, input)
 					}
@@ -163,7 +163,7 @@ func TestTcpFlags(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					for i, cg := range configGot.ExplicitTcpFlags {
 						if cg != input[i] {
 							t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/tcp-flags: got %v, want %v", cg, input[i])

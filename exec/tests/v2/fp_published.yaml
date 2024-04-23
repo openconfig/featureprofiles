@@ -4,6 +4,7 @@ owners:
 priority: 1
 testbeds:
   - 8808_FOX2506P2QT
+  - 8808_FOX2506P5XE
   - 8201-32FH_FLM254206E7
 
 tests:
@@ -47,7 +48,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    internal: false
+    internal: true
+    pr: 1113
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -78,6 +80,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    internal: true
+    pr: 1113      
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -87,7 +91,6 @@ tests:
     path: feature/experimental/gribi/otg_tests/route_removal_during_failover_test/
     mustpass: true
     priority: 3
-    # need pr/branch
   - name: TE-13.1 (gRIBI route Add during Failover)
     path: feature/experimental/gribi/otg_tests/route_addition_during_failover_test/
     mustpass: true
@@ -99,7 +102,6 @@ tests:
     skip: false
     mustpass: true
     priority: 3
-    pr: 2314
   - name: TE-6.1 (Route Removal via Flush)
     path: feature/gribi/otg_tests/route_removal_via_flush_test
     owners:
@@ -126,7 +128,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2314
+    internal: true
+    pr: 1113  
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -140,13 +143,21 @@ tests:
       - wdolaast
     mustpass: true
     priority: 3
+  - name: TE-11.4 (Gribi Programming with reload)
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
+    owners:
+      - mananpat
+    mustpass: true
+    priority: 3
+    timeout: 7200
+    pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/experimental/gribi/otg_tests/dut_daemon_failure
     owners:
       - mananpat
     mustpass: true
     priority: 8
-    post:
+    post_tests:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
   - name: TE-11.1 (Backup NHG Single NH)
@@ -163,7 +174,6 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    pr: 2314
   - name: gNOI-4.1 (Software Upgrade)
     path: feature/gnoi/os/tests/osinstall
     owners:
@@ -185,7 +195,7 @@ tests:
     path: feature/experimental/p4rt/otg_tests/base_p4rt
     owners:
       - sprem
-    priority: 5
+    priority: 65
     mustpass: true
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -195,8 +205,7 @@ tests:
       - sprem
     priority: 5
     mustpass: true
-    pr: 2298
-    post:
+    post_tests:
       - name: gribi_flush
         path: topologies/cisco/pretests/gribi_flush_test
   - name: P4RT-2.1 (P4RT Election)
@@ -284,6 +293,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+    pr: 2805
   - name: RT-5.2 (Aggregate Interfaces)
     path: feature/interface/aggregate/otg_tests/aggregate_test
     owners:
@@ -296,14 +306,12 @@ tests:
       - sprem
     mustpass: true
     priority: 30
-    pr: 2314
   - name: RT-3.1 (Policy based VRF selection)
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/base_vrf_selection
     owners:
       - sprem
     mustpass: true
     priority: 30
-    pr: 2314
   - name: RT-5.1 (Singleton Interface)
     path: feature/interface/singleton/otg_tests/singleton_test
     timeout: 7200
@@ -311,6 +319,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 31
+    pr: 2805
   - name: gNMI-1.14 (Telemetry Optics Thresholds)
     path: feature/experimental/platform/tests/optics_thresholds_test
     owners:
@@ -318,7 +327,7 @@ tests:
     mustpass: true
     priority: 32
   - name: gNMI-1.5 (Telemetry Port Speed Test)
-    path: feature/gnmi/ate_tests/telemetry_port_speed_test
+    path: feature/gnmi/otg_tests/telemetry_port_speed_test
     owners:
       - agvarghe
     mustpass: true
@@ -331,7 +340,8 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 34
+    priority: 65
+    pr: 2805
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
@@ -340,6 +350,7 @@ tests:
       - agvarghe
     priority: 35
     mustpass: true
+    pr: 2805
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -347,6 +358,7 @@ tests:
     mustpass: false
     priority: 37
     skip: false
+    timeout: 4200
   - name: gNMI-1.8 (Configuration Metadata-only Retrieve and Replace)
     path: feature/system/gnmi/metadata/tests/annotation_test
     owners:
@@ -399,22 +411,25 @@ tests:
       - agvarghe
     mustpass: true
     priority: 46
+    pr: 2605
   - name: RT-1.1 (Base BGP Session Parameters)
-    path: feature/experimental/bgp/ate_tests/base_bgp_session_parameters
+    path: feature/experimental/bgp/otg_tests/base_bgp_session_parameters
     owners:
       - arvbaska
     mustpass: true
     priority: 47
     skip: false
   - name: RT-2.2 (IS-IS LSP Updates)
-    path: feature/experimental/isis/ate_tests/lsp_updates_test
+    path: feature/experimental/isis/otg_tests/lsp_updates_test
     owners:
       - mananpat
     mustpass: true
     priority: 48
-    skip: false
+    skip: false 
+    internal: true
+    pr: 1112
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
-    path: feature/experimental/isis/ate_tests/base_adjacencies_test
+    path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
       - mananpat
     mustpass: true
@@ -425,8 +440,11 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 51
-    skip: true # requires 2 dut
+    priority: 192
+    pr: 1119
+    internal: true
+    testbeds:
+      - 2DUT-TB2
   - name: RT-1.3 (BGP Route Propagation)
     path: feature/bgp/addpath/otg_tests/route_propagation_test
     owners:
@@ -435,7 +453,7 @@ tests:
     priority: 52
     skip: false
   - name: RT-1.5 (BGP Prefix Limit)
-    path: feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test
+    path: feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test
     owners:
       - sprem
     mustpass: true
@@ -453,8 +471,9 @@ tests:
     owners:
       - sprem
     mustpass: true
-    priority: 55
-    skip: true # requires 2 dut
+    priority: 191
+    testbeds:
+      - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
     path: feature/bgp/policybase/otg_tests/route_installation_test
     owners:
@@ -471,7 +490,7 @@ tests:
     priority: 52
     timeout: 4200
   - name: RT-1.12 (BGP always compare MED)
-    path: feature/experimental/bgp/ate_tests/bgp_always_compare_med
+    path: feature/experimental/bgp/otg_tests/bgp_always_compare_med
     owners:
       - sprem
     mustpass: true
@@ -502,8 +521,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    internal: false
-    priority: 80
+    priority: 65
     timeout: 7200
     args:
       - '-arg_temp_sensor_name_pattern="^[0-9]/RP[0-9]/CPU[0-9].*TEMP.*"'
@@ -516,7 +534,7 @@ tests:
       - arvbaska
     mustpass: true
     skip: false
-    priority: 7
+    priority: 65
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -526,7 +544,7 @@ tests:
       - arvbaska
     mustpass: true
     skip: false
-    priority: 55
+    priority: 65
     timeout: 7200
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
@@ -537,11 +555,11 @@ tests:
     skip: false
     mustpass: true
     timeout: 7200
-    priority: 4
+    priority: 65
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: TE-1.1 (Static ARP)
-    path: feature/interface/staticarp/ate_tests/static_arp_test
+    path: feature/interface/staticarp/otg_tests/static_arp_test
     owners:
       - mbagherz
     mustpass: true
@@ -551,19 +569,19 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    priority: 801
+    priority: 61
   - name: DP-1.2 (QoS policy feature config)
     path: feature/qos/tests/qos_policy_config_test
     owners:
       - saarvind
     mustpass: true
-    priority: 802
+    priority: 62
   - name: DP-1.3 (QoS ECN feature config)
     path: feature/qos/tests/qos_ecn_config_test
     owners:
       - saarvind
     mustpass: true
-    priority: 802
+    priority: 63
   - name: DP-1.10 (QoS policy feature config)
     path: feature/qos/otg_tests/mixed_sp_wrr_traffic_test
     owners:
@@ -607,6 +625,8 @@ tests:
     owners:
       - saarvind
     mustpass: true
+    timeout: 4200
+    pr: 2864
   - name: RT-5.4 (Aggregate Forwarding Viable)
     path: feature/interface/aggregate/otg_tests/aggregate_forwarding_viable_test
     owners:
@@ -622,13 +642,14 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    pr: 2202
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
       - wdolaast
-    mustpass: false
-    skip: true # requires 2 dut
+    mustpass: true
+    priority: 190
+    testbeds:
+      - 2DUT-TB2
   - name: gNOI-6.1 (Factory Reset)
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
@@ -642,7 +663,21 @@ tests:
       - mananpat
     mustpass: true
     timeout: 2400
-    pr: 2345
+    priority: 65
+    pr: 2552
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
+  - name: AUTHZFP (Authz Functional Tests with spiffe id)
+    path: feature/security/gnsi/authz/tests/authz
+    args:
+      - '-test_infra_id="cafyauto"'
+    mustpass: true
+    timeout: 21000
+    priority: 65
+    owners:
+      - harikri4
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
     
   #?
   - name: Health-1.1 (Generic Health Check)
@@ -705,3 +740,64 @@ tests:
     owners:
       - mananpat
     mustpass: false
+  - name: RT-1.26 (Basic static route support)
+    path: feature/staticroute/otg_tests/basic_static_route_support_test
+    owners:
+      - mananpat
+    mustpass: false
+  - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
+    path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
+    owners:
+      - arvbaska
+    mustpass: true
+  - name: TE-16.1 (DCGate - basic encap test)
+    path: feature/gribi/otg_tests/basic_encap_test
+    owners:
+      - arvbaska
+    mustpass: true
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7
+    priority: 65
+    internal: true
+    pr: 1107  
+  - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
+    path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
+    owners:
+      - arvbaska
+    timeout: 3600  
+    mustpass: true
+    internal: true
+    pr: 1103  
+  - name: TE-16.2 (DCGate - encap FRR test)
+    path: feature/gribi/otg_tests/encap_frr
+    owners:
+      - arvbaska
+    timeout: 3600    
+    mustpass: true
+    internal: true
+    pr: 1105  
+  - name: TE-14.2 (DCGate - encap and decap scale)
+    path: feature/gribi/encap_decap_scale
+    owners:
+      - arvbaska
+    mustpass: false  
+  - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
+    path: feature/gribi/otg_tests/backup_ngp_multiple_nh_pbf_test
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 3
+    internal: false
+  - name: TE-11.31 (DCGate - Backup NHG Actions with PBF)
+    path: feature/experimental/gribi/otg_tests/backup_nhg_action_pbf
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 3
+  - name: TE-3.31 (DCGate - Hierarchical weight resolution with PBF)
+    path: feature/gribi/ate_tests/hierarchical_weight_resolution_pbf_test
+    owners:
+      - arvbaska
+    skip: false
+    mustpass: true
+    priority: 3

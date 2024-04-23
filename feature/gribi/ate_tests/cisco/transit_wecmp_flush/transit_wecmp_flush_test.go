@@ -74,6 +74,10 @@ func testCD2RecursiveNonConnectedNHOP(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 	// 192.0.2.42/32  Next-Site
 	weights := map[uint64]uint64{41: 40}
+
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.129.1.2/32 null 0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.129.1.2/32 null 0")
 	args.c1.AddNH(t, 41, "100.129.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks) // Not connected
 	args.c1.AddNHG(t, 100, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -362,7 +366,7 @@ func testReplaceDefaultIPv4EntrySinglePath(t *testing.T, args *testArgs) {
 	args.c1.FlushServer(t)
 
 	weights := map[uint64]uint64{3: 15}
-	args.c1.AddNH(t, 3, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNH(t, 3, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 11, 0, weights, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "11.11.11.11/32", 11, *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
@@ -459,8 +463,8 @@ func testTwoPrefixesWithSameSetOfPrimaryAndBackup(t *testing.T, args *testArgs) 
 	args.topology.StartProtocols(t)
 	defer args.topology.StopProtocols(t)
 
-	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[1])
-	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[2])
+	dscp16Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP16", 1, 16, "12.11.11.12", sortedAtePorts[2])
+	dscp10Flow := getDSCPFlow(t, portMaps, args.ate, "DSCP10", 1, 10, "12.11.11.11", sortedAtePorts[1])
 
 	checkTrafficFlows(t, args.ate, 60, dscp16Flow, dscp10Flow)
 }
@@ -507,11 +511,13 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 		32: 20,
 		33: 30,
 	}
+	ciscoFlags.GRIBIChecks.AFTCheck = false
 	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, *ciscoFlags.NonDefaultNetworkInstance, "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 40, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	ciscoFlags.GRIBIChecks.AFTCheck = true
 
 	// 192.0.2.42/32  Next-Site
 	weights2 := map[uint64]uint64{
@@ -542,7 +548,7 @@ func testNHInterfaceInDifferentVRF(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
-	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 
 	performATEAction(t, "ate", int(*ciscoFlags.GRIBIScale), true)
 }
@@ -559,6 +565,10 @@ func testNHIPOutOfInterfaceSubnet(t *testing.T, args *testArgs) {
 		32: 30,
 		33: 30,
 	}
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.2.2/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.2.2/32 Bundle-Ether121")
+
 	args.c1.AddNH(t, 31, "100.121.2.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
@@ -646,6 +656,10 @@ func testChangeNHToUnreachableAndChangeBack(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Set InCorrect related NH
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 1.2.3.4/32 null 0")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 1.2.3.4/32 null 0")
+
 	args.c1.AddNH(t, 31, "1.2.3.4", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 
 	// Correct the related NH and verify traffic
@@ -760,13 +774,30 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	args.c1.AddNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
+	weights1 = map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
+	}
+	weights2 = map[uint64]uint64{
+		41: 15,
+		42: 25,
+		43: 35,
+		44: 45,
+	}
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	//Replace all entries
 	// 192.0.2.40/32  Self-Site
 	args.c1.ReplaceNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
+	// ciscoFlags.GRIBIChecks.AFTCheck = true
 	args.c1.ReplaceNHG(t, 40, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceIPv4(t, "192.0.2.40/32", 40, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	// ciscoFlags.GRIBIChecks.AFTCheck = false
 
 	// 192.0.2.42/32  Next-Site
 	args.c1.ReplaceNH(t, 41, "100.124.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether124", false, ciscoFlags.GRIBIChecks)
@@ -807,14 +838,30 @@ func testAddReplaceDeleteWithRelatedInterfaceFLap(t *testing.T, args *testArgs) 
 	//Flap interfaces
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, false)
+		util.SetInterfaceState(t, args.dut, interfaceName, false, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 	time.Sleep(30 * time.Second)
 	for _, interfaceName := range interfaceNames {
-		util.SetInterfaceState(t, args.dut, interfaceName, true)
+		util.SetInterfaceState(t, args.dut, interfaceName, true, oc.IETFInterfaces_InterfaceType_ieee8023adLag)
 	}
 
 	// 192.0.2.40/32  Self-Site
+	time.Sleep(30 * time.Second)
+	weights1 = map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
+	}
+	weights2 = map[uint64]uint64{
+		41: 15,
+		42: 25,
+		43: 35,
+		44: 45,
+	}
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
@@ -1019,8 +1066,7 @@ func testReplaceVRFIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 func testReplaceDefaultIPv4EntryECMPPath(t *testing.T, args *testArgs) {
 
 	// Removing policy for the tc
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config())
-	defer gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Config())
 
 	args.c1.BecomeLeader(t)
 	args.c1.FlushServer(t)
@@ -1173,8 +1219,8 @@ func testIsisBgpControlPlaneInteractionWithGribi(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//Generate flows over ISIS and BGP sessions.
-	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 16)
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 16)
+	isisFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "transit_wecmp_isis_1", "transit_wecmp_isis_2", "isis", 0)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 	scaleFlow := getScaleFlow(t, args.topology.Interfaces(), args.ate, "IPinIPWithScale", int(*ciscoFlags.GRIBIScale))
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.90, isisFlow, bgpFlow, scaleFlow)
@@ -1218,7 +1264,7 @@ func testBgpProtocolOverGribiTransitEntry(t *testing.T, args *testArgs) {
 
 	//Configure BGP on TGN
 	//Generate DSCP48 flow
-	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 48)
+	bgpFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "bgp_network_2", "bgp", 0)
 
 	// Configure ATE and Verify traffic
 	performATEActionForMultipleFlows(t, "ate", true, 0.99, bgpFlow)
@@ -1270,6 +1316,21 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 	args.c1.AddNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
+	weights1 = map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
+	}
+	weights2 = map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
+	}
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	args.c1.ReplaceNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1307,6 +1368,21 @@ func testAddReplaceDeleteWithSamePrefixWithVaryingPrefixLength(t *testing.T, arg
 	args.c1.DeleteNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
 
 	// Add back all entries
+	weights1 = map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
+	}
+	weights2 = map[uint64]uint64{
+		41: 10,
+		42: 20,
+		43: 30,
+		44: 40,
+	}
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
@@ -1433,6 +1509,13 @@ func testSetISISOverloadBit(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Configure ISIS overload bit
+	gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{
+		Name: ygot.String("DEFAULT"),
+	})
+	gnmi.Update(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+		Name:       ygot.String("B4"),
+	})
 	config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
 	gnmi.Update(t, args.dut, config.Config(), true)
 	defer gnmi.Delete(t, args.dut, config.Config())
@@ -1580,14 +1663,14 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 		10: 100,
 	}
 	prefixes1 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes1 = append(prefixes1, util.GetIPPrefix("101.1.1.1", i, "32"))
 	}
 	weights4 := map[uint64]uint64{
 		20: 100,
 	}
 	prefixes2 := []string{}
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < 10; i++ {
 		prefixes2 = append(prefixes2, util.GetIPPrefix("102.1.1.1", i, "32"))
 	}
 
@@ -1601,10 +1684,10 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 
 	//Outer header TTL decrements by 1, DSCP stays same over gRIBI forwarding entry.
 	//flow with dscp=48, ttl=100
-	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "transit_wecmp_isis_2", "dscpTtlFlow", 16, 100)
+	dscpTTLFlow := util.GetBoundedFlow(t, args.ate, args.topology, sortedAtePorts[0], sortedAtePorts[1], "network101", "network102", "dscpTtlFlow", 48, 100)
 	//add acl with dscp=48, ttl=99. Transit traffic will have ttl decremented by 1
 	aclName := "ttl_dscp"
-	aclConfig := util.GetIpv4Acl(aclName, 10, 16, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
+	aclConfig := util.GetIpv4Acl(aclName, 10, 48, 99, oc.Acl_FORWARDING_ACTION_ACCEPT)
 	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 
 	//delete acl
@@ -1612,6 +1695,13 @@ func testDataPlaneFieldsOverGribiTransitFwdingEntry(t *testing.T, args *testArgs
 	//apply egress acl on all interfaces of interest
 	interfaceNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
 	for _, interfaceName := range interfaceNames {
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).Config(), &oc.Acl_Interface{
+			Id: ygot.String(interfaceName),
+		})
+		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_EgressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(interfaceName).EgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
 	}
 
@@ -1697,6 +1787,10 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	args.c1.ReplaceNHG(t, 100, 0, weights2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	args.c1.ReplaceNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNH(t, 20, "192.0.2.42", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.c1.ReplaceNHG(t, 1, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
@@ -1726,14 +1820,14 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Change interface configurations and revert back
 	interfaceNames := []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
 	//Store current config
-	originalInterfaces := util.GetCopyOfIpv4SubInterfaces(t, args.dut, interfaceNames, 0)
+	originalInterfaces := util.GetCopyOfIpv4Interfaces(t, args.dut, interfaceNames, 0)
 	//Change IP addresses for the interfaces in the slice
 	initialIP := "123.123.123.123"
 	counter := 1
 	for _, interfaceName := range interfaceNames {
 		ipPrefix := util.GetIPPrefix(initialIP, counter, "24")
 		initialIP = strings.Split(ipPrefix, "/")[0]
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), util.GetSubInterface(initialIP, 24, 0))
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), util.GetInterface(interfaceName, initialIP, 24, 0))
 		t.Logf("Changed configuration of interface %s", interfaceName)
 		counter = counter + 256
 
@@ -1741,12 +1835,27 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	//Revert original config
 	for _, interfaceName := range interfaceNames {
 		osi := originalInterfaces[interfaceName]
-		osi.Index = ygot.Uint32(0)
-		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Subinterface(0).Config(), osi)
+		// osi.Index = ygot.Uint32(0)
+		gnmi.Replace(t, args.dut, gnmi.OC().Interface(interfaceName).Config(), osi)
 		t.Logf("Restored configuration of interface %s", interfaceName)
 	}
 	//Config change end
-
+	time.Sleep(30 * time.Second)
+	weights1 = map[uint64]uint64{
+		31: 10,
+		32: 20,
+		33: 30,
+	}
+	weights2 = map[uint64]uint64{
+		41: 40,
+		42: 30,
+		43: 20,
+		44: 10,
+	}
+	weights3 = map[uint64]uint64{
+		10: 85,
+		20: 15,
+	}
 	args.c1.AddNH(t, 31, "100.121.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 32, "100.122.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether122", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 33, "100.123.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether123", false, ciscoFlags.GRIBIChecks)
@@ -1757,7 +1866,7 @@ func testAddReplaceDeleteWithRelatedConfigChange(t *testing.T, args *testArgs) {
 	args.c1.AddNH(t, 42, "100.125.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether125", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 43, "100.126.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether126", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNH(t, 44, "100.127.1.2", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether127", false, ciscoFlags.GRIBIChecks)
-	args.c1.AddNHG(t, 100, 0, weights3, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.c1.AddNHG(t, 100, 0, weights2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
 	args.c1.AddNH(t, 10, "192.0.2.40", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
@@ -1778,7 +1887,11 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	weights1 := map[uint64]uint64{
 		41: 40,
 	}
-	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+
+	args.c1.AddNH(t, 41, "100.121.1.9", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1795,7 +1908,7 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	t.Log("going to program Static ARP different from Ixia ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
@@ -1819,11 +1932,11 @@ func testCD2StaticMacChangeNHOP(t *testing.T, args *testArgs) {
 		t.Log("There is no traffic loss.")
 	}
 	t.Log("going to change Static ARP ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
 
 	time.Sleep(10 * time.Second)
 
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.9  0000.0012.0011 arpa")
 
 	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
@@ -1971,7 +2084,11 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	weights1 := map[uint64]uint64{
 		41: 40,
 	}
-	args.c1.AddNH(t, 41, "100.121.1.3", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
+	// adding static route since nh is not connected
+	config.TextWithGNMI(args.ctx, t, args.dut, "router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no router static address-family ipv4 unicast 100.121.1.9/32 Bundle-Ether121")
+
+	args.c1.AddNH(t, 41, "100.121.1.9", *ciscoFlags.DefaultNetworkInstance, "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
 	args.c1.AddNHG(t, 100, 0, weights1, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	args.c1.AddIPv4(t, "192.0.2.42/32", 100, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 
@@ -1988,8 +2105,8 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	t.Log("going to program Static ARP different from Ixia ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.3  0000.0012.0011 arpa")
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.3  0000.0012.0011 arpa")
+	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.9  0000.0012.0011 arpa")
+	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.9  0000.0012.0011 arpa")
 	time.Sleep(10 * time.Second)
 
 	if *ciscoFlags.GRIBITrafficCheck {
@@ -2003,7 +2120,18 @@ func testCD2StaticMacNHOP(t *testing.T, args *testArgs) {
 func TestTransitWECMPFlush(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	var vrfs = []string{vrf1, vrf2}
+	configVRF(t, dut, vrfs)
+	configureDUT(t, dut)
+	configbasePBR(t, dut, "TE", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
+	configbasePBR(t, dut, "TE", 2, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{16})
+	configbasePBR(t, dut, "VRF1", 3, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{18})
+	configbasePBR(t, dut, "TE", 4, oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{48})
+	configRP(t, dut)
+	addISISOC(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121"})
+	addBGPOC(t, dut, []string{"100.120.1.2", "100.121.1.2"})
 	// convertFlowspecToPBR(ctx, t, dut)
+
 	ate := ondatra.ATE(t, "ate")
 	test := []struct {
 		name string
@@ -2132,11 +2260,6 @@ func TestTransitWECMPFlush(t *testing.T) {
 			fn:   testReplaceVRFIPv4EntryECMPPath,
 		},
 		{
-			name: "ReplaceDefaultIPv4EntryECMPPath",
-			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
-			fn:   testReplaceDefaultIPv4EntryECMPPath,
-		},
-		{
 			name: "ReplaceSinglePathtoECMP",
 			desc: "Transit-52 ADD/REPLACE change NH from single path to ECMP",
 			fn:   testReplaceSinglePathtoECMP,
@@ -2205,6 +2328,11 @@ func TestTransitWECMPFlush(t *testing.T) {
 			name: "CD2StaticMacNHOP",
 			desc: "Static Arp Resolution",
 			fn:   testCD2StaticMacNHOP,
+		},
+		{
+			name: "ReplaceDefaultIPv4EntryECMPPath",
+			desc: "Transit-36 REPLACE: default VRF IPv4 Entry with ECMP path NHG+NH in default vrf",
+			fn:   testReplaceDefaultIPv4EntryECMPPath,
 		},
 	}
 	for _, tt := range test {

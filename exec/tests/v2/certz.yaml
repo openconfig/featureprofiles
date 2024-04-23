@@ -1,0 +1,12 @@
+name: security_gnsi_certz
+owners: 
+  - anidamod
+testbeds:
+  - 8608-FOX2543PNNM
+tests:
+- name: cerz_test
+  path: feature/security/gnsi/certz/cisco/tests
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master

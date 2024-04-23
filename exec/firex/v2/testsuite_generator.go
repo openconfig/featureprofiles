@@ -37,8 +37,8 @@ type GoTest struct {
 	MustPass        bool
 	HasDeviations   bool
 	Internal        bool
-	Pretests        []GoTest
-	Posttests       []GoTest
+	PreTests        []GoTest `yaml:"pre_tests"`
+	PostTests       []GoTest `yaml:"post_tests"`
 	Groups          []string
 }
 
@@ -54,8 +54,8 @@ type FirexTest struct {
 	Skip      bool
 	Internal  bool
 	Testbeds  []string
-	Pretests  []GoTest
-	Posttests []GoTest
+	PreTests  []GoTest `yaml:"pre_tests"`
+	PostTests []GoTest `yaml:"post_tests"`
 	Tests     []GoTest
 	Groups    []string
 }
@@ -186,9 +186,9 @@ var (
     {{- end }}
     supported_platforms:
         - "8000"
-    {{- if gt (len $.Test.Pretests) 0 }}
+    {{- if gt (len $.Test.PreTests) 0 }}
     fp_pre_tests:
-        {{- range $j, $pt := $.Test.Pretests}}
+        {{- range $j, $pt := $.Test.PreTests}}
         - {{ $pt.Name }}:
             test_path: {{ $pt.Path }}
             {{- if $pt.Args }}
@@ -222,9 +222,9 @@ var (
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
             {{- end }}
             smart_sanity_exclude: True
-    {{- if gt (len $.Test.Posttests) 0 }}
+    {{- if gt (len $.Test.PostTests) 0 }}
     fp_post_tests:
-        {{- range $j, $pt := $.Test.Posttests}}
+        {{- range $j, $pt := $.Test.PostTests}}
         - {{ $pt.Name }}:
             test_path: {{ $pt.Path }}
             {{- if $pt.Args }}
@@ -478,12 +478,12 @@ func main() {
 				suite[i].Tests[j].Groups = suite[i].Groups
 			}
 
-			if len(suite[i].Tests[j].Pretests) == 0 {
-				suite[i].Tests[j].Pretests = append(suite[i].Tests[j].Pretests, suite[i].Pretests...)
+			if len(suite[i].Tests[j].PreTests) == 0 {
+				suite[i].Tests[j].PreTests = append(suite[i].Tests[j].PreTests, suite[i].PreTests...)
 			}
 
-			if len(suite[i].Tests[j].Posttests) == 0 {
-				suite[i].Tests[j].Posttests = append(suite[i].Tests[j].Posttests, suite[i].Posttests...)
+			if len(suite[i].Tests[j].PostTests) == 0 {
+				suite[i].Tests[j].PostTests = append(suite[i].Tests[j].PostTests, suite[i].PostTests...)
 			}
 		}
 	}
@@ -588,6 +588,8 @@ func main() {
 
 			if len(testbeds) > 0 {
 				suite[i].Tests[j].Testbeds = testbeds
+				suite[i].Tests[j].TestbedsInclude = []string{}
+				suite[i].Tests[j].TestbedsExclude = []string{}
 			}
 
 			if len(outDir) > 0 {

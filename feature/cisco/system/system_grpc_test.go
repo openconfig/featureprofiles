@@ -235,7 +235,7 @@ func TestGrpcListenAddress(t *testing.T) {
 		t.Run("Subscribe listen address on System Config container level", func(t *testing.T) {
 			path := gnmi.OC().System()
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
-			systemGet := gnmi.GetConfig(t, dut, path.Config())
+			systemGet := gnmi.Get(t, dut, path.Config())
 			got := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
@@ -260,7 +260,7 @@ func TestGrpcListenAddress(t *testing.T) {
 		t.Run("Subscribe listen address on GrpcServer Config container level", func(t *testing.T) {
 			path := gnmi.OC().System().GrpcServer("DEFAULT")
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
-			systemGet := gnmi.GetConfig(t, dut, path.Config())
+			systemGet := gnmi.Get(t, dut, path.Config())
 			got := systemGet.GetListenAddresses()[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
@@ -288,7 +288,7 @@ func TestGrpcListenAddress(t *testing.T) {
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			if tc.want == "ANY" {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					got := gnmi.GetConfig(t, dut, path.Config())[0]
+					got := gnmi.Get(t, dut, path.Config())[0]
 					t.Logf("Get Config : %v", got)
 				}); errMsg != nil {
 					t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
@@ -296,7 +296,7 @@ func TestGrpcListenAddress(t *testing.T) {
 					t.Errorf("This Get-Config should have failed ")
 				}
 			} else {
-				got := gnmi.GetConfig(t, dut, path.Config())[0]
+				got := gnmi.Get(t, dut, path.Config())[0]
 				if got != serveranyobj.ListenAddresses[0] {
 					t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 				}

@@ -16,11 +16,14 @@ Configure an IPv6 address which is in link local scope. Verify the link local IP
   * Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic
   
 * Subtest #3 - Verify adding and removing global unicast address does not affect link local address
-  * Add configuration for a global unicast address on DUT port 1 
+  * Add configuration for a global unicast address on DUT port 1 and DUT port 2
   * Validate config and state paths are set
+  * Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 receives the traffic
   * Remove configuration for the global unitcast address on DUT port 1
   * Validate that DUT port 1 link local address is still configured
   * Send IPv6 traffic from OTG port 1 to DUT port 1, validate DUT port 1 receives the traffic
+  * Send IPv6 traffic from OTG port 1 to OTG port 2, validate OTG port 2 does not receive the traffic
+
 
 * Subtest #4 - Verify enable/disable of DUT port 1 does not affect link local address
   * Disable/enable the port and see if the configured link-local address stays?

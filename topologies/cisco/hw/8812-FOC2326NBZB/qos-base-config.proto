@@ -13,7 +13,7 @@ replace: {
 " secret 10 $6$jH8/Y1YG.t2ECY1.$B6tTs01Eqv2JnpkJSfGHgVBEiAwWFpcCbr3DpncJ6dK1ArYLJQ87zowsPFldlXRB5jssVl3eikMy6Hv2VU3w6.\n"
 "!\n"
 "grpc\n"
-" port 57777\n"
+" port 57735\n"
 "telemetry model-driven\n"
 " sensor-group test\n"
 "  sensor-path openconfig-network-instance:network-instances/network-instance/afts\n"

@@ -2465,15 +2465,16 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 	time.Sleep(60 * time.Second)
 
 }
-func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
-	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
-	time.Sleep(60 * time.Second)
+// func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-}
+// 	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
+// 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
+// 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+// 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
+// 	time.Sleep(60 * time.Second)
+
+// }
 
 func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
@@ -2717,11 +2718,12 @@ func TestBackUp(t *testing.T) {
 			desc: "Inject relevent faults for Add IPV4 ",
 			fn:   testFaultInjectAddIPv4,
 		},
-		{
-			name: "FaultInjectDeleteIPv4",
-			desc: "Inject relevent faults for Delete IPv4",
-			fn:   testFaultInjectDeleteIPv4,
-		},
+		// Decommissioning the TC due to CSCwe05268
+		// {
+		// 	name: "FaultInjectDeleteIPv4",
+		// 	desc: "Inject relevent faults for Delete IPv4",
+		// 	fn:   testFaultInjectDeleteIPv4,
+		// },
 		{
 			name: "FaultInjectUpdateNHG",
 			desc: "Inject relevent faults for Update NHG pointing to the old NH ",

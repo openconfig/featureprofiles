@@ -9,6 +9,10 @@ import os
 GO_BIN = 'go'
 TESTBEDS_FILE = 'exec/testbeds.yaml'
 
+MTLS_DEFAULT_TRUST_BUNDLE_FILE = 'internal/cisco/security/cert/keys/CA/ca.cert.pem'
+MTLS_DEFAULT_CERT_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.cert.pem'
+MTLS_DEFAULT_KEY_FILE = 'internal/cisco/security/cert/keys/clients/cafyauto.key.pem'
+
 def check_output(cmd, **kwargs):
     kwargs['shell'] = True
     kwargs['text'] = True
@@ -102,6 +106,15 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
+def _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file):
+    tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
+    key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
+    cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ate_binding_file}")
+    check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ate_binding_file}")
+    
 def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
 
@@ -159,20 +172,21 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding
             f'-out {otg_binding_file}'
             
         check_output(cmd, cwd=fp_repo_dir)        
-        check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {otg_binding_file}")
+        _replace_binding_placeholders(fp_repo_dir, baseconf_file, otg_binding_file)
 
 def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
-    
+    _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file)
+        
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)
     
 def _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["baseconf"]), baseconf_file)
 
-def _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
+def _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file):
     setup_script = f"""
+export TESTBED_ID={testbed_id}
 export BASECONF={baseconf_file}
 export TESTBED={testbed_file}
 export ATE_BINDING={ate_binding_file}
@@ -188,9 +202,14 @@ start_parser = command_parser.add_parser("start", help="start OTG container")
 start_parser.add_argument('testbed', help="testbed id")
 stop_parser = command_parser.add_parser("stop", help="stop OTG container")
 stop_parser.add_argument('testbed', help="testbed id")
+restart_parser = command_parser.add_parser("restart", help="restart OTG container")
+restart_parser.add_argument('testbed', help="testbed id")
 bindings_parser = command_parser.add_parser("bindings", help="generate Ondatra bindings")
 bindings_parser.add_argument('testbed', help="testbed id")
 bindings_parser.add_argument('--out_dir', default='', help="output directory")
+logs_parser = command_parser.add_parser("logs", help="collect OTG container logs")
+logs_parser.add_argument('testbed', help="testbed id")
+logs_parser.add_argument('out_dir', help="output directory")
 args = parser.parse_args()
 
 testbed_id = args.testbed
@@ -200,7 +219,7 @@ fp_repo_dir = os.getenv('FP_REPO_DIR', os.getcwd())
 reserved_testbed = _get_testbed_by_id(fp_repo_dir, testbed_id)
 pname = reserved_testbed['id'].lower()
 
-if command == "bindings":
+if command in ["bindings", "logs"]:
     if args.out_dir:
         out_dir = _resolve_path_if_needed(os.getcwd(), args.out_dir)
     else:
@@ -208,35 +227,43 @@ if command == "bindings":
 
     os.makedirs(out_dir, exist_ok=True)
     
-    otg_binding_file = os.path.join(out_dir, 'otg.binding')
-    ate_binding_file = os.path.join(out_dir, 'ate.binding')
-    testbed_file = os.path.join(out_dir, 'dut.testbed')
-    baseconf_file = os.path.join(out_dir, 'dut.baseconf')
-    setup_file = os.path.join(out_dir, 'setup.sh')
-    
-    _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file)
-    _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
-    _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
-    _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
-    _write_setup_script(testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
-    print('You can run the following command to setup your enviroment:')
-    print(f'source {setup_file}')
-    
-elif command == "stop":
+    if command == "bindings":
+        otg_binding_file = os.path.join(out_dir, 'otg.binding')
+        ate_binding_file = os.path.join(out_dir, 'ate.binding')
+        testbed_file = os.path.join(out_dir, 'dut.testbed')
+        baseconf_file = os.path.join(out_dir, 'dut.baseconf')
+        setup_file = os.path.join(out_dir, 'setup.sh')
+        
+        _write_baseconf_file(fp_repo_dir, reserved_testbed, baseconf_file)
+        _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file)
+        _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_file, ate_binding_file)
+        _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file)
+        _write_setup_script(testbed_id, testbed_file, ate_binding_file, otg_binding_file, baseconf_file, setup_file)
+        print('You can run the following command to setup your enviroment:')
+        print(f'source {setup_file}')
+        
+    if command == "logs":
+        kne_host = reserved_testbed['otg']['host']
+        check_output(
+            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /auto/tftpboot-ottawa/b4/bin/otg_log_collector {pname} {out_dir}'
+        )
+ 
+with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
     kne_host = reserved_testbed['otg']['host']
+    docker_compose_file_path = f.name
+    docker_compose_file_name = os.path.basename(docker_compose_file_path)
+    _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
     check_output(
-        f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} down'
+        f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
     )
 
-elif command == "start":
-    with tempfile.NamedTemporaryFile(prefix='otg-docker-compose-', suffix='.yml') as f:
+    if command in ["stop", "restart"]:
         kne_host = reserved_testbed['otg']['host']
-        docker_compose_file_path = f.name
-        docker_compose_file_name = os.path.basename(docker_compose_file_path)
-        _write_otg_docker_compose_file(docker_compose_file_path, reserved_testbed)
         check_output(
-            f'scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {docker_compose_file_path} {kne_host}:/tmp/{docker_compose_file_name}'
+            f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} down'
         )
+
+    if command in ["start", "restart"]:
         check_output(
             f'ssh -q -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {kne_host} /usr/local/bin/docker-compose -p {pname} --file /tmp/{docker_compose_file_name} up -d --force-recreate'
         )

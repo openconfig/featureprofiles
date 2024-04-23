@@ -5,36 +5,45 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	pbrName        = "PBR"
-	PbrNameSrc     = "Pbr-SrcIp"
-	PbrNameSrc2    = "Pbr-SrcIp-two"
-	PbrNameDscp    = "Pbr-SrcIp-Dscp"
-	SeqID          = 1
-	SeqID2         = 2
-	SeqID3         = 3
-	IxiaSrcip      = "198.51.100.0"
-	IxiaSrcip2     = "198.61.100.0"
-	Dscpval        = 10
-	SourceAddress  = "198.51.100.0/32"
-	SourceAddress2 = "198.61.100.0/32"
-	protocolNum    = 4
-	protocolNumv6  = 41
+	pbrName               = "PBR"
+	PbrNameSrc            = "Pbr-SrcIp"
+	PbrNameSrc2           = "Pbr-SrcIp-two"
+	PbrNameDscp           = "Pbr-SrcIp-Dscp"
+	SeqID                 = 1
+	SeqID2                = 2
+	SeqID3                = 3
+	IxiaSrcip             = "198.51.100.0"
+	IxiaSrcip2            = "198.61.100.0"
+	Dscpval               = 10
+	SourceAddress         = "198.51.100.0/32"
+	SourceAddress2        = "198.61.100.0/32"
+	protocolNum           = 4
+	protocolNumv6         = 41
+	rebootDelay           = 120
+	oneSecondInNanoSecond = 1e9
 )
 
 var weights = []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r1.SequenceId = ygot.Uint32(1)
 	r1.Ipv4 = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Ipv4{
@@ -71,10 +80,14 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice) {
 	policy := oc.NetworkInstance_PolicyForwarding{}
 	policy.Policy = map[string]*oc.NetworkInstance_PolicyForwarding_Policy{pbrName: &p}
 
+	intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
+	intfRef.SetInterface("Bundle-Ether120")
+	intfRef.SetSubinterface(0)
 	policy.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
-		"Bundle-Ether120": {
-			InterfaceId:             ygot.String("Bundle-Ether120"),
+		"Bundle-Ether120.0": {
+			InterfaceId:             ygot.String("Bundle-Ether120.0"),
 			ApplyVrfSelectionPolicy: ygot.String(pbrName),
+			InterfaceRef:            intfRef,
 		},
 	}
 
@@ -101,6 +114,7 @@ func configNewPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, ds
 }
 
 func configSrcIp(t *testing.T, dut *ondatra.DUTDevice, policyName string, srcAddr string) {
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	seq_id := uint32(SeqID)
 	r1.SequenceId = &seq_id
@@ -272,25 +286,81 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 }
 
 func configPBRunderInterface(t *testing.T, args *testArgs, interfaceName, policyName string) {
-	gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config(), policyName)
+	// gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").ApplyVrfSelectionPolicy().Config(), policyName)
+	t.Log("configPBRunderInterface")
+	dut := ondatra.DUT(t, "dut")
+	pfPath := gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName + ".0")
+	pfCfg := getPolicyForwardingInterfaceConfig(t, policyName, interfaceName)
+	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
+
 }
 
 func unconfigPBRunderInterface(t *testing.T, args *testArgs, interfaceName string) {
-	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+	t.Log("unconfigPBRunderInterface")
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+".0").Config())
+}
+
+func reloadDevice(t *testing.T, dut *ondatra.DUTDevice) {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	startReboot := time.Now()
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
 // Remove flowspec and add as pbr
 func convertFlowspecToPBR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+
 	t.Log("Remove Flowspec Config and add HW Module Config")
 	configToChange := "no flowspec \nhw-module profile pbr vrf-redirect\n"
 	util.GNMIWithText(ctx, t, dut, configToChange)
 
+	t.Log("Reload the router to activate hw module config")
+	reloadDevice(t, dut)
+	time.Sleep(2 * time.Minute)
+	startGribiClient(t)
+
 	t.Log("Configure PBR policy and Apply it under interface")
 	configBasePBR(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface("Bundle-Ether120").ApplyVrfSelectionPolicy().Config(), pbrName)
+	getPolicyForwardingInterfaceConfig(t, pbrName, "Bundle-Ether120")
+}
 
-	t.Log("Reload the router to activate hw module config")
-	util.ReloadDUT(t, dut)
+func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *oc.NetworkInstance_PolicyForwarding_Interface {
+
+	t.Logf("Applying forwarding policy on interface %v ... ", intf)
+	d := &oc.Root{}
+	pfCfg := d.GetOrCreateNetworkInstance(*ciscoFlags.PbrInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + ".0")
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	return pfCfg
 
 }
 
@@ -300,6 +370,8 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 
 	physicalInterface := sortPorts(args.dut.Ports())[0].Name()
 	physicalInterfaceConfig := gnmi.OC().Interface(physicalInterface)
+	configToChange := "interface " + physicalInterface + "\nno shutdown\nno bundle id 120 mode on\n"
+	util.GNMIWithText(ctx, t, args.dut, configToChange)
 
 	// Configure the physcial interface
 	config := generatePhysicalInterfaceConfig(t, physicalInterface, "192.192.192.1", 24)
@@ -310,10 +382,12 @@ func movePhysicalToBundle(ctx context.Context, t *testing.T, args *testArgs, sam
 	if !samePolicy {
 		policyName = "new-PBR"
 		configNewPolicy(t, args.dut, policyName, 0)
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(policyName).Config())
 	}
 	configPBRunderInterface(t, args, physicalInterface, policyName)
-	configPBRunderInterface(t, args, args.interfaces.in[0], pbrName)
+	configPBRunderInterface(t, args, args.interfaces.in[0], policyName)
+
+	gnmi.Delete(t, args.dut, gnmi.OC().Interface(physicalInterface).Subinterface(0).Ipv4().Config())
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(physicalInterface+".0").Config())
 
 	// Remove the interface from physical to bundle interface
 	memberConfig := generateBundleMemberInterfaceConfig(t, physicalInterface, args.interfaces.in[0])
@@ -810,7 +884,8 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	t.Run("Delete apply-vrf-selection-policy leaf", func(t *testing.T) {
-		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).ApplyVrfSelectionPolicy().Config())
+		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -833,7 +908,8 @@ func testUnconfigPBRUnderBundleInterface(ctx context.Context, t *testing.T, args
 	})
 
 	t.Run("Delete interface list entry", func(t *testing.T) {
-		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Config())
+		// gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName).Config())
+		gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Interface(interfaceName+"."+"0").Config())
 		defer configPBRunderInterface(t, args, interfaceName, pbrName)
 
 		// // TODO: enabled once gNMI Get works on XR
@@ -961,7 +1037,6 @@ func testModifyMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// Create Traffic and check traffic
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
-	// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 	// Expecting Traffic fail
 	testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
@@ -982,23 +1057,15 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		gnmi.Replace(t, args.dut, gnmi.OC().NetworkInstance(*ciscoFlags.PbrInstance).PolicyForwarding().Policy(pbrName).Rule(1).Ipv4().DscpSet().Config(), []uint8{10, 12})
 		defer configBasePBR(t, args.dut)
 
-		// // TODO: enabled once gNMI Get works on XR
-		// t.Run("Verify added", func(t *testing.T) {
-		// 	verifyConfigPbrMatchIpv4DscpSet(ctx, t, args, 1, []uint8{10, 12})
-		// })
-
 		// Create Traffic and check traffic
 		t.Run("Verify traffic on DSCP 12", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
-
-			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 12, weights...)
+			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 10, weights...)
 		})
 
 		// TODO: Make sure this is correct when current config failure is fixed.
 		t.Run("Expect traffic fail without DSCP", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
 
 			// Expecting Traffic fail
 			testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
@@ -1012,8 +1079,6 @@ func testAddMatchField(ctx context.Context, t *testing.T, args *testArgs) {
 		// Create Traffic and check traffic
 		t.Run("Verify traffic", func(t *testing.T) {
 			srcEndPoint := args.top.Interfaces()[atePort1.Name]
-			// dstEndPoint := []*ondatra.Interface{args.top.Interfaces()[atePort2.Name], args.top.Interfaces()[atePort3.Name]}
-
 			testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, 0, weights...)
 		})
 	})
@@ -1090,7 +1155,14 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
 
-		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		// gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]+".0").IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).Config(), &oc.Acl_Interface{
+			Id: ygot.String(args.interfaces.in[0]),
+		})
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_IngressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
 		testTraffic(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
@@ -1102,7 +1174,14 @@ func testAclAndPBRUnderSameInterface(ctx context.Context, t *testing.T, args *te
 		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Config(), aclConfig)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
 
-		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		// gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), aclName)
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).Config(), &oc.Acl_Interface{
+			Id: ygot.String(args.interfaces.in[0]),
+		})
+		gnmi.Replace(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), &oc.Acl_Interface_IngressAclSet{
+			Type:    oc.Acl_ACL_TYPE_ACL_IPV4,
+			SetName: &aclName,
+		})
 		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 
 		testTraffic(t, false, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscp, weights...)
@@ -1292,6 +1371,9 @@ func testDettachAndAttachWrongSrcIp(ctx context.Context, t *testing.T, args *tes
 	configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
 
 	dscpVal := uint8(Dscpval)
+
+	// un-Configure policy under bundle-interface
+	unconfigPBRunderInterface(t, args, args.interfaces.in[0])
 
 	// Configure policy-map that matches the SourceAddress
 	configSrcIp(t, args.dut, PbrNameSrc, SourceAddress)
@@ -1761,4 +1843,20 @@ func testProtocolV6replaceV4(ctx context.Context, t *testing.T, args *testArgs) 
 	configPBRunderInterface(t, args, args.interfaces.in[0], PbrNameSrc)
 
 	testTrafficSrc(t, true, args.ate, args.top, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, args, dscpVal, IxiaSrcip, weights...)
+}
+
+func startGribiClient(t *testing.T) {
+	clientA := gribi.Client{
+		DUT:         ondatra.DUT(t, "dut"),
+		FIBACK:      false,
+		Persistence: true,
+	}
+
+	clientA.Close(t)
+	time.Sleep(2 * time.Minute)
+	if err := clientA.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+	clientA.StartWithNoCache(t)
+	clientA.BecomeLeader(t)
 }

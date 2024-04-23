@@ -11,5 +11,6 @@ platform_exceptions: {
   }
   deviations: {
     deviation_default_network_instance: true
+    deviation_gnoi_subcomponent_path: true    
   }
 }

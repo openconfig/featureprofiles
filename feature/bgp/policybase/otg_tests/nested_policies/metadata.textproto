@@ -1,0 +1,20 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "aa9b83cb-fd87-4098-ab3d-db05c66fc3c0"
+plan_id: "RT-1.30"
+description: "BGP nested import/export policy attachment"
+testbed: TESTBED_DUT_ATE_2LINKS
+tags: TAGS_DATACENTER_EDGE
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+    skip_set_rp_match_set_options: true
+  }
+}
+

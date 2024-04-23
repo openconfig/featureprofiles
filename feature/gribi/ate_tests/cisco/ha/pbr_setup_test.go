@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -31,6 +32,9 @@ type PBROptions struct {
 
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
 	r.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String(networkInstance)}
@@ -64,14 +68,9 @@ func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype
 	p := pf.GetOrCreatePolicy(pbrName)
 	p.Type = oc.Policy_Type_VRF_SELECTION_POLICY
 	p.AppendRule(&r)
+	intf := pf.GetOrCreateInterface("Bundle-Ether120.0")
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether120")
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	intf.ApplyVrfSelectionPolicy = ygot.String(pbrName)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
-}
-
-func configbasePBRInt(t *testing.T, dut *ondatra.DUTDevice, intf string, subif string, pbrName string) {
-	pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Interface(intf + subif)
-	d := &oc.Root{}
-	data := d.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreatePolicyForwarding().GetOrCreateInterface(intf + subif)
-	data.GetOrCreateInterfaceRef().Interface = ygot.String(intf)
-	data.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	gnmi.Replace(t, dut, pfpath.Config(), data)
 }

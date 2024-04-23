@@ -1422,6 +1422,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 	aclEntryActionDefault := aclSetIPv4.GetOrCreateAclEntry(2).GetOrCreateActions()
 	aclEntryActionDefault.ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
+	aclInt := acl.GetOrCreateInterface(args.interfaces.in[0])
+	aclInt.GetOrCreateIngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+
 	// aclSetIPv6 := acl.GetOrCreateAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6)
 	// aclEntryIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateIpv6()
 	// aclEntryIPv6.HopLimit = ygot.Uint8(1)
@@ -1430,11 +1433,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 
 	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), acl)
 
-	gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), "ttl-ipv4")
 	// args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).SetName().Update(t, "ttl-ipv6")
 	defer func() {
 		gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
-		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 		// defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).Delete(t)
 	}()
 

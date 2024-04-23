@@ -5,6 +5,12 @@ replace: {
     val: {
       ascii_val:
 "hostname xx25.den8808\n"
+"group BGP\n" 
+" router bgp '.*' instance '.*'\n"
+" nsr disable\n"
+" end-group\n"
+"!\n"
+"apply-group BGP\n"
 "clock timezone EST America/Toronto\n"
 "lpts punt police location 0/5/CPU0\n"
 " exception ttl-expiry rate 1500\n"

@@ -234,7 +234,8 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	return sshClient.SendCommand(ctx, cmd)
+	out, err := sshClient.RunCommand(ctx, cmd)
+	return out.Output(), err
 }
 
 func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
@@ -248,7 +249,7 @@ func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 }
 
 func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
-	if len(lineup) == 0 || len(efr) == 0 {
+	if len(lineup) == 0 || len(efr) == 0 || strings.HasPrefix(efr, "sha") {
 		return true
 	}
 

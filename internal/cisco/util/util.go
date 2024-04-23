@@ -4,10 +4,12 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -22,6 +24,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
 )
 
 const (
@@ -252,6 +255,37 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceN
 	return copiedSubInterfaces
 }
 
+// GetInterface returns subinterface
+func GetInterface(interfaceName string, ipv4 string, prefixlen uint8, index uint32) *oc.Interface {
+	i := &oc.Interface{Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true),
+		Name: ygot.String(interfaceName)}
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return i
+}
+
+// GetCopyOfIpv4Interfaces returns subinterface ipv4 address
+func GetCopyOfIpv4Interfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*oc.Interface {
+	copiedSubInterfaces := make(map[string]*oc.Interface)
+	for _, interfaceName := range interfaceNames {
+		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
+		copiedSubInterfaces[interfaceName] = &oc.Interface{}
+		copiedSubInterfaces[interfaceName].Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		copiedSubInterfaces[interfaceName].Enabled = ygot.Bool(true)
+		copiedSubInterfaces[interfaceName].Name = ygot.String(interfaceName)
+		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateSubinterface(index).GetOrCreateIpv4()
+		for _, ipval := range a.Address {
+			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
+			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
+			ipv4addr.PrefixLength = ygot.Uint8(ipval.GetPrefixLength())
+		}
+
+	}
+	return copiedSubInterfaces
+}
+
 // AddAteISISL2 appends ISIS configuration to ATETOPO obj
 func AddAteISISL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaID, networkName string, metric uint32, prefix string, count uint32) {
 
@@ -374,9 +408,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		if activate {
 			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim activate string %v", fimActivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimActivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimActivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
@@ -388,9 +422,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		} else {
 			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim deactivate string %v", fimDeactivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimDeactivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimDeactivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
@@ -464,4 +498,50 @@ func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+func PrettyPrintJson(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
+// load oc from a file
+func LoadJsonFileToOC(t *testing.T, path string) *oc.Root {
+	var ocRoot oc.Root
+	jsonConfig, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Cannot load base config: %v", err)
+	}
+	opts := []ytypes.UnmarshalOpt{
+		&ytypes.PreferShadowPath{},
+	}
+	if err := oc.Unmarshal(jsonConfig, &ocRoot, opts...); err != nil {
+		t.Fatalf("Cannot unmarshal base config: %v", err)
+	}
+	return &ocRoot
+}
+
+// SliceEqual checks if two slices of strings contain the same elements in any order.
+// It returns true if both slices have the same elements with the same frequencies (counts),
+// otherwise it returns false. The function does not modify the input slices.
+func SliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	counts := make(map[string]int)
+	// count the occurrences of each string in the first slice
+	for _, v := range a {
+		counts[v]++
+	}
+
+	for _, v := range b {
+		// if we find a string in the second slice that is not in the map or the count goes below zero, we know the slices are not equal and return false
+		if count, ok := counts[v]; !ok || count == 0 {
+			return false
+		}
+		counts[v]--
+	}
+
+	return true
 }
