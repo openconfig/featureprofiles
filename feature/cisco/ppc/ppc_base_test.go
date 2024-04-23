@@ -1,17 +1,3 @@
-// Copyright 2021 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package ppc_test
 
 import (
@@ -24,7 +10,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -45,13 +30,10 @@ const (
 	dst                   = "202.1.0.1"
 	v4mask                = "32"
 	dstCount              = 1
-	innersrcPfx           = "200.1.0.1"
-	totalBgpPfx           = 1           //set value for scale bgp setup ex: 100000
-	innerdstpfxminBgp     = "202.1.0.1" // innerdstpfxminBgp
-	innerdstPfxCount_bgp  = 1           //set value for number of inner prefix for bgp flow
-	totalisisPfx          = 1           //set value for scale isis setup ex: 10000
-	innerdstPfxMin_isis   = "201.1.0.1"
-	innerdstPfxCount_isis = 1 //set value for number of inner prefix for isis flow
+	totalBgpPfx           = 1
+	minInnerDstPrefixBgp  = "202.1.0.1"
+	totalIsisPrefix       = 1 //set value for scale isis setup ex: 10000
+	minInnerDstPrefixIsis = "201.1.0.1"
 	ipv4PrefixLen         = 30
 	ipv6PrefixLen         = 126
 	policyTypeIsis        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
@@ -62,17 +44,16 @@ const (
 	bgpAs                 = 65000
 )
 
-// Testcase defines testcase structure
+// Testcase defines the parameters related to a testcase
 type Testcase struct {
-	name string
-	desc string
-	flow *ondatra.Flow
-	// sub_type   SubscriptionType
-	eventType   eventType   // events for creating the scenario
+	name        string
+	desc        string
+	flow        *ondatra.Flow
+	eventType   eventType   // events for creating the trigger scenario
 	triggerType triggerType // triggers
 }
 
-// Extend triggers
+// TODO - to be used for testing FEAT-22487 in Q4 2024
 var triggers = []Testcase{
 	{
 		name: "Process restart",
@@ -93,7 +74,8 @@ var triggers = []Testcase{
 	},
 }
 
-// Extend triggers
+// Extended triggers
+// TODO - TODO - to be used for testing FEAT-22487 in Q4 2024
 var futureTriggers = []Testcase{
 	{
 		name: "Process restart",
@@ -126,25 +108,14 @@ type subscriptionArgs struct {
 }
 
 // subMode represents type of STREAMING subscription mode
-// TODO - support levels and sub modes
+// TODO - support levels and sub modes for FEAT-22487 in Q4 2024
 func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
-	// once, poll, stream are subscription types
-	// sample, on-change, target-defined are streaming subscription types
-	//for i := 1; i <= subscriptionCount; i++ {
-	//	gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
-	//}
-	//var wg sync.WaitGroup
 	for i := 1; i <= subscriptionCount; i++ {
-		//wg.Add(1)
-		//go func() {
-		//	defer wg.Done()
 		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
 	}
 }
-
-//wg.Wait()
 
 func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
 	startTime := time.Now()
@@ -165,7 +136,7 @@ func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration
 		// You can adjust the sleep duration based on your needs
 		time.Sleep(1 * time.Second)
 	}
-	return fmt.Errorf("Task failed after %d attempts within a %s timeout", maxAttempts, timeout)
+	return fmt.Errorf("task failed after %d attempts within a %s timeout", maxAttempts, timeout)
 }
 
 type eventType interface {
@@ -229,7 +200,6 @@ func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
 				gnmi.Update(t, dut, cliPath, mtu)
 			}
 		}
-
 	}
 }
 
@@ -280,7 +250,6 @@ type triggerProcessRestart struct {
 func (triggerArgs triggerProcessRestart) restartProcessBackground(t *testing.T, ctx context.Context) {
 	dut := ondatra.DUT(t, "dut")
 	for _, process := range triggerArgs.processes {
-
 		// patch for CLIviaSSH failing, else pattern to use is #
 		var acp string
 		if withRpfo {
@@ -505,119 +474,6 @@ func (args *testArgs) interfaceToNPU(t testing.TB) []string {
 	return npus
 }
 
-// TODO - raise TZs for the leaves and source of truth
-func runBackgroundMonitor(t *testing.T, stop <-chan struct{}, done chan<- struct{}) {
-	t.Logf("check CPU/memory in the background")
-	dut := ondatra.DUT(t, "dut")
-	deviceName := dut.Name()
-	processes := []string{"emsd", "dbwriter", "dblistener"}
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID []uint64
-	for _, process := range processes {
-		for _, proc := range pList {
-			if proc.GetName() == process {
-				pID = append(pID, proc.GetPid())
-				t.Logf("Pid of daemon '%s' is '%d'", process, pID)
-			}
-		}
-	}
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("Recovered from panic in runBackgroundMonitor: %v", r)
-			}
-			done <- struct{}{}
-		}()
-	Loop:
-		for {
-			select {
-			case <-stop:
-				break Loop
-			default:
-				for _, process := range pID {
-					query := gnmi.OC().System().Process(process).State()
-					timestamp := time.Now().Round(time.Second)
-					result := gnmi.Get(t, dut, query)
-					processName := result.GetName()
-					if *result.CpuUtilization > 80 {
-						// TODO - add a tracking flag for breach; with timer, keep polling the status; check with Takenaga what is the expected behavior
-						t.Logf("%s %s CPU Process utilization high for process %-10s, utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
-					} else {
-						t.Logf("%s %s INFO: CPU process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetCpuUsageSystem())
-					}
-					if result.MemoryUtilization != nil {
-						// TODO - check with Maya DE
-						// TODO - check both leaves if they are returning valid values
-						// TODO - check what Memory Utilization and CPU util are mapped to? even mem and cpu usage - where are they mapped to?
-						t.Logf("%s %s Memory high for process: %-10s - Utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
-					} else {
-						t.Logf("%s %s INFO:  Memory Process %-10s utilization: %3d%%", timestamp, deviceName, processName, result.GetMemoryUsage())
-					}
-				}
-				// sleep for 30 seconds before checking cpu/memory again
-				time.Sleep(30 * time.Second)
-			}
-		}
-		done <- struct{}{}
-	}()
-}
-
-// extend it to run p4rt in background as well
-func runMultipleClientBackground(t *testing.T, stop <-chan struct{}, done chan<- struct{}) {
-	t.Logf("running multiple client like gribi in the background")
-	dut := ondatra.DUT(t, "dut")
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("Recovered from panic in runMultipleClientBackground: %v", r)
-			}
-			done <- struct{}{}
-		}()
-	Loop:
-		for {
-			select {
-			case <-stop:
-				break Loop
-			default:
-				client := gribi.Client{
-					DUT:                   dut,
-					FibACK:                true,
-					Persistence:           true,
-					InitialElectionIDLow:  1,
-					InitialElectionIDHigh: 0,
-				}
-				if err := client.Start(t); err != nil {
-					t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-					if err = client.Start(t); err != nil {
-						t.Errorf("gRIBI Connection could not be established: %v", err)
-					}
-				}
-				client.BecomeLeader(t)
-				client.FlushServer(t)
-				time.Sleep(10 * time.Second)
-				ciscoFlags.GRIBIChecks.AFTCheck = false
-				client.AddNH(t, 3, ateDst.IPv4, "DEFAULT", "", "Bundle-Ether121", false, ciscoFlags.GRIBIChecks)
-				client.AddNHG(t, 3, 0, map[uint64]uint64{3: 30}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
-				client.AddIPv4(t, "10.1.0.1/32", 3, vrf1, "DEFAULT", false, ciscoFlags.GRIBIChecks)
-
-				client.AddNH(t, 2, "DecapEncap", "DEFAULT", "TE", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{"10.1.0.1"}})
-				client.AddNHG(t, 2, 0, map[uint64]uint64{2: 100}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
-				client.AddIPv4(t, "192.0.2.40/32", 2, "DEFAULT", "", false, ciscoFlags.GRIBIChecks)
-
-				client.AddNH(t, 1, "192.0.2.40", "DEFAULT", "", "", false, ciscoFlags.GRIBIChecks)
-				client.AddNHG(t, 1, 0, map[uint64]uint64{1: 20}, "DEFAULT", false, ciscoFlags.GRIBIChecks)
-				client.AddIPv4(t, "198.51.100.1/32", 1, vrf1, "DEFAULT", false, ciscoFlags.GRIBIChecks)
-
-				client.Close(t)
-				//reprogram every 30 seconds to add churn
-				time.Sleep(30 * time.Second)
-			}
-		}
-		done <- struct{}{}
-	}()
-}
-
 // TgnOptions are optional parameters to a validate traffic function.
 type TgnOptions struct {
 	drop, mpls, ipv4, ttl bool
@@ -629,6 +485,8 @@ type TgnOptions struct {
 }
 
 // configureATE configures ports on the ATE.
+// port 1 is source port
+// ports 2-8 are destination ports
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	atePorts := sortPorts(ate.Ports())
 	top := ate.Topology().New()
@@ -672,7 +530,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return top
 }
 
-// configAteIsisL2 configures ISIS L2 ATE config
+// configAteIsisL2 configures ISIS on the ATE
 func configAteIsisL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, networkName string, metric uint32, v4prefix string, count uint32) {
 	intfs := topo.Interfaces()
 	if len(intfs) == 0 {
@@ -687,7 +545,7 @@ func configAteIsisL2(t *testing.T, topo *ondatra.ATETopology, atePort, areaId, n
 	intfs[atePort].ISIS().WithAreaID(areaId).WithLevelL2().WithNetworkTypePointToPoint().WithMetric(metric).WithWideMetricEnabled(true)
 }
 
-// configAteEbgpPeer configures EBGP ATE config
+// configAteEbgpPeer configures EBGP on the ATE
 func configAteEbgpPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddress string, localAsn uint32, networkName, nextHop, prefix string, count uint32, useLoopback bool) {
 
 	intfs := topo.Interfaces()
@@ -717,8 +575,8 @@ func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 	//advertising 100.100.100.100/32 for bgp resolve over IGP prefix
 	intfs := top.Interfaces()
 	intfs["ateDst"].WithIPv4Loopback("100.100.100.100/32")
-	configAteIsisL2(t, top, "ateDst", "B4", "isis_network", 20, innerdstPfxMin_isis+"/"+v4mask, totalisisPfx)
-	configAteEbgpPeer(t, top, "ateDst", dutDst.IPv4, 64001, "bgp_recursive", ateDst.IPv4, innerdstpfxminBgp+"/"+v4mask, totalBgpPfx, true)
+	configAteIsisL2(t, top, "ateDst", "B4", "isis_network", 20, minInnerDstPrefixIsis+"/"+v4mask, totalIsisPrefix)
+	configAteEbgpPeer(t, top, "ateDst", dutDst.IPv4, 64001, "bgp_recursive", ateDst.IPv4, minInnerDstPrefixBgp+"/"+v4mask, totalBgpPfx, true)
 	top.Push(t).StartProtocols(t)
 }
 
@@ -730,19 +588,19 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 
 	for _, opt := range opts {
 		if opt.mpls {
-			hdr_mpls := ondatra.NewMPLSHeader()
-			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_mpls}
+			hdrMpls := ondatra.NewMPLSHeader()
+			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdrMpls}
 		}
 		if opt.ipv4 {
-			var hdr_ipv4 *ondatra.IPv4Header
+			var hdrIpv4 *ondatra.IPv4Header
 			// explicity set ttl 0 if zero
 			if opt.ttl {
-				hdr_ipv4 = ondatra.NewIPv4Header().WithTTL(0)
+				hdrIpv4 = ondatra.NewIPv4Header().WithTTL(0)
 			} else {
-				hdr_ipv4 = ondatra.NewIPv4Header()
+				hdrIpv4 = ondatra.NewIPv4Header()
 			}
-			hdr_ipv4.WithSrcAddress(dutSrc.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
-			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdr_ipv4}
+			hdrIpv4.WithSrcAddress(dutSrc.IPv4).DstAddressRange().WithMin(dst).WithCount(dstCount).WithStep("0.0.0.1")
+			header = []ondatra.Header{ondatra.NewEthernetHeader(), hdrIpv4}
 		}
 	}
 	flow = args.ate.Traffic().NewFlow(name).
@@ -775,9 +633,9 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TgnOptions) uint64 {
 	args.ate.Traffic().Start(t, flow)
 	// run traffic for 30 seconds, before introducing fault
-	time.Sleep(time.Duration(30) * time.Second)
+	time.Sleep(time.Duration(60) * time.Second)
 
-	// Set configs if needed for scenario
+	// Set configs if needed for the trigger scenario
 	for _, op := range opts {
 		if eventAction, ok := op.event.(*eventInterfaceConfig); ok {
 			eventAction.interfaceConfig(t)
@@ -785,59 +643,15 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 			eventAction.staticRouteToNull(t)
 		} else if eventAction, ok := op.event.(*eventEnableMplsLdp); ok {
 			eventAction.enableMplsLdp(t)
+		} else if eventAction, ok := op.event.(*eventAclConfig); ok {
+			eventAction.aclConfig(t)
 		}
 	}
 
-	// TODO - uncomment
-	//// close all the existing goroutine for the trigger
-	//close(stopMonitor)
-	//close(stopClients)
-	//<-doneMonitor
-	//<-doneClients
-	// TODO - uncomment after cleanup
-	// Space to add trigger code
-	//for _, tt := range triggers {
-	//	t.Logf("Name: %s", tt.name)
-	//	t.Logf("Description: %s", tt.desc)
-	//	if triggerAction, ok := tt.triggerType.(*triggerProcessRestart); ok {
-	//		triggerAction.restartProcessBackground(t, args.ctx)
-	//	}
-	//	if chassisType == "distributed" && withRpfo {
-	//		if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
-	//			// false is for not reloading the box, since there is standby RP on distributed tb, we don't do a reload
-	//			triggerAction.rpfo(t, args.ctx, false)
-	//		}
-	//	} else if chassisType == "fixed" && withRpfo {
-	//		if triggerAction, ok := tt.triggerType.(*triggerRpfo); ok {
-	//			// true is for reloading the box, since there is no RPFO on fixed tb, we do a reload
-	//			triggerAction.rpfo(t, args.ctx, true)
-	//			tolerance = uint64(triggerAction.tolerance)
-	//		}
-	//	}
-	//	if chassisType == "distributed" && withLcReload {
-	//		if triggerAction, ok := tt.triggerType.(*triggerLcReload); ok {
-	//			triggerAction.lcReload(t)
-	//			tolerance = uint64(triggerAction.tolerance)
-	//		}
-	//	}
-	//}
-	// TODO - uncomment
-	//// restart goroutines
-	//if chassisType == "distributed" {
-	//	doneMonitorTrigger = make(chan struct{})
-	//	stopMonitorTrigger = make(chan struct{})
-	//	runBackgroundMonitor(t, stopMonitorTrigger, doneMonitorTrigger)
-	//}
-	////starting other clients running in the background
-	//doneClientsTrigger = make(chan struct{})
-	//stopClientsTrigger = make(chan struct{})
-	//runMultipleClientBackground(t, stopClientsTrigger, doneClientsTrigger)
-
 	time.Sleep(60 * time.Second)
-	//time.Sleep(time.Duration(opts[0].traffic_timer) * time.Second)
 	args.ate.Traffic().Stop(t)
 
-	// remove set configs before further check
+	// remove the trigger configs before further check
 	for _, op := range opts {
 		if _, ok := op.event.(*eventInterfaceConfig); ok {
 			eventAction := eventInterfaceConfig{config: false, mtu: 1514, port: sortPorts(args.dut.Ports())[1:]}
@@ -848,6 +662,9 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 		} else if _, ok := op.event.(*eventEnableMplsLdp); ok {
 			eventAction := eventEnableMplsLdp{config: false}
 			eventAction.enableMplsLdp(t)
+		} else if _, ok := op.event.(*eventAclConfig); ok {
+			eventAction := eventAclConfig{config: false}
+			eventAction.aclConfig(t)
 		}
 	}
 
@@ -897,25 +714,9 @@ var (
 		IPv6:    "2000::100:122:1:2",
 		IPv6Len: ipv6PrefixLen,
 	}
-	// dutPort2Vlan10 = attrs.Attributes{
-	// 	Desc:    "dutPort2Vlan10",
-	// 	IPv4:    "100.128.10.1",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:128:10:1",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
-	// atePort2Vlan10 = attrs.Attributes{
-	// 	Name:    "atePort2Vlan10",
-	// 	IPv4:    "100.128.10.2",
-	// 	IPv4Len: ipv4PrefixLen,
-	// 	IPv6:    "2000::100:128:10:2",
-	// 	IPv6Len: ipv6PrefixLen,
-	// 	MTU:     vlanMTU,
-	// }
 )
 
-// configInterfaceDUT configures the interface with the Addrs.
+// configInterfaceDUT configures the interfaces with corresponding addresses
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -944,12 +745,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutSource := generateBundleMemberInterfaceConfig(t, srcPort.Name(), *incoming.Name)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(srcPort.Name()).Config(), dutSource)
 
-	// outgoing interface is bundle-122 with 7 members (port2, port 3, port4, port5, port6, port7, port8)
-	// lacp := &oc.Lacp_Interface{Name: ygot.String("Bundle-Ether122")}
-	// lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-	// lacpPath := d.Lacp().Interface("Bundle-Ether122")
-	// gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-
 	outgoing := &oc.Interface{Name: ygot.String("Bundle-Ether122")}
 	outgoingData := configInterfaceDUT(outgoing, &dutDst)
 	g := outgoingData.GetOrCreateAggregation()
@@ -961,38 +756,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// func createNameSpace(t *testing.T, dut *ondatra.DUTDevice, name, intfname string, subint uint32) {
-// 	//create empty subinterface
-// 	si := &oc.Interface_Subinterface{}
-// 	si.Index = ygot.Uint32(subint)
-// 	gnmi.Replace(t, dut, gnmi.OC().Interface(intfname).Subinterface(subint).Config(), si)
-
-// 	//create vrf and apply on subinterface
-// 	v := &oc.NetworkInstance{
-// 		Name: ygot.String(name),
-// 	}
-// 	vi := v.GetOrCreateInterface(intfname + "." + strconv.Itoa(int(subint)))
-// 	vi.Subinterface = ygot.Uint32(subint)
-// 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(name).Config(), v)
-// }
-
-// func getSubInterface(ipv4 string, prefixlen4 uint8, ipv6 string, prefixlen6 uint8, vlanID uint16, index uint32) *oc.Interface_Subinterface {
-// 	s := &oc.Interface_Subinterface{}
-// 	s.Index = ygot.Uint32(index)
-// 	s4 := s.GetOrCreateIpv4()
-// 	a := s4.GetOrCreateAddress(ipv4)
-// 	a.PrefixLength = ygot.Uint8(prefixlen4)
-// 	s6 := s.GetOrCreateIpv6()
-// 	a6 := s6.GetOrCreateAddress(ipv6)
-// 	a6.PrefixLength = ygot.Uint8(prefixlen6)
-// 	v := s.GetOrCreateVlan()
-// 	m := v.GetOrCreateMatch()
-// 	if index != 0 {
-// 		m.GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
-// 	}
-// 	return s
-// }
-
 func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *oc.Interface {
 	t.Helper()
 	i := &oc.Interface{Name: ygot.String(name)}
@@ -1003,7 +766,6 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 	return i
 }
 
-// configRoutePolicy configures route_policy for BGP
 func configRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateRoutingPolicy()
@@ -1016,8 +778,7 @@ func configRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// configIsis configures ISIS on DUT
-func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
+func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfNames []string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	prot := inst.GetOrCreateProtocol(policyTypeIsis, isisName)
@@ -1028,13 +789,16 @@ func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf := isis.GetOrCreateInterface(intfName)
-	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.Enabled = ygot.Bool(true)
-	intf.HelloPadding = 1
-	intf.Passive = ygot.Bool(false)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
+	for _, intfName := range intfNames {
+		intf := isis.GetOrCreateInterface(intfName)
+		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		intf.Enabled = ygot.Bool(true)
+		intf.HelloPadding = 1
+		intf.Passive = ygot.Bool(false)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 	level := isis.GetOrCreateLevel(2)
 	level.MetricStyle = 2
 
@@ -1043,7 +807,6 @@ func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
-// configBgp configures BGP on DUT
 func configBgp(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dev := &oc.Root{}
 	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -1083,7 +846,6 @@ func configVRF(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 	}
 }
 
-// t, dut, "TE", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}
 // configBasePBR creates class map, policy and configures them under source interface
 func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType string, index uint32, pbrName string, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpSet []uint8, opts ...*PBROptions) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -1123,18 +885,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType
 	if err != nil {
 		t.Error(err)
 	}
-	//InterfaceName := "Bundle-Ether121"
-	//intfRef := &oc.NetworkInstance_PolicyForwarding_Interface_InterfaceRef{}
-	//intfRef.SetInterface(InterfaceName)
-	//intfRef.SetSubinterface(0)
-	//InterfaceRef := InterfaceName + ".0"
-	//pf.Interface = map[string]*oc.NetworkInstance_PolicyForwarding_Interface{
-	//	InterfaceRef: {
-	//		InterfaceId:             ygot.String(InterfaceRef),
-	//		ApplyVrfSelectionPolicy: ygot.String(pbrName),
-	//		InterfaceRef:            intfRef,
-	//	},
-	//}
+
 	intf := pf.GetOrCreateInterface("Bundle-Ether121.0")
 	intf.GetOrCreateInterfaceRef().Interface = ygot.String("Bundle-Ether121")
 	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
@@ -1162,21 +913,13 @@ func getPathFromElements(input []*gpb.PathElem) string {
 	return "/" + strings.Join(result, "/")
 }
 
-// TODO - support levels and sub modes
+// TODO - support levels and sub-modes for FEAT-22487
 // getData retrieves data from a DUT using GNMI.
 // It performs a one-time subscription to the specified path using a wildcard query.
 func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 
-	//data, _ := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode(gpb.SubscriptionList_ONCE))), query, 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
-	//	_, present := val.Val()
-	//	element := val.Path.Elem
-	//	if getPathFromElements(element) == path {
-	//		return present
-	//	}
-	//	return !present
-	//}).Await(t)
 	_ = gnmi.LookupAll(t, dut, query) // check _ value for ONCE comparison on router
 	data, _ := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Second)),
 		query,
