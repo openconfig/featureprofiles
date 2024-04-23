@@ -526,11 +526,17 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	defer td.deleteStaticRoutes(t)
 
 	const port2Metric = uint32(100)
-
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
 	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
+	if deviations.StaticRouteWithExplicitMetric(td.dut) {
+		const port1Metric = uint32(1)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
+		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
+
+	}
+
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
 	batch.Set(t, td.dut)
@@ -733,6 +739,9 @@ func (td *testData) testIPv6StaticRouteWithIPv4NextHop(t *testing.T) {
 	// IPv4 address of ATE port-1
 	// Change the IPv6 next-hop of the ipv6-route-b with the next hop set to the
 	// IPv4 address of ATE port-2
+	if deviations.IPv6StaticRouteWithIPv4NextHopUnsupported(td.dut) {
+		t.Skip("Skipping Ipv6 with Ipv4 route unsupported. Deviation IPv4StaticRouteWithIPv6NextHopUnsupported enabled.")
+	}
 	b := &gnmi.SetBatch{}
 	var v6Cfg *cfgplugins.StaticRouteCfg
 	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(td.dut) {
@@ -860,6 +869,9 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 	// IPv6 address of ATE port-1
 	// Change the IPv4 next-hop of the ipv4-route-b with the next hop set to the
 	// IPv6 address of ATE port-2
+	if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(td.dut) {
+		t.Skip("Skipping Ipv4 with Ipv6 route unsupported. Deviation IPv4StaticRouteWithIPv6NextHopUnsupported enabled.")
+	}
 	v4Cfg := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(td.dut),
 		Prefix:          td.staticIPv4.cidr(t),
@@ -928,7 +940,9 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 }
 
 func (td *testData) testStaticRouteWithDropNextHop(t *testing.T) {
-
+	if deviations.StaticRouteWithDropNhUnsupported(td.dut) {
+		t.Skip("Skipping test static route with drop nexthop. Deviation StaticRouteWithDropNhUnsupported enabled.")
+	}
 	b := &gnmi.SetBatch{}
 	// Configure IPv4 static routes:
 	//   *   Configure one IPv4 static route i.e. ipv4-route-a on the DUT for

@@ -906,3 +906,23 @@ func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
+
+// IPv4StaticRouteWithIPv6NextHopUnsupported unsupported ipv4 with ipv6 nexthop
+func IPv4StaticRouteWithIPv6NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv4StaticRouteWithIpv6NhUnsupported()
+}
+
+// IPv6StaticRouteWithIPv4NextHopUnsupported unsported ipv4 with ipv4 next-hop
+func IPv6StaticRouteWithIPv4NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NhUnsupported()
+}
+
+// StaticRouteWithDropNhUnsupported unsuported drop nexthop
+func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithDropNh()
+}
+
+// StaticRouteWithExplicitMetric set explict metric
+func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
+}

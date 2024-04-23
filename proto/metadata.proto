@@ -475,6 +475,15 @@ message Metadata {
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
     bool bgp_community_set_refs_unsupported = 168;
+    // support for ipv4 to ipv6 next hop
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 169;
+    // support for ipv6 to ipv4 next hop
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 170;
+    // support for static route with drop nh
+    bool static_route_with_drop_nh = 171;
+    // support for static route with drop nh
+    bool static_route_with_explicit_metric = 172;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
