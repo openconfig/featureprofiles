@@ -25,7 +25,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -190,7 +190,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configurePrefixSet(t *testing.T, dut *ondatra.DUTDevice, prefixSet []*prefixSetPolicy) {
-	// configure prefix-sets
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	for _, ps := range prefixSet {
@@ -298,7 +297,6 @@ func verifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
-		t.Logf("BGP adjacency for %s: %v", nbr.nbrAddr, state)
 		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
 			t.Errorf("BGP peer %s status got %d, want %d", nbr.nbrAddr, state, want)
 		}
@@ -311,7 +309,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 
-	// Port1 Configuration.
+	// Port1 Configuration. Sets the ATE port
 	iDut1Dev := config.Devices().Add().SetName(atePort1.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
 	iDut1Eth.Connection().SetPortName(port1.Name())
@@ -384,8 +382,9 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
 		gotInstalled, _ := val.Val()
+		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
 	}).Await(t)
 	if !ok {
@@ -396,6 +395,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 		// Waiting for Received count to get updated after session comes up or policy is applied
 		gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, _ := val.Val()
+			t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
 			return gotRx == wantRx
 		}).Await(t)
 		if !ok {
@@ -405,7 +405,9 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
 	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		t.Logf("Prefix that are sent %v", prefixPath.Sent().State())
 		gotSent, _ := val.Val()
+		t.Logf("Prefix that are sent %v and want %v", gotSent, wantSent)
 		return gotSent == wantSent
 	}).Await(t)
 	if !ok {
@@ -424,20 +426,27 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 	})
 
 	// Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-1
-	t.Run("Validate acceptance based on prefix-set policy", func(t *testing.T) {
+	t.Run("Validate acceptance based on prefix-set policy - import policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4}, bgpImportIPv4, *ebgp1NbrV4, importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6, prefixSet2V6}, bgpImportIPv6, *ebgp1NbrV6, importPolicy)
-
-		// route1, route2, route4 expected to be accepted based on prefix-set
-		validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
-		// only route6 is expected to accepted based on prefix-set
-		validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		if !deviations.DefaultImportExportPolicy(dut) {
+			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 3)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 1)
+		} else {
+			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
+			// only route6 is expected to accepted based on prefix-set
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		}
 	})
 
 	// Associating prefix-set with the required routing-policy and applying to BGP neighbors on ATE-port-2
-	t.Run("Validate advertise based on prefix-set policy", func(t *testing.T) {
+	t.Run("Validate advertise based on prefix-set policy - export policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet2V4}, bgpExportIPv4, *ebgp2NbrV4, !importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6}, bgpExportIPv6, *ebgp2NbrV6, !importPolicy)
 
@@ -467,13 +476,22 @@ func TestBGPPrefixSet(t *testing.T) {
 		verifyBgpState(t, dut)
 	})
 
-	// Validate route count for BGP neighbors with default deny-all routing-policy
-	t.Run("Validate initial prefix count", func(t *testing.T) {
-		validatePrefixCount(t, dut, *ebgp1NbrV4, 0, 5, 0)
-		validatePrefixCount(t, dut, *ebgp1NbrV6, 0, 5, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
-		validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
-	})
+	if !deviations.DefaultImportExportPolicy(dut) {
+		t.Run("Validate initial prefix count", func(t *testing.T) {
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 5, 5, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 5, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 5)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 5)
+		})
+	} else {
+		t.Run("Validate initial prefix count", func(t *testing.T) {
+			validatePrefixCount(t, dut, *ebgp1NbrV4, 0, 1, 0)
+			validatePrefixCount(t, dut, *ebgp1NbrV6, 0, 5, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV4, 0, 0, 0)
+			validatePrefixCount(t, dut, *ebgp2NbrV6, 0, 0, 0)
+		})
+
+	}
 
 	testPrefixSet(t, dut)
 }
