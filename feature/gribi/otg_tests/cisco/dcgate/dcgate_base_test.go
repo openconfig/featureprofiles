@@ -561,15 +561,10 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		// if vrf == vrfEncapA || vrf == vrfEncapB {
-		// 	ni.FallbackNetworkInstance = ygot.String("default") //deviations.DefaultNetworkInstance(dut))
-		// }
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
-	// configura default network instance
-	ni := c.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
 // cidr takes as input the IPv4 address and the Mask and returns the IP string in
