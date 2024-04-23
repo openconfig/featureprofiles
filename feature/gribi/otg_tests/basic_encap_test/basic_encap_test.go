@@ -846,7 +846,6 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
-	time.Sleep(30 * time.Second)
 	t.Logf("starting protocols...")
 	otg.StartProtocols(t)
 	time.Sleep(50 * time.Second)
@@ -937,9 +936,7 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	args.topo.Flows().Append(flows...)
 
 	otg.PushConfig(t, args.topo)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
 
 	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv4")
 	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv6")
