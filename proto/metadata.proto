@@ -484,6 +484,7 @@ message Metadata {
     // support for static route with drop nh
     bool static_route_with_explicit_metric = 172;
 
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
