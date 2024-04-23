@@ -26,6 +26,11 @@ or by opening a GitHub
 
 # Running Tests on Virtual Devices
 
+> **Warning:** Though we are trying to use RFC defined non-globally routable
+> space in tests, there might be tests (e.g. scaling tests) that are still using
+> public routable ranges. Users who run the tests own the responsibility of not
+> leaking test traffic to internet.
+
 Tests may be run on virtual devices using the
 [Kubernetes Network Emulation](https://github.com/openconfig/kne) binding.
 
@@ -108,30 +113,6 @@ kne delete topologies/kne/cisco/xrd/topology.textproto
 ```
 
 ## Juniper
-
-### cPTX
-
-> NOTE: `cPTX` images require the host supports nested virtualization.
-
-Juniper `cPTX` images can be obtained by contacting Juniper.
-
-1. Create the topology:
-
-```
-kne create topologies/kne/juniper/cptx/topology.textproto
-```
-
-2. Run a sample test:
-
-```
-go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/cptx/topology.textproto -vendor_creds JUNIPER/root/Google123
-```
-
-3. Cleanup:
-
-```
-kne delete topologies/kne/juniper/cptx/topology.textproto
-```
 
 ### ncPTX
 
