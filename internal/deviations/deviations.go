@@ -936,3 +936,8 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }
+
+// BgpDefaultPolicyUnsupported return true if BGP default-import/export-policy is not supported.
+func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
+}
