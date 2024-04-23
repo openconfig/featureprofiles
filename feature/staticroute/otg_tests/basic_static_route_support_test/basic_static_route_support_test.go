@@ -429,12 +429,6 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 
-		a := gnmi.Get(t, td.dut, gnmi.OC().NetworkInstance("default").
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
-				deviations.StaticProtocolName(td.dut)).
-			Static("2001:db8:128:128::/64").State())
-		t.Log(a)
-
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
