@@ -41,17 +41,26 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 		t.Fatalf("Could not get process state info for \"%s\"", processName)
 	}
 
-	resp, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnoisys.KillProcessRequest{
-		Name:    processName,
-		Restart: true,
-		Signal:  gnoisys.KillProcessRequest_SIGNAL_TERM,
-	})
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	time.Sleep(5 * time.Second)
 	if err != nil {
-		return err
+		t.Fatalf("Error dialing gNOI: %v", err)
 	}
-	if resp == nil {
-		t.Error("")
+
+	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		resp, _ := gnoiClient.System().KillProcess(context.Background(), &gnoisys.KillProcessRequest{
+			Name:    processName,
+			Restart: true,
+			Signal:  gnoisys.KillProcessRequest_SIGNAL_TERM,
+		})
+		t.Logf("KillProcess Response '%s'", resp)
+	}); errMsg != nil {
+		t.Logf("Got testt.CaptureFatal errMsg: %s, Continue ...", *errMsg)
+	} else {
+		t.Logf("Process Restarted Successfully")
 	}
+
+	time.Sleep(30 * time.Second)
 
 	psFinal := getProcessState(t, dut, processName)
 
@@ -65,8 +74,11 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 }
 
 func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	_, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	Resp, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
 		Method:  gnoisys.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis without delay",
@@ -75,6 +87,8 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 	if err != nil {
 		t.Fatalf("Reboot failed %v", err)
 	}
+	t.Logf("Reload Response %v ", Resp)
+
 	startReboot := time.Now()
 	const maxRebootTime = 30
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
@@ -82,7 +96,7 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(90 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {

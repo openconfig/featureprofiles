@@ -1,0 +1,76 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "cisco"
+  password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "/auto/ops-tool/ws-khrasool/ondatra-latest/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/ca.cert.pem"
+  cert_file: "/auto/ops-tool/ws-khrasool/ondatra-latest/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/cisco.cert.pem"
+  key_file:  "/auto/ops-tool/ws-khrasool/ondatra-latest/featureprofiles/feature/security/gnsi/pathz/cisco/tests/testdata/cisco.key.pem"
+}
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  name: "MTB_SF2"  # Change this to the device hostname.
+  config:{
+     gnmi_set_file: "$BASE_CONF_PATH"
+  }
+ 
+  options {
+    insecure: false 
+    skip_verify: false
+    mutual_tls: true
+    username: "cisco"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+   target: "64.103.223.33:7001"
+  }
+  gnmi {
+      target: "64.103.223.33:7001"
+  }
+  gribi{
+     target: "64.103.223.33:7001"
+  }
+  ssh{
+    target: "64.103.223.33:7000"
+    skip_verify: true
+  }
+  p4rt{
+     target: "64.103.223.33:7001"
+  }
+  gnsi{
+     target: "64.103.223.33:7001"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/0/0/2" # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/0/0/3"  # Change this to the actual port name.
+  }
+}

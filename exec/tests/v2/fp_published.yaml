@@ -48,7 +48,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    internal: false
+    internal: true
+    pr: 1113
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -79,6 +80,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    internal: true
+    pr: 1113      
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -125,6 +128,8 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
+    internal: true
+    pr: 1113  
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -422,6 +427,7 @@ tests:
     priority: 48
     skip: false 
     internal: true
+    pr: 1112
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
@@ -434,7 +440,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 92
+    priority: 192
     pr: 1119
     internal: true
     testbeds:
@@ -465,7 +471,7 @@ tests:
     owners:
       - sprem
     mustpass: true
-    priority: 91
+    priority: 191
     testbeds:
       - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -640,8 +646,8 @@ tests:
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
       - wdolaast
-    mustpass: false
-    priority: 90
+    mustpass: true
+    priority: 190
     testbeds:
       - 2DUT-TB2
   - name: gNOI-6.1 (Factory Reset)
@@ -752,21 +758,24 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     priority: 65
-    pr: 2885  
+    internal: true
+    pr: 1107  
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
     timeout: 3600  
-    mustpass: false
-    pr: 2887
+    mustpass: true
+    internal: true
+    pr: 1103  
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
     timeout: 3600    
-    mustpass: false
-    pr: 2889
+    mustpass: true
+    internal: true
+    pr: 1105  
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/encap_decap_scale
     owners:
