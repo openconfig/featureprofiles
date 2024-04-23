@@ -912,6 +912,11 @@ func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
 
+// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
+func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
+}
+
 // TableConnectionsUnsupported returns true if Table Connections are unsupported.
 func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
@@ -925,4 +930,9 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 // SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
+
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }
