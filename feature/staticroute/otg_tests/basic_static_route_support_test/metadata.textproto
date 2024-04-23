@@ -35,7 +35,7 @@ platform_exceptions: {
     static_route_with_drop_nh: true
     unsupported_static_route_next_hop_recurse: true
     static_route_with_explicit_metric: true
-    require_routed_subinterface_0: true
+    interface_ref_config_unsupported: true
 
   }
 }

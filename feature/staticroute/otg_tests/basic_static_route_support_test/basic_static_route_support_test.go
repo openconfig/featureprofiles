@@ -1166,11 +1166,7 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 	for _, intfName := range []string{p1Name, p2Name} {
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-		if deviations.RequireRoutedSubinterface0(td.dut) {
-			t.Log("Skipping sub-interface oc creation")
-		} else {
-			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(td.dut) {
 			isisIntf.InterfaceRef = nil
 		}
