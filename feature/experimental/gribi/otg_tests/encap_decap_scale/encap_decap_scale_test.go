@@ -540,46 +540,43 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 
 	_, decapStartIP, _ := net.ParseCIDR(IPBlockDecap)
 	flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: []uint32{dscpEncapA1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapA1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: dscpEncapA1,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapA1,
 	})
 
 	flow2 := createFlow(&flowArgs{flowName: "flow2", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfBIPv4Enries, inHdrDscp: []uint32{dscpEncapB1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapB1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfBIPv4Enries, inHdrDscp: dscpEncapB1,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapB1,
 	})
 
 	flow3 := createFlow(&flowArgs{flowName: "flow3", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfCIPv4Enries, inHdrDscp: []uint32{dscpEncapC1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapC1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfCIPv4Enries, inHdrDscp: dscpEncapC1,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapC1,
 	})
 
 	flow4 := createFlow(&flowArgs{flowName: "flow4", isInnHdrV4: true, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: []uint32{dscpEncapD1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: dscpEncapD1,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapD1,
 	})
 
-	// Below v6 flows will fail due to ixia issue.
-	// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/49
-
 	flow5 := createFlow(&flowArgs{flowName: "flow5", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: []uint32{dscpEncapA2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapA2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: dscpEncapA2,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapA2,
 	})
 
 	flow6 := createFlow(&flowArgs{flowName: "flow6", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfBIPv6Enries, inHdrDscp: []uint32{dscpEncapB2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapB2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfBIPv6Enries, inHdrDscp: dscpEncapB2,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapB2,
 	})
 
 	flow7 := createFlow(&flowArgs{flowName: "flow7", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfCIPv6Enries, inHdrDscp: []uint32{dscpEncapC2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapC2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfCIPv6Enries, inHdrDscp: dscpEncapC2,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapC2,
 	})
 
 	flow8 := createFlow(&flowArgs{flowName: "flow8", isInnHdrV4: false, outHdrDstIPCount: decapRouteCount,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfDIPv6Enries, inHdrDscp: []uint32{dscpEncapD2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: []uint32{dscpEncapD2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfDIPv6Enries, inHdrDscp: dscpEncapD2,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIP: decapStartIP.IP.String(), outHdrDscp: dscpEncapD2,
 	})
 
 	flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
@@ -700,8 +697,8 @@ type flowArgs struct {
 	InnHdrSrcIPv6            string
 	InnHdrDstIPv6            []string
 	isInnHdrV4               bool
-	outHdrDscp               []uint32
-	inHdrDscp                []uint32
+	outHdrDscp               uint32
+	inHdrDscp                uint32
 	outHdrDstIPCount         uint32
 }
 
@@ -718,22 +715,18 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIpHdr.Dst().Increment().SetStart(flowValues.outHdrDstIP).SetCount(flowValues.outHdrDstIPCount)
-	outerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.outHdrDscp)
+	outerIpHdr.Priority().Dscp().Phb().SetValue(flowValues.outHdrDscp)
 
 	if flowValues.isInnHdrV4 {
 		innerIpHdr := flow.Packet().Add().Ipv4()
 		innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 		innerIpHdr.Dst().SetValues(flowValues.InnHdrDstIP)
-		if len(flowValues.inHdrDscp) != 0 {
-			innerIpHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
-		}
+		innerIpHdr.Priority().Dscp().Phb().SetValue(flowValues.inHdrDscp)
 	} else {
 		innerIpv6Hdr := flow.Packet().Add().Ipv6()
 		innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 		innerIpv6Hdr.Dst().SetValues(flowValues.InnHdrDstIPv6)
-		if len(flowValues.inHdrDscp) != 0 {
-			innerIpv6Hdr.TrafficClass().SetValues(flowValues.inHdrDscp)
-		}
+		innerIpv6Hdr.TrafficClass().SetValue(flowValues.inHdrDscp << 2)
 	}
 	return flow
 }
@@ -1298,7 +1291,9 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 	configureATEPort1(t, top)
 	configureATESubIfs(t, top, ap2, dut)
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
