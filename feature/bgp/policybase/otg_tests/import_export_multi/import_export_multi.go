@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package import_export_test covers RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
 package import_export_test
 
 import (
@@ -100,11 +101,12 @@ var communityMembers = [][][]int{
 	},
 }
 
+// TestMain triggers the test run
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, matchSetOptions oc.E_BgpPolicy_MatchSetOptionsType) {
+func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition("routePolicy")
@@ -365,6 +367,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 }
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, communityMembers [][][]int) {
+	t.Logf("configure OTG")
 	devices := bs.ATETop.Devices().Items()
 
 	ipv4 := devices[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
@@ -409,6 +412,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 }
 
 func configureFlowV4(t *testing.T, bs *cfgplugins.BGPSession) {
+	t.Logf("configure V4 Flow on traffic generator")
 	for index, prefixPairV4 := range prefixesV4 {
 		flow := bs.ATETop.Flows().Add().SetName("flow" + "ipv4" + strconv.Itoa(index))
 		flow.Metrics().SetEnable(true)
@@ -431,6 +435,7 @@ func configureFlowV4(t *testing.T, bs *cfgplugins.BGPSession) {
 }
 
 func configureFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
+	t.Logf("configure V6 Flow on traffic generator")
 	for index, prefixPairV6 := range prefixesV6 {
 		flow := bs.ATETop.Flows().Add().SetName("flow" + "ipv6" + strconv.Itoa(index))
 		flow.Metrics().SetEnable(true)
@@ -495,6 +500,7 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	}
 }
 
+// TestImportExportMultifacetMatchActionsBGPPolicy covers RT-7.11
 func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
@@ -512,7 +518,7 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
 	t.Logf("Verify Import Export Accept all bgp policy")
-	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6, matchAny)
+	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6)
 
 	configureFlowV4(t, bs)
 	configureFlowV6(t, bs)
