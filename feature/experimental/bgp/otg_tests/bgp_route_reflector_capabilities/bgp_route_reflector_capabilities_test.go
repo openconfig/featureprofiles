@@ -800,13 +800,15 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 			intfName = intfName + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
-		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
-		_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Isis_IsisInterfaceAdjState_UP
+		query := nbrPath.Level(2).AdjacencyAny().AdjacencyState().State()
+		var status *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]
+		status, ok := gnmi.WatchAll(t, dut, query, 1*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			state, _ := val.Val()
+			return val.IsPresent() && state == oc.Isis_IsisInterfaceAdjState_UP
 		}).Await(t)
 		if !ok {
-			t.Logf("IS-IS state on %v has no adjacencies", intfName)
+			state, _ := status.Val()
+			t.Logf("IS-IS state on %v has no adjacencies %v", intfName, state)
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
