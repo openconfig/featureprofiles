@@ -31,7 +31,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/google/gnxi/utils/entity"
 	cpb "github.com/openconfig/attestz/proto/common_definitions"
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	cert "github.com/openconfig/featureprofiles/internal/cisco/security/cert"
@@ -77,21 +76,27 @@ func FindComponentSerialnoRoleByType(t *testing.T, dut *ondatra.DUTDevice, cType
 	return name, serialNo, role
 }
 
-func generateFromCA(targetName string, ca string, caKey string) ([]tls.Certificate, *x509.CertPool) {
-	var caEnt *entity.Entity
-	var err error
+func loadFromFile(certPath string, keyPath string, caCertPath string) ([]tls.Certificate, *x509.CertPool) {
 	certPool := x509.NewCertPool()
-	caEnt, err = entity.FromFile(ca, caKey)
+	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		log.Exitf("Failed to load certificate and key from file: %v", err)
+		log.Exit("Could not load key/certificate pair from files:", err)
 	}
-	clientEnt, err := entity.CreateSigned(targetName, nil, caEnt)
+	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	if err != nil {
-		log.Exitf("Failed to create a signed entity: %v", err)
+		log.Exit("Could not parse x509 certificate from tls certificate:", err)
 	}
-	certs := []tls.Certificate{*clientEnt.Certificate}
-	certPool.AddCert(caEnt.Certificate.Leaf)
-
+	caFile, err := os.ReadFile(caCertPath)
+	if err != nil {
+		log.Exitf("could not read CA certificate: %s", err)
+	}
+	block, _ := pem.Decode(caFile)
+	caCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		log.Exit("Error parsing CA certificate", err)
+	}
+	certs := []tls.Certificate{certificate}
+	certPool.AddCert(caCert)
 	return certs, certPool
 }
 
@@ -105,12 +110,13 @@ var (
 	passwordKey = "password"
 )
 
-func clientCredentials(targetName string, ca string, caKey string, username string, password string) []grpc.DialOption {
+func clientCredentials(targetName string, ca string, username string, password string, clientCert string, clientKey string) []grpc.DialOption {
 
 	opts := []grpc.DialOption{}
 	tlsConfig := &tls.Config{}
 
-	certificates, certPool := generateFromCA(targetName, ca, caKey)
+	certificates, certPool := loadFromFile(clientCert, clientKey, ca)
+
 	tlsConfig.ServerName = targetName
 	tlsConfig.Certificates = certificates
 	tlsConfig.RootCAs = certPool
@@ -133,9 +139,8 @@ func (a *userCredentials) RequireTransportSecurity() bool {
 	return true
 }
 
-func grpcConn(targetName string, target string, caCert string, username string, password string) (grpc.ClientConnInterface, error) {
-	opts := clientCredentials(targetName, caCert,
-		"/ws/anidamod-bgl/gNSI_B4/featureprofiles/internal/cisco/security/cert/keys/CA/ca.key.pem", username, password)
+func grpcConn(targetName string, target string, caCert string, username string, password string, cCert string, cKey string) (grpc.ClientConnInterface, error) {
+	opts := clientCredentials(targetName, caCert, username, password, cCert, cKey)
 
 	conn, err := grpc.Dial(target, opts...)
 	objType := reflect.TypeOf(conn)
@@ -442,7 +447,7 @@ func TestGetIAKCert(t *testing.T) {
 	}
 	dut := ondatra.DUT(t, "dut")
 	cardTypes := getListOfCardTypes(t, dut)
-	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password)
+	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
 	if err != nil {
 		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
 	}
@@ -477,7 +482,7 @@ func TestRotateOIak(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cardTypes := getListOfCardTypes(t, dut)
 
-	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password)
+	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
 	if err != nil {
 		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
 	}

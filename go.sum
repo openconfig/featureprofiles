@@ -1664,12 +1664,12 @@ github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapN
 github.com/openconfig/gnmi v0.0.0-20200508230933-d19cebf5e7be/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
 github.com/openconfig/gnmi v0.10.0 h1:kQEZ/9ek3Vp2Y5IVuV2L/ba8/77TgjdXg505QXvYmg8=
 github.com/openconfig/gnmi v0.10.0/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
-github.com/openconfig/gnoi v0.3.0 h1:ieThHVx5rRwAt6lqKOKzoA3pcr5FE5Xs40GJ7wNqshs=
-github.com/openconfig/gnoi v0.3.0/go.mod h1:bv+Cln0d052XT0KnHKAe3MekHKpSl2z5g/TJCD8gbkM=
-github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7 h1:Jy48edwfOFFrJlysB/0itfEOE7hgxFT1Dm/qFasxIrg=
-github.com/openconfig/gnoigo v0.0.0-20231026010722-87413fdb22e7/go.mod h1:P3ST0D9yq2XYeKh5cvkEFqcVAdLuyAxN6k2Zh7zADj4=
-github.com/openconfig/gnsi v1.2.3 h1:Y/fBMQOn5xqdo9xuT7AK2YHSRejx/ws4sDOMBCHQG6w=
-github.com/openconfig/gnsi v1.2.3/go.mod h1:QikTHkm468uc2rq/kVhETfyZ6FPeM+zitubrHBbB0HE=
+github.com/openconfig/gnoi v0.4.0 h1:jbYXRMNmmvA8ZFv2FBLrYoxA1MFSui4tEui+8LAWyVc=
+github.com/openconfig/gnoi v0.4.0/go.mod h1:0d3/bgooXM/je6jI+fb7+9Iky8R8k6zSFG19xRYTRso=
+github.com/openconfig/gnoigo v0.0.0-20240214160338-8660e1580468 h1:84ZrTGWMB73qVSX8uExxFNTHZKEmBJse1QXAdo/Eywc=
+github.com/openconfig/gnoigo v0.0.0-20240214160338-8660e1580468/go.mod h1:iwgbKmQ8IU82mszJWXKpR0HSZiZ4DjeAnBZhYTp+l+4=
+github.com/openconfig/gnsi v1.2.5 h1:P6MjCnLZuINIivGLbp4No1HarZt7456wuJRNbSQyGu0=
+github.com/openconfig/gnsi v1.2.5/go.mod h1:jzPF4rVWPHhIG0F3t910Hh2VqqTbSfv18shbgE4AXhw=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b h1:NSYuxdlOWLldNpid1dThR6Dci96juXioUguMho6aliI=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b/go.mod h1:uhC/ybmPapgeyAL2b9ZrUQ+DZE+DB+J+/7377PX+lek=
 github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
@@ -2699,7 +2699,6 @@ google.golang.org/grpc v1.54.0/go.mod h1:PUSEXI6iWghWaB6lXM4knEgpJNu2qUcKfDtNci3
 google.golang.org/grpc v1.55.0/go.mod h1:iYEXKGkEBhg1PjZQvoYEVPTDkHo1/bjTnfwTeGONTY8=
 google.golang.org/grpc v1.56.1/go.mod h1:I9bI3vqKfayGqPUAwGdOSu7kt6oIJLixfffKrpXqQ9s=
 google.golang.org/grpc v1.56.2/go.mod h1:I9bI3vqKfayGqPUAwGdOSu7kt6oIJLixfffKrpXqQ9s=
-google.golang.org/grpc v1.56.3/go.mod h1:I9bI3vqKfayGqPUAwGdOSu7kt6oIJLixfffKrpXqQ9s=
 google.golang.org/grpc v1.57.0/go.mod h1:Sd+9RMTACXwmub0zcNY2c4arhtrbBYD1AUHI/dt16Mo=
 google.golang.org/grpc v1.58.2/go.mod h1:tgX3ZQDlNJGU96V6yHh1T/JeoBQ2TXdr43YbYSsCJk0=
 google.golang.org/grpc v1.58.3/go.mod h1:tgX3ZQDlNJGU96V6yHh1T/JeoBQ2TXdr43YbYSsCJk0=
