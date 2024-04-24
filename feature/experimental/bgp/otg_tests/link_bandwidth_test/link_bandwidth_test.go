@@ -432,7 +432,6 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 	if len(importPolicies) != 1 {
 		t.Errorf("ImportPolicy Ipv6 got= %v, want= %v", importPolicies, []string{"allow-all"})
 	}
-
 	bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
 	locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
 	found = 0
@@ -447,11 +446,9 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
 		}
 	}
-
 	if found != len(expectedV6) {
 		t.Errorf("Not all v6 Routes found expected:%d got:%d", len(expectedV6), found)
 	}
-
 }
 
 func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
