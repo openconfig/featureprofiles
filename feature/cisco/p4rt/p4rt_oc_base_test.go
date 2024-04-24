@@ -166,8 +166,8 @@ var (
 			fn:   testConfigDeviceIDPortIDWithInterfaceDown,
 		},
 		{
-			name: "Test Configuration Of DeviceID PortID Using Bundle Interfaces",
-			desc: "Configure P4RT with device-id and port-id with Bundle Interface",
+			name: "Test Configuration Of DeviceID PortID Using Bundle Member Interfaces",
+			desc: "Configure P4RT with device-id and port-id with Bundle Member Interface",
 			fn:   testP4RTConfigurationWithBundleInterface,
 		},
 		{
@@ -331,12 +331,13 @@ func configureP4RTIntf(t *testing.T, dut *ondatra.DUTDevice, intf string, id uin
 
 // configureP4RTDevice configures device-id for a specified npu instance
 func configureP4RTDevice(t *testing.T, dut *ondatra.DUTDevice, npu string, nodeid uint64) {
-	ic := &oc.Component_IntegratedCircuit{}
-	ic.NodeId = ygot.Uint64(nodeid)
+	c := &oc.Component{}
+	c.SetName(npu)
+	c.GetOrCreateIntegratedCircuit().SetNodeId(nodeid)
 
-	config := gnmi.OC().Component(npu).IntegratedCircuit()
-	defer observer.RecordYgot(t, "REPLACE", config)
-	gnmi.Replace(t, dut, config.Config(), ic)
+	path := gnmi.OC().Component(npu)
+	defer observer.RecordYgot(t, "REPLACE", path)
+	gnmi.Replace(t, dut, path.Config(), c)
 }
 
 // getSubInterface returns a subinterface configuration populated with IP addresses and VLAN ID.

@@ -20,10 +20,12 @@ package pathz
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	pathzpb "github.com/openconfig/gnsi/pathz"
@@ -48,6 +50,7 @@ type Spiffe struct {
 func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 	cliHandle := dut.RawAPIs().CLI(t)
 	resp, err := cliHandle.RunCommand(context.Background(), "run rm /mnt/rdsfs/ems/gnsi/"+file)
+	time.Sleep(30 * time.Second)
 	if err != nil {
 		t.Error(err)
 	}
@@ -59,6 +62,10 @@ type policyData struct {
 	rawPolicy *pathzpb.AuthorizationPolicy
 	version   string
 	createdOn uint64
+}
+
+type RedundancyState struct {
+	NsrState string `json:"nsr-state"`
 }
 
 // Server implements the pathz gRPC server.
@@ -223,4 +230,52 @@ func ConfigAndVerifyISIS(t testing.TB, d *ondatra.DUTDevice, i string, ni string
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
+}
+
+func GetRedundancyInfo(t *testing.T, dut *ondatra.DUTDevice) {
+
+	maxRetries := 10                  // Maximum number of retries
+	retryInterval := 60 * time.Second // Interval between retries
+	nsr_state := &gpb.GetRequest{
+		Path: []*gpb.Path{
+			{
+				Origin: "Cisco-IOS-XR-infra-rmf-oper", Elem: []*gpb.PathElem{
+					{Name: "redundancy"},
+					{Name: "summary"},
+					{Name: "red-pair"},
+				},
+			},
+		},
+		Type:     gpb.GetRequest_STATE,
+		Encoding: gpb.Encoding_JSON_IETF,
+	}
+	var responseRawObj RedundancyState
+
+	for retry := 1; retry <= maxRetries; retry++ {
+		Resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), nsr_state)
+		t.Logf("Error: %v", err)
+		t.Logf("NSR State Response: %v", Resp)
+
+		if err == nil {
+			jsonIetfData := Resp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+			err = json.Unmarshal(jsonIetfData, &responseRawObj)
+			if err == nil && responseRawObj.NsrState == "Ready" {
+				t.Logf("Received response, standby is in %s state", responseRawObj.NsrState)
+				return // Exit the function if NSR state is "Ready"
+			}
+		}
+
+		// Log retry information
+		if retry < maxRetries {
+			t.Logf("Retry #%d: Standby is in %s state, retrying after %v", retry, responseRawObj.NsrState, retryInterval)
+		} else {
+			t.Logf("Retry #%d: Standby is in %s state, maximum retries reached", retry, responseRawObj.NsrState)
+		}
+
+		// Sleep before retrying
+		time.Sleep(retryInterval)
+	}
+
+	// Log error if maximum retries reached without success
+	t.Errorf("Failed to get standby in Ready state after %d retries", maxRetries)
 }
