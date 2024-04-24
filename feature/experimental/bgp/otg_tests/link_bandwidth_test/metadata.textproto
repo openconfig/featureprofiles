@@ -21,5 +21,14 @@ platform_exceptions:  {
     bgp_extended_community_index_unsupported:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    policy_result_type_next_statement_unsupported: true
+    bgp_rib_oc_path_unsupported: true
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_DATACENTER_EDGE

@@ -487,6 +487,10 @@ message Metadata {
     bool default_import_export_policy = 173;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
+    // Devices which do not support next statement in OC Config.
+    // Juniper : b/328280827
+    bool policy_result_type_next_statement_unsupported = 175;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
