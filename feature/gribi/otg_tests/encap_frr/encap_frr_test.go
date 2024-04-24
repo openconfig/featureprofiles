@@ -339,7 +339,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
