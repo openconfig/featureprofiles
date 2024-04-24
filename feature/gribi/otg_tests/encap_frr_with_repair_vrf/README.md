@@ -278,7 +278,7 @@ NH#101 -> {
 NH#102 -> {
   encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
   ip_in_ip {
-    dst_ip: "203.10.113.2"
+    dst_ip: "203.0.113.2"
     src_ip: "ipv4_outer_src_111"
   }
   network_instance: "TE_VRF_111"
@@ -327,9 +327,9 @@ IPv4Entry {192.0.2.103/32 (DEFAULT VRF)} -> NHG#13 (DEFAULT VRF) -> {
   {NH#14, DEFAULT VRF, weight:1,mac_address:magic_mac, interface-ref:dut-port-5-interface},
 }
 
-// 203.10.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
+// 203.0.113.2 is the tunnel IP address. Note that the NHG#3 is different than NHG#1.
 
-IPv4Entry {203.10.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
+IPv4Entry {203.0.113.2/32 (TE_VRF_111)} -> NHG#3 (DEFAULT VRF) -> {
   {NH#4, DEFAULT VRF, weight:1,ip_address=192.0.2.104},
   backup_next_hop_group: 3000 // Go to REPAIR VRF
 }
@@ -534,6 +534,42 @@ NH#1001 -> {
 1.  Validate that all traffic is distributed per the hierarchical weights.
 2.  Shutdown DUT port-2, port-3, and port-4, and port-6.
 3.  Validate that all traffic is no longer encapsulated, and is all egressing
+    out of DUT port-8 per the BGP-ISIS routes in the default VRF.
+
+#### Test-8, no match in TE_VRF_111
+
+Tests that if the primary encaps point to tunnels that do not exist, then the
+traffic should be routed to the `DEFAULT` VRF for further lookup.
+
+1.  Validate that all traffic is distributed per the hierarchical weights.
+2.  Update NHG#101 to the following:
+
+```
+NHG#101 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF, weight:1},
+  {NH#102, DEFAULT VRF, weight:3},
+  backup_next_hop_group: 2001 // fallback to DEFAULT VRF
+}
+
+NH#101 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.100.113.1" // This route does not exist in TE_VRF_111
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
+}
+NH#102 -> {
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.100.113.2" // This route does not exist in TE_VRF_111
+    src_ip: "ipv4_outer_src_111"
+  }
+  network_instance: "TE_VRF_111"
+}
+```
+
+1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
 ## Config Parameter Coverage
