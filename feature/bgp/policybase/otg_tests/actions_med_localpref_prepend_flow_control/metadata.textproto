@@ -21,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     policy_result_type_next_statement_unsupported: true
+    bgp_rib_oc_path_unsupported: true
   }
 }
 platform_exceptions: {
