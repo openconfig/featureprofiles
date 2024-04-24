@@ -190,10 +190,6 @@ func Test_Ethertype(t *testing.T) {
 	t.Run("Testing openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/ethertype", func(t *testing.T) {
 		r1 := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 		r1.SequenceId = ygot.Uint32(1)
-		//policyForwardingPath := gnmi.OC().NetworkInstance("DEFAULT").PolicyForwarding()
-		////sb := &gnmi.SetBatch{}
-		//gnmi.Update(t, dut, policyForwardingPath.Policy(pbrName).Rule(uint32(1)).SequenceId().Config(), uint32(1))
-		//gnmi.Update(t, dut, policyForwardingPath.Policy(pbrName).PolicyId().Config(), pbrName)
 		r1.Action = &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{NetworkInstance: ygot.String("TE")}
 
 		// openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/l2/config/ethertype
