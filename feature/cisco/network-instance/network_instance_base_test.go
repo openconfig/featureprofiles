@@ -43,8 +43,8 @@ func verifyUpdateDescription(t *testing.T, dut *ondatra.DUTDevice) {
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), instance.description+"Updated")
 	}
-
 }
+
 func verifyReplaceDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
 		path := gnmi.OC().NetworkInstance(instance.name).Description()
@@ -53,6 +53,7 @@ func verifyReplaceDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 }
+
 func verifyDeleteDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
 		path := gnmi.OC().NetworkInstance(instance.name).Description()
@@ -61,6 +62,7 @@ func verifyDeleteDescription(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 }
+
 func deleteNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, instance := range instances {
 		path := gnmi.OC().NetworkInstance(instance.name)
