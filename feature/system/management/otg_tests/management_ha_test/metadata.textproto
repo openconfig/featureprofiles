@@ -20,6 +20,5 @@ platform_exceptions:  {
     set_metric_as_preference:  true
   }
 }
-tags:  TAGS_AGGREGATION
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE
