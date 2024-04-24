@@ -1,7 +1,6 @@
 package ppc_test
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
@@ -9,13 +8,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	gnps "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -50,38 +44,6 @@ type Testcase struct {
 	flow        *ondatra.Flow
 	eventType   eventType   // events for creating the trigger scenario
 	triggerType triggerType // triggers
-}
-
-// TODO - to be used for testing FEAT-22487 in Q4 2024
-var _ = []Testcase{
-	{
-		name: "Process restart",
-		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
-		// fib_mgr restart will reload the fixed chassis
-		desc:        "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
-		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "rib_mgr", "isis"}},
-	},
-	{
-		name:        "LC reload",
-		desc:        "perform LC reload and validate pipeline counters",
-		triggerType: &triggerLcReload{tolerance: 40}, //when LC is reloading, component is missing and indeed no data will be collected hence tolerance is needed
-	},
-}
-
-// Extended triggers
-// TODO - TODO - to be used for testing FEAT-22487 in Q4 2024
-var _ = []Testcase{
-	{
-		name: "Process restart",
-		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
-		desc:        "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
-		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}},
-	},
-	{
-		name:        "LC reload",
-		desc:        "perform LC reload and validate pipeline counters",
-		triggerType: &triggerLcReload{tolerance: 40}, //when LC is reloading, component is missing and indeed no data will be collected hence tolerance is needed
-	},
 }
 
 type triggerType interface {
@@ -190,92 +152,12 @@ func (eventArgs eventEnableMplsLdp) enableMplsLdp(t *testing.T) {
 	gnmi.Update(t, dut, cliPath, mplsLdp)
 }
 
-type triggerProcessRestart struct {
-	processes []string
-}
-
-func (triggerArgs triggerProcessRestart) restartProcessBackground(t *testing.T, ctx context.Context) {
-	dut := ondatra.DUT(t, "dut")
-	for _, process := range triggerArgs.processes {
-		// patch for CLIviaSSH failing, else pattern to use is #
-		var acp string
-		if withRpfo {
-			acp = ".*Last switch-over.*ago"
-		} else {
-			acp = ".*"
-		}
-
-		ticker1 := time.NewTicker(3 * time.Second)
-		runner.RunCLIInBackground(ctx, t, dut, fmt.Sprintf("process restart %s", process), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 4*time.Second)
-		time.Sleep(4 * time.Second)
-		ticker1.Stop()
-	}
-}
-
-type triggerLcReload struct {
-	tolerance float64
-}
-
-func (triggerArgs triggerLcReload) lcReload(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ls := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
-
-	for _, l := range ls {
-		t.Run(l, func(t *testing.T) {
-			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Empty().State()).Val()
-			if ok && empty {
-				t.Skipf("Linecard Component %s is empty, hence skipping", l)
-			}
-			if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
-				t.Skipf("Skip the test on non-removable linecard.")
-			}
-
-			oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
-
-			if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
-				t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
-			}
-
-			gnoiClient := dut.RawAPIs().GNOI(t)
-			useNameOnly := deviations.GNOISubcomponentPath(dut)
-			lineCardPath := components.GetSubcomponentPath(l, useNameOnly)
-			rebootSubComponentRequest := &gnps.RebootRequest{
-				Method: gnps.RebootMethod_COLD,
-				Subcomponents: []*tpb.Path{
-					// {
-					//  Elem: []*tpb.PathElem{{Name: lc}},
-					// },
-					lineCardPath,
-				},
-			}
-			t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
-			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
-			if err != nil {
-				t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-			}
-			t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
-
-			// sleep while lc reloads
-			time.Sleep(10 * time.Minute) // TODO - handle via polling
-		})
-	}
-}
-
 // sortPorts sorts the given slice of ports by the testbed port ID in ascending order.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
 		return ports[i].ID() < ports[j].ID()
 	})
 	return ports
-}
-
-func (args *testArgs) isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
-	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-	if len(cs) < 2 {
-		return false
-	} else {
-		return true
-	}
 }
 
 // tgnOptions are optional parameters to a validate traffic function.
