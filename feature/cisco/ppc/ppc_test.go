@@ -22,8 +22,7 @@ var (
 )
 
 const (
-	withRpfo = true
-	vrf1     = "TE"
+	vrf1 = "TE"
 )
 
 type testArgs struct {
