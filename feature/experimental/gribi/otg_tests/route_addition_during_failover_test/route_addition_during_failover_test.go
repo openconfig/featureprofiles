@@ -32,18 +32,19 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
 	fpb "github.com/openconfig/gnoi/file"
-	spb "github.com/openconfig/gnoi/system"
 	aftspb "github.com/openconfig/gribi/v1/proto/service"
 )
 
@@ -125,7 +126,7 @@ var ipBlock1FlowArgs = &flowArgs{
 }
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient binding.GNOIClients, sysConfigTime uint64, retry bool) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, sysConfigTime uint64, retry bool) {
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
@@ -348,7 +349,7 @@ func configureSubinterfaceDUT(t *testing.T, d *oc.Root, dutPort *ondatra.Port, i
 func configureATE(t *testing.T, top gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4 string) {
 	dev := top.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
-	eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(atePort.ID())
+	eth.Connection().SetPortName(atePort.ID())
 	if vlanID != 0 {
 		eth.Vlans().Add().SetName(Name).SetId(uint32(vlanID))
 	}
@@ -385,7 +386,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart(flowArgs.flowStartAddress).SetCount(flowArgs.flowCount)
@@ -625,17 +626,11 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	awaitSwitchoverReady(t, dut, primaryBeforeSwitch)
 	t.Logf("Controller %q is ready for switchover before test.", primaryBeforeSwitch)
 
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-
 	// Concurrently run switchover and gribi route addition in ipBlock2.
 	virtualIPsBlock2 := createIPv4Entries(t, ipBlock2FlowArgs.ipBlock)
 
 	// Check for coredumps in the DUT and validate that none are present on DUT before switchover.
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	coreFileCheck(t, dut, gnoiClient, sysConfigTime, false)
 
 	wg := new(sync.WaitGroup)
@@ -649,11 +644,8 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-		if err != nil {
-			t.Logf("Failed to perform control processor switchover with unexpected err: %v", err)
-		}
-		t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+		switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
+		t.Logf("swtichover process response: %v", switchoverResponse)
 	}()
 	wg.Wait()
 	t.Log("Concurrent switchover and route addition is completed, validate switchoverStatus now.")

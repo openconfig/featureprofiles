@@ -1,0 +1,51 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "bf5df0ee-79b7-460b-8146-3a1351fd56d7"
+plan_id: "TE-3.31"
+description: "Hierarchical weight resolution with PBF"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    hierarchical_weight_resolution_tolerance: 1.5
+    ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true 
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    hierarchical_weight_resolution_tolerance: 0.4
+    explicit_interface_ref_definition: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_ref_definition: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    deprecated_vlan_id: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+tags: TAGS_DATACENTER_EDGE
