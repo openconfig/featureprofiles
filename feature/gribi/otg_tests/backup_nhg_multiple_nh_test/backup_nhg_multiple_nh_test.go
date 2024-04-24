@@ -20,19 +20,18 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gribigo/client"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -136,7 +135,7 @@ func TestMain(m *testing.M) {
 
 // configureATE configures ports on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -198,6 +197,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
@@ -253,40 +253,39 @@ func TestBackup(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
-		t.Logf("Name: IPv4BackUpSwitch")
-		t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
+	// Configure the gRIBI client clientA
+	client := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+	defer client.Close(t)
 
-		// Configure the gRIBI client clientA
-		client := gribi.Client{
-			DUT:         dut,
-			FIBACK:      true,
-			Persistence: true,
-		}
-		defer client.Close(t)
+	// Flush all entries after the test
+	defer client.FlushAll(t)
 
-		// Flush all entries after the test
-		defer client.FlushAll(t)
+	if err := client.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
 
-		if err := client.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection can not be established")
-		}
+	// Make client leader
+	client.BecomeLeader(t)
 
-		// Make client leader
-		client.BecomeLeader(t)
+	// Flush past entries before running the tc
+	client.FlushAll(t)
 
-		// Flush past entries before running the tc
-		client.FlushAll(t)
+	t.Logf("Name: IPv4BackUpSwitch")
+	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
 
-		tcArgs := &testArgs{
-			ctx:    ctx,
-			dut:    dut,
-			client: &client,
-			ate:    ate,
-			top:    top,
-		}
-		tcArgs.testIPv4BackUpSwitch(t)
-	})
+	tcArgs := &testArgs{
+		ctx:    ctx,
+		client: &client,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
+	}
+
+	tcArgs.testIPv4BackUpSwitch(t)
 }
 
 // testIPv4BackUpSwitch Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH
@@ -384,15 +383,15 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 
 // createFlow returns a flow from atePort1 to the dstPfx
 func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
-
+	a.top.Flows().Clear()
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName("port1")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
 	flow.Rate().SetPps(fps)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(dutPort1.IPv4)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
@@ -428,32 +427,20 @@ func (a *testArgs) validateTrafficFlows(t *testing.T, flow string, outPorts []*o
 	a.ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
 	otgutils.LogPortMetrics(t, a.ate.OTG(), a.top)
+	otgutils.LogFlowMetrics(t, a.ate.OTG(), a.top)
 
-	// Get send traffic
-	outTrafficState := gnmi.OTG().Port(a.ate.Port(t, "port1").ID()).State()
-	sentPkts := gnmi.Get(t, a.ate.OTG(), outTrafficState).GetCounters().GetOutFrames()
+	// Get send and receive traffic
+	flowMetrics := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Flow(flow).State())
+	sentPkts := uint64(flowMetrics.GetCounters().GetOutPkts())
+	receivedPkts := uint64(flowMetrics.GetCounters().GetInPkts())
+
 	if sentPkts == 0 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
 
-	var receivedPkts uint64
-
-	// Get traffic received on primary outgoing interface before interface shutdown
-	for _, port := range shutPorts {
-		outTrafficCounters := gnmi.OTG().Port(a.ate.Port(t, port).ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outTrafficCounters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
-	// Get traffic received on expected port after interface shut
-	for _, outPort := range outPorts {
-		outTrafficCounters := gnmi.OTG().Port(outPort.ID()).State()
-		outPkts := gnmi.Get(t, a.ate.OTG(), outTrafficCounters).GetCounters().GetInFrames()
-		receivedPkts = receivedPkts + outPkts
-	}
-
 	// Check if traffic restores with in expected time in milliseconds during interface shut
 	// else if there is no interface trigger, validate received packets (control+data) are more than send packets
+	t.Logf("Sent Packets: %v, Received packets: %v", sentPkts, receivedPkts)
 	diff := pktDiff(sentPkts, receivedPkts)
 	if len(shutPorts) > 0 {
 		// Time took for traffic to restore in milliseconds after trigger

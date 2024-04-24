@@ -303,11 +303,6 @@ func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRibackOnly()
 }
 
-// MissingInterfacePhysicalChannel returns if device does not support interface/physicalchannel leaf.
-func MissingInterfacePhysicalChannel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingInterfacePhysicalChannel()
-}
-
 // MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
 func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
@@ -382,6 +377,11 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
+// RibWecmp returns if device requires CLI knob to enable wecmp feature.
+func RibWecmp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRibWecmp()
+}
+
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
@@ -400,11 +400,6 @@ func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
 // ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
 func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
-}
-
-// SkipBGPTestPasswordMismatch retuns if BGP TestPassword mismatch subtest should be skipped.
-func SkipBGPTestPasswordMismatch(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpTestPasswordMismatch()
 }
 
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
@@ -459,12 +454,6 @@ func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
-// SkipPLQPacketsCountCheck returns if PLQ packets count check should be skipped.
-// Default value is false.
-func SkipPLQPacketsCountCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPlqPacketsCountCheck()
-}
-
 // SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
 // Default value is false.
 func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
@@ -499,12 +488,6 @@ func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
 }
 
-// SkipFabricCardPowerAdmin returns whether the device should skip the Platform Power Down Up for Fabric Card.
-// Default value is false.
-func SkipFabricCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFabricCardPowerAdmin()
-}
-
 // ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
 // the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
 func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
@@ -532,12 +515,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 // configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
 func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
-// AggregateLoopbackModeRequiresMemberPortLoopbackMode returns true for devices that require
-// configuring LoopbackMode on member ports to enable LoopbackMode on aggregate interface.
-func AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateLoopbackModeRequiresMemberPortLoopbackMode()
 }
 
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
@@ -597,6 +574,12 @@ func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
 }
 
+// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
+// support fib forwarding for fib failed routes.
+func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
+}
+
 // SkipTCPNegotiatedMSSCheck returns true for devices that do not
 // support telemetry to check negotiated tcp mss value.
 func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
@@ -624,4 +607,332 @@ func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
 // QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
 func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
+}
+
+// BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
+func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
+}
+
+// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
+}
+
+// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
+// BGP ExtendedNextHopEncoding at thee global level.
+func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
+}
+
+// TunnelStatePathUnsupported returns true for devices that require configuring
+// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
+func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
+}
+
+// TunnelConfigPathUnsupported returns true for devices that require configuring
+// Tunnel source-address destination-address, encapsulation type are not supported in OC
+func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
+}
+
+// EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
+// CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
+func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
+}
+
+// QosSchedulerConfigRequired returns if device should configure QOS buffer-allocation-profile
+func QosSchedulerConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSchedulerConfigRequired()
+}
+
+// QosSetWeightConfigUnsupported returns whether the device does not support set weight leaves under qos ecn.
+func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosSetWeightConfigUnsupported()
+}
+
+// QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
+func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
+}
+
+// InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
+func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
+}
+
+// ISISLevelEnabled returns if device should enable isis under level.
+func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
+}
+
+// MemberLinkLoopbackUnsupported returns true for devices that require configuring
+// loopback on aggregated links instead of member links.
+func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
+}
+
+// SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
+// PLQ operational status check for interfaces
+func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
+}
+
+// BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
+// under the "prefix-limit-received" field rather than simply "prefix-limit".
+func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
+}
+
+// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
+// maximum routes correctly when max-prefixes OC leaf is configured.
+func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
+}
+
+// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
+func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
+}
+
+// MismatchedHardwareResourceNameInComponent returns true for devices that have separate
+// naming conventions for hardware resource name in /system/ tree and /components/ tree.
+func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMismatchedHardwareResourceNameInComponent()
+}
+
+// MissingHardwareResourceTelemetryBeforeConfig returns true for devices that don't
+// support telemetry for hardware resources before used-threshold-upper configuration.
+func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
+}
+
+// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
+func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
+}
+
+// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
+// protocols to BGP if the export-policy is ACCEPT.
+func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
+}
+
+// ISISMetricStyleTelemetryUnsupported returns true for devices that do not support state path
+// /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
+}
+
+// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
+func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
+}
+
+// SkipStaticNexthopCheck returns if device needs index starting from non zero
+func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
+}
+
+// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
+func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
+}
+
+// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
+func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
+}
+
+// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
+func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
+}
+
+// SkipSettingAllowMultipleAS return true if device needs to skip setting allow-multiple-as while configuring eBGP
+func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
+}
+
+// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
+func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
+}
+
+// TTLCopyUnsupported returns true for devices which does not support TTL copy.
+func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
+}
+
+// GribiDecapMixedPlenUnsupported returns true if devices does not support
+// programming with mixed prefix length.
+func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
+}
+
+// SkipIsisSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
+func SkipIsisSetLevel(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetLevel()
+}
+
+// SkipIsisSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
+}
+
+// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
+}
+
+// SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
+func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
+}
+
+// BGPConditionsMatchCommunitySetUnsupported returns true if device doesn't support bgp-conditions/match-community-set leaf
+func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
+}
+
+// PfRequireMatchDefaultRule returns true for device which requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
+}
+
+// MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
+func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
+}
+
+// SkipContainerOp returns true if gNMI container OP needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipContainerOp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipContainerOp()
+}
+
+// ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
+}
+
+// AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
+}
+
+// SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
+}
+
+// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
+func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
+}
+
+// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
+func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
+}
+
+// SetMetricAsPreference returns true for devices which set metric as
+// preference for static next-hop
+func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
+}
+
+// IPv6StaticRouteWithIPv4NextHopRequiresStaticARP returns true if devices don't support having an
+// IPv6 static Route with an IPv4 address as next hop and requires configuring a static ARP entry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NextHopRequiresStaticArp()
+}
+
+// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
+}
+
+// MissingStaticRouteNextHopMetricTelemetry returns true for devices missing
+// static route next-hop metric telemetry.
+// Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+func MissingStaticRouteNextHopMetricTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteNextHopMetricTelemetry()
+}
+
+// UnsupportedStaticRouteNextHopRecurse returns true for devices that don't support recursive
+// resolution of static route next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnsupportedStaticRouteNextHopRecurse()
+}
+
+// MissingStaticRouteDropNextHopTelemetry returns true for devices missing
+// static route telemetry with DROP next hop.
+// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
+}
+
+// MissingZROpticalChannelTunableParametersTelemetry returns true for devices missing 400ZR
+// optical-channel tunable parameters telemetry: min/max/avg.
+// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
+func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
+}
+
+// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
+func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
+func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
+}
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
+func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
+}
+
+// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
+func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
+
+// BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
+func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
+}
+
+// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
+func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
+}
+
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
+func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
+}
+
+// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
+
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }

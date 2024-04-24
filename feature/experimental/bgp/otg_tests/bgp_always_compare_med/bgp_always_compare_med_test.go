@@ -128,6 +128,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i3 := dutDst2.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i3.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
@@ -270,26 +281,26 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")
 
 	iDut1Dev := config.Devices().Add().SetName(ateSrc.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 
 	iDut2Dev := config.Devices().Add().SetName(ateDst1.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateDst1.Name + ".Eth").SetMac(ateDst1.MAC)
-	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
+	iDut2Eth.Connection().SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(ateDst1.Name + ".IPv4")
 	iDut2Ipv4.SetAddress(ateDst1.IPv4).SetGateway(dutDst1.IPv4).SetPrefix(uint32(ateDst1.IPv4Len))
 
 	iDut3Dev := config.Devices().Add().SetName(ateDst2.Name)
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(ateDst2.Name + ".Eth").SetMac(ateDst2.MAC)
-	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
+	iDut3Eth.Connection().SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateDst2.Name + ".IPv4")
 	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
 
@@ -303,14 +314,10 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst1.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(ateDst2.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(ateAS3).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(ateDst1.Name + ".BGP4.Route")
 	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
@@ -338,7 +345,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetRxNames([]string{bgpNeti1Bgp4PeerRoutes.Name()})
 	flow1ipv4.Size().SetFixed(512)
 	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().SetChoice("continuous")
+	flow1ipv4.Duration().Continuous()
 	e1 := flow1ipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(iDut1Eth.Mac())
 	v4 := flow1ipv4.Packet().Add().Ipv4()
@@ -353,7 +360,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetRxNames([]string{bgpNeti2Bgp4PeerRoutes.Name()})
 	flow2ipv4.Size().SetFixed(512)
 	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().SetChoice("continuous")
+	flow2ipv4.Duration().Continuous()
 	e2 := flow2ipv4.Packet().Add().Ethernet()
 	e2.Src().SetValue(iDut1Eth.Mac())
 	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
@@ -439,6 +446,10 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
+	}
+	actions1.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
 	st, err = pdef2.AppendNewStatement(aclStatement20)
@@ -447,6 +458,10 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
+	}
+	actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
 	st, err = pdef3.AppendNewStatement("id-1")
@@ -509,10 +524,16 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
+	if gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantInstalled
+	}).Await(t); !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
+	if gotSent, ok := gnmi.Watch(t, dut, prefixesv4.Sent().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantSent
+	}).Await(t); !ok {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
@@ -531,7 +552,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	// Pushing a blank config to clear BGP related counters
-	ate.OTG().PushConfig(t, ate.OTG().NewConfig(t))
+	ate.OTG().PushConfig(t, gosnappi.NewConfig())
 	d := &oc.Root{}
 
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
@@ -551,7 +572,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		configPolicy(t, dut, d)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 
 	t.Run("Configure SET MED on DUT", func(t *testing.T) {

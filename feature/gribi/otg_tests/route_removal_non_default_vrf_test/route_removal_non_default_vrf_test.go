@@ -323,7 +323,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // configureATE configures port1, port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")

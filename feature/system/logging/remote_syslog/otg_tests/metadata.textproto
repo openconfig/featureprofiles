@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1f83da73-9db4-43ae-a282-bc309ff64e0e"
+plan_id: "TR-6.1"
+description: "Remote Syslog feature config"
+testbed: TESTBED_DUT_ATE_2LINKS

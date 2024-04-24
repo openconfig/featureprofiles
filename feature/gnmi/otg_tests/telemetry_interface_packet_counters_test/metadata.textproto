@@ -28,10 +28,8 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    interface_counters_from_container: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions: {

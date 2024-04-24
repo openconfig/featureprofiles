@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -188,7 +189,7 @@ func TestHardwareCards(t *testing.T) {
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
-				pType:                 componentType["Linecard"],
+				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
@@ -498,6 +499,41 @@ func TestTempSensor(t *testing.T) {
 	}
 }
 
+func TestControllerCardEmpty(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip ControllerCardEmpty Telemetry check for fixed form factor devices.")
+	}
+
+	dut := ondatra.DUT(t, "dut")
+	controllerCards := findComponentsListByType(t, dut)["Supervisor"]
+	if len(controllerCards) == 0 {
+		t.Fatalf("Get ControllerCard list for %q: got 0, want > 0", dut.Model())
+	}
+
+	t.Logf("ControllerCard components count: %d", len(controllerCards))
+
+	nonEmptyControllerCards := 0
+	for _, controllerCard := range controllerCards {
+		if controllerCard.Name == nil {
+			t.Errorf("Encountered a ControllerCard with no Name")
+			continue
+		}
+
+		sName := controllerCard.GetName()
+		t.Run(sName, func(t *testing.T) {
+			t.Logf("ControllerCard %s Id: %s", sName, controllerCard.GetId())
+
+			if !controllerCard.GetEmpty() {
+				nonEmptyControllerCards++
+			}
+		})
+	}
+
+	if got, want := nonEmptyControllerCards, *args.NumControllerCards; got != want {
+		t.Errorf("Number of non-empty ControllerCard: got %d, want %d", got, want)
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -528,7 +564,12 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
@@ -704,8 +745,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
 						break
 					}
-					parentType := gnmi.Get(t, dut, gnmi.OC().Component(parent).Type().State())
-					if parentType == componentType["Chassis"] {
+					pLoookup := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).Type().State())
+					parentType, present := pLoookup.Val()
+					if present && parentType == componentType["Chassis"] {
 						t.Logf("Component %s Parent: Found chassis component in the hierarchy tree of component", cName)
 						break
 					}
@@ -760,4 +802,85 @@ func TestLinecardConfig(t *testing.T) {
 func TestHeatsinkTempSensor(t *testing.T) {
 	// TODO: Add heatsink-temperature-sensor test case here once supported.
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
+}
+
+func TestInterfaceComponentHierarchy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	// Map of component Name to corresponding Component OC object.
+	compMap := make(map[string]*oc.Component)
+	for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		compMap[c.GetName()] = c
+	}
+
+	// Map of populated Transceivers to a random integer.
+	transceivers := make(map[string]int)
+	tvs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+	for idx, tv := range tvs {
+		if compMap[tv].GetMfgName() == "" {
+			continue
+		}
+		transceivers[compMap[tv].GetName()] = idx
+	}
+
+	numHardwareIntfs := 0
+	integratedCircuits := make(map[string]*oc.Component)
+
+	t.Run("Interface to Integrated Circuit mapping", func(t *testing.T) {
+		for _, intf := range gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State()) {
+			if intf.GetHardwarePort() == "" {
+				continue
+			}
+			if _, ok := transceivers[intf.GetTransceiver()]; !ok {
+				continue
+			}
+			t.Run(intf.GetHardwarePort(), func(t *testing.T) {
+				numHardwareIntfs++
+				c, ok := compMap[intf.GetHardwarePort()]
+				if !ok {
+					t.Fatalf("Couldn't find interface hardware port(%s) in component tree for port: %s", intf.GetHardwarePort(), intf.GetName())
+				}
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				integratedCircuits[c.GetName()] = c
+			})
+		}
+	})
+	if len(integratedCircuits) == 0 {
+		t.Fatalf("Couldn't find integrated circuits for %q", dut.Model())
+	}
+	chassis := make(map[string]*oc.Component)
+	t.Run("Integrated Circuit to Chassis mapping", func(t *testing.T) {
+		for _, ic := range integratedCircuits {
+			t.Run(ic.GetName(), func(t *testing.T) {
+				c, ok := ic, true
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				chassis[c.GetName()] = c
+			})
+		}
+	})
+	if len(chassis) == 0 {
+		t.Fatalf("Couldn't find chassis for %q", dut.Model())
+	}
 }
