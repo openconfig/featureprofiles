@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -16,18 +18,12 @@ import (
 )
 
 var (
-	chassisType                 string            // check if its distributed or fixed chassis
-	tolerance                   uint64            // traffic loss tolerance percentage
-	rpfoCount                   = 1               // if more than 10 then reset to 0 and reload the HW
-	subscriptionCount           = 1               // number of parallel subscriptions to be tested
-	multipleSubscriptionRuntime = 1 * time.Minute // duration for which parallel subscriptions will run
+	tolerance uint64 // traffic loss tolerance percentage
 )
 
 const (
-	withRpfo  = true
-	activeRp  = "0/RP0/CPU0"
-	standbyRp = "0/RP1/CPU0"
-	vrf1      = "TE"
+	withRpfo = true
+	vrf1     = "TE"
 )
 
 type testArgs struct {
@@ -68,22 +64,22 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 	testcases := []Testcase{
 		{
 			name:      "drop/lookup-block/state/acl-drops",
-			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
 			eventType: &eventAclConfig{aclName: "deny_all_ipv4", config: true},
 		},
 		{
 			name:      "drop/lookup-block/state/no-route",
-			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
 			eventType: &eventInterfaceConfig{config: true, shut: true, port: sortPorts(args.dut.Ports())[1:]},
 		},
 		{
 			name:      "drop/lookup-block/state/no-nexthop",
-			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &TgnOptions{ipv4: true}),
+			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
 			eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
 		},
 	}
-
-	npus := args.interfaceToNPU(t)                       // collect all the destination NPUs
+	nodes := p4rtutils.P4RTNodesByPort(t, dut)
+	npus := util.UniqueValues(t, nodes)                  // a list of unique NPU ID strings
 	data := make(map[string]ygnmi.WildcardQuery[uint64]) // hold a path and its query information
 	for _, tt := range testcases {
 		// loop over different streaming modes
@@ -102,20 +98,26 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 
 				// aggregate pre counters for a path across all the destination NPUs
 				for path, query := range data {
-					pre, _ := getData(t, path, query) // improve error handling
+					pre, err := getData(t, path, query)
+					if err != nil {
+						t.Fatalf("failed to get data for path %s pre trigger: %v", path, err)
+					}
 					preCounters = preCounters + pre
 				}
 
-				tgnData := float64(args.validateTrafficFlows(t, tt.flow, &TgnOptions{trafficTimer: 120, drop: true, event: tt.eventType}))
+				tgnData := float64(args.validateTrafficFlows(t, tt.flow, &tgnOptions{trafficTimer: 120, drop: true, event: tt.eventType}))
 
 				// aggregate post counters for a path across all the destination NPUs
 				for path, query := range data {
-					post, _ := getData(t, path, query)
+					post, err := getData(t, path, query)
+					if err != nil {
+						t.Fatalf("failed to get data for path %s post trigger: %v", path, err)
+					}
 					postCounters = postCounters + post
 				}
 
-				// following reload, we can have pre data bigger than post data. So use absolute value
-				want := math.Abs(float64(postCounters - preCounters)) // from DUT
+				// following reload, we can have pre data bigger than post data on the DUT. So use absolute value
+				want := math.Abs(float64(postCounters - preCounters))
 
 				t.Logf("Initial counters for path %s : %d", tt.name, preCounters)
 				t.Logf("Final counters for path %s: %d", tt.name, postCounters)

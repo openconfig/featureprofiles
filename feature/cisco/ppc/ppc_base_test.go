@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -54,18 +53,13 @@ type Testcase struct {
 }
 
 // TODO - to be used for testing FEAT-22487 in Q4 2024
-var triggers = []Testcase{
+var _ = []Testcase{
 	{
 		name: "Process restart",
 		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
 		// fib_mgr restart will reload the fixed chassis
 		desc:        "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
-		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "isis"}},
-	},
-	{
-		name:        "RPFO",
-		desc:        "perform RPFO and validate pipeline counters",
-		triggerType: &triggerRpfo{tolerance: 40}, // for fix chassis rfpo is reload and hence tolerance is needed
+		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "rib_mgr", "isis"}},
 	},
 	{
 		name:        "LC reload",
@@ -76,17 +70,12 @@ var triggers = []Testcase{
 
 // Extended triggers
 // TODO - TODO - to be used for testing FEAT-22487 in Q4 2024
-var futureTriggers = []Testcase{
+var _ = []Testcase{
 	{
 		name: "Process restart",
 		// restart npu_drvr from linux prompt, ofa_npd on LC since they'll cause router to reload and that is covered in RPFO tc
 		desc:        "restart the process emsd, ifmgr, dbwriter, dblistener, fib_mgr, ipv4/ipv6 rib, isis  and validate pipeline counters",
 		triggerType: &triggerProcessRestart{processes: []string{"ifmgr", "db_writer", "db_listener", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "isis"}},
-	},
-	{
-		name:        "RPFO",
-		desc:        "perform RPFO and validate pipeline counters",
-		triggerType: &triggerRpfo{},
 	},
 	{
 		name:        "LC reload",
@@ -96,47 +85,6 @@ var futureTriggers = []Testcase{
 }
 
 type triggerType interface {
-}
-
-type SubscriptionType interface {
-	isSubscriptionType()
-}
-
-type subscriptionArgs struct {
-	streamMode     gpb.SubscriptionMode
-	sampleInterval time.Duration
-}
-
-// subMode represents type of STREAMING subscription mode
-// TODO - support levels and sub modes for FEAT-22487 in Q4 2024
-func (sa subscriptionArgs) multipleSubscriptions(t *testing.T, query ygnmi.WildcardQuery[uint64]) {
-	t.Helper()
-	dut := ondatra.DUT(t, "dut")
-	for i := 1; i <= subscriptionCount; i++ {
-		gnmi.CollectAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(sa.streamMode), ygnmi.WithSampleInterval(sa.sampleInterval)), query, multipleSubscriptionRuntime)
-	}
-}
-
-func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
-	startTime := time.Now()
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		if err := task(); err == nil {
-			return nil
-		}
-
-		// Calculate how much time has passed
-		elapsedTime := time.Since(startTime)
-
-		// If the elapsed time exceeds the timeout, break out of the loop
-		if elapsedTime >= timeout {
-			break
-		}
-
-		// Wait for a short interval before the next attempt
-		// You can adjust the sleep duration based on your needs
-		time.Sleep(1 * time.Second)
-	}
-	return fmt.Errorf("task failed after %d attempts within a %s timeout", maxAttempts, timeout)
 }
 
 type eventType interface {
@@ -233,14 +181,13 @@ func (eventArgs eventEnableMplsLdp) enableMplsLdp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 	}
-	var mpls_ldp string
+	var mplsLdp string
 	if eventArgs.config {
-		mpls_ldp = "mpls ldp interface bundle-Ether 121"
+		mplsLdp = "mpls ldp interface bundle-Ether 121"
 	} else {
-		mpls_ldp = "no mpls ldp"
+		mplsLdp = "no mpls ldp"
 	}
-	gnmi.Update(t, dut, cliPath, mpls_ldp)
-
+	gnmi.Update(t, dut, cliPath, mplsLdp)
 }
 
 type triggerProcessRestart struct {
@@ -262,129 +209,6 @@ func (triggerArgs triggerProcessRestart) restartProcessBackground(t *testing.T, 
 		runner.RunCLIInBackground(ctx, t, dut, fmt.Sprintf("process restart %s", process), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 4*time.Second)
 		time.Sleep(4 * time.Second)
 		ticker1.Stop()
-	}
-}
-
-type triggerRpfo struct {
-	tolerance float64
-}
-
-func (triggerArgs triggerRpfo) rpfo(t *testing.T, ctx context.Context, reload bool) {
-	dut := ondatra.DUT(t, "dut")
-	// reload the HW is rfpo count is 10 or more
-	if rpfoCount == 10 || reload {
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		rebootRequest := &gnps.RebootRequest{
-			Method: gnps.RebootMethod_COLD,
-			Force:  true,
-		}
-		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
-		t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
-		if err != nil {
-			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
-		}
-		rpfoCount = 0
-		if chassisType == "distributed" {
-			time.Sleep(time.Minute * 20) // TODO - why 20 minutes?
-		} else {
-			time.Sleep(time.Minute * 10) // TODO - why 20 minutes?
-		}
-	}
-	// supervisor info
-	if chassisType == "distributed" {
-		var supervisors []string
-		activeState := gnmi.OC().Component(activeRp).Name().State()
-		active := gnmi.Get(t, dut, activeState)
-		standbyState := gnmi.OC().Component(standbyRp).Name().State()
-		standby := gnmi.Get(t, dut, standbyState)
-		supervisors = append(supervisors, active, standby)
-
-		// find active and standby RP
-		rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, supervisors)
-		t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
-
-		// make sure standby RP is reachable
-		switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-		gnmi.Await(t, dut, switchoverReady.State(), 30*time.Minute, true)
-		t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
-		if got := gnmi.Get(t, dut, switchoverReady.State()); got != true {
-			t.Errorf("switchoverReady.Get(t): got %v, want %v", got, true)
-		}
-		gnoiClient, _ := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
-		useNameOnly := deviations.GNOISubcomponentPath(dut)
-		switchoverRequest := &gnps.SwitchControlProcessorRequest{
-			ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-		}
-		t.Logf("switchoverRequest: %v", switchoverRequest)
-		var switchoverResponse *gnps.SwitchControlProcessorResponse
-		err := retryUntilTimeout(func() error {
-			switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-			return nil
-		}, 5, 1*time.Minute)
-
-		if err != nil {
-			fmt.Printf("RPFO failed: %v\n", err)
-		} else {
-			fmt.Println("RPFO succeeded!")
-		}
-		// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
-		want := rpStandbyBeforeSwitch
-		got := ""
-		if useNameOnly {
-			got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-		} else {
-			got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-		}
-		if got != want {
-			t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-		}
-
-		startSwitchover := time.Now()
-		t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-		for {
-			var currentTime string
-			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-			time.Sleep(30 * time.Second)
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-			}); errMsg != nil {
-				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			} else {
-				t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-				break
-			}
-			if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(900); got >= want {
-				t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-			}
-		}
-		t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
-
-		rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, supervisors)
-		t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
-
-		if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {
-			t.Errorf("Get rpActiveAfterSwitch: got %v, want %v", got, want)
-		}
-		if got, want := rpStandbyAfterSwitch, rpActiveBeforeSwitch; got != want {
-			t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
-		}
-
-		t.Log("Validate OC Switchover time/reason.")
-		activeRP := gnmi.OC().Component(rpActiveAfterSwitch)
-		if got := gnmi.Lookup(t, dut, activeRP.LastSwitchoverTime().State()).IsPresent(); got != true {
-			t.Errorf("activeRP.LastSwitchoverTime().Lookup(t).IsPresent(): got %v, want %v", got, want)
-		} else {
-			t.Logf("Found activeRP.LastSwitchoverTime(): %v", gnmi.Get(t, dut, activeRP.LastSwitchoverTime().State()))
-		}
-
-		if got := gnmi.Lookup(t, dut, activeRP.LastSwitchoverReason().State()).IsPresent(); got != true {
-			t.Errorf("activeRP.LastSwitchoverReason().Lookup(t).IsPresent(): got %v, want %v", got, want)
-		} else {
-			lastSwitchoverReason := gnmi.Get(t, dut, activeRP.LastSwitchoverReason().State())
-			t.Logf("Found lastSwitchoverReason.GetDetails(): %v", lastSwitchoverReason.GetDetails())
-			t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
-		}
 	}
 }
 
@@ -445,37 +269,17 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-func (args *testArgs) checkChassisType(t *testing.T, dut *ondatra.DUTDevice) string {
+func (args *testArgs) isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
 	cs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	if len(cs) < 2 {
-		return "fixed"
+		return false
 	} else {
-		return "distributed"
+		return true
 	}
 }
 
-// interfaceToNPU returns a slice of unique NPU (Network Processing Unit) names
-// associated with the hardware ports of a DUT (Device Under Test).
-func (args *testArgs) interfaceToNPU(t testing.TB) []string {
-	var npus []string
-	uniqueMap := make(map[string]bool)
-
-	// Get hardware ports and corresponding components
-	ports := sortPorts(args.dut.Ports())[1:]
-	for _, port := range ports {
-		hwPort := gnmi.Get(t, args.dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
-		component := gnmi.Get(t, args.dut, gnmi.OC().Component(hwPort).Parent().State())
-		// Check if the component is not already in the map
-		if _, ok := uniqueMap[component]; !ok {
-			uniqueMap[component] = true
-			npus = append(npus, component)
-		}
-	}
-	return npus
-}
-
-// TgnOptions are optional parameters to a validate traffic function.
-type TgnOptions struct {
+// tgnOptions are optional parameters to a validate traffic function.
+type tgnOptions struct {
 	drop, mpls, ipv4, ttl bool
 	trafficTimer          int
 	fps                   uint64
@@ -581,7 +385,7 @@ func configAteRoutingProtocols(t *testing.T, top *ondatra.ATETopology) {
 }
 
 // createFlow returns a flow from atePort1 to the dstPfx, expected to arrive at ATE dst interface
-func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*TgnOptions) *ondatra.Flow {
+func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, opts ...*tgnOptions) *ondatra.Flow {
 	srcEndPoint := args.top.Interfaces()[ateSrc.Name]
 	var flow *ondatra.Flow
 	var header []ondatra.Header
@@ -625,12 +429,11 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 	} else {
 		flow.WithFrameSize(300)
 	}
-
 	return flow
 }
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
-func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*TgnOptions) uint64 {
+func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*tgnOptions) uint64 {
 	args.ate.Traffic().Start(t, flow)
 	// run traffic for 30 seconds, before introducing fault
 	time.Sleep(time.Duration(60) * time.Second)
@@ -894,25 +697,6 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding().Config(), &pf)
 }
 
-// getPathFromElements constructs a path string from a slice of PathElem elements.
-// It iterates through each PathElem and concatenates the element names along with any key-value pairs.
-// If a PathElem has key-value pairs, they are formatted as "[key=value]" and appended to the element name.
-// The resulting path string is returned with "/" as the delimiter.
-func getPathFromElements(input []*gpb.PathElem) string {
-	var result []string
-	for _, elem := range input {
-		// If there are key-value pairs, add them to the element name
-		if elem.Key != nil {
-			for key, value := range elem.Key {
-				result = append(result, elem.Name+fmt.Sprintf("[%s=%s]", key, value))
-			}
-		} else {
-			result = append(result, elem.Name)
-		}
-	}
-	return "/" + strings.Join(result, "/")
-}
-
 // TODO - support levels and sub-modes for FEAT-22487
 // getData retrieves data from a DUT using GNMI.
 // It performs a one-time subscription to the specified path using a wildcard query.
@@ -920,23 +704,28 @@ func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 
-	_ = gnmi.LookupAll(t, dut, query) // check _ value for ONCE comparison on router
-	data, _ := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Second)),
-		query,
-		45*time.Second,
-		func(val *ygnmi.Value[uint64]) bool {
-			_, present := val.Val()
-			element := val.Path.Elem
-			if getPathFromElements(element) == path {
-				return present
-			}
-			return !present
-		},
+	watchOpts := dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
+		ygnmi.WithSampleInterval(10*time.Second))
+	data, pred := gnmi.WatchAll(t, watchOpts, query, 45*time.Second, func(val *ygnmi.Value[uint64]) bool {
+		_, present := val.Val()
+		stringPath, err := ygot.PathToString(val.Path)
+		if err != nil {
+			t.Logf("error converting path to string: %v", err)
+			return false
+		}
+		if stringPath == path {
+			return present
+		}
+		return !present
+	},
 	).Await(t)
+	if pred == false {
+		return 0, fmt.Errorf("watch failed for path %s. Predicate returned is %v", path, pred)
+	}
 
 	counter, ok := data.Val()
 	if ok {
-		return counter, nil // check counter value for stream comparison
+		return counter, nil
 	} else {
 		return 0, fmt.Errorf("failed to collect data for path %s", path)
 	}
