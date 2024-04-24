@@ -60,13 +60,13 @@ ates {
   otg {
     target: "ixia-c-hostname:40051" # Change this to the Ixia-c-grpc server endpoint.
     insecure: true
-    timeout: 30
+    timeout: 60
   }
 
   gnmi {
     target: "ixia-c-hostname:50051"  # Change this to the Ixia-c-gnmi server endpoint.
     skip_verify: true
-    timeout: 30    
+    timeout: 60   
   }
 
   # Before this binding can be used with a topology, add ports mapping
