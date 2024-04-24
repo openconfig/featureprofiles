@@ -151,6 +151,13 @@ testbeds:
       controller_port: 40052
       gnmi_port: 50052
 
+  8800-FOC2330PAZK:
+    hw: 8800-FOC2330PAZK
+    owner: khrasool
+    testbed: topologies/cisco/hw/8800-FOC2330PAZK/testbed
+    binding: topologies/cisco/hw/8800-FOC2330PAZK/binding
+    baseconf: topologies/cisco/hw/8800-FOC2330PAZK/base_config.proto
+  
   8608-FOX2543PNNM:
     hw: 8608-FOX2543PNNM
     owner: anidamod
