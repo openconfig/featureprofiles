@@ -12,6 +12,7 @@ import (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 func TestNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	for _, instance := range instances {
@@ -40,7 +41,7 @@ func TestNetworkInstance(t *testing.T) {
 	t.Run("Delete//network-instances/network-instance/config/description", func(t *testing.T) {
 		verifyDeleteDescription(t, dut)
 	})
-	t.Run("pdateconfig//network-instances/network-instance/config/description", func(t *testing.T) {
+	t.Run("Update config//network-instances/network-instance/config/description", func(t *testing.T) {
 		verifyUpdateDescription(t, dut)
 	})
 }
