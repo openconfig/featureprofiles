@@ -339,7 +339,7 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	if !d.ipv4 {
 		aftType = oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 	}
-	bgpOC := cfgplugins.BuildBGPOCConfig(t, dut, d.routerID, aftType, d.neighborConfig)
+	bgpOC := cfgplugins.BuildBGPOCConfig(t, dut, d.routerID, []oc.E_BgpTypes_AFI_SAFI_TYPE{aftType}, d.neighborConfig)
 
 	for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 		ocName := dut.Port(t, a.Name).Name()
