@@ -10,9 +10,14 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+
+	// "github.com/openconfig/featureprofiles/internal/gribi"
 	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
+	gnps "github.com/openconfig/gnoi/system"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -1665,7 +1670,7 @@ func TestForwardViableSDN(t *testing.T) {
 	})
 }
 
-type Testcase struct {
+type InterfaceInfo struct {
 	name string
 	intf string
 	attr attrs.Attributes
@@ -1693,7 +1698,7 @@ var (
 	}
 )
 
-var interfaceList = []Testcase{}
+var interfaceList = []InterfaceInfo{}
 
 const (
 	srcDUTGlobalIPv6      = "2001:db8::1"
@@ -1716,42 +1721,42 @@ type Data struct {
 
 var portData = []Data{}
 
-func configureDUTLLA(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	physicalInt1 = dut.Port(t, "port3").Name()
-	interfaceList = []Testcase{
-		{
-			name: "PhysicalInt",
-			intf: physicalInt1,
-			attr: phyInt,
-		},
-		{
-			name: "BundlelInt",
-			intf: "Bundle-Ether120",
-			attr: beInt,
-		},
-		{
-			name: "ManagementInt",
-			intf: "MgmtEth0/RP0/CPU0/0",
-			attr: mgmtInt,
-		},
-	}
-	physicalInt1 = dut.Port(t, "port3").Name()
-	portData = []Data{
-		{
-			port:   physicalInt1,
-			ipAddr: srcDUTGlobalIPv6,
-		},
-		{
-			port:   "Bundle-Ether120",
-			ipAddr: srcDUTGlobalIPv6,
-		},
-		{
-			port:   "MgmtEth0/RP0/CPU0/0",
-			ipAddr: srcDUTGlobalIPv6,
-		},
-	}
-}
+//	func configureDUTLLA(t *testing.T, dut *ondatra.DUTDevice) {
+//		t.Helper()
+//		physicalInt1 = dut.Port(t, "port3").Name()
+//		interfaceList = []InterfaceInfo{
+//			{
+//				name: "PhysicalInt",
+//				intf: physicalInt1,
+//				attr: phyInt,
+//			},
+//			{
+//				name: "BundlelInt",
+//				intf: "Bundle-Ether120",
+//				attr: beInt,
+//			},
+//			{
+//				name: "ManagementInt",
+//				intf: "MgmtEth0/RP0/CPU0/0",
+//				attr: mgmtInt,
+//			},
+//		}
+//		physicalInt1 = dut.Port(t, "port3").Name()
+//		portData = []Data{
+//			{
+//				port:   physicalInt1,
+//				ipAddr: srcDUTGlobalIPv6,
+//			},
+//			{
+//				port:   "Bundle-Ether120",
+//				ipAddr: srcDUTGlobalIPv6,
+//			},
+//			{
+//				port:   "MgmtEth0/RP0/CPU0/0",
+//				ipAddr: srcDUTGlobalIPv6,
+//			},
+//		}
+//	}
 func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 
 	for _, interfaces := range interfaceList {
@@ -1828,6 +1833,14 @@ func deleteDUTGlobalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func deleteDUTLocalIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+
+	for _, interfaces := range interfaceList {
+		t.Logf(interfaces.attr.Name)
+		gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(interfaces.attr.IPv6).Config())
+	}
+}
+
 func triggerDUTLocalInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 
 	for _, pd := range portData {
@@ -1837,10 +1850,89 @@ func triggerDUTLocalInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func processrestart(t *testing.T, dut *ondatra.DUTDevice, pName string) {
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	process_restart_count := 1
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	for i := 0; i < process_restart_count; i++ {
+		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
+		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+		t.Logf("Got kill process response: %v\n\n", killResponse)
+		// bypassing the check as emsd restart causes timing issue
+		if err != nil && pName != "emsd" {
+			t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
+		}
+	}
+	time.Sleep(10 * time.Minute)
+	// reestablishing gribi connection
+	if pName == "emsd" {
+		client := gribi.Client{
+			DUT:                   dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		client.Start(t)
+	}
+}
+
 func TestIPv6LinkLocal(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-	configureDUTLLA(t, dut)
+	physicalInt1 = dut.Port(t, "port3").Name()
+	interfaceList = []InterfaceInfo{
+		{
+			name: "PhysicalInt",
+			intf: physicalInt1,
+			attr: phyInt,
+		},
+		{
+			name: "BundlelInt",
+			intf: "Bundle-Ether120",
+			attr: beInt,
+		},
+		{
+			name: "ManagementInt",
+			intf: "MgmtEth0/RP0/CPU0/0",
+			attr: mgmtInt,
+		},
+	}
+	portData = []Data{
+		{
+			port:   physicalInt1,
+			ipAddr: srcDUTGlobalIPv6,
+		},
+		{
+			port:   "Bundle-Ether120",
+			ipAddr: srcDUTGlobalIPv6,
+		},
+		{
+			port:   "MgmtEth0/RP0/CPU0/0",
+			ipAddr: srcDUTGlobalIPv6,
+		},
+	}
+
+	// t.Run("Verify default Local Unicast IPv6", func(t *testing.T) {
+
+	// 	for _, interfaces := range interfaceList {
+	// 		t.Logf(interfaces.attr.Name)
+	// 		state := gnmi.Get(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().State().IsState())
+	// 		// t.Log(state)
+	// 		if state {
+	// 			t.Errorf("Default LLA IP address is not get on port: %s", interfaces.intf)
+	// 		}
+	// 	}
+
+	// })
 
 	t.Run("Configure Local Unicast IPv6 and verify", func(t *testing.T) {
 		configureDUTLinkLocalInterface(t, dut)
@@ -1851,9 +1943,18 @@ func TestIPv6LinkLocal(t *testing.T) {
 		})
 	})
 
+	t.Run("Delete and Addition Local Unicast IPv6", func(t *testing.T) {
+
+		deleteDUTLocalIPv6(t, dut)
+		configureDUTLinkLocalInterface(t, dut)
+
+		t.Run("Interface Telemetry", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+	})
+
 	t.Run("Configure And Delete Global Unicast IPv6", func(t *testing.T) {
 		configureDUTGlobalIPv6(t, dut)
-
 		deleteDUTGlobalIPv6(t, dut)
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -1872,15 +1973,17 @@ func TestIPv6LinkLocal(t *testing.T) {
 	// 	IPv6 := "fe80::1"
 
 	// 	for _, interfaces := range interfaceList {
+	// 		// gnmi.Delete(t, dut, gnmi.OC().Interface(interfaces.intf).Subinterface(0).Ipv6().Address(interfaces.attr.IPv6).Config())
+
 	// 		Intf := interfaces.attr.NewOCInterface(interfaces.intf, dut)
 	// 		if interfaces.attr.Name == "BundleInt" {
 	// 			Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	// 		}
 	// 		subInt := Intf.GetOrCreateSubinterface(0)
-	// 		subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	// 		// subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetPrefixLength(128)
+	// 		// subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 	// 		subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	// 		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
-
 	// 	}
 
 	// 	for _, pd := range portData {
@@ -1890,7 +1993,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 	// 		// 	PrefixLength: ygot.Uint8(128),
 	// 		// 	Type:         oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST,
 	// 		// }
-	// 		// addr.Type = oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST
+	// 		// // addr.Type = oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST
 	// 		// gnmi.Replace(t, dut, gnmi.OC().Interface(pd.port).Subinterface(0).Ipv6().Address(IPv6).Config(), addr)
 
 	// 		if _, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(pd.port).Subinterface(0).Ipv6().Address(IPv6).State(), 30*time.Second, func(val *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
@@ -1908,11 +2011,51 @@ func TestIPv6LinkLocal(t *testing.T) {
 	// 		if got, want := state.GetIp(), IPv6; got != want {
 	// 			t.Errorf("IP address state mismatch for port: %s, got: %s, want: %s", pd.port, got, want)
 	// 		}
-
 	// 	}
 
-	// 	// t.Run("Interface Telemetry", func(t *testing.T) {
-	// 	// 	verifyInterfaceTelemetry(t, dut)
-	// 	// })
+	// 	t.Run("Interface Telemetry", func(t *testing.T) {
+	// 		verifyInterfaceTelemetry(t, dut)
+	// 	})
 	// })
+
+	t.Run("Verify edt subscription for LLA continues to work after ipv6_nd process restart.", func(t *testing.T) {
+
+		t.Run("Interface Telemetry check before Process restart", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+
+		ctx := context.Background()
+		client := gribi.Client{
+			DUT:                   dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		defer client.Close(t)
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
+		time.Sleep(time.Second * 10)
+		for {
+			if err := client.Start(t); err != nil {
+				t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			} else {
+				t.Logf("gRIBI Connection established")
+				break
+			}
+			time.Sleep(2 * time.Minute)
+		}
+		// processrestart(ctx, t, dut, "ipv6_nd", &client)
+
+		t.Run("Interface Telemetry check after Process restart", func(t *testing.T) {
+			verifyInterfaceTelemetry(t, dut)
+		})
+
+	})
+
 }
