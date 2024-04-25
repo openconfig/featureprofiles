@@ -585,7 +585,7 @@ func configBasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, ipType
 
 // TODO - support levels and sub-modes for FEAT-22487
 // getData retrieves data from a DUT using GNMI.
-// It performs a one-time subscription to the specified path using a wildcard query.
+// It performs a subscription to the specified path using a wildcard query.
 func getData(t *testing.T, path string, query ygnmi.WildcardQuery[uint64]) (uint64, error) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
