@@ -1,4 +1,4 @@
-// Package includes funtions to load base config
+// Package includes functions to load base config
 package sampling_test
 
 import (

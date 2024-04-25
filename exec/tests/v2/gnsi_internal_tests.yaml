@@ -4,7 +4,7 @@ testbeds:
   - moji_sfd_gnsi
 owners:
   - mbagherz
-pretests:
+pre_tests:
   - name: set_clock
     path: exec/utils/settime
 tests:
@@ -56,3 +56,19 @@ tests:
   timeout: 21000
   internal: true
   branch: master
+
+- name: TestAcctz1
+  pre_tests:
+    - name: set_clock
+      path: exec/utils/settime
+    - name: p4rt_base
+      path: feature/experimental/p4rt/tests/p4rt_election/p4rt_election_test.go
+  path: feature/security/gnsi/acctz/tests
+  args:
+    - '-test.run="(?:TestPre)"'
+  owners:
+    - harikri4
+  mustpass: true
+  timeout: 21000
+  internal: true
+  branch: acctz/pre

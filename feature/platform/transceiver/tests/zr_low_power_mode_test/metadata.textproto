@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "92fbb383-47b3-40e6-ab33-77be99e450b3"
+plan_id:  "TRANSCEIVER-13"
+description:  "Configuration: 400ZR Transceiver Low Power Mode Setting."
+testbed:  TESTBED_DUT_400ZR

@@ -193,14 +193,6 @@ duts {
   id: "dut2"
   name: "DUT2"  # Change this to the device hostname.
 
-  # telnet RP0: 10.85.84.54 2005
-  # telnet RP1: 10.85.84.54 2006
-  # Mgmt RP0: 5.78.26.27
-  # Mgmt RP0: 5.78.26.28
-  # Rack Location : 22-18-27
-  # Exec server: ott2lab-as3
-  # Options inherited by all protocols on this device unless
-  # overridden by individual protocols.  Remove if not needed.
   options {
     insecure: false 
     skip_verify: true
