@@ -379,11 +379,14 @@ NH#2000 -> {
 
 At the start of each of the following scenarios, ensure:
 
-*   all ports are up and baseline is reset as above.
+*   All ports are up and baseline is reset as above.
 *   Send packets to DUT port-1. The outer v4 header has the destination
     addresses 138.0.11.8.
 *   Validate that traffic is encapsulated to 203.0.113.1 and 203.0.113.2, and is
     distributed per the hierarchical weights.
+
+Unless otherwise specified, all the tests below should use traffic with
+`dscp_encap_a_1`.
 
 #### Test-1, primary encap unviable but backup encap viable for single tunnel
 
@@ -492,7 +495,8 @@ NH#1001 -> {
 Test that if there is no lookup match in the encap VRF, then the traffic should
 be routed to the DEFAULT VRF for further lookup.
 
-1.  In `ENCAP_TE_VRF_A`, Add an 0/0 static route pointing to the DEFAULT VRF.
+1.  In `ENCAP_TE_VRF_A`, Add an 0/0 static route pointing to the DEFAULT VRF
+    using gNMI.
 2.  Send traffic with destination address 20.0.0.1, which should produce no
     match in `ENCAP_TE_VRF_A`.
 3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
