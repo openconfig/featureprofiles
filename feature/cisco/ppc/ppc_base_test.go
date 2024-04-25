@@ -39,23 +39,21 @@ const (
 
 // Testcase defines the parameters related to a testcase
 type Testcase struct {
-	name        string
-	desc        string
-	flow        *ondatra.Flow
-	eventType   eventType   // events for creating the trigger scenario
-	triggerType triggerType // triggers
-}
-
-type triggerType interface {
+	name      string
+	flow      *ondatra.Flow
+	eventType eventType // events for creating the trigger scenario
 }
 
 type eventType interface {
+	IsEventType()
 }
 
 type eventAclConfig struct {
 	aclName string
 	config  bool
 }
+
+func (eventArgs eventAclConfig) IsEventType() {}
 
 func (eventArgs eventAclConfig) aclConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -78,6 +76,8 @@ type eventInterfaceConfig struct {
 	mtu    int
 	port   []*ondatra.Port
 }
+
+func (eventArgs eventInterfaceConfig) IsEventType() {}
 
 func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -118,6 +118,8 @@ type eventStaticRouteToNull struct {
 	config bool
 }
 
+func (eventArgs eventStaticRouteToNull) IsEventType() {}
+
 func (eventArgs eventStaticRouteToNull) staticRouteToNull(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
@@ -136,6 +138,8 @@ func (eventArgs eventStaticRouteToNull) staticRouteToNull(t *testing.T) {
 type eventEnableMplsLdp struct {
 	config bool
 }
+
+func (eventArgs eventEnableMplsLdp) IsEventType() {}
 
 func (eventArgs eventEnableMplsLdp) enableMplsLdp(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
