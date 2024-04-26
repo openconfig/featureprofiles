@@ -10,23 +10,9 @@ tests:
   internal: true
   branch: master
 
-- name: Encap 
-  path: feature/gribi/otg_tests/cisco/dcgate/dcgate_encap_test.go
-  timeout: 4200
-  mustpass: true
-  internal: true
-  branch: master
-
-- name: Encap-FRR
-  path: feature/gribi/otg_tests/cisco/dcgate/dcgate_frr_test.go
-  timeout: 4200
-  mustpass: true
-  internal: true
-  branch: master
-
-- name: TE-Regionalization   
-  path: feature/gribi/otg_tests/cisco/dcgate/dcgate_regionalization_test.go
-  timeout: 4200
+- name: Encap,Encap-FRR,TE-Regionalization
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
   mustpass: true
   internal: true
   branch: master
