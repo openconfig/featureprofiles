@@ -1,4 +1,4 @@
-# ACCTZ-1.1 - gNSI.acctz.v1 (Accounting) Test Record Subscribe Full
+# ACCTZ-1.1: Record Subscribe Full
 
 ## Summary
 Test RecordSubscribe for all (since epoch) records
