@@ -304,7 +304,6 @@ func TestLargeSetConsistency(t *testing.T) {
 		done.Store(setResp.GetTimestamp())
 	}()
 
-	// sending 4 Get requests concurrently every 5 seconds.
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
 		go func(i int) {
