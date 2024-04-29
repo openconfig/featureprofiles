@@ -15,6 +15,7 @@
 package interface_loopback_aggregate_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -23,11 +24,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -81,6 +84,9 @@ func configureDUTPort1(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root,
 	dutOcPath := gnmi.OC()
 	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), dutOcPath.Config(), dutOcRoot)
 	gnmi.Update(t, dut, dutOcPath.Config(), dutOcRoot)
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dutPort1)
+	}
 }
 
 // configureDUT configures AE interface and adds port1 to AE.
@@ -109,11 +115,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root, aggI
 }
 
 func configureOTG(t *testing.T, otg *otg.OTG) {
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	iDut1Dev := config.Devices().Add().SetName(atePort1Attr.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1Attr.Name + ".Eth").SetMac(atePort1Attr.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
@@ -198,23 +204,74 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Verify AE interface and port-1 are down on DUT", func(t *testing.T) {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
-		if want := oc.Interface_OperStatus_LOWER_LAYER_DOWN; operStatus != want {
-			t.Errorf("Get(DUT AE interface oper status): got %v, want %v", operStatus, want)
+
+		want := []oc.E_Interface_OperStatus{oc.Interface_OperStatus_LOWER_LAYER_DOWN, oc.Interface_OperStatus_DOWN}
+		opStatus, statusCheckResult := gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, func(y *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			opStatus, ok := y.Val()
+			if !ok {
+				return false
+			}
+			for _, expectedStatus := range want {
+				if opStatus == expectedStatus {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+		if !statusCheckResult {
+			val, _ := opStatus.Val()
+			t.Errorf("Get(DUT AE interface oper status): got %v, want %v", val.String(), want)
 		}
 
 		gnmi.Await(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_DOWN)
-		operStatus = gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
+		operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort1.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_DOWN; operStatus != want {
 			t.Errorf("Get(DUT port1 oper status): got %v, want %v", operStatus, want)
 		}
 	})
 
 	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
-		gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
-		if deviations.AggregateLoopbackModeRequiresMemberPortLoopbackMode(dut) {
-			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
+			gpbSetRequest := &gpb.SetRequest{
+				Update: []*gpb.Update{{
+					Path: &gpb.Path{
+						Origin: "openconfig",
+						Elem: []*gpb.PathElem{
+							{
+								Name: "interfaces",
+							},
+							{
+								Name: "interface",
+								Key: map[string]string{
+									"name": dut.Port(t, "port1").Name(),
+								},
+							},
+							{
+								Name: "config",
+							},
+							{
+								Name: "loopback-mode",
+							},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: []byte("true"),
+						},
+					},
+				}},
+			}
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			_, err := gnmiClient.Set(context.Background(), gpbSetRequest)
+			if err != nil {
+				t.Errorf("Failed to update interface loopback mode")
+			}
+		} else {
+			if deviations.MemberLinkLoopbackUnsupported(dut) {
+				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+			} else {
+				gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)
+			}
 		}
 	})
 

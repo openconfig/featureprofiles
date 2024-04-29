@@ -21,16 +21,7 @@ platform_exceptions: {
     use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
-    route_policy_under_afi_unsupported: true
     interface_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    route_policy_under_afi_unsupported: true
   }
 }
 platform_exceptions: {

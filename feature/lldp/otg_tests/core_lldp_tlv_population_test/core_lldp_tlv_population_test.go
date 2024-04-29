@@ -149,17 +149,17 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
-	return node, gnmi.GetConfig(t, node, lldp.Config())
+	return node, gnmi.Get(t, node, lldp.Config())
 }
 
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	// Device configuration + Ethernet configuration.
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName(portName)
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
+	srcEth.Connection().SetPortName(srcPort.Name())
 
 	// LLDP configuration.
 	lldp := config.Lldp().Add()

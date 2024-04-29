@@ -83,7 +83,7 @@ func TestTimeZone(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.tz)
 
 			t.Run("Get Timezone Config", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != testCase.tz {
 					t.Errorf("Config timezone: got %s, want %s", configGot, testCase.tz)
 				}

@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: "c1cb3545-2704-4f1a-80d3-150840df5f4a"
-plan_id: "gNMI-1.14"
+plan_id: "gNMI-1.20"
 description: "Telemetry: Optics Thresholds"
 testbed: TESTBED_DUT_ATE_2LINKS

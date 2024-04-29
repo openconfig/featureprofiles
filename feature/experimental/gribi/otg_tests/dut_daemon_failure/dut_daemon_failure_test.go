@@ -26,11 +26,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo/system"
 	grps "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -91,7 +93,7 @@ var (
 		ondatra.ARISTA:  "Gribi",
 		ondatra.CISCO:   "emsd",
 		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_gribi_server",
+		ondatra.NOKIA:   "sr_grpc_server",
 	}
 )
 
@@ -140,8 +142,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -250,13 +251,8 @@ func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client, du
 
 // gNOIKillProcess kills a daemon on the DUT, given its name and pid.
 func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
-	gnoiClient := args.dut.RawAPIs().GNOI(t)
-	killRequest := &gnps.KillProcessRequest{Name: pName, Pid: pID, Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
-	killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
+	killResponse := gnoi.Execute(t, args.dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
 	t.Logf("Got kill process response: %v\n\n", killResponse)
-	if err != nil {
-		t.Fatalf("Failed to execute gNOI Kill Process, error received: %v", err)
-	}
 }
 
 // findProcessByName uses telemetry to find out the PID of a process

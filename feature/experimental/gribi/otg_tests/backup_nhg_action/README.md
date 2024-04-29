@@ -107,3 +107,4 @@ No new telemetry covered.
 ## Minimum DUT platform requirement
 
 vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
