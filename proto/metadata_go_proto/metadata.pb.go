@@ -1911,7 +1911,6 @@ func (x *Metadata_Deviations) GetBgpActionsSetCommunityMethodUnsupported() bool 
 	return false
 }
 
-
 func (x *Metadata_Deviations) GetMatchedPacketsOctetsUnsupported() bool {
 	if x != nil {
 		return x.MatchedPacketsOctetsUnsupported
