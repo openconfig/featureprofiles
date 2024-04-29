@@ -352,10 +352,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix1).SetPrefix(32)
+	bgpNeti1Bgp4PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix2).SetPrefix(32)
+	bgpNeti1Bgp4PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix3).SetPrefix(32)
+	bgpNeti1Bgp4PeerRoutes.AddPath().SetPathId(1)
 
 	// eBGP V6 routes from Port1.
 	bgpNeti1Bgp6PeerRoutes := iDut1Bgp6Peer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
@@ -364,10 +367,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix1).SetPrefix(128)
+	bgpNeti1Bgp6PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix2).SetPrefix(128)
+	bgpNeti1Bgp6PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix3).SetPrefix(128)
+	bgpNeti1Bgp6PeerRoutes.AddPath().SetPathId(1)
 
 	// iBGP V4 routes from Port2.
 	bgpNeti2Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2.Name + ".BGP4.Route")
@@ -376,10 +382,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix4).SetPrefix(32)
+	bgpNeti2Bgp4PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix5).SetPrefix(32)
+	bgpNeti2Bgp4PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
 		SetAddress(ipv4Prefix6).SetPrefix(32)
+	bgpNeti2Bgp4PeerRoutes.AddPath().SetPathId(1)
 
 	// iBGP V6 routes from Port2.
 	bgpNeti2Bgp6PeerRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2.Name + ".BGP6.Route")
@@ -388,10 +397,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix4).SetPrefix(128)
+	bgpNeti2Bgp6PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix5).SetPrefix(128)
+	bgpNeti2Bgp6PeerRoutes.AddPath().SetPathId(1)
 	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(ipv6Prefix6).SetPrefix(128)
+	bgpNeti2Bgp6PeerRoutes.AddPath().SetPathId(1)
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
@@ -468,6 +480,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
@@ -486,6 +499,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntf.Af = nil
+		}
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevelAfi.Enabled = nil
+		}
 	}
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
@@ -798,6 +817,7 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	t.Run("Verify BGP session telemetry", func(t *testing.T) {
 		verifyBgpTelemetry(t, dut)
 	})
+
 	t.Run("Verify BGP capabilities", func(t *testing.T) {
 		verifyBGPCapabilities(t, dut)
 	})
