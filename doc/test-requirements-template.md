@@ -4,7 +4,6 @@ about: Use this template to document the requirements for a new test to be imple
 title: ''
 labels: enhancement
 assignees: ''
-
 ---
 
 # Instructions for this template
@@ -28,40 +27,39 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 
 ## Procedure
 
-* Sub Test #1 - Name of test
+* Test environment setup
+  * Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
+
+* TestID-x.y.z - Name of subtest
   * Step 1
   * Step 2
-  * Validation and pass fail criteria
+  * Validation and pass/fail criteria
 
-* Sub Test #2 - New of test
+* TestID-x.y.z - Name of subtest
   * Step 1
   * Step 2
-  * Validation and pass fail criteria
+  * Validation and pass/fail criteria
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-Add list of OpenConfig 'config' paths used in this test, if any.
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: "CHASSIS"
 
-Add list of OpenConfig 'state' paths used in this test, if any.
-
-## Protocol/RPC Parameter Coverage
-
-Add list of OpenConfig RPC's (gNMI, gNOI, gNSI, gRIBI) used in the list, if any.
-
-For example:
-
-* gNMI
-  * Set
-  * Subscribe
-* gNOI
-  * System
-    * KillProcess
-  * Healthz
-    * Get
-    * Check
-    * Artifact
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
 
 ## Required DUT platform
 

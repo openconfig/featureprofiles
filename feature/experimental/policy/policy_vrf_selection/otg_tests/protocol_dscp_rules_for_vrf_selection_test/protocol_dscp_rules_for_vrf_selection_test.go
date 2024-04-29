@@ -147,13 +147,13 @@ func TestMain(m *testing.M) {
 
 // configureATE configures port1, port2 and vlans on port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) gosnappi.Config {
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	top.Ports().Add().SetName(p1.ID())
 	srcDev := top.Devices().Add().SetName(atePort1.Name)
 	ethSrc := srcDev.Ethernets().Add().SetName(atePort1.Name + ".eth").SetMac(atePort1.MAC)
-	ethSrc.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p1.ID())
+	ethSrc.Connection().SetPortName(p1.ID())
 	ethSrc.Ipv4Addresses().Add().SetName(srcDev.Name() + ".ipv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	ethSrc.Ipv6Addresses().Add().SetName(srcDev.Name() + ".ipv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
@@ -164,28 +164,28 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) 
 	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 		ethDst.Vlans().Add().SetName(atePort2.Name + "vlan").SetId(1)
 	}
-	ethDst.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDst.Connection().SetPortName(p2.ID())
 	ethDst.Ipv4Addresses().Add().SetName(dstDev.Name() + ".ipv4").SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
 	ethDst.Ipv6Addresses().Add().SetName(dstDev.Name() + ".ipv6").SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
 
 	// configure vlans on ATE port2
 	dstDevVlan10 := top.Devices().Add().SetName(atePort2Vlan10.Name)
 	ethDstVlan10 := dstDevVlan10.Ethernets().Add().SetName(atePort2Vlan10.Name + ".eth").SetMac(atePort2Vlan10.MAC)
-	ethDstVlan10.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDstVlan10.Connection().SetPortName(p2.ID())
 	ethDstVlan10.Vlans().Add().SetName(atePort2Vlan10.Name + "vlan").SetId(10)
 	ethDstVlan10.Ipv4Addresses().Add().SetName(atePort2Vlan10.Name + ".ipv4").SetAddress(atePort2Vlan10.IPv4).SetGateway(dutPort2Vlan10.IPv4).SetPrefix(uint32(atePort2Vlan10.IPv4Len))
 	ethDstVlan10.Ipv6Addresses().Add().SetName(atePort2Vlan10.Name + ".ipv6").SetAddress(atePort2Vlan10.IPv6).SetGateway(dutPort2Vlan10.IPv6).SetPrefix(uint32(atePort2Vlan10.IPv6Len))
 
 	dstDevVlan20 := top.Devices().Add().SetName(atePort2Vlan20.Name)
 	ethDstVlan20 := dstDevVlan20.Ethernets().Add().SetName(atePort2Vlan20.Name + ".eth").SetMac(atePort2Vlan20.MAC)
-	ethDstVlan20.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDstVlan20.Connection().SetPortName(p2.ID())
 	ethDstVlan20.Vlans().Add().SetName(atePort2Vlan20.Name + "vlan").SetId(20)
 	ethDstVlan20.Ipv4Addresses().Add().SetName(atePort2Vlan20.Name + ".ipv4").SetAddress(atePort2Vlan20.IPv4).SetGateway(dutPort2Vlan20.IPv4).SetPrefix(uint32(atePort2Vlan20.IPv4Len))
 	ethDstVlan20.Ipv6Addresses().Add().SetName(atePort2Vlan20.Name + ".ipv6").SetAddress(atePort2Vlan20.IPv6).SetGateway(dutPort2Vlan20.IPv6).SetPrefix(uint32(atePort2Vlan20.IPv6Len))
 
 	dstDevVlan30 := top.Devices().Add().SetName(atePort2Vlan30.Name)
 	ethDstVlan30 := dstDevVlan30.Ethernets().Add().SetName(atePort2Vlan30.Name + ".eth").SetMac(atePort2Vlan30.MAC)
-	ethDstVlan30.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p2.ID())
+	ethDstVlan30.Connection().SetPortName(p2.ID())
 	ethDstVlan30.Vlans().Add().SetName(atePort2Vlan30.Name + "vlan").SetId(30)
 	ethDstVlan30.Ipv4Addresses().Add().SetName(atePort2Vlan30.Name + ".ipv4").SetAddress(atePort2Vlan30.IPv4).SetGateway(dutPort2Vlan30.IPv4).SetPrefix(uint32(atePort2Vlan30.IPv4Len))
 	ethDstVlan30.Ipv6Addresses().Add().SetName(atePort2Vlan30.Name + ".ipv6").SetAddress(atePort2Vlan30.IPv6).SetGateway(dutPort2Vlan30.IPv6).SetPrefix(uint32(atePort2Vlan30.IPv6Len))
@@ -525,8 +525,8 @@ func TestPBR(t *testing.T) {
 			pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
 
 			//configure pbr policy-forwarding
-			dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+			fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), tc.policy)
 			})
@@ -542,8 +542,12 @@ func TestPBR(t *testing.T) {
 			// apply pbr policy on ingress interface
 			p1 := port1.Name()
 			d := &oc.Root{}
-			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(p1)
-			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(p1)
+			interfaceID := p1
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				interfaceID = p1 + ".0"
+			}
+			pfIntf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
+			pfIntfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 			pfIntf.GetOrCreateInterfaceRef().Interface = ygot.String(p1)
 			pfIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 			if deviations.InterfaceRefConfigUnsupported(dut) {

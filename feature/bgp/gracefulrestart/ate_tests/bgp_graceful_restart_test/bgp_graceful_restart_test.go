@@ -136,8 +136,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
-	dutConfNIPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
@@ -480,11 +479,13 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 					"drop": map[string]any{},
 				},
 				"match": map[string]any{
-					"destination-ip": map[string]any{
-						"prefix": ateDstCIDR,
-					},
-					"source-ip": map[string]any{
-						"prefix": aclNullPrefix,
+					"ipv4": map[string]any{
+						"destination-ip": map[string]any{
+							"prefix": ateDstCIDR,
+						},
+						"source-ip": map[string]any{
+							"prefix": aclNullPrefix,
+						},
 					},
 				},
 			},
@@ -500,11 +501,13 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 					"drop": map[string]any{},
 				},
 				"match": map[string]any{
-					"source-ip": map[string]any{
-						"prefix": ateDstCIDR,
-					},
-					"destination-ip": map[string]any{
-						"prefix": aclNullPrefix,
+					"ipv4": map[string]any{
+						"source-ip": map[string]any{
+							"prefix": ateDstCIDR,
+						},
+						"destination-ip": map[string]any{
+							"prefix": aclNullPrefix,
+						},
 					},
 				},
 			},
@@ -520,11 +523,13 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 					"accept": map[string]any{},
 				},
 				"match": map[string]any{
-					"source-ip": map[string]any{
-						"prefix": aclNullPrefix,
-					},
-					"destination-ip": map[string]any{
-						"prefix": aclNullPrefix,
+					"ipv4": map[string]any{
+						"source-ip": map[string]any{
+							"prefix": aclNullPrefix,
+						},
+						"destination-ip": map[string]any{
+							"prefix": aclNullPrefix,
+						},
 					},
 				},
 			},
@@ -535,14 +540,14 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 		}
 		gpbSetRequest := &gpb.SetRequest{
 			Prefix: &gpb.Path{
-				Origin: "srl",
+				Origin: "native",
 			},
 			Update: []*gpb.Update{
 				{
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
 							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "acl-filter", Key: map[string]string{"name": name, "type": "ipv4"}},
 							{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
 						},
 					},
@@ -556,7 +561,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
 							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "acl-filter", Key: map[string]string{"name": name, "type": "ipv4"}},
 							{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
 						},
 					},
@@ -570,7 +575,7 @@ func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
 							{Name: "acl"},
-							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "acl-filter", Key: map[string]string{"name": name, "type": "ipv4"}},
 							{Name: "entry", Key: map[string]string{"sequence-id": "30"}},
 						},
 					},
@@ -599,20 +604,20 @@ func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
 	case ondatra.NOKIA:
 		gpbDelRequest := &gpb.SetRequest{
 			Prefix: &gpb.Path{
-				Origin: "srl",
+				Origin: "native",
 			},
 			Delete: []*gpb.Path{
 				{
 					Elem: []*gpb.PathElem{
 						{Name: "acl"},
-						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "acl-filter", Key: map[string]string{"name": name, "type": "ipv4"}},
 						{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
 					},
 				},
 				{
 					Elem: []*gpb.PathElem{
 						{Name: "acl"},
-						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "acl-filter", Key: map[string]string{"name": name, "type": "ipv4"}},
 						{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
 					},
 				},
@@ -636,8 +641,9 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 	case ondatra.NOKIA:
 		var interfaceAclVal = []any{
 			map[string]any{
-				"ipv4-filter": []any{
-					aclName,
+				"acl-filter": map[string]any{
+					"name": aclName,
+					"type": "ipv4",
 				},
 			},
 		}
@@ -647,15 +653,14 @@ func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string)
 		}
 		gpbSetRequest := &gpb.SetRequest{
 			Prefix: &gpb.Path{
-				Origin: "srl",
+				Origin: "native",
 			},
 			Update: []*gpb.Update{
 				{
 					Path: &gpb.Path{
 						Elem: []*gpb.PathElem{
-							{Name: "interface", Key: map[string]string{"name": ifName}},
-							{Name: "subinterface", Key: map[string]string{"index": "0"}},
 							{Name: "acl"},
+							{Name: "interface", Key: map[string]string{"interface-id": ifName + ".0"}},
 							{Name: "input"},
 						},
 					},
@@ -694,7 +699,7 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		nbrList := buildNbrList(ateAS)
 		dutConf := bgpWithNbr(dutAS, nbrList, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
 	// ATE Configuration.
 	var allFlows []*ondatra.Flow

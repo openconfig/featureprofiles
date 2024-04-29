@@ -19,12 +19,22 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+func ConfigureDefaultNetworkInstance(t testing.TB, d *ondatra.DUTDevice) {
+	defNiPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(d))
+	gnmi.Update(t, d, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(d)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+}
 
 // AssignToNetworkInstance attaches a subinterface to a network instance.
 func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {

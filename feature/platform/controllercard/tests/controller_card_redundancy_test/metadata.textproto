@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: ""
+plan_id: "gNMI-1.17"
+description: "Controller Card redundancy test"
+testbed: TESTBED_DUT

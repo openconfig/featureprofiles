@@ -468,7 +468,7 @@ message Metadata {
     // Device that does not support packet link qualification reflector packet sent/received stats.
     bool plq_reflector_stats_unsupported = 164;
     // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
-    uint32 plq_generator_capabilities_max_mtu = 165;
+    uint32 plq_generator_capabilities_max_mtu = 165;    
     // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
     uint64 plq_generator_capabilities_max_pps = 166;
     // Support for bgp extended community index

@@ -24,13 +24,9 @@ Validate gRIBI route persistence during SSO
 
 *   Check for gRIBI core dumps in the DUT and validate that none are present.
 
-    TODO: check for any core dumps generated during the test execution time
-
 *   Concurrently, trigger a supervisor switchover using gNOI `SwitchControlProcessor` while `IPBlock2` entries are only partially installed.
 
 *   Check for gRIBI core dumps in the DUT and validate that none are present post failover
-
-    TODO: check for any new core dumps post failover
 
 *   Following reconnection of the gRIBI client to a new master supervisor, validate if partially ACKed entries of `IPBlock2` are present as FIB_PROGRAMMED using a Get RPC.
 

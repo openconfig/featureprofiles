@@ -192,7 +192,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	i1 := tc.top.Devices().Add().SetName(ap1.ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
 		SetMac(ateSrc.MAC).SetMtu(uint32(ateMTU))
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+	eth1.Connection().SetPortName(i1.Name())
 	if ateSrc.IPv4 != "" {
 		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
@@ -207,7 +207,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	i2 := tc.top.Devices().Add().SetName(ap2.ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
 		SetMac(ateDst.MAC).SetMtu(uint32(ateMTU))
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
+	eth2.Connection().SetPortName(i2.Name())
 	if ateDst.IPv4 != "" {
 		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
@@ -221,6 +221,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 const (
@@ -374,7 +376,7 @@ func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
 		broadcast: tic.GetInBroadcastPkts(),
-		drop:      tic.GetInDiscards()}
+		drop:      tic.GetInErrors()}
 }
 
 func outCounters(tic *oc.Interface_Counters) *counters {
@@ -535,7 +537,7 @@ func TestMTUs(t *testing.T) {
 	mtus := []uint16{1500, 5000, 9236}
 
 	for _, mtu := range mtus {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		tc := &testCase{
 			mtu: mtu,
 			dut: dut,
