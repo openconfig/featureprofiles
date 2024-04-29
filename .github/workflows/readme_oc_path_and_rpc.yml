@@ -27,7 +27,7 @@ jobs:
     - name: Validate Template README
       run: |
         go install ./tools/validate_readme_spec
-        validate_readme_spec -alsologtostderr doc/test-requirements-template.md
+        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
 
     - name: Validate Test READMEs
       run: |
