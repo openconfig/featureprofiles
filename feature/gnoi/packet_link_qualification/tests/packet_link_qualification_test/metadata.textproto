@@ -33,3 +33,14 @@ platform_exceptions: {
     explicit_port_speed: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_plq_interface_oper_status_check: true
+    plq_reflector_stats_unsupported: true
+    plq_generator_capabilities_max_mtu: 512
+    plq_generator_capabilities_max_pps: 40000000
+  }
+}
