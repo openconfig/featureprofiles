@@ -94,20 +94,20 @@ func TestQoSClassifier(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ap1.ID())
 	top.Ports().Add().SetName(ap2.ID())
 
 	dev1 := top.Devices().Add().SetName("dev1")
 	eth1 := dev1.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac("02:00:01:01:01:01")
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth1.Connection().SetPortName(ap1.ID())
 	eth1.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress("198.51.100.1").SetGateway("198.51.100.0").SetPrefix(uint32(31))
 	eth1.Ipv6Addresses().Add().SetName(dev1.Name() + ".ipv6").SetAddress("2001:db8::2").SetGateway("2001:db8::1").SetPrefix(uint32(31))
 
 	dev2 := top.Devices().Add().SetName("dev2")
 	eth2 := dev2.Ethernets().Add().SetName(dev1.Name() + ".eth").SetMac("02:00:01:01:01:01")
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(ap1.ID())
+	eth2.Connection().SetPortName(ap1.ID())
 	eth2.Ipv4Addresses().Add().SetName(dev1.Name() + ".ipv4").SetAddress("198.51.100.3").SetGateway("198.51.100.2").SetPrefix(uint32(31))
 	eth2.Ipv6Addresses().Add().SetName(dev1.Name() + ".ipv6").SetAddress("2001:db8::6").SetGateway("2001:db8::5").SetPrefix(uint32(126))
 
