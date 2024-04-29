@@ -81,11 +81,12 @@ func TestManagementHA1(t *testing.T) {
 		true,
 		true,
 	)
-
-	bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
-	neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
-	for _, neighbor := range neighbors {
-		neighbor.PeerGroup = nil
+	if deviations.SetNoPeerGroup(dut) {
+		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
+		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
+		for _, neighbor := range neighbors {
+			neighbor.PeerGroup = nil
+		}
 	}
 
 	configureEmulatedNetworks(bs)

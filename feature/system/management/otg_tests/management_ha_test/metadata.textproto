@@ -18,6 +18,7 @@ platform_exceptions:  {
     skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
     set_metric_as_preference:  true
+    set_no_peer_group: true
   }
 }
 platform_exceptions:  {
