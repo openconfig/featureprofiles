@@ -509,7 +509,7 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 		t.Logf("Configure family mpls on interface %s", intf.intfName)
 
-		gnmiClient := dut.RawAPIs().GNMI().Default(t)
+		gnmiClient := dut.RawAPIs().GNMI(t)
 		var config string
 		t.Logf("Push the CLI config:\n%s", dut.Vendor())
 		config = juniperCLI(intf.intfName)
