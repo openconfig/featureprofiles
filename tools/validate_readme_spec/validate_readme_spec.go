@@ -21,7 +21,7 @@
 package main
 
 import (
-	"flag"
+	goflag "flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -33,24 +33,48 @@ import (
 	"github.com/openconfig/featureprofiles/tools/internal/mdocspec"
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
 	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
 )
 
 // Config is the set of flags for this binary.
 type Config struct {
-	DownloadPath string
-	FeatureDir   string
+	DownloadPath   string
+	FeatureDir     string
+	NonTestREADMEs StringMap
+}
+
+func newConfig() *Config {
+	return &Config{
+		NonTestREADMEs: map[string]struct{}{},
+	}
+}
+
+type StringMap map[string]struct{}
+
+func (m StringMap) String() string {
+	return strings.Join(maps.Keys(m), ",")
+}
+
+func (m StringMap) Type() string {
+	return "StringMap"
+}
+
+func (m StringMap) Set(readmePath string) error {
+	m[readmePath] = struct{}{}
+	return nil
 }
 
 // New registers a flagset with the configuration needed by this binary.
 func New(fs *flag.FlagSet) *Config {
-	c := &Config{}
+	c := newConfig()
 
 	if fs == nil {
 		fs = flag.CommandLine
 	}
 	fs.StringVar(&c.DownloadPath, "download-path", "./tmp", "path into which to download OpenConfig GitHub repos for validation")
-	fs.StringVar(&c.FeatureDir, "feature-dir", "", "path to the feature directory of featureprofiles, for which all README.md files are validated for their coverage spec aside from the allow-list in readme_allowlist.go")
+	fs.StringVar(&c.FeatureDir, "feature-dir", "", "path to the feature directory of featureprofiles, for which all README.md files are validated for their coverage spec")
+	fs.Var(&c.NonTestREADMEs, "non-test-readme", "README that's exempt from coverage spec validation (can be specified multiple times)")
 
 	return c
 }
@@ -63,7 +87,7 @@ func init() {
 	config = New(nil)
 }
 
-func readmeFiles(featureDir string) ([]string, error) {
+func readmeFiles(featureDir string, nonTestREADMEs StringMap) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(featureDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -84,6 +108,7 @@ func readmeFiles(featureDir string) ([]string, error) {
 }
 
 func main() {
+	flag.CommandLine.AddGoFlagSet(goflag.CommandLine) // for compatibility with glog
 	flag.Parse()
 
 	fileCount := flag.NArg()
@@ -100,7 +125,7 @@ func main() {
 		fallthrough
 	case config.FeatureDir != "":
 		var err error
-		files, err = readmeFiles(config.FeatureDir)
+		files, err = readmeFiles(config.FeatureDir, config.NonTestREADMEs)
 		if err != nil {
 			log.Exitf("Error gathering README.md files for validation: %v", err)
 		}

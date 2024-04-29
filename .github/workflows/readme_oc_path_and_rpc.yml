@@ -32,24 +32,31 @@ jobs:
     - name: Validate Test READMEs
       run: |
         go install ./tools/validate_readme_spec
+
+        exemption_flags=(
+          --non-test-readme security/gnsi/certz/test_data/README.md
+          --non-test-readme experimental/p4rt/README.md
+          --non-test-readme feature/security/gnsi/acctz/README.md
+        )
+
         # TODO: Remove -feature-dir argument after all READMEs have converted to the new format.
         # TODO: Test folders with (#) have validation errors -- fix them and
         # then uncomment.
-        validate_readme_spec -alsologtostderr -feature-dir feature/gnoi/os
-        validate_readme_spec -alsologtostderr -feature-dir feature/networkinstance
-        validate_readme_spec -alsologtostderr -feature-dir feature/security
-        validate_readme_spec -alsologtostderr -feature-dir feature/bgp/policybase/otg_tests/import_export_multi
-        validate_readme_spec -alsologtostderr -feature-dir feature/aft/aft_summary/otg_tests/route_summary_counters_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_basic_check_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/otg_tests/telemetry_port_speed_test
-        validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/subscribe/tests/gnmi_sample_mode_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnoi/system/tests/ping_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/gnoi/system/tests/supervisor_switchover_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/isis/otg_tests/weighted_ecmp_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/isis/static_route_isis_redistribution
-        #validate_readme_spec -alsologtostderr -feature-dir feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
-        validate_readme_spec -alsologtostderr -feature-dir feature/staticroute/otg_tests/basic_static_route_support_test
-        #validate_readme_spec -alsologtostderr -feature-dir feature/staticroute/tests
+        validate_readme_spec --feature-dir feature/gnoi/os --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/networkinstance --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/security --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/bgp/policybase/otg_tests/import_export_multi --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/aft/aft_summary/otg_tests/route_summary_counters_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnmi/otg_tests/telemetry_basic_check_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnmi/otg_tests/telemetry_interface_packet_counters_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnmi/otg_tests/telemetry_port_speed_test --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/gnmi/subscribe/tests/gnmi_sample_mode_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnoi/system/tests/ping_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/gnoi/system/tests/supervisor_switchover_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/isis/otg_tests/weighted_ecmp_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/isis/static_route_isis_redistribution --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission --alsologtostderr "${exemption_flags[@]}"
+        validate_readme_spec --feature-dir feature/staticroute/otg_tests/basic_static_route_support_test --alsologtostderr "${exemption_flags[@]}"
+        #validate_readme_spec --feature-dir feature/staticroute/tests --alsologtostderr "${exemption_flags[@]}"
