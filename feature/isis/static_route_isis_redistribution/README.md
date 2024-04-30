@@ -318,85 +318,70 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/table-connections/table-connection/config
-*   /network-instances/network-instance/table-connections/table-connection/config/address-family
-*   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
-*   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol
-*   /network-instances/network-instance/table-connections/table-connection/config/default-import-policy
-*   /network-instances/network-instance/table-connections/table-connection/config/import-policy
-*   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-*   /routing-policy/policy-definitions/policy-definition/config/name
+```yaml
+paths:
+  ## Config Paths ##
+  #/network-instances/network-instance/table-connections/table-connection/config:
+  /network-instances/network-instance/table-connections/table-connection/config/address-family:
+  /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/default-import-policy:
+  /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/tag-value:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-level:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-metric:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-metric-style-type:
 
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+  ## State Paths ##
+  /network-instances/network-instance/table-connections/table-connection/state/address-family:
+  /network-instances/network-instance/table-connections/table-connection/state/default-import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/state/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/state/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/src-protocol:
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/prefix-set:
+  /routing-policy/defined-sets/tag-sets/tag-set/state/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/state/tag-value:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-level:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-metric:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-metric-style-type:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric:
 
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-
-*   /routing-policy/defined-sets/tag-sets/tag-set/config/name
-*   /routing-policy/defined-sets/tag-sets/tag-set/config/tag-value
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-level
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-metric
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-metric-style-type
-
-
-## Telemetry parameter coverage
-
-*   /network-instances/network-instance/table-connections/table-connection/state/address-family
-*   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
-*   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-*   /network-instances/network-instance/table-connections/table-connection/state/dst-protocol
-*   /network-instances/network-instance/table-connections/table-connection/state/import-policy
-*   /network-instances/network-instance/table-connections/table-connection/state/src-protocol
-
-*   /routing-policy/policy-definitions/policy-definition/state/name
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/state/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/state/mode
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/state/name
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/prefix-set
-
-*   /routing-policy/defined-sets/tag-sets/tag-set/state/name
-*   /routing-policy/defined-sets/tag-sets/tag-set/state/tag-value
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/tag-set
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-level
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-metric
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-metric-style-type
-
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
-
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric
-
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Get
-  * Set
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 
