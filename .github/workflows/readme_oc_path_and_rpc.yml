@@ -46,21 +46,13 @@ jobs:
           validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
         }
 
-        validate feature/gnoi/os
+        validate feature/aft
+        validate feature/bgp/policybase/otg_tests/import_export_multi
+        validate feature/gnmi
+        validate feature/gnoi
+        validate feature/isis
+        validate feature/mtu
         validate feature/networkinstance
         validate feature/security
-        validate feature/bgp/policybase/otg_tests/import_export_multi
-        validate feature/aft/aft_summary/otg_tests/route_summary_counters_test
-        validate feature/gnmi/otg_tests/telemetry_basic_check_test
-        validate feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
-        validate feature/gnmi/otg_tests/telemetry_port_speed_test
-        validate feature/gnmi/subscribe/tests/gnmi_sample_mode_test
-        validate feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
-        validate feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
-        validate feature/gnoi/system/tests/ping_test
-        validate feature/gnoi/system/tests/supervisor_switchover_test
-        validate feature/isis/otg_tests/weighted_ecmp_test
-        validate feature/isis/static_route_isis_redistribution
-        validate feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
-        validate feature/staticroute/otg_tests/basic_static_route_support_test
-        validate feature/staticroute/tests
+        validate feature/staticroute
+        validate feature/system/management
