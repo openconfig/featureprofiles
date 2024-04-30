@@ -8,6 +8,7 @@ testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
+    hardware_model_regex: ".*820.*|8808"
   }
   deviations: {
     ipv4_missing_enabled: true
@@ -15,7 +16,18 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+    hardware_model_regex: "8000e|xrd"
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    virtual_dataplane: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: JUNIPER
+    hardware_model_regex: "PTX1"
   }
   deviations: {
     ecn_profile_required_definition: true
@@ -25,7 +37,20 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "ncptx"
+  }
+  deviations: {
+    ecn_profile_required_definition: true
+    explicit_interface_ref_definition: true
+    qos_dropped_octets: true
+    virtual_dataplane: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
+    hardware_model_regex: "7250"
   }
   deviations: {
     interface_enabled: true
@@ -36,9 +61,33 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: ARISTA
+    vendor: NOKIA
+    hardware_model_regex: "srlinux"
   }
   deviations: {
     interface_enabled: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_octets: true
+    virtual_dataplane: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex: "DCS-7"
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex: "ceos"
+  }
+  deviations: {
+    interface_enabled: true
+    virtual_dataplane: true
   }
 }

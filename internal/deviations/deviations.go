@@ -936,3 +936,8 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }
+
+// VirtualDataplane return true if the DUT has a virtualized data plane.
+func VirtualDataplane(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVirtualDataplane()
+}
