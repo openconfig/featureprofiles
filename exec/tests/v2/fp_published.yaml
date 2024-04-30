@@ -616,7 +616,7 @@ tests:
       - agvarghe
     mustpass: true
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
-    path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
+    path: feature/experimental/system/gnmi/benchmarking/otg_tests/drained_configuration_convergence_time
     owners:
       - agvarghe
     mustpass: true
