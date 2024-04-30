@@ -41,7 +41,7 @@ import (
 type Config struct {
 	DownloadPath   string
 	FeatureDir     string
-	NonTestREADMEs StringMap
+	NonTestREADMEs stringMap
 }
 
 func newConfig() *Config {
@@ -50,17 +50,17 @@ func newConfig() *Config {
 	}
 }
 
-type StringMap map[string]struct{}
+type stringMap map[string]struct{}
 
-func (m StringMap) String() string {
+func (m stringMap) String() string {
 	return strings.Join(maps.Keys(m), ",")
 }
 
-func (m StringMap) Type() string {
-	return "StringMap"
+func (m stringMap) Type() string {
+	return "stringMap"
 }
 
-func (m StringMap) Set(readmePath string) error {
+func (m stringMap) Set(readmePath string) error {
 	m[readmePath] = struct{}{}
 	return nil
 }
@@ -87,7 +87,7 @@ func init() {
 	config = New(nil)
 }
 
-func readmeFiles(featureDir string, nonTestREADMEs StringMap) ([]string, error) {
+func readmeFiles(featureDir string, nonTestREADMEs stringMap) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(featureDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
