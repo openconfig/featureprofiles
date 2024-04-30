@@ -60,6 +60,10 @@ func cloneAPIRepo(downloadPath, api string) (string, error) {
 	return repoPath, nil
 }
 
+// Read returns all RPCs for the given OpenConfig API.
+//
+//   - downloadPath specifies the folder to download the associated OpenConfig
+//     repo in order to allow for proto file parsing.
 func Read(downloadPath, api string) (map[string]struct{}, error) {
 	repoPath, err := cloneAPIRepo(downloadPath, api)
 	if err != nil {

@@ -28,13 +28,20 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "fpcli",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "fpcli is an OpenConfig helper CLI for featureprofile-related use cases",
+	Long: `fpcli is an OpenConfig helper CLI for featureprofile-related use cases.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+For example, you can use it to show what RPCs exist for a particular OpenConfig protocol:
+
+Example:
+$ fpcli show rpcs gnoi -d tmp
+
+gnoi.bgp.BGP.ClearBGPNeighbor
+gnoi.bootconfig.BootConfig.GetBootConfig
+gnoi.bootconfig.BootConfig.SetBootConfig
+gnoi.certificate.CertificateManagement.CanGenerateCSR
+gnoi.certificate.CertificateManagement.GenerateCSR
+...`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
