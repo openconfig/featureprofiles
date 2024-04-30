@@ -21,6 +21,16 @@ jobs:
         go-version: stable
         cache: false
 
+    - name: Validate Validation Script
+      run: |
+        cd tools/validate_readme_spec
+        ./validate_readme_spec_test.sh
+
+    - name: Validate Template README
+      run: |
+        go install ./tools/validate_readme_spec
+        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
+
     - name: Validate Test READMEs
       run: |
         go install ./tools/validate_readme_spec
@@ -38,7 +48,7 @@ jobs:
           validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
         }
 
-        ##### Validate Changed Test READMEs # TODO: Remove this after all are converted.
+        ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
 
         # Adapted from rebase_check.yml
         # Notes:
@@ -54,15 +64,15 @@ jobs:
         readonly HEAD="${{ github.event.pull_request.head.sha }}"
         readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
-        echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        echo "########## Changed READMEs to be validated:"
         git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
-        echo BBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 
+        echo "########## Validating Changed READMEs:"
         git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
-        echo CCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
-        ##### Validate Changed Test READMEs #####
+        ##### END: Validate Changed Test READMEs #####
 
+        echo "########## Validating already-converted READMEs:"
         validate feature/aft
         validate feature/bgp/policybase/otg_tests/import_export_multi
         validate feature/gnmi
@@ -75,13 +85,3 @@ jobs:
         validate feature/system/management
         validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
         validate feature/system/ntp/tests/system_ntp_test
-
-    - name: Validate Validation Script
-      run: |
-        cd tools/validate_readme_spec
-        ./validate_readme_spec_test.sh
-
-    - name: Validate Template README
-      run: |
-        go install ./tools/validate_readme_spec
-        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
