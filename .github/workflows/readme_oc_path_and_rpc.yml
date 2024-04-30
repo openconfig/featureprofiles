@@ -33,4 +33,4 @@ jobs:
       run: |
         go install ./tools/validate_readme_spec
         # TODO: Remove -feature-dir argument after all READMEs have converted to the new format.
-        validate_readme_spec -alsologtostderr -feature-dir feature/bgp/policybase/otg_tests/import_export_multi
+        validate_readme_spec -alsologtostderr -feature-dir feature/bgp/policybase/otg_tests/import_export_multi_test
