@@ -46,19 +46,6 @@ jobs:
           validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
         }
 
-        validate feature/aft
-        validate feature/bgp/policybase/otg_tests/import_export_multi
-        validate feature/gnmi
-        validate feature/gnoi
-        validate feature/isis
-        validate feature/mtu
-        validate feature/networkinstance
-        validate feature/security
-        validate feature/staticroute
-        validate feature/system/management
-        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
-        validate feature/system/ntp/tests/system_ntp_test
-
         ##### Validate Changed Test READMEs # TODO: Remove this after all are converted.
 
         # Adapted from rebase_check.yml
@@ -81,4 +68,23 @@ jobs:
         readonly HEAD="${{ github.event.pull_request.head.sha }}"
         readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
+        echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}"
+        echo BBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+
         git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}" | grep -E '^\W+feature' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+
+        ##### Validate Changed Test READMEs #####
+
+        validate feature/aft
+        validate feature/bgp/policybase/otg_tests/import_export_multi
+        validate feature/gnmi
+        validate feature/gnoi
+        validate feature/isis
+        validate feature/mtu
+        validate feature/networkinstance
+        validate feature/security
+        validate feature/staticroute
+        validate feature/system/management
+        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+        validate feature/system/ntp/tests/system_ntp_test
