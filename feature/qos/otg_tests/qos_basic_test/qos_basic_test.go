@@ -487,7 +487,14 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				lossPct := (float32)((float64(ateTxPkts-ateRxPkts) * 100.0) / float64(ateTxPkts))
 				t.Logf("Get flow %q: lossPct: %.2f%% or rxPct: %.2f%%, want: %.2f%%\n\n", data.queue, lossPct, 100.0-lossPct, data.expectedThroughputPct)
 				if got, want := 100.0-lossPct, data.expectedThroughputPct; got != want {
-					t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
+					if deviations.VirtualDataplane(dut) {
+						t.Logf("Get(throughput for queue %q): got %.2f%%, want %.2f%%. Ignoring loss for virtual dataplane.", data.queue, got, want)
+						if data.expectedThroughputPct > 0 && got == 0 {
+							t.Errorf("No packets received for %q", data.queue)
+						}
+					} else {
+						t.Errorf("Get(throughput for queue %q): got %.2f%%, want %.2f%%", data.queue, got, want)
+					}
 				}
 			}
 
