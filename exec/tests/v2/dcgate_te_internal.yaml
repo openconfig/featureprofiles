@@ -17,7 +17,7 @@ tests:
   internal: true
   branch: master
   args:
-    - '-run="TestBasicEncap\*"'
+    - '-test.run="TestBasicEncap\*"'
 
 - name: Encap-FRR
   path: feature/gribi/otg_tests/cisco/dcgate
@@ -26,7 +26,7 @@ tests:
   internal: true
   branch: master
   args:
-    - '-run="TestEncapFrr\*"'
+    - '-test.run="TestEncapFrr\*"'
 
 - name: TE-Regionalization
   path: feature/gribi/otg_tests/cisco/dcgate
@@ -35,4 +35,4 @@ tests:
   internal: true
   branch: master    
   args:
-    - '-run="TestRegionalization\*"'
+    - '-test.run="TestRegionalization\*"'
