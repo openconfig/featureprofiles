@@ -48,7 +48,7 @@ paths:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
-  /components/component/integrated-circuit/backplane-facing-capacity/state/total”:
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
 
   ## State Paths: SubscriptionMode: ON_CHANGE ##
