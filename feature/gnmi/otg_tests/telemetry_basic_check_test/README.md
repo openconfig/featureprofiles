@@ -12,10 +12,10 @@ following features:
 *   Ethernet interface
 
     *   Check the telemetry port-speed exists with correct speed.
-        *   /interfaces/interfaces/interface/ethernet/state/port-speed 
+        *   /interfaces/interfaces/interface/ethernet/state/port-speed
     *   Check the telemetry mac-address with correct format.
         *   /interfaces/interfaces/interface/ethernet/state/mac-address
-    
+
 
 *   Interface status
 
@@ -114,42 +114,65 @@ following features:
     *   Check the following path exists with correct node ID.
         *   /components/component/integrated-circuit/state/node-id
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-No configuration coverage.
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  # None
 
-*   /interfaces/interface/state/admin-status
-*   /lacp/interfaces/interface/members/member
-*   /interfaces/interface/ethernet/state/mac-address
-*   /interfaces/interface/state/hardware-port /interfaces/interface/state/id
-*   /interfaces/interface/state/oper-status
-*   /interfaces/interface/ethernet/state/port-speed
-*   /interfaces/interface/state/physical-channel
-*   /components/component/integrated-circuit/state/node-id
-*   /components/component/state/parent
-*   /interfaces/interface/state/counters/in-octets
-*   /interfaces/interface/state/counters/in-unicast-pkts
-*   /interfaces/interface/state/counters/in-broadcast-pkts
-*   /interfaces/interface/state/counters/in-multicast-pkts
-*   /interfaces/interface/state/counters/in-discards
-*   /interfaces/interface/state/counters/in-errors
-*   /interfaces/interface/state/counters/in-fcs-errors
-*   /interfaces/interface/state/counters/out-unicast-pkts
-*   /interfaces/interface/state/counters/out-broadcast-pkts
-*   /interfaces/interface/state/counters/out-multicast-pkts
-*   /interfaces/interface/state/counters/out-octets
-*   /interfaces/interface/state/counters/out-discards
-*   /interfaces/interface/state/counters/out-errors
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
-*   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+  ## State Paths ##
+  /interfaces/interface/state/admin-status:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
+  /lacp/interfaces/interface/members/member/state/aggregatable:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/partner-id:
+  /lacp/interfaces/interface/members/member/state/partner-key:
+  /lacp/interfaces/interface/members/member/state/partner-port-num:
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/hardware-port:
+  /interfaces/interface/state/id:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/state/physical-channel:
+  /components/component/integrated-circuit/state/node-id:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/state/parent:
+    platform_type: [
+        "CONTROLLER_CARD",
+        "LINECARD",
+        "FABRIC",
+        "POWER_SUPPLY",
+        "INTEGRATED_CIRCUIT"
+    ]
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-discards:
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-fcs-errors:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
-## Protocol/RPC Parameter coverage
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
 
-N/A
 
 ## Minimum DUT platform requirement
 
