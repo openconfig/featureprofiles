@@ -405,10 +405,11 @@ For each of the scenarios in this section, we need to exercise the following 3 a
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCRPC): Record is not complete
+
 ```yaml
 rpcs:
   gnsi:
-    # Note this is a placeholder function, may not be correct nor complete.
     authz.v1.Authz.Get:
 ```
 

@@ -325,7 +325,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 ```yaml
 paths:
   ## Config Paths ##
-  /network-instances/network-instance/table-connections/table-connection/config:
+  #/network-instances/network-instance/table-connections/table-connection/config:
   /network-instances/network-instance/table-connections/table-connection/config/address-family:
   /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:

@@ -15,20 +15,23 @@ Validate that the active supervisor can be switched.
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
 ```yaml
 paths:
   ## State Paths ##
   /system/state/current-datetime:
-  /components/component[name=<supervisor>]/state/last-switchover-time:
-  /components/component[name=<supervisor>]/state/last-switchover-reason/trigger:
-  /components/component[name=<supervisor>]/state/last-switchover-reason/details:
+  /components/component/state/last-switchover-time:
+    platform_type: [ "CONTROLLER_CARD" ]
+  /components/component/state/last-switchover-reason/trigger:
+    platform_type: [ "CONTROLLER_CARD" ]
+  /components/component/state/last-switchover-reason/details:
+    platform_type: [ "CONTROLLER_CARD" ]
 
 rpcs:
   gnmi:
     gNMI.Subscribe:
   gnoi:
-    gNOI.System.SwitchControlProcessor
+    system.System.SwitchControlProcessor:
 ```
-

@@ -27,8 +27,8 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Paths ##
   /interfaces/interface/config/mtu:
-  /interfaces/interface/subinterfaces/subinterface[index=*]/ipv4/config/mtu:
-  /interfaces/interface/subinterfaces/subinterface[index=*]/ipv6/config/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
 
   ## State Paths ##
   # No coverage, validates success by checking flow statistics between ATE ports.

@@ -69,6 +69,8 @@
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCPATH): fill in coverage from code already written.
+
 ```yaml
 paths:
   ## State Paths ##
@@ -77,5 +79,10 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+  gnoi:
+    os.OS.Activate:
+    os.OS.Install:
+    os.OS.Verify:
+    system.System.Reboot:
 ```
 

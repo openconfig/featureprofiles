@@ -16,6 +16,8 @@ Validate static route functionality in Management network-instance (VRF).
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCPATH): Specify leaves for non-leaf paths that have been commented out.
+
 ```yaml
 paths:
   ## Config Paths ##
@@ -23,16 +25,18 @@ paths:
   /network-instances/network-instance/config/description:
   /network-instances/network-instance/config/type:
   /network-instances/network-instance/interfaces/interface/config/id:
-  /network-instances/network-instance/protocols/protocol/static-routes/static:
+  #/network-instances/network-instance/protocols/protocol/static-routes/static:
   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/config:
+  #/network-instances/network-instance/protocols/protocol/static-routes/static/config:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop:
+  #/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config:
+  #/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 
   ## State Paths ##
-  /network-instances/network-instance/protocols/protocol/static-routes/static/state:
+  #/network-instances/network-instance/protocols/protocol/static-routes/static/state:
 
 rpcs:
   gnmi:

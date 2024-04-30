@@ -24,15 +24,17 @@ Validate port speed telemetry used by controller infrastructure.
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCPATHS): Config paths TBD
+
 ```yaml
 paths:
   ## Config Paths ##
   # TBD
 
   ## State Paths ##
-  /interface/state/oper-status:
-  /interface/ethernet/state/port-speed:
-  /interface/aggregation/state/lag-speed:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/aggregation/state/lag-speed:
 
 rpcs:
   gnmi:

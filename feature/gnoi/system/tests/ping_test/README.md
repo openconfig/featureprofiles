@@ -46,6 +46,6 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 ```yaml
 rpcs:
   gnoi:
-    gNOI.System.Ping
+    system.System.Ping:
 ```
 

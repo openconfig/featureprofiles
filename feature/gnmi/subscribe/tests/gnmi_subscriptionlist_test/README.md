@@ -17,6 +17,8 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCPATH): Add component names to component paths.
+
 ```yaml
 paths:
   ## Config Paths ##
@@ -42,23 +44,23 @@ paths:
   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
   /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/total”:
+  #/components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+  #/components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+  #/components/component/integrated-circuit/backplane-facing-capacity/state/total”:
 
   ## State Paths: SubscriptionMode: ON_CHANGE ##
   /interfaces/interface/state/admin-status:
   /lacp/interfaces/interface/members/member/interface:
-  /interfaces/interface/ethernet/state/macaddress:
+  /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/hardware-port:
   /interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
   /interfaces/interface/ethernet/state/port-speed:
-  /components/component/integrated-circuit/state/node-id:
-  /components/component/state/parent:
-  /components/component/state/oper-status:
+  #/components/component/integrated-circuit/state/node-id:
+  #/components/component/state/parent:
+  #/components/component/state/oper-status:
   /interfaces/interface/state/forwarding-viable:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+  #/components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
 
 rpcs:
   gnmi:

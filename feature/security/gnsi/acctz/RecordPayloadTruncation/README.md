@@ -16,12 +16,13 @@ Test how large payload is handled.
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCRPC): Record may not be complete
+
 ```yaml
 paths:
     # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
 rpcs:
   gnsi:
-    # Note this is a placeholder function, may not be correct nor complete.
     acctz.v1.Acctz.RecordSubscribe:
 ```
 

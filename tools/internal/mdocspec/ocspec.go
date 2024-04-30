@@ -113,6 +113,7 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 					}
 					platformTypes[sp] = struct{}{}
 				}
+			case "value", "values": // Accept value/values as a property names used to specify what property of the path is used in the test.
 			default:
 				return nil, nil, fmt.Errorf("mdocspec: path %q: only `platform_type` is expected as a valid attribute for paths, got %q", name, propertyName)
 			}

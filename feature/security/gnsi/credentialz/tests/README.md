@@ -285,10 +285,11 @@ and
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
+TODO(OCRPC): Record may not be complete
+
 ```yaml
 rpcs:
   gnsi:
-    # Note this is a placeholder function, may not be correct.
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
 

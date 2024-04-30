@@ -25,11 +25,11 @@ Validate gNOI RPC can get reboot status and cancel the reboot
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-TODO: May not be complete
-
 ```yaml
 rpcs:
   gnoi:
-    gNOI.System.Reboot
+    system.System.CancelReboot:
+    system.System.Reboot:
+    system.System.RebootStatus:
 ```
 
