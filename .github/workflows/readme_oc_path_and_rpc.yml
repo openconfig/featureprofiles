@@ -56,3 +56,5 @@ jobs:
         validate feature/security
         validate feature/staticroute
         validate feature/system/management
+        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+        validate feature/system/ntp/tests/system_ntp_test
