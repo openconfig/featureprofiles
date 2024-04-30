@@ -55,10 +55,10 @@ jobs:
         readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
         echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W+feature' | grep -E 'README.md$' | sort
+        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
         echo BBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 
-        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W+feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
         echo CCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
         ##### Validate Changed Test READMEs #####
