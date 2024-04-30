@@ -44,9 +44,12 @@ paths:
   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
   /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
-  #/components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
-  #/components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
-  #/components/component/integrated-circuit/backplane-facing-capacity/state/total”:
+  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
 
   ## State Paths: SubscriptionMode: ON_CHANGE ##
   /interfaces/interface/state/admin-status:
@@ -55,16 +58,20 @@ paths:
   /interfaces/interface/state/hardware-port:
   /interfaces/interface/state/id:
   /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/forwarding-viable:
   /interfaces/interface/ethernet/state/port-speed:
-  #/components/component/integrated-circuit/state/node-id:
+  /components/component/integrated-circuit/state/node-id:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  # TODO(OCPATH): Add component names to component paths.
   #/components/component/state/parent:
   #/components/component/state/oper-status:
-  /interfaces/interface/state/forwarding-viable:
-  #/components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
 
 rpcs:
   gnmi:
     gNMI.Subscribe:
+      Mode: [ "TARGET_DEFINED", "ON_CHANGE" ]
     gNMI.Set:
 ```
 
