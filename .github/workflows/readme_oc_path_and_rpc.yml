@@ -19,16 +19,6 @@ jobs:
         go-version: stable
         cache: false
 
-    - name: Validate Validation Script
-      run: |
-        cd tools/validate_readme_spec
-        ./validate_readme_spec_test.sh
-
-    - name: Validate Template README
-      run: |
-        go install ./tools/validate_readme_spec
-        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
-
     - name: Validate Test READMEs
       run: |
         go install ./tools/validate_readme_spec
@@ -49,12 +39,6 @@ jobs:
         ##### Validate Changed Test READMEs # TODO: Remove this after all are converted.
 
         # Adapted from rebase_check.yml
-        readonly -a CHECKED_FILES=(
-          go.mod
-          .github/CODEOWNERS
-          .github/workflows/
-        )
-
         # Notes:
         #   * Do not use ${GITHUB_REF}, github.sha, or HEAD because they are
         #     the merged commit of the pull request and main.  There are no
@@ -69,10 +53,10 @@ jobs:
         readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
         echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}"
+        git diff --name-only "${BASE}" "${HEAD}"
         echo BBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 
-        git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}" | grep -E '^\W+feature' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W+feature' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
 
         ##### Validate Changed Test READMEs #####
 
@@ -88,3 +72,13 @@ jobs:
         validate feature/system/management
         validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
         validate feature/system/ntp/tests/system_ntp_test
+
+    - name: Validate Validation Script
+      run: |
+        cd tools/validate_readme_spec
+        ./validate_readme_spec_test.sh
+
+    - name: Validate Template README
+      run: |
+        go install ./tools/validate_readme_spec
+        validate_readme_spec --alsologtostderr doc/test-requirements-template.md
