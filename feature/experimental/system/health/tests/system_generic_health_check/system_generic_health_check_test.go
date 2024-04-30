@@ -148,6 +148,22 @@ func TestComponentStatus(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
+	fabrics := make([]string, 0)
+	for _, f := range fabricCards {
+		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if !compMtyVal && ok {
+			fabrics = append(fabrics, f)
+		}
+	}
+	fabricCards = fabrics
+	chassisLineCards := make([]string, 0)
+	for _, lc := range lineCards {
+		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compMtyVal && ok {
+			chassisLineCards = append(chassisLineCards, lc)
+		}
+	}
+	lineCards = chassisLineCards
 	checkComponents := append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
 	if len(checkComponents) == 0 {
@@ -242,6 +258,14 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
+	chassisLineCards := make([]string, 0)
+	for _, lc := range lineCards {
+		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compMtyVal && ok {
+			chassisLineCards = append(chassisLineCards, lc)
+		}
+	}
+	lineCards = chassisLineCards
 	if len(lineCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
@@ -284,6 +308,14 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
+	chassisLineCards := make([]string, 0)
+	for _, lc := range lineCards {
+		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compMtyVal && ok {
+			chassisLineCards = append(chassisLineCards, lc)
+		}
+	}
+	lineCards = chassisLineCards
 	cardList := append(controllerCards, lineCards...)
 	if len(cardList) == 0 {
 		t.Errorf("ERROR: No card has been found.")
