@@ -50,7 +50,7 @@ jobs:
         #     the base when the pull request was created, not after a rebase.
         #     Ask git merge-base to tell us a suitable base.
         readonly HEAD="${{ github.event.pull_request.head.sha }}"
-        readonly BASE="$(git merge-base origin/main "${HEAD}")"
+        readonly BASE="$(git merge-base main "${HEAD}")"
 
         echo AAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         git diff --name-only "${BASE}" "${HEAD}"
