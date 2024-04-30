@@ -30,6 +30,6 @@ TODO(OCRPC): Record may not be correct or complete
 
 ```yaml
 rpcs:
-  # Note this is a placeholder protocol, may not be correct.
+  gnsi:
     certz.v1.Certz.GetProfileList:
 ```
