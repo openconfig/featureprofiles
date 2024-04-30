@@ -9,3 +9,30 @@ tests:
   mustpass: true
   internal: true
   branch: master
+
+- name: Encap
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-test.run="TestBasicEncap"'
+
+- name: Encap-FRR
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-test.run="TestEncapFrr"'
+
+- name: TE-Regionalization
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master    
+  args:
+    - '-test.run="TestRegionalization"'
