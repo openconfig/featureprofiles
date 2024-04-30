@@ -116,7 +116,9 @@ func main() {
 	switch {
 	case fileCount != 0 && config.FeatureDir != "":
 		log.Exit("If -feature-dir flag is specified, README files must not be specified as positional arguments.")
-	case fileCount == 0 && config.FeatureDir == "":
+	case fileCount != 0:
+		files = flag.Args()
+	case config.FeatureDir == "":
 		var err error
 		config.FeatureDir, err = fpciutil.FeatureDir()
 		if err != nil {
@@ -129,8 +131,6 @@ func main() {
 		if err != nil {
 			log.Exitf("Error gathering README.md files for validation: %v", err)
 		}
-	case fileCount != 0:
-		files = flag.Args()
 	default:
 		log.Exit("Program internal error: input not handled.")
 	}

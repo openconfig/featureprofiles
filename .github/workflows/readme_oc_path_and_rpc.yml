@@ -58,3 +58,27 @@ jobs:
         validate feature/system/management
         validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
         validate feature/system/ntp/tests/system_ntp_test
+
+        ##### Validate Changed Test READMEs # TODO: Remove this after all are converted.
+
+        # Adapted from rebase_check.yml
+        readonly -a CHECKED_FILES=(
+          go.mod
+          .github/CODEOWNERS
+          .github/workflows/
+        )
+
+        # Notes:
+        #   * Do not use ${GITHUB_REF}, github.sha, or HEAD because they are
+        #     the merged commit of the pull request and main.  There are no
+        #     outdated files in the merged commit.
+        #   * refs/pull/${pr_number}/head is not available, so use
+        #     github.event.pull_request.head.sha which is the "head sha" of
+        #     the event that triggered the pull request.
+        #   * Do not use github.event.pull_request.base.sha because it is
+        #     the base when the pull request was created, not after a rebase.
+        #     Ask git merge-base to tell us a suitable base.
+        readonly HEAD="${{ github.event.pull_request.head.sha }}"
+        readonly BASE="$(git merge-base origin/main "${HEAD}")"
+
+        git diff --name-only "${BASE}" "${HEAD}" -- "${CHECKED_FILES[@]}" | grep -E '^\W+feature' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
