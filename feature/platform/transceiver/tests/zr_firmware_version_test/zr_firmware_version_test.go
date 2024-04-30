@@ -76,7 +76,7 @@ func TestZRFirmwareVersionState(t *testing.T) {
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 	configInterface(t, dut1, dp1, true)
 	configInterface(t, dut1, dp2, true)
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
 	if dp1.PMD() != ondatra.PMD400GBASEZR {

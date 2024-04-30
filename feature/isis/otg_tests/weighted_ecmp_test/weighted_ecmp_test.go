@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"math/rand"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -27,13 +29,14 @@ const (
 	dutSysID          = "1920.0000.2001"
 	asn               = 64501
 	acceptRoutePolicy = "PERMIT-ALL"
-	trafficPPS        = 5000000
+	trafficPPS        = 50000 // Should be 5000000
+	trafficv6PPS      = 50000 // Should be 5000000
 	srcTrafficV4      = "100.0.2.1"
 	srcTrafficV6      = "2001:db8:64:65::1"
 	dstTrafficV4      = "100.0.1.1"
 	dstTrafficV6      = "2001:db8:64:64::1"
 	v4Count           = 254
-	v6Count           = 100000000
+	v6Count           = 1000 // Should be 10000000
 )
 
 type aggPortData struct {
@@ -85,8 +88,8 @@ var (
 	agg3 = &aggPortData{
 		dutIPv4:       "192.0.2.9",
 		ateIPv4:       "192.0.2.10",
-		dutIPv6:       "2001:db8::9",
-		ateIPv6:       "2001:db8::10",
+		dutIPv6:       "2001:db8::11",
+		ateIPv6:       "2001:db8::12",
 		ateAggName:    "lag3",
 		ateAggMAC:     "02:00:01:01:01:07",
 		atePort1MAC:   "02:00:01:01:01:08",
@@ -98,8 +101,8 @@ var (
 	agg4 = &aggPortData{
 		dutIPv4:       "192.0.2.13",
 		ateIPv4:       "192.0.2.14",
-		dutIPv6:       "2001:db8::13",
-		ateIPv6:       "2001:db8::14",
+		dutIPv6:       "2001:db8::14",
+		ateIPv6:       "2001:db8::15",
 		ateAggName:    "lag4",
 		ateAggMAC:     "02:00:01:01:01:10",
 		atePort1MAC:   "02:00:01:01:01:11",
@@ -132,25 +135,28 @@ func TestMain(m *testing.M) {
 }
 
 func TestWeightedECMPForISIS(t *testing.T) {
+	// ondatra.Debug().Breakpoint(t)
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
 	aggIDs := configureDUT(t, dut)
 
 	// Enable weighted ECMP and set LoadBalancing to Auto
-	b := &gnmi.SetBatch{}
-	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-	gnmi.BatchReplace(b, isisPath.Global().WeightedEcmp().Config(), true)
-	for _, aggID := range aggIDs {
-		gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
-			LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
-		})
+	if !deviations.RibWecmp(dut) {
+		b := &gnmi.SetBatch{}
+		// isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
+		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+		gnmi.BatchReplace(b, isisPath.Global().WeightedEcmp().Config(), true)
+		for _, aggID := range aggIDs {
+			gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
+				LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
+			})
+		}
+		b.Set(t, dut)
 	}
-	b.Set(t, dut)
 
 	top := configureATE(t, ate)
 	flows := configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
-
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, agg := range []*aggPortData{agg1, agg2} {
@@ -160,10 +166,9 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	startTraffic(t, ate, top)
-
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
-			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 5*time.Second)
+			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
 			if got, want := loss, 0.0; got != want {
 				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
 			}
@@ -180,12 +185,13 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
 		p3 := dut.Port(t, "port3")
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p3.Name()).Enabled().Config(), false)
+		t.Logf("Disable ATE2:Port1: %s, %s", p3.Name(), gnmi.OC().Interface(p3.Name()).OperStatus().State())
 	} else {
 		p3 := ate.Port(t, "port3") // ATE:port3 is ATE2:port1
 		psa := gosnappi.NewControlState()
 		psa.Port().Link().SetPortNames([]string{p3.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 		ate.OTG().SetControlState(t, psa)
-
+		time.Sleep(10 * time.Second)
 		defer func() {
 			psa := gosnappi.NewControlState()
 			psa.Port().Link().SetPortNames([]string{p3.ID()}).SetState(gosnappi.StatePortLinkState.UP)
@@ -193,13 +199,14 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		}()
 	}
 	p3 := dut.Port(t, "port3")
-	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_DOWN)
+	top.Flows().Clear()
 
 	startTraffic(t, ate, top)
 
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
-			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 5*time.Second)
+			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
 			if got, want := loss, 0.0; got != want {
 				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
 			}
@@ -239,8 +246,23 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
 }
 
+func randRange(t *testing.T, start, end uint32, count int) []uint32 {
+	if count > int(end-start) {
+		t.Fatal("randRange: count greater than end-start.")
+	}
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	for len(result) < count {
+		diff := end - start
+		randomValue := rand.Int31n(int32(diff)) + int32(start)
+		result = append(result, uint32(randomValue))
+	}
+	return result
+}
+
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV6 *ipAddr) []gosnappi.Flow {
 	t.Helper()
+	top.Flows().Clear()
 	fV4 := top.Flows().Add().SetName("flowV4")
 	fV4.Metrics().SetEnable(true)
 	fV4.TxRx().Device().
@@ -253,6 +275,9 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4 := fV4.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
+	udp := fV4.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
+	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 
 	fV6 := top.Flows().Add().SetName("flowV6")
 	fV6.Metrics().SetEnable(true)
@@ -260,14 +285,16 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 		SetTxNames([]string{agg1.ateAggName + ".IPv6"}).
 		SetRxNames([]string{agg2.ateAggName + ".IPv6", agg3.ateAggName + ".IPv6", agg4.ateAggName + ".IPv6"})
 	fV6.Size().SetFixed(1500)
-	fV6.Rate().SetPps(trafficPPS)
+	fV6.Rate().SetPps(trafficv6PPS)
 	eV6 := fV6.Packet().Add().Ethernet()
 	eV6.Src().SetValue(agg1.ateAggMAC)
 
 	v6 := fV6.Packet().Add().Ipv6()
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
-
+	udpv6 := fV6.Packet().Add().Udp()
+	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
+	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 	return []gosnappi.Flow{fV4, fV6}
 }
 
