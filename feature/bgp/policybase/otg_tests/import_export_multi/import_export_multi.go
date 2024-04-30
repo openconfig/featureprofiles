@@ -136,7 +136,7 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
 	rejectCommunities := []string{"10:1"}
 	acceptCommunities := []string{"20:1"}
-	regexCommunities := []string{"^30:.*$"}
+	regexCommunities := []string{"(^|\\s)30:[0-9]+($|\\s)"}
 	addCommunitiesRefs := []string{"40:1", "40:2"}
 	addCommunitiesSetRefsAction := []string{"add-communities"}
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
@@ -156,7 +156,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Fatalf("AppendNewStatement(%s) failed: %v", callPolicyStatement, err)
 	}
 
-	// Configure regex_community:["^30:.*$"] to match_community_regex statement
+	// Configure regex_community:["(^|\\s)30:[0-9]+($|\\s)"] to match_community_regex statement
 	communitySetRegex := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(regexCommunitySet)
 
 	pd2cs1 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
