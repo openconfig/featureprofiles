@@ -143,6 +143,9 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
 
+	t.Logf("Waiting for 90s after power disable...")
+	time.Sleep(90 * time.Second)
+
 	ts2, tocs2, apct2 := getBackplaneCapacityCounters(t, dut, ics)
 
 	for _, f := range fabrics[:fc] {
@@ -158,6 +161,9 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
+
+	t.Logf("Waiting for 90s after power enable...")
+	time.Sleep(90 * time.Second)
 
 	ts3, tocs3, apct3 := getBackplaneCapacityCounters(t, dut, ics)
 
