@@ -56,8 +56,8 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 		Frequency:         ygot.Uint64(frequency),
 	})
 }
-func verifyTemperatureSensorValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
-	temperatureSample := pStream.Next(t)
+func verifyTemperatureSensorValue(t *testing.T, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
+	temperatureSample := pStream.Next()
 	if temperatureSample == nil {
 		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", sensorName)
 	}
@@ -108,13 +108,13 @@ func TestZRTemperatureState(t *testing.T) {
 	p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
 	p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
 	p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
-	temperatureInstant := verifyTemperatureSensorValue(t, dut1, p1StreamInstant, "Instant")
+	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax := verifyTemperatureSensorValue(t, dut1, p1StreamMax, "Max")
+	temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
 	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin := verifyTemperatureSensorValue(t, dut1, p1StreamMin, "Min")
+	temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
 	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg := verifyTemperatureSensorValue(t, dut1, p1StreamAvg, "Avg")
+	temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
 	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
 	if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
 		t.Logf("The average is between the maximum and minimum values")
@@ -166,13 +166,13 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
 	// Wait 120 sec cooling off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-	temperatureInstant := verifyTemperatureSensorValue(t, dut1, p1StreamInstant, "Instant")
+	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax := verifyTemperatureSensorValue(t, dut1, p1StreamMax, "Max")
+	temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
 	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin := verifyTemperatureSensorValue(t, dut1, p1StreamMin, "Min")
+	temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
 	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg := verifyTemperatureSensorValue(t, dut1, p1StreamAvg, "Avg")
+	temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
 	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
 	i = d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(true)
@@ -180,13 +180,13 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	// Enable interface
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	temperatureInstant = verifyTemperatureSensorValue(t, dut1, p1StreamInstant, "Instant")
+	temperatureInstant = verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax = verifyTemperatureSensorValue(t, dut1, p1StreamMax, "Max")
+	temperatureMax = verifyTemperatureSensorValue(t, p1StreamMax, "Max")
 	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin = verifyTemperatureSensorValue(t, dut1, p1StreamMin, "Min")
+	temperatureMin = verifyTemperatureSensorValue(t, p1StreamMin, "Min")
 	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg = verifyTemperatureSensorValue(t, dut1, p1StreamAvg, "Avg")
+	temperatureAvg = verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
 	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
 	if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
 		t.Logf("The average is between the maximum and minimum values")

@@ -15,11 +15,21 @@ import (
 	"github.com/openconfig/gnmi/errlist"
 )
 
+// cloneAPIRepo clones the openconfig/<api> repo at the given path.
+//
+// # Note
+//
+// * If the folder already exists, then no additional downloads will be made.
+// * A manual deletion of the folder is required if no longer used.
 func cloneAPIRepo(downloadPath, api string) (string, error) {
 	if downloadPath == "" {
 		return "", fmt.Errorf("must provide download path")
 	}
 	repoPath := filepath.Join(downloadPath, api)
+
+	if _, err := os.Stat(repoPath); err == nil { // If NO error
+		return repoPath, nil
+	}
 
 	cmd := exec.Command("git", "clone", "--single-branch", "--depth", "1", fmt.Sprintf("https://github.com/openconfig/%s.git", api), repoPath)
 	stderr, err := cmd.StderrPipe()
