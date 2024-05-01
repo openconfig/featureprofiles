@@ -94,7 +94,7 @@ rpcs:
             ON_CHANGE: true
 
     gnoi:
-        System.Reboot:
+        system.System.Reboot:
 
 ```
 
