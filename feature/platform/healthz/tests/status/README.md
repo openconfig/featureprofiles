@@ -41,7 +41,6 @@ The DUT should have a HEALTHY state for all the above components.
   * Validate the following paths return a valid value:
     * /components/component/healthz/state/last-unhealthy
     * /components/component/healthz/state/unhealthy-count
-1
 
 * Healthz-1.2.3: Reboot DUT and validate status converges to healthy
   * Use gnoi.System.Reboot to reboot the DUT
@@ -88,8 +87,6 @@ paths:
             "POWER_SUPPLY",
             "INTEGRATED_CIRCUIT"
         ]
-    /components/component/healthz/state/last-unhealthy:
-    /components/component/healthz/state/unhealthy-count:
 
 rpcs:
     gnmi:
