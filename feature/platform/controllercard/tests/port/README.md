@@ -44,7 +44,7 @@ paths:
             "CONTROLLER_CARD",
             "PORT"
         ]
-    components/component/state/type:
+    /components/component/state/type:
         platform_type: [
             "CONTROLLER_CARD",
             "PORT"
