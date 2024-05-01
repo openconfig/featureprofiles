@@ -1,0 +1,12 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "Health-1.2"
+description: "Healthz component status paths"
+uuid: "6935156f-d42f-4bb0-9926-79235859c029"
+
+testbed: TESTBED_DUT
+
+tags:  TAGS_AGGREGATION
+tags:  TAGS_TRANSIT
+tags:  TAGS_DATACENTER_EDGE
