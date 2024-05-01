@@ -49,9 +49,9 @@ paths:
   # interface configuration
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
-  # name of chassis component
+  # name of chassis and linecard components
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS", "LINECARD"]
 
 rpcs:
   gnmi:
