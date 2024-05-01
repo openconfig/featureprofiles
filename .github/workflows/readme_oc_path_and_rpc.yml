@@ -62,13 +62,15 @@ jobs:
         #     the base when the pull request was created, not after a rebase.
         #     Ask git merge-base to tell us a suitable base.
         readonly HEAD="${{ github.event.pull_request.head.sha }}"
-        readonly BASE="$(git merge-base origin/main "${HEAD}")"
+        if [ ! -z "${HEAD}" ]; then
+          readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
-        echo "########## Changed READMEs to be validated:"
-        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
+          echo "########## Changed READMEs to be validated:"
+          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
 
-        echo "########## Validating Changed READMEs:"
-        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+          echo "########## Validating Changed READMEs:"
+          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+        fi
 
         ##### END: Validate Changed Test READMEs #####
 
@@ -85,3 +87,4 @@ jobs:
         validate feature/system/management
         validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
         validate feature/system/ntp/tests/system_ntp_test
+        validate feature/qos/otg_tests/bursty_traffic_test
