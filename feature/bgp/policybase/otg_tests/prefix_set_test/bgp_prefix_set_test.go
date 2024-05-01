@@ -38,6 +38,7 @@ const (
 	peerGrpName   = "BGP-PEER-GROUP"
 	dutAS         = 65501
 	ateAS         = 65502
+	ateAS2        = 65503
 	plenIPv4      = 30
 	plenIPv6      = 126
 	v4Prefixes    = true
@@ -95,12 +96,12 @@ var (
 		nbrAddr: atePort2.IPv4,
 		isV4:    true,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-		as:      ateAS}
+		as:      ateAS2}
 	ebgp2NbrV6 = &bgpNeighbor{
 		nbrAddr: atePort2.IPv6,
 		isV4:    false,
 		afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
-		as:      ateAS}
+		as:      ateAS2}
 	ebgpNbrs = []*bgpNeighbor{ebgp1NbrV4, ebgp1NbrV6, ebgp2NbrV4, ebgp2NbrV6}
 
 	route1 = &route{prefix: "10.23.15.1", maskLen: 32, isV4: true}
@@ -340,11 +341,11 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	// eBGP v4 seesion on Port2.
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 seesion on Port2.
 	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Ipv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
-	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	iDut2Bgp6Peer.SetPeerAddress(iDut2Ipv6.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// eBGP V4 routes from Port1.
