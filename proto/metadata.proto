@@ -395,7 +395,7 @@ message Metadata {
     // Juniper: b/319202763
     bool enable_flowctrl_flag = 137;
     // Device doesn't support router advertisement enable and mode config
-    // Juniper: b/316173974 
+    // Juniper: b/316173974
     bool ipv6_router_advertisement_config_unsupported = 138;
     // Devices does not support setting prefix limit exceeded flag.
     // Juniper : b/317181227
@@ -423,7 +423,7 @@ message Metadata {
     // Devices do not support BGP conditions match-community-set
     bool bgp_conditions_match_community_set_unsupported = 148;
     // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
-    bool pf_require_match_default_rule = 149;       
+    bool pf_require_match_default_rule = 149;
     // Devices missing component tree mapping from hardware port
     // to optical channel.
     bool missing_port_to_optical_channel_component_mapping = 150;
@@ -470,7 +470,7 @@ message Metadata {
     // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
     uint32 plq_generator_capabilities_max_mtu = 165;    
     // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
-    uint64 plq_generator_capabilities_max_pps = 166;  
+    uint64 plq_generator_capabilities_max_pps = 166;
     // Support for bgp extended community index
     bool bgp_extended_community_index_unsupported = 167;
     // Support for bgp community set refs
@@ -487,6 +487,9 @@ message Metadata {
     bool default_import_export_policy = 173;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
+    // Device does not support matched-packets and matched-octets state paths.
+    // Juniper: partnerissuetracker.corp.google.com/299545397
+    bool matched_packets_octets_unsupported = 175;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
