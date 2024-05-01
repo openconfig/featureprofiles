@@ -29,7 +29,7 @@ The DUT should have a HEALTHY state for all the above components.
 
 ## Procedure
 
-* Healthz-1.2.1:
+* Healthz-1.2.1: Validate healthz status
   * gNMI Subscribe to the /components tree using ON_CHANGE option.
   * Validate `/components/component/healthz/state/status` returns `HEALTHY`
     for each of the following component types:
@@ -38,8 +38,12 @@ The DUT should have a HEALTHY state for all the above components.
         "FABRIC",
         "POWER_SUPPLY",
         "INTEGRATED_CIRCUIT"
+  * Validate the following paths return a valid value:
+    * /components/component/healthz/state/last-unhealthy
+    * /components/component/healthz/state/unhealthy-count
+1
 
-* Healthz-1.2.2: Reboot DUT and validate status converges to healthy
+* Healthz-1.2.3: Reboot DUT and validate status converges to healthy
   * Use gnoi.System.Reboot to reboot the DUT
   * Repeatedly attempt to open a gNMI subscribe request to the DUT
   * Upon success, subscribe to the /components tree using ON_CHANGE option.
@@ -84,6 +88,8 @@ paths:
             "POWER_SUPPLY",
             "INTEGRATED_CIRCUIT"
         ]
+    /components/component/healthz/state/last-unhealthy:
+    /components/component/healthz/state/unhealthy-count:
 
 rpcs:
     gnmi:
