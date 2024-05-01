@@ -18,6 +18,19 @@ platform_exceptions:  {
     skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
     set_metric_as_preference:  true
+    set_no_peer_group: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    interface_enabled:  true
+    static_protocol_name: "static"
+    skip_set_rp_match_set_options:  true
+    skip_prefix_set_mode: true
+    table_connections_unsupported: true
   }
 }
 tags:  TAGS_TRANSIT
