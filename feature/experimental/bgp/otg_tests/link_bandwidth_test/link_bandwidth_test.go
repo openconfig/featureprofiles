@@ -50,6 +50,7 @@ const (
 	v6RoutePrefix   = uint32(64)
 	dutAS           = uint32(65656)
 	ateAS           = uint32(65657)
+	peerGrpName     = "BGP-PEER-GROUP"
 	bgpName         = "BGP"
 	maskLenExact    = "exact"
 	localPref       = 200
@@ -161,6 +162,9 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		validateRouteCommunityV6 func(t *testing.T, td testData, ec extCommunity, localPerf bool)
 	}
 	baseSetupConfigAndVerification(t, td)
+	if deviations.PolicyResultTypeNextStatementUnsupported(dut) {
+		t.Skip("Skip BGP set NEXT-STATEMENT Import Export Policy test.")
+	}
 	configureExtCommunityRoutingPolicy(t, dut)
 	testCases := []testCase{
 		{
@@ -296,7 +300,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 					// TODO Verification as OTG not supported for Extended community/
 					t.Logf("TODO: https://github.com/open-traffic-generator/snappi/issues/220  Verification as OTG not supported for Extended community")
 					if deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-						verifyExtCommunityIndexV4(t, td, v4Prefix)
+						if !deviations.BGPRibOcPathUnsupported(td.dut) {
+							verifyExtCommunityIndexV4(t, td, v4Prefix)
+						}
 					}
 				}
 			}
@@ -348,7 +354,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 					// TODO Verification as OTG not supported for Extended community.
 					t.Logf("TODO: https://github.com/open-traffic-generator/snappi/issues/220  Verification as OTG not supported for Extended community")
 					if deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-						verifyExtCommunityIndexV6(t, td, v6Prefix)
+						if !deviations.BGPRibOcPathUnsupported(td.dut) {
+							verifyExtCommunityIndexV6(t, td, v6Prefix)
+						}
 					}
 				}
 			}
@@ -632,19 +640,27 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(ateAS)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	nV41.SetPeerAs(ateAS)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nV41.PeerGroup = ygot.String(peerGrpName)
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(dutAS)
 	nV42.SetSendCommunity(oc.Bgp_CommunityType_BOTH)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	nV42.PeerGroup = ygot.String(peerGrpName)
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nV61.SetPeerAs(ateAS)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	nV61.PeerGroup = ygot.String(peerGrpName)
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(dutAS)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	nV62.PeerGroup = ygot.String(peerGrpName)
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
 	// Configure eBGP on OTG port1.
@@ -773,7 +789,9 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
-	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	if !deviations.BGPRibOcPathUnsupported(td.dut) {
+		validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
+	}
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	checkTraffic(t, td, v4Flow)
 	createFlowV6(t, td, flowConfig{src: atePort2, dstNw: "v6-bgpNet-dev1", dstIP: v61TrafficStart})

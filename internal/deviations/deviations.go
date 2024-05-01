@@ -936,3 +936,9 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }
+
+// PolicyResultTypeNextStatementUnsupported returns true if devices which are not
+// supporting next statement in policy options.
+func PolicyResultTypeNextStatementUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyResultTypeNextStatementUnsupported()
+}
