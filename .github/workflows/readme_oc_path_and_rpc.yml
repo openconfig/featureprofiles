@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
@@ -46,21 +48,40 @@ jobs:
           validate_readme_spec --feature-dir "$1" --alsologtostderr "${exemption_flags[@]}"
         }
 
-        validate feature/gnoi/os
+        ##### BEGIN: Validate Changed Test READMEs # TODO: Remove this section after all are converted.
+
+        # Adapted from rebase_check.yml
+        # Notes:
+        #   * Do not use ${GITHUB_REF}, github.sha, or HEAD because they are
+        #     the merged commit of the pull request and main.  There are no
+        #     outdated files in the merged commit.
+        #   * refs/pull/${pr_number}/head is not available, so use
+        #     github.event.pull_request.head.sha which is the "head sha" of
+        #     the event that triggered the pull request.
+        #   * Do not use github.event.pull_request.base.sha because it is
+        #     the base when the pull request was created, not after a rebase.
+        #     Ask git merge-base to tell us a suitable base.
+        readonly HEAD="${{ github.event.pull_request.head.sha }}"
+        readonly BASE="$(git merge-base origin/main "${HEAD}")"
+
+        echo "########## Changed READMEs to be validated:"
+        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
+
+        echo "########## Validating Changed READMEs:"
+        git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+
+        ##### END: Validate Changed Test READMEs #####
+
+        echo "########## Validating already-converted READMEs:"
+        validate feature/aft
+        validate feature/bgp/policybase/otg_tests/import_export_multi
+        validate feature/gnmi
+        validate feature/gnoi
+        validate feature/isis
+        validate feature/mtu
         validate feature/networkinstance
         validate feature/security
-        validate feature/bgp/policybase/otg_tests/import_export_multi
-        validate feature/aft/aft_summary/otg_tests/route_summary_counters_test
-        validate feature/gnmi/otg_tests/telemetry_basic_check_test
-        validate feature/gnmi/otg_tests/telemetry_interface_packet_counters_test
-        validate feature/gnmi/otg_tests/telemetry_port_speed_test
-        validate feature/gnmi/subscribe/tests/gnmi_sample_mode_test
-        validate feature/gnmi/subscribe/tests/gnmi_subscriptionlist_test
-        validate feature/gnoi/system/tests/chassis_reboot_status_and_cancel_test
-        validate feature/gnoi/system/tests/ping_test
-        validate feature/gnoi/system/tests/supervisor_switchover_test
-        validate feature/isis/otg_tests/weighted_ecmp_test
-        validate feature/isis/static_route_isis_redistribution
-        validate feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission
-        validate feature/staticroute/otg_tests/basic_static_route_support_test
-        validate feature/staticroute/tests
+        validate feature/staticroute
+        validate feature/system/management
+        validate feature/system/gnmi/cliorigin/tests/mixed_oc_cli_origin_support_test
+        validate feature/system/ntp/tests/system_ntp_test
