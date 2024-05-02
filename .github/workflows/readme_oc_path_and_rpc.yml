@@ -72,8 +72,8 @@ jobs:
             fi
           done
 
-          echo "########## READMEs in changed directories to be validated:"
-          echo "${affected_readmes}"
+          echo "########## READMEs in changed directories to be validated (including ones to be exempted):"
+          printf '%s\n' "${affected_readmes[@]}"
 
           echo "########## Validating READMEs in changed directories:"
           for f in "${affected_readmes[@]}"; do
