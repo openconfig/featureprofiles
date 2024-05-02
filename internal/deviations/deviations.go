@@ -185,11 +185,6 @@ func StaticProtocolName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
-}
-
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
 func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchChipIdUnsupported()
