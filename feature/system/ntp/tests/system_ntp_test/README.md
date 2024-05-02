@@ -16,16 +16,29 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 
 Note:  [TODO]the source address of NTP need to be specified
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   /system/ntp/config/enabled
-*   /system/ntp/servers/server/config/address
-*   [TODO]/system/ntp/servers/server/config/source-address
-*   /system/ntp/servers/server/config/network-instance
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+TODO(OCPATH): Populate path from test already written.
 
-*   /system/ntp/servers/server/state/address
-*   [TODO]/system/ntp/servers/server/state/source-address
-*   [TODO]/system/ntp/servers/server/state/port
-*   /system/ntp/servers/server/state/network-instance
+```yaml
+paths:
+  ## Config paths
+  /system/ntp/config/enabled:
+  /system/ntp/servers/server/config/address:
+  #[TODO]/system/ntp/servers/server/config/source-address:
+  /system/ntp/servers/server/config/network-instance:
+
+  ## State paths
+  /system/ntp/servers/server/state/address:
+  #[TODO]/system/ntp/servers/server/state/source-address:
+  #[TODO]/system/ntp/servers/server/state/port:
+  /system/ntp/servers/server/state/network-instance:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

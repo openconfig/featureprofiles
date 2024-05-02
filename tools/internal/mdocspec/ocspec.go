@@ -47,7 +47,12 @@ var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading ti
 //	  /interfaces/interface/config/description:
 //	  /interfaces/interface/config/enabled:
 //	  /components/component/state/name:
-//	    platform_type: "CHASSIS"
+//	    platform_type: [
+//	      "CHASSIS"
+//	      "CONTROLLER_CARD",
+//	      "LINECARD",
+//	      "FABRIC",
+//	    ]
 //
 //	rpcs:
 //	  gnmi:
@@ -87,30 +92,50 @@ func parseYAML(source []byte) (*ppb.OCPaths, *rpb.OCRPCs, error) {
 	pathNames := maps.Keys(paths)
 	sort.Strings(pathNames)
 	for _, name := range pathNames {
-		var platformType string
+		platformTypes := map[string]struct{}{}
 		for propertyName, property := range paths[name] {
 			switch propertyName {
 			case "platform_type":
-				p, ok := property.(string)
+				ps, ok := property.([]any)
 				if !ok {
-					return nil, nil, fmt.Errorf("mdocspec: only string values expected for `platform_type` attribute, got (%T, %v)", property, property)
+					return nil, nil, fmt.Errorf("mdocspec: path %q: got (%T, %v) for `platform_type` attribute, but expected []any", name, property, property)
 				}
-				platformType = p
+				if len(ps) == 0 {
+					return nil, nil, fmt.Errorf("mdocspec: path %q: `platform_type` attribute must not be empty", name)
+				}
+				for i, p := range ps {
+					sp, ok := p.(string)
+					if !ok {
+						return nil, nil, fmt.Errorf("mdocspec: path %q: got (%T, %v), for `platform_type` element index %v, but must be string", name, p, p, i)
+					}
+					if _, ok := platformTypes[sp]; ok {
+						return nil, nil, fmt.Errorf("mdocspec: path %q: got duplicate element %q for `platform_type` element index %v", name, sp, i)
+					}
+					platformTypes[sp] = struct{}{}
+				}
+			case "value", "values": // Accept value/values as a property names used to specify what property of the path is used in the test.
 			default:
-				return nil, nil, fmt.Errorf("mdocspec: only `platform_type` is expected as a valid attribute for paths, got %q", propertyName)
+				return nil, nil, fmt.Errorf("mdocspec: path %q: only `platform_type` is expected as a valid attribute for paths, got %q", name, propertyName)
 			}
 		}
-		ocPath := &ppb.OCPath{
-			Name: name,
+		if len(platformTypes) == 0 {
+			protoPaths.Ocpaths = append(protoPaths.Ocpaths, &ppb.OCPath{
+				Name: name,
+			})
+			continue
 		}
-		if platformType != "" {
-			ocPath.OcpathConstraint = &ppb.OCPathConstraint{
-				Constraint: &ppb.OCPathConstraint_PlatformType{
-					PlatformType: platformType,
+		platformTypesSlice := maps.Keys(platformTypes)
+		sort.Strings(platformTypesSlice)
+		for _, platformType := range platformTypesSlice {
+			protoPaths.Ocpaths = append(protoPaths.Ocpaths, &ppb.OCPath{
+				Name: name,
+				OcpathConstraint: &ppb.OCPathConstraint{
+					Constraint: &ppb.OCPathConstraint_PlatformType{
+						PlatformType: platformType,
+					},
 				},
-			}
+			})
 		}
-		protoPaths.Ocpaths = append(protoPaths.Ocpaths, ocPath)
 	}
 
 	protoRPCs := &rpb.OCRPCs{
