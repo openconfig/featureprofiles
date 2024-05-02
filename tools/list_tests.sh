@@ -45,4 +45,6 @@ main() {
   list_tests
 }
 
+
 main "$@"
+

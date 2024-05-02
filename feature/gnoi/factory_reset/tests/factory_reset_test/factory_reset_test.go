@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 type encryptionCommands struct {
-	EncryptionStatus     string
+	EncryptionStatus     string // yes
 	EncryptionActivate   string
 	EncryptionDeactivate string
 	DevicePaths          []string

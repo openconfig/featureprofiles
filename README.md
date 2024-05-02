@@ -10,8 +10,8 @@ Feature profiles also includes a suite of
 [Ondatra](https://github.com/openconfig/ondatra) tests for validating the
 network device behavior for each defined feature. If you are new to Ondatra,
 please start by reading the Ondata
-[README](https://github.com/openconfig/ondatra#readme) and taking the [Ondatra
-tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
+[README](https://github.com/openconfig/ondatra#readme) and taking the
+[Ondatra tour](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/openconfig/ondatra/main/internal/tour/tour.pdf).
 
 # Contributing
 
@@ -24,7 +24,7 @@ the
 or by opening a GitHub
 [issue](https://github.com/openconfig/featureprofiles/issues).
 
-# Running Tests on Virtual Devices
+# Running Tests on Virtual Devices adf
 
 > **Warning:** Though we are trying to use RFC defined non-globally routable
 > space in tests, there might be tests (e.g. scaling tests) that are still using
@@ -46,19 +46,19 @@ running a test on it.
 [Arista cEOS](https://www.arista.com/en/products/software-controlled-container-networking)
 images can be obtained by contacting Arista.
 
-1. Create the topology:
+1.  Create the topology:
 
 ```
 kne create topologies/kne/arista/ceos/topology.textproto
 ```
 
-2. Run a sample test:
+1.  Run a sample test:
 
 ```
 go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/arista/ceos/topology.textproto -vendor_creds ARISTA/admin/admin
 ```
 
-3. Cleanup:
+1.  Cleanup:
 
 ```
 kne delete topologies/kne/arista/ceos/topology.textproto
@@ -72,19 +72,19 @@ kne delete topologies/kne/arista/ceos/topology.textproto
 
 Cisco `8000e` images can be obtained by contacting Cisco.
 
-1. Create the topology:
+1.  Create the topology:
 
 ```
 kne create topologies/kne/cisco/8000e/topology.textproto
 ```
 
-2. Run a sample test:
+1.  Run a sample test:
 
 ```
 go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/8000e/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
-3. Cleanup:
+1.  Cleanup:
 
 ```
 kne delete topologies/kne/cisco/8000e/topology.textproto
@@ -94,19 +94,19 @@ kne delete topologies/kne/cisco/8000e/topology.textproto
 
 Cisco `XRD` images can be obtained by contacting Cisco.
 
-1. Create the topology:
+1.  Create the topology:
 
 ```
 kne create topologies/kne/cisco/xrd/topology.textproto
 ```
 
-2. Run a sample test:
+1.  Run a sample test:
 
 ```
 go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/cisco/xrd/topology.textproto -vendor_creds CISCO/cisco/cisco123
 ```
 
-3. Cleanup:
+1.  Cleanup:
 
 ```
 kne delete topologies/kne/cisco/xrd/topology.textproto
@@ -118,19 +118,19 @@ kne delete topologies/kne/cisco/xrd/topology.textproto
 
 Juniper `ncPTX` images can be obtained by contacting Juniper.
 
-1. Create the topology:
+1.  Create the topology:
 
 ```
 kne create topologies/kne/juniper/ncptx/topology.textproto
 ```
 
-2. Run a sample test:
+1.  Run a sample test:
 
 ```
 go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/juniper/ncptx/topology.textproto -vendor_creds JUNIPER/root/Google123
 ```
 
-3. Cleanup:
+1.  Cleanup:
 
 ```
 kne delete topologies/kne/juniper/ncptx/topology.textproto
@@ -143,19 +143,19 @@ kne delete topologies/kne/juniper/ncptx/topology.textproto
 SR Linux images can be found
 [here](https://github.com/nokia/srlinux-container-image/pkgs/container/srlinux).
 
-1. Create the topology:
+1.  Create the topology:
 
 ```
 kne create topologies/kne/nokia/srlinux/topology.textproto
 ```
 
-2. Run a sample test:
+1.  Run a sample test:
 
 ```
 go test ./feature/example/tests/... -kne-topo $PWD/topologies/kne/nokia/srlinux/topology.textproto -vendor_creds NOKIA/admin/admin
 ```
 
-3. Cleanup:
+1.  Cleanup:
 
 ```
 kne delete topologies/kne/nokia/srlinux/topology.textproto

@@ -21,7 +21,7 @@
 
 Create a library of device configuration to be used for all of the gNSI.acctz.v1 tests with the following:
 
-- Configure both IPv4 and IPv6, if supported by the implementation.
+- Configure both IPv4 and IPv6, if supported by the implementation. aha
 - DUT must be configured to, or by default have, a large enough accounting record history to accommodate these tests.  The minimum size is determined by the number of accounting record generating subsystems supported by the DUT and the size of the requests made.
 - If not the default, accounting record generating subsystems must be configured to generate accounting records to gNSI.
 - The DUT must be configured for login/logout (aka. start/stop), "enable" (privilege escalation), and "watchdog" (idle) accounting, if supported
