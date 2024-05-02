@@ -76,6 +76,11 @@ func TestOcPpcDropLookupBlock(t *testing.T) {
 			flow:      args.createFlow("valid_stream", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
 			eventType: &eventStaticRouteToNull{prefix: "202.1.0.1/32", config: true},
 		},
+		{
+			name:      "drop/lookup-block/state/invalid-packet",
+			flow:      args.createFlow("valid_ipv4_flow", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true}),
+			eventType: &eventZeroTtl{zeroTtlTrafficFlow: true},
+		},
 	}
 	nodes := p4rtutils.P4RTNodesByPort(t, dut)
 	npus := util.UniqueValues(t, nodes)                  // a list of unique NPU ID strings

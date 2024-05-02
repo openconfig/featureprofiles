@@ -48,6 +48,19 @@ type eventType interface {
 	IsEventType()
 }
 
+type eventZeroTtl struct {
+	zeroTtlTrafficFlow bool
+}
+
+func (eventArgs eventZeroTtl) IsEventType() {}
+
+func (eventArgs eventZeroTtl) modifyTrafficTtl(t *testing.T, args *testArgs) *ondatra.Flow {
+	t.Helper()
+	args.ate.Traffic().Stop(t) // stop the valid ipv4 flow before creating new flow
+	time.Sleep(10 * time.Millisecond)
+	return args.createFlow("invalid_flow_with_0_ttl", []ondatra.Endpoint{args.top.Interfaces()["ateDst"]}, &tgnOptions{ipv4: true, ttl: true})
+}
+
 type eventAclConfig struct {
 	aclName string
 	config  bool
@@ -56,6 +69,7 @@ type eventAclConfig struct {
 func (eventArgs eventAclConfig) IsEventType() {}
 
 func (eventArgs eventAclConfig) aclConfig(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
 	if err != nil {
@@ -80,6 +94,7 @@ type eventInterfaceConfig struct {
 func (eventArgs eventInterfaceConfig) IsEventType() {}
 
 func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
 	if err != nil {
@@ -95,7 +110,7 @@ func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
 				}
 			}
 			if eventArgs.mtu != 0 {
-				mtu := fmt.Sprintf("interface bundle-Ether 121 mtu %d", eventArgs.mtu)
+				mtu := fmt.Sprintf("interface bundle-Ether 122 mtu %d", eventArgs.mtu)
 				gnmi.Update(t, dut, cliPath, mtu)
 			}
 		} else {
@@ -106,7 +121,7 @@ func (eventArgs eventInterfaceConfig) interfaceConfig(t *testing.T) {
 				gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Enabled().Config(), true)
 			}
 			if eventArgs.mtu != 0 {
-				mtu := fmt.Sprintf("no interface bundle-Ether 121 mtu %d", eventArgs.mtu)
+				mtu := fmt.Sprintf("no interface bundle-Ether 122 mtu %d", eventArgs.mtu)
 				gnmi.Update(t, dut, cliPath, mtu)
 			}
 		}
@@ -121,6 +136,7 @@ type eventStaticRouteToNull struct {
 func (eventArgs eventStaticRouteToNull) IsEventType() {}
 
 func (eventArgs eventStaticRouteToNull) staticRouteToNull(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
 	if err != nil {
@@ -142,6 +158,7 @@ type eventEnableMplsLdp struct {
 func (eventArgs eventEnableMplsLdp) IsEventType() {}
 
 func (eventArgs eventEnableMplsLdp) enableMplsLdp(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
 	if err != nil {
@@ -320,9 +337,10 @@ func (args *testArgs) createFlow(name string, dstEndPoint []ondatra.Endpoint, op
 
 // validateTrafficFlows validates traffic loss on tgn side and DUT incoming and outgoing counters
 func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opts ...*tgnOptions) uint64 {
+	t.Helper()
 	args.ate.Traffic().Start(t, flow)
 	// run traffic for 30 seconds, before introducing fault
-	time.Sleep(time.Duration(60) * time.Second)
+	time.Sleep(time.Duration(30) * time.Second)
 
 	// Set configs if needed for the trigger scenario
 	for _, op := range opts {
@@ -334,10 +352,13 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 			eventAction.enableMplsLdp(t)
 		} else if eventAction, ok := op.event.(*eventAclConfig); ok {
 			eventAction.aclConfig(t)
+		} else if eventAction, ok := op.event.(*eventZeroTtl); ok {
+			flow = eventAction.modifyTrafficTtl(t, args)
+			args.ate.Traffic().Start(t, flow)
 		}
 	}
 
-	time.Sleep(60 * time.Second)
+	time.Sleep(60 * time.Second) // sleep if any trigger config was performed
 	args.ate.Traffic().Stop(t)
 
 	// remove the trigger configs before further check
@@ -355,14 +376,15 @@ func (args *testArgs) validateTrafficFlows(t *testing.T, flow *ondatra.Flow, opt
 			eventAction := eventAclConfig{config: false}
 			eventAction.aclConfig(t)
 		}
+		// no cleanup action required for 0 TTL trigger as it is based on ATE flow
 	}
 
 	for _, op := range opts {
 		if op.drop {
-			in := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
-			t.Logf("InPkts = %d", in)
 			out := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().OutPkts().State())
 			t.Logf("OutPkts = %d", out)
+			in := gnmi.Get(t, args.ate, gnmi.OC().Flow(flow.Name()).Counters().InPkts().State())
+			t.Logf("InPkts = %d", in)
 			return out - in
 		}
 	}
