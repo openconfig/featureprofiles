@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package import_export_test covers RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
-package import_export_test
+package import_export_multi_test
 
 import (
 	"strconv"
