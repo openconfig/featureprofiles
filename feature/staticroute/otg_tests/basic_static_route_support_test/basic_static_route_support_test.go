@@ -22,33 +22,34 @@ import (
 )
 
 const (
-	ipv4PrefixLen         = 30
-	ipv6PrefixLen         = 126
-	isisName              = "DEFAULT"
-	dutAreaAddr           = "49.0001"
-	ateAreaAddr           = "49.0002"
-	dutSysID              = "1920.0000.2001"
-	ate1SysID             = "640000000001"
-	ate2SysID             = "640000000002"
-	v4Route               = "203.0.113.0"
-	v4TrafficStart        = "203.0.113.1"
-	v4RoutePrefix         = uint32(24)
-	v6Route               = "2001:db8:128:128::0"
-	v6TrafficStart        = "2001:db8:128:128::1"
-	v6RoutePrefix         = uint32(64)
-	v4LoopbackRoute       = "198.51.100.100"
-	v4LoopbackRoutePrefix = uint32(32)
-	v6LoopbackRoute       = "2001:db8:64:64::1"
-	v6LoopbackRoutePrefix = uint32(128)
-	v4Flow                = "v4Flow"
-	v6Flow                = "v6Flow"
-	trafficDuration       = 2 * time.Minute
-	lossTolerance         = float64(1)
-	ecmpTolerance         = uint64(2)
-	port1Tag              = "0x101"
-	port2Tag              = "0x102"
-	dummyV6               = "2001:db8::192:0:2:d"
-	dummyMAC              = "00:1A:11:00:0A:BC"
+	ipv4PrefixLen           = 30
+	ipv6PrefixLen           = 126
+	isisName                = "DEFAULT"
+	dutAreaAddr             = "49.0001"
+	ateAreaAddr             = "49.0002"
+	dutSysID                = "1920.0000.2001"
+	ate1SysID               = "640000000001"
+	ate2SysID               = "640000000002"
+	v4Route                 = "203.0.113.0"
+	v4TrafficStart          = "203.0.113.1"
+	v4RoutePrefix           = uint32(24)
+	v6Route                 = "2001:db8:128:128::0"
+	v6TrafficStart          = "2001:db8:128:128::1"
+	v6RoutePrefix           = uint32(64)
+	v4LoopbackRoute         = "198.51.100.100"
+	v4LoopbackRoutePrefix   = uint32(32)
+	v6LoopbackRoute         = "2001:db8:64:64::1"
+	v6LoopbackRoutePrefix   = uint32(128)
+	v4Flow                  = "v4Flow"
+	v6Flow                  = "v6Flow"
+	trafficDuration         = 2 * time.Minute
+	lossTolerance           = float64(1)
+	ecmpTolerance           = uint64(2)
+	port1Tag                = "0x101"
+	port2Tag                = "0x102"
+	dummyV6                 = "2001:db8::192:0:2:d"
+	dummyMAC                = "00:1A:11:00:0A:BC"
+	explicitMetricTolerance = float64(2)
 )
 
 var (
@@ -519,13 +520,16 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	td.configureStaticRouteToATEP1AndP2(t)
 	defer td.deleteStaticRoutes(t)
 
-	const port2Metric = uint32(100)
+	var port2Metric = uint32(100)
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 
 	// Configure metric of ipv4-route-b and ipv6-route-b to 100
 	batch := &gnmi.SetBatch{}
 	if deviations.StaticRouteWithExplicitMetric(td.dut) {
-		const port1Metric = uint32(1)
+		// per the cisco specifications setting the metric is equivlent to setting the weight, so in this case
+		// we want the majority of the traffic to go over port 1 so setting the metric to 100 and port 2 as 1
+		var port1Metric = uint32(100)
+		port2Metric = uint32(1)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
 		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
 
@@ -574,9 +578,21 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		if !ok {
 			t.Errorf("Port1 IPv4 egress tracking counter not found: %v", portCounters)
 		}
-		if got, want := float64(port1Counter)*100/float64(rxV4), float64(100); got+lossTolerance < want {
-			t.Errorf("IPv4 traffic on port1, got: %v, want: %v", got, want)
+
+		if deviations.StaticRouteWithExplicitMetric(td.dut) {
+			// validate traffic
+			got, want := float64(port1Counter)*100/float64(rxV4), float64(100)
+			expectedMinTraffic := want * (1 - explicitMetricTolerance/100)
+			if got < expectedMinTraffic {
+				t.Errorf("IPv4 traffic on port1, got: %v%%, expected to be at least %v%%", got, expectedMinTraffic)
+			}
+		} else {
+			// validate traffic default behavior
+			if got, want := float64(port1Counter)*100/float64(rxV4), float64(100); got+lossTolerance < want {
+				t.Errorf("IPv4 traffic on port1, got: %v, want: %v", got, want)
+			}
 		}
+
 		// Validate that traffic is received from DUT on port-1 and not on port-2
 		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
 		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
@@ -584,9 +600,21 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		if !ok {
 			t.Errorf("Port1 IPv6 egress tracking counter not found: %v", portCounters)
 		}
-		if got, want := float64(port1Counter)*100/float64(rxV6), float64(100); got+lossTolerance < want {
-			t.Errorf("IPv6 traffic on port1, got: %v, want: %v", got, want)
+		if deviations.StaticRouteWithExplicitMetric(td.dut) {
+			// validate traffic
+			got, want := float64(port1Counter)*100/float64(rxV6), float64(100)
+			expectedMinTraffic := want * (1 - explicitMetricTolerance/100)
+			if got < expectedMinTraffic {
+				t.Errorf("IPv6 traffic on port1, got: %v%%, expected to be at least %v%%", got, expectedMinTraffic)
+			}
+
+		} else {
+			// validate traffic default behavior
+			if got, want := float64(port1Counter)*100/float64(rxV6), float64(100); got+lossTolerance < want {
+				t.Errorf("IPv6 traffic on port1, got: %v, want: %v", got, want)
+			}
 		}
+
 	})
 }
 
