@@ -39,6 +39,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestIFIPCfgs(t *testing.T) {
+	// TODO - 4/30/2024: enable this test once TZ is resolved
+	// https://techzone.cisco.com/t5/IOS-XR-PI-IP-Infra-Eng/Subscribe-on-ipv4-state-counters-in-multicast-pkts-not-returning/td-p/12075347
+	t.Skip()
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
 	if err != nil {
