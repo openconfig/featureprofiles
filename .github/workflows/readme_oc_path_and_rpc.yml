@@ -76,7 +76,7 @@ jobs:
 
         echo "########## Validating already-converted READMEs:"
         validate feature/aft
-        validate feature/bgp/policybase/otg_tests/import_export_multi
+        validate feature/bgp/policybase/otg_tests/import_export_multi_test
         validate feature/gnmi
         validate feature/gnoi
         validate feature/isis
