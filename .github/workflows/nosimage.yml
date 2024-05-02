@@ -21,8 +21,7 @@ jobs:
     - name: Generate Examples and Check No Diff
       run: |
         cd tools/nosimage
-        go run example/generate_example.go -file-path example/example_nosimageprofile.textproto
-        go run example/generate_example.go -file-path example/example_nosimageprofile_invalid.textproto -invalid
+        go generate ./example
 
         git diff --exit-code --ignore-all-space --ignore-blank-lines
 
