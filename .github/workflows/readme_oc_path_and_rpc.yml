@@ -69,7 +69,7 @@ jobs:
           git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
 
           echo "########## Validating Changed READMEs:"
-          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs --no-run-if-empty validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
         fi
 
         ##### END: Validate Changed Test READMEs #####
