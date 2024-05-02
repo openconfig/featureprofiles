@@ -67,6 +67,7 @@ jobs:
 
           affected_readmes=()
           for f in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u | sed 's/$/\/README.md/'); do
+            echo "1: $f"
             if [ -f "$f" ]; then
               affected_readmes+=("$f")
             fi
