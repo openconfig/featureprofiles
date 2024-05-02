@@ -628,6 +628,17 @@ func TestStaticToISISRedistribution(t *testing.T) {
 				t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
 					getAndVerifyIsisImportPolicy(t, dut, tc.metricPropogation, tc.RplName, tc.protoAf.String())
 
+					path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(
+						oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+						oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+						oc.Types_ADDRESS_FAMILY_IPV4,
+					)
+
+					output := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithUseGet(),
+						ygnmi.WithEncoding(gpb.Encoding_JSON_IETF)), path.State())
+
+					t.Log(output)
+
 				})
 			}
 
@@ -656,6 +667,16 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 					t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
 						getAndVerifyIsisImportPolicy(t, dut, tc.metricPropogation, tc.RplName, tc.protoAf.String())
+
+						path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableConnection(
+							oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+							oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS,
+							oc.Types_ADDRESS_FAMILY_IPV4)
+
+						output := gnmi.LookupConfig(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithUseGet(),
+							ygnmi.WithEncoding(gpb.Encoding_JSON_IETF)), path.Config())
+
+						t.Log(output)
 					})
 
 				})
