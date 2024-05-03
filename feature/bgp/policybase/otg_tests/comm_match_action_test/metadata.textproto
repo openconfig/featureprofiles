@@ -17,6 +17,15 @@ platform_exceptions:  {
     bgp_actions_set_community_method_unsupported:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE
