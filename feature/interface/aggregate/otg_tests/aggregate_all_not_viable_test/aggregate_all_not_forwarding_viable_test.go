@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,18 +37,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
-        "github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -76,18 +80,14 @@ const (
 )
 
 type aggPortData struct {
-	dutIPv4       string
-	dutAggName    string
-	dutAggMAC     string
-	ateIPv4       string
-	dutIPv6       string
-	ateIPv6       string
-	ateAggName    string
-	ateAggMAC     string
-	ateISISSysID  string
-	ateLoopbackV4 string
-	ateLoopbackV6 string
-	ateLagCount   uint32
+	dutIPv4      string
+	ateIPv4      string
+	dutIPv6      string
+	ateIPv6      string
+	ateAggName   string
+	ateAggMAC    string
+	ateISISSysID string
+	ateLagCount  uint32
 }
 
 type ipAddr struct {
@@ -106,40 +106,34 @@ type testArgs struct {
 
 var (
 	agg1 = &aggPortData{
-		dutIPv4:       "192.0.2.1",
-		ateIPv4:       "192.0.2.2",
-		dutIPv6:       "2001:db8::1",
-		ateIPv6:       "2001:db8::2",
-		ateAggName:    LAG1,
-		ateAggMAC:     "02:00:01:01:01:01",
-		ateISISSysID:  "640000000002",
-		ateLoopbackV4: "192.0.2.17",
-		ateLoopbackV6: "2001:db8::17",
-		ateLagCount:   1,
+		dutIPv4:      "192.0.2.1",
+		ateIPv4:      "192.0.2.2",
+		dutIPv6:      "2001:db8::1",
+		ateIPv6:      "2001:db8::2",
+		ateAggName:   LAG1,
+		ateAggMAC:    "02:00:01:01:01:01",
+		ateISISSysID: "640000000002",
+		ateLagCount:  1,
 	}
 	agg2 = &aggPortData{
-		dutIPv4:       "192.0.2.5",
-		ateIPv4:       "192.0.2.6",
-		dutIPv6:       "2001:db8::5",
-		ateIPv6:       "2001:db8::6",
-		ateAggName:    LAG2,
-		ateAggMAC:     "02:00:01:01:02:01",
-		ateISISSysID:  "640000000003",
-		ateLoopbackV4: "192.0.2.18",
-		ateLoopbackV6: "2001:db8::18",
-		ateLagCount:   5,
+		dutIPv4:      "192.0.2.5",
+		ateIPv4:      "192.0.2.6",
+		dutIPv6:      "2001:db8::5",
+		ateIPv6:      "2001:db8::6",
+		ateAggName:   LAG2,
+		ateAggMAC:    "02:00:01:01:02:01",
+		ateISISSysID: "640000000003",
+		ateLagCount:  2,
 	}
 	agg3 = &aggPortData{
-		dutIPv4:       "192.0.2.9",
-		ateIPv4:       "192.0.2.10",
-		dutIPv6:       "2001:db8::9",
-		ateIPv6:       "2001:db8::a",
-		ateAggName:    LAG3,
-		ateAggMAC:     "02:00:01:01:03:01",
-		ateISISSysID:  "640000000004",
-		ateLoopbackV4: "192.0.2.18",
-		ateLoopbackV6: "2001:db8::18",
-		ateLagCount:   2,
+		dutIPv4:      "192.0.2.9",
+		ateIPv4:      "192.0.2.10",
+		dutIPv6:      "2001:db8::9",
+		ateIPv6:      "2001:db8::a",
+		ateAggName:   LAG3,
+		ateAggMAC:    "02:00:01:01:03:01",
+		ateISISSysID: "640000000004",
+		ateLagCount:  1,
 	}
 
 	dutLoopback = attrs.Attributes{
@@ -155,7 +149,6 @@ var (
 	pfx2AdvV4                = &ipAddr{ip: "100.0.2.0", prefix: 24}
 	pfx2AdvV6                = &ipAddr{ip: "2003:db8:64:64::0", prefix: 64}
 	pfx3AdvV4                = &ipAddr{ip: "100.0.3.0", prefix: 24}
-	pfx3AdvV6                = &ipAddr{ip: "2004:db8:64:64::0", prefix: 64}
 	pfx4AdvV4                = &ipAddr{ip: "100.0.4.0", prefix: 24}
 	pmd100GFRPorts           []string
 	dutPortList              []*ondatra.Port
@@ -164,6 +157,9 @@ var (
 	txPktsBeforeTraffic      map[*ondatra.Port]uint64
 	equalDistributionWeights = []uint64{50, 50}
 	ecmpTolerance            = uint64(1)
+	ipRange                  = []uint32{254, 500}
+
+	dutAggMac []string
 )
 
 func TestMain(m *testing.M) {
@@ -179,110 +175,154 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	aggIDs := configureDUT(t, dut)
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
-	configureGRIBIClient(t, dut, ate, top)
-	flows := createFlows(t, top)
-
+	installGRIBIRoutes(t, dut, ate, top)
+	flows := createFlows(t, dut, top, aggIDs)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 	}
 
 	for _, agg := range []*aggPortData{agg1, agg2, agg3} {
-		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		bgpPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateIPv4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
-	t.Run("Running Testcase for TestID RT-5.7.1.1", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to False on all the Member Ports of LAG2 except port2")
-		forwardingViableDisable(t, dut, 3, 6)
+	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
+		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
 		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[1:2])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:6], dutPortList[2:6])
+		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
+			t.Fatal(err)
+		}
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:agg2.ateLagCount+1], dutPortList[2:agg2.ateLagCount+1]); err != nil {
+			t.Fatal(err)
+		}
 		// Ensure there is no traffic received/transmiited on DUT LAG_3
-		if got := validateLagTraffic(t, dut, ate, dutPortList); got == true {
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
 			t.Fatal("Packets are Received and Transmitted on LAG_3")
 		}
-		verifyTrafficFlow(t, ate, flows)
-	})
-	t.Run("Running Testcase for TestID RT-5.7.1.2", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to False on all the Member Ports of LAG2")
-		forwardingViableDisable(t, dut, 2, 3)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[5:6])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:6], dutPortList[1:6])
-		verifyTrafficFlow(t, ate, flows[1:2])
-		// Ensure there is no traffic received/transmiited on DUT LAG_3
-		if got := validateLagTraffic(t, dut, ate, dutPortList); got == false {
-			t.Fatal("Packets are not Received and Transmitted on LAG_3")
+		if ok := verifyTrafficFlow(t, ate, flows, false); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ")
 		}
+	})
+	t.Run("RT-5.7.1.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
+		// Ensure ISIS Adjacency is up on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+			t.Fatal("ISIS Adjacency is Down on LAG_2")
+		}
+		configForwardingViable(t, dut, dutPortList[1:2], false)
+		// Ensure ISIS Adjacency is Down on LAG_2
 
-		verifyTrafficFlow(t, ate, flows[0:1])
+		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
+			t.Fatal("ISIS Adjacency is Established on LAG_2")
+		}
+		startTraffic(t, dut, ate, top)
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[1:agg2.ateLagCount+1]); err != nil {
+			t.Fatal(err)
+		}
+		// Ensure that traffic from ATE port1 to pfx4 transmitted out using LAG3
+		if ok := verifyTrafficFlow(t, ate, flows[1:2], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[1].Name())
+		}
+		// Ensure there is no traffic received on DUT LAG_3
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
+			t.Fatal("Packets are Received on DUT LAG_3")
+		}
+		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
 	})
 
-	t.Run("Running Testcase for TestID RT-5.7.1.3", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to True on the Member Port Port6 of LAG2")
-		forwardingViableEnable(t, dut, 6)
+	t.Run("RT-5.7.1.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
+		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1], true)
 		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[5:6])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:5], dutPortList[1:5])
+		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1]); err != nil {
+			t.Fatal(err)
+		}
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount], dutPortList[1:agg2.ateLagCount]); err != nil {
+			t.Fatal(err)
+		}
 		// Ensure there is no traffic received/transmiited on DUT LAG_3
-		if got := validateLagTraffic(t, dut, ate, dutPortList); got == true {
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == true {
 			t.Fatal("Packets are Received and Transmitted on LAG_3")
 		}
-		verifyTrafficFlow(t, ate, flows)
+		if ok := verifyTrafficFlow(t, ate, flows, false); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ")
+		}
 	})
-
+	// Reset Forwarding-Viable to True for all the ports of LAG_2
+	configForwardingViable(t, dut, dutPortList[1:6], true)
 	// Change ISIS metric Equal for Both LAG_2 and LAG_3
 	changeMetric(t, dut, aggIDs[2], 20)
 
 	t.Logf("ISIS cost of LAG_2 equal to ISIS cost of LAG_3 Test-02")
-	t.Run("Running Testcase for TestID RT-5.7.2.1", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to False on all the Member Ports of LAG2 except port2")
-		forwardingViableDisable(t, dut, 6, 6)
-		forwardingViableEnable(t, dut, 2)
-		flows = append(flows, configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag3", agg3, []*aggPortData{agg1}))
+	t.Run("RT-5.7.2.1: Setting Forwarding-Viable to False for Lag2 ports except port 2", func(t *testing.T) {
+		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
+		flows = append(flows, configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag3", agg3, []*aggPortData{agg1}, dutAggMac[2], ipRange[0]))
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[1:2])
-		checkBidirectionalTraffic(t, dut, dutPortList[6:8])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:6], dutPortList[2:6])
-		// Ensure Load Balancing 50:50 on LAG_2 and LAG_3
+		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkBidirectionalTraffic(t, dut, dutPortList[(agg2.ateLagCount+1):]); err != nil {
+			t.Fatal(err)
+		}
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[2:(agg2.ateLagCount+1)], dutPortList[2:(agg2.ateLagCount+1)]); err != nil {
+			t.Fatal(err)
+		}
+		// Ensure Load Balancing 50:50 on LAG_2 and LAG_3 for prefix's pfx2, pfx3 and pfx4
 		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[0])
 		for idx, weight := range equalDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
 			}
 		}
-		verifyTrafficFlow(t, ate, flows)
-	})
-
-	t.Run("Running Testcase for TestID RT-5.7.2.2", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to False on all the Member Ports of LAG2")
-		forwardingViableDisable(t, dut, 2, 3)
-		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[5:6])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:6], dutPortList[1:6])
-		verifyTrafficFlow(t, ate, flows[1:2])
-		// Ensure there is no traffic received/transmiited on DUT LAG_3
-		if got := validateLagTraffic(t, dut, ate, dutPortList); got == false {
-			t.Fatal("Packets are not Received and Transmitted on LAG_3")
+		if ok := verifyTrafficFlow(t, ate, flows, false); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ")
 		}
-		verifyTrafficFlow(t, ate, flows[0:1])
 	})
 
-	t.Run("Running Testcase RT-5.7.2.3", func(t *testing.T) {
-		t.Logf("Setting Forwarding-Viable to True on the Member Port Port6 of LAG2")
-		forwardingViableEnable(t, dut, 6)
+	t.Run("RT-5.7.2.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
+		// Ensure ISIS Adjacency is up on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+			t.Fatal("ISIS Adjacency is Down on LAG_2")
+		}
+		configForwardingViable(t, dut, dutPortList[1:2], false)
+		// Ensure ISIS Adjacency is Down on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
+			t.Fatal("ISIS Adjacency is Established on LAG_2")
+		}
 		startTraffic(t, dut, ate, top)
-		checkBidirectionalTraffic(t, dut, dutPortList[5:8])
-		confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:5], dutPortList[1:5])
-		verifyTrafficFlow(t, ate, flows)
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:(agg2.ateLagCount+1)], dutPortList[1:(agg2.ateLagCount+1)]); err != nil {
+			t.Fatal(err)
+		}
+		// Ensure that traffic from ATE port1 to pfx4 are discarded on DUT
+		if ok := verifyTrafficFlow(t, ate, flows[1:2], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[1].Name())
+		}
+		// Ensure there is traffic received on DUT LAG_3
+		if got := validateLag3Traffic(t, dut, ate, dutPortList[(agg2.ateLagCount+1):]); got == false {
+			t.Fatal("Packets are not Received on LAG_3")
+		}
+		if ok := verifyTrafficFlow(t, ate, flows[0:1], true); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ", flows[0].Name())
+		}
+	})
+
+	t.Run("RT-5.7.2.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
+		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:(agg2.ateLagCount+1)], true)
+		startTraffic(t, dut, ate, top)
+		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:]); err != nil {
+			t.Fatal(err)
+		}
+		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount], dutPortList[1:agg2.ateLagCount]); err != nil {
+			t.Fatal(err)
+		}
+		if ok := verifyTrafficFlow(t, ate, flows, false); !ok {
+			t.Fatal("Packet Dropped, LossPct for flow ")
+		}
 	})
 }
 
@@ -291,15 +331,20 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	configureDUTLoopback(t, dut)
-
+	if len(dut.Ports()) < 4 {
+		t.Fatalf("Testbed requires at least 4 ports, got %d", len(dut.Ports()))
+	}
+	if len(dut.Ports()) > 4 {
+		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
+		agg3.ateLagCount = 2
+	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
 		d := gnmi.OC()
 		aggID := netutil.NextAggregateInterface(t, dut)
 		aggIDs = append(aggIDs, aggID)
 		portList := initializePort(t, dut, a)
+
 		if deviations.AggregateAtomicUpdate(dut) {
 			clearAggregate(t, dut, aggID, a, portList)
 			setupAggregateAtomically(t, dut, aggID, a, portList)
@@ -338,41 +383,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			fptest.LogQuery(t, port.String(), iPath.Config(), i)
 			gnmi.Replace(t, dut, iPath.Config(), i)
 		}
+
+		if deviations.ExplicitPortSpeed(dut) {
+			for _, dp := range portList {
+				fptest.SetPortSpeed(t, dp)
+			}
+		}
 	}
+
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
+
+	if deviations.MaxEcmpPaths(dut) {
+		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+		gnmi.Update(t, dut, isisPath.Global().MaxEcmpPaths().Config(), 2)
+	}
 	configureDUTBGP(t, dut, aggIDs)
 	return aggIDs
-}
-
-// configureDUTLoopback configures DUT loopback
-func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	lb := netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	foundV4 := false
-	for _, ip := range ipv4Addrs {
-		if v, ok := ip.Val(); ok {
-			foundV4 = true
-			dutLoopback.IPv4 = v.GetIp()
-			break
-		}
-	}
-	foundV6 := false
-	for _, ip := range ipv6Addrs {
-		if v, ok := ip.Val(); ok {
-			foundV6 = true
-			dutLoopback.IPv6 = v.GetIp()
-			break
-		}
-	}
-	if !foundV4 || !foundV6 {
-		lo1 := dutLoopback.NewOCInterface(lb, dut)
-		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
-	}
 }
 
 // configDstMemberDUT enables destination ports, add other details like description,
@@ -404,8 +431,8 @@ func initializePort(t *testing.T, dut *ondatra.DUTDevice, a *aggPortData) []*ond
 		}
 	case LAG3:
 		for portIdx < a.ateLagCount {
-			portList = append(portList, dut.Port(t, fmt.Sprintf("port%d", portIdx+7)))
-			dutPortList = append(dutPortList, dut.Port(t, fmt.Sprintf("port%d", portIdx+7)))
+			portList = append(portList, dut.Port(t, fmt.Sprintf("port%d", portIdx+agg2.ateLagCount+2)))
+			dutPortList = append(dutPortList, dut.Port(t, fmt.Sprintf("port%d", portIdx+agg2.ateLagCount+2)))
 			portIdx++
 		}
 	}
@@ -425,6 +452,9 @@ func configAggregateDUT(dut *ondatra.DUTDevice, i *oc.Interface, a *aggPortData)
 	}
 	a4 := s4.GetOrCreateAddress(a.dutIPv4)
 	a4.PrefixLength = ygot.Uint8(ipv4PLen)
+
+	// n4 := s4.GetOrCreateNeighbor(a.ateIPv4)
+	// n4.LinkLayerAddress = ygot.String(a.ateAggMAC)
 
 	s6 := s.GetOrCreateIpv6()
 	if deviations.InterfaceEnabled(dut) {
@@ -509,23 +539,26 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	}
 
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
-		bgpNbrV4 := bgp.GetOrCreateNeighbor(a.ateLoopbackV4)
+		bgpNbrV4 := bgp.GetOrCreateNeighbor(a.ateIPv4)
 		bgpNbrV4.PeerGroup = ygot.String(pgName)
 		bgpNbrV4.PeerAs = ygot.Uint32(asn)
 		bgpNbrV4.Enabled = ygot.Bool(true)
 		bgpNbrV4T := bgpNbrV4.GetOrCreateTransport()
-		bgpNbrV4T.LocalAddress = ygot.String(dutLoopback.IPv4)
+
+		bgpNbrV4T.LocalAddress = ygot.String(a.dutIPv4)
 		af4 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.Enabled = ygot.Bool(true)
+
 		af6 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(false)
 
-		bgpNbrV6 := bgp.GetOrCreateNeighbor(a.ateLoopbackV6)
+		bgpNbrV6 := bgp.GetOrCreateNeighbor(a.ateIPv6)
 		bgpNbrV6.PeerGroup = ygot.String(pgName)
 		bgpNbrV6.PeerAs = ygot.Uint32(asn)
 		bgpNbrV6.Enabled = ygot.Bool(true)
 		bgpNbrV6T := bgpNbrV6.GetOrCreateTransport()
-		bgpNbrV6T.LocalAddress = ygot.String(dutLoopback.IPv6)
+
+		bgpNbrV6T.LocalAddress = ygot.String(a.dutIPv6)
 		af4 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.Enabled = ygot.Bool(false)
 		af6 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -588,9 +621,6 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
 
-		isisIntfLevel.GetOrCreateTimers().HelloInterval = ygot.Uint32(60)
-		isisIntfLevel.GetOrCreateTimers().HelloMultiplier = ygot.Uint8(5)
-
 		isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 
 		isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
@@ -611,7 +641,7 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 // changeMetric change metric for ISIS on Interface
 func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint32) {
-	t.Logf("Changing metric to %v on interface %v", metric, intf)
+	t.Logf("Updating ISIS metric of LAG2 equal to LAG3 ")
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
@@ -651,8 +681,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 			}
 		case LAG3:
 			for portIdx < a.ateLagCount {
-				portList = append(portList, ate.Port(t, fmt.Sprintf("port%d", portIdx+7)))
-				atePortList = append(atePortList, ate.Port(t, fmt.Sprintf("port%d", portIdx+7)))
+				portList = append(portList, ate.Port(t, fmt.Sprintf("port%d", portIdx+agg2.ateLagCount+2)))
+				atePortList = append(atePortList, ate.Port(t, fmt.Sprintf("port%d", portIdx+agg2.ateLagCount+2)))
 				portIdx++
 			}
 		}
@@ -677,8 +707,6 @@ func configureOTGPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	lagEth.Connection().SetLagName(agg.Name())
 	lagEth.Ipv4Addresses().Add().SetName(agg.Name() + ".IPv4").SetAddress(a.ateIPv4).SetGateway(a.dutIPv4).SetPrefix(ipv4PLen)
 	lagEth.Ipv6Addresses().Add().SetName(agg.Name() + ".IPv6").SetAddress(a.ateIPv6).SetGateway(a.dutIPv6).SetPrefix(ipv6PLen)
-	lagDev.Ipv4Loopbacks().Add().SetName(agg.Name() + ".Loopback4").SetEthName(lagEth.Name()).SetAddress(a.ateLoopbackV4)
-	lagDev.Ipv6Loopbacks().Add().SetName(agg.Name() + ".Loopback6").SetEthName(lagEth.Name()).SetAddress(a.ateLoopbackV6)
 	for aggIdx, pList := range portList {
 		top.Ports().Add().SetName(pList.ID())
 		if pList.PMD() == ondatra.PMD100GBASEFR {
@@ -692,17 +720,19 @@ func configureOTGPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 		lagPort.Ethernet().SetMac(newMac).SetName(a.ateAggName + "." + strconv.Itoa(aggIdx))
 		lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(aggIdx) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 	}
-	configureOTGISIS(t, lagDev, a)
+
 	if a.ateAggName == LAG1 {
+		configureOTGISIS(t, lagDev, a, pfx1AdvV4)
 		configureOTGBGP(t, lagDev, a, pfx1AdvV4, pfx1AdvV6)
 	} else {
+		configureOTGISIS(t, lagDev, a, pfx2AdvV4)
 		configureOTGBGP(t, lagDev, a, pfx2AdvV4, pfx2AdvV6)
 	}
 	return pmd100GFRPorts
 }
 
 // configureOTGISIS configure ISIS on ATE
-func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
+func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4 *ipAddr) {
 	t.Helper()
 	isis := dev.Isis().SetSystemId(agg.ateISISSysID).SetName(agg.ateAggName + ".ISIS")
 	isis.Basic().SetHostname(isis.Name())
@@ -717,63 +747,45 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 
 	devIsisRoutes4 := isis.V4Routes().Add().SetName(agg.ateAggName + ".isisnet4").SetLinkMetric(10)
 	devIsisRoutes4.Addresses().Add().
-		SetAddress(agg.ateLoopbackV4).SetPrefix(32).SetCount(1).SetStep(1)
-
-	devIsisRoutes6 := isis.V6Routes().Add().SetName(agg.ateAggName + ".isisnet6").SetLinkMetric(10)
-	devIsisRoutes6.Addresses().Add().
-		SetAddress(agg.ateLoopbackV6).SetPrefix(128).SetCount(1).SetStep(1)
+		SetAddress(advV4.ip).SetPrefix(advV4.prefix).SetCount(1).SetStep(1)
 
 }
 
 // configureOTGBGP configure BGP on ATE
 func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4, advV6 *ipAddr) {
 	t.Helper()
-	v4 := dev.Ipv4Loopbacks().Items()[0]
-	v6 := dev.Ipv6Loopbacks().Items()[0]
 
 	iDutBgp := dev.Bgp().SetRouterId(agg.ateIPv4)
-	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(v4.Name()).Peers().Add().SetName(agg.ateAggName + ".BGP4.peer")
-	iDutBgp4Peer.SetPeerAddress(dutLoopback.IPv4).SetAsNumber(asn).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDutBgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(false)
+	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(agg.ateAggName + ".IPv4").Peers().Add().SetName(agg.ateAggName + ".BGP4.peer")
+	iDutBgp4Peer.SetPeerAddress(agg.dutIPv4).SetAsNumber(asn).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDutBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(false)
 
-	iDutBgp6Peer := iDutBgp.Ipv6Interfaces().Add().SetIpv6Name(v6.Name()).Peers().Add().SetName(agg.ateAggName + ".BGP6.peer")
-	iDutBgp6Peer.SetPeerAddress(dutLoopback.IPv6).SetAsNumber(asn).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDutBgp6Peer.Capability().SetIpv4UnicastAddPath(false).SetIpv6UnicastAddPath(true)
+	iDutBgp6Peer := iDutBgp.Ipv6Interfaces().Add().SetIpv6Name(agg.ateAggName + ".IPv6").Peers().Add().SetName(agg.ateAggName + ".BGP6.peer")
+	iDutBgp6Peer.SetPeerAddress(agg.dutIPv6).SetAsNumber(asn).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	iDutBgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(false).SetUnicastIpv6Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDutBgp4Peer.V4Routes().Add().SetName(agg.ateAggName + ".BGP4.Route")
-	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(agg.ateLoopbackV4).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(advV4.ip).SetPrefix(advV4.prefix).SetCount(1)
-	bgpNeti1Bgp4PeerRoutes.AddPath().SetPathId(1)
-
-	bgpNeti1Bgp6PeerRoutes := iDutBgp6Peer.V6Routes().Add().SetName(agg.ateAggName + ".BGP6.Route")
-	bgpNeti1Bgp6PeerRoutes.Addresses().Add().SetAddress(advV6.ip).SetPrefix(advV6.prefix).SetCount(1)
-	bgpNeti1Bgp6PeerRoutes.AddPath().SetPathId(1)
-
 	if agg.ateAggName != LAG1 {
+		bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(pfx2AdvV4.ip + "1").
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 		bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(pfx3AdvV4.ip).SetPrefix(pfx3AdvV4.prefix).SetCount(1)
-		bgpNeti1Bgp4PeerRoutes.AddPath().SetPathId(1)
-
-		bgpNeti1Bgp6PeerRoutes.Addresses().Add().SetAddress(pfx3AdvV6.ip).SetPrefix(pfx3AdvV6.prefix).SetCount(1)
-		bgpNeti1Bgp6PeerRoutes.AddPath().SetPathId(1)
+	} else {
+		bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(agg.ateIPv4).
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	}
 }
 
-// forwardingViableEnable set to False on Port
-func forwardingViableDisable(t *testing.T, dut *ondatra.DUTDevice, start, end int) {
-	for port := start; port <= end; port++ {
-		pName := dut.Port(t, fmt.Sprintf("port%d", port)).Name()
-		gnmi.Update(t, dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), false)
+// configForwardingViable is to set forwarding viable on DUT ports
+func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port, forwardingViable bool) {
+	for _, port := range dutPorts {
+		if forwardingViable {
+			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
+		} else {
+			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
+		}
 	}
-}
-
-// forwardingViableEnable set to True on Port
-func forwardingViableEnable(t *testing.T, dut *ondatra.DUTDevice, port int) {
-	pName := dut.Port(t, fmt.Sprintf("port%d", port)).Name()
-	gnmi.Update(t, dut, gnmi.OC().Interface(pName).ForwardingViable().Config(), true)
 }
 
 // incrementMAC uses a mac string and increments it by the given i
@@ -793,45 +805,46 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func createFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
-	// var flows []gosnappi.Flow
-	f1V4 := configureFlows(t, top, pfx1AdvV4, pfx2AdvV4, "pfx1ToPfx2_3", agg1, []*aggPortData{agg2, agg3})
-	f2V4 := configureFlows(t, top, pfx1AdvV4, pfx4AdvV4, "pfx1ToPfx4", agg1, []*aggPortData{agg2})
-	f3V4 := configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag2", agg2, []*aggPortData{agg1})
+func createFlows(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, aggIDs []string) []gosnappi.Flow {
+	for _, aggID := range aggIDs {
+		dutAggMac = append(dutAggMac, gnmi.Get(t, dut, gnmi.OC().Lacp().Interface(aggID).SystemIdMac().State()))
+	}
+	f1V4 := configureFlows(t, top, pfx1AdvV4, pfx2AdvV4, "pfx1ToPfx2_3", agg1, []*aggPortData{agg2, agg3}, dutAggMac[0], ipRange[1])
+	f2V4 := configureFlows(t, top, pfx1AdvV4, pfx4AdvV4, "pfx1ToPfx4", agg1, []*aggPortData{agg2, agg3}, dutAggMac[0], ipRange[0])
+	f3V4 := configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag2", agg2, []*aggPortData{agg1}, dutAggMac[1], ipRange[0])
 	return []gosnappi.Flow{f1V4, f2V4, f3V4}
 }
 
 // configureFlows configure flows for traffic on ATE
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipAddr, flowName string, srcAgg *aggPortData,
-	dstAgg []*aggPortData) gosnappi.Flow {
-	var ipRange uint32
+	dstAgg []*aggPortData, dutAggMac string, ipRange uint32) gosnappi.Flow {
+
 	t.Helper()
 	flowV4 := top.Flows().Add().SetName(flowName)
 	flowV4.Metrics().SetEnable(true)
-	flowV4.TxRx().Device().
-		SetTxNames([]string{srcAgg.ateAggName + ".IPv4"})
+	flowV4.TxRx().Port().
+		SetTxName(srcAgg.ateAggName)
 
-	if flowName == "pfx1ToPfx2_3" {
-		flowV4.TxRx().Device().
-			SetRxNames([]string{dstAgg[0].ateAggName + ".IPv4", dstAgg[1].ateAggName + ".IPv4"})
-		ipRange = 500
+	if flowName == "pfx2ToPfx1Lag2" || flowName == "pfx2ToPfx1Lag3" {
+		flowV4.TxRx().Port().
+			SetRxNames([]string{dstAgg[0].ateAggName})
 	} else {
-		flowV4.TxRx().Device().
-			SetRxNames([]string{dstAgg[0].ateAggName + ".IPv4"})
-		ipRange = 254
+		flowV4.TxRx().Port().
+			SetRxNames([]string{dstAgg[0].ateAggName, dstAgg[1].ateAggName})
 	}
 	flowV4.Size().SetFixed(1500)
 	flowV4.Rate().SetPps(trafficPPS)
 	eV4 := flowV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(srcAgg.ateAggMAC)
+	eV4.Dst().SetValue(dutAggMac)
 	v4 := flowV4.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(srcV4.ip).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstV4.ip).SetCount(ipRange)
 	return flowV4
 }
 
-// configureGRIBIClient configure route using gRIBI client
-func configureGRIBIClient(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+// installGRIBIRoutes configure route using gRIBI client
+func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -851,40 +864,54 @@ func configureGRIBIClient(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		ate:    ate,
 		top:    top,
 	}
-	const (
-		nhgID1 uint64 = 100
-		nhID1  uint64 = 1001
-	)
 
-	t.Logf("An IPv4Entry for %s is pointing to ATE port-2 and port-3 via gRIBI", pfx4AdvV4.ip+"/24")
-	nh := fluent.NextHopEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-		WithIndex(nhID1).
-		WithIPAddress(agg2.ateIPv4)
-
-	nhg := fluent.NextHopGroupEntry().
-		WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		WithID(uint64(nhgID1)).
-		AddNextHop(nhID1, 1)
-
-	tcArgs.client.Modify().AddEntry(t, nh, nhg)
+	t.Logf("An IPv4Entry for %s is pointing to ATE LAG2 via gRIBI", pfx4AdvV4.ip+"/24")
 
 	tcArgs.client.Modify().AddEntry(t,
-		fluent.IPv4Entry().
-			WithPrefix(pfx4AdvV4.ip+"/24").
-			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithNextHopGroup(nhgID1))
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(100)).WithIPAddress(agg2.ateIPv4),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithIPAddress(agg3.ateIPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(uint64(100)).AddNextHop(uint64(100), uint64(1)).AddNextHop(uint64(101), uint64(1)))
+
+	tcArgs.client.Modify().AddEntry(t,
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithPrefix(pfx4AdvV4.ip+"/24").WithNextHopGroup(uint64(100)))
+
+	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 5*time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+	defaultVRFIPList := []string{pfx4AdvV4.ip}
+	for ip := range defaultVRFIPList {
+		chk.HasResult(t, tcArgs.client.Results(t),
+			fluent.OperationResult().
+				WithIPv4Operation(defaultVRFIPList[ip]+"/24").
+				WithOperationType(constants.Add).
+				WithProgrammingResult(fluent.InstalledInFIB).
+				AsResult(),
+			chk.IgnoreOperationID(),
+		)
+	}
+}
+
+// awaitTimeout calls a fluent client Await, adding a timeout to the context.
+func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
+	t.Helper()
+	subctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Await(subctx, t)
 }
 
 // startTraffic start traffic on ATE
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	capturePktsBeforeTraffic(t, dut, dutPortList)
-	time.Sleep(30 * time.Second)
+	time.Sleep(10 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(time.Minute)
+	time.Sleep(time.Second * 40)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -901,13 +928,17 @@ func capturePktsBeforeTraffic(t *testing.T, dut *ondatra.DUTDevice, dutPortList 
 }
 
 // verifyTrafficFlow verify the each flow on ATE
-func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow) {
+func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow, status bool) bool {
 	if flows[0].Name() == "pfx1ToPfx4" {
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
-		if got := rxPkts / 100; got == 0 {
-			t.Logf("No Packet received, LossPct for flow %s: got %d, want 0 packet", flows[0].Name(), got)
-		} else {
-			t.Fatalf("Packet received for flow %s: got %d, want 0 packet", flows[0].Name(), got)
+		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
+		lostPkt := txPkts - rxPkts
+		if status {
+			if got := (lostPkt * 100 / txPkts); got >= 51 {
+				return false
+			}
+		} else if got := (lostPkt * 100 / txPkts); got > 0 {
+			return false
 		}
 	} else {
 		for _, flow := range flows {
@@ -915,37 +946,52 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 			lostPkt := txPkts - rxPkts
 			if got := (lostPkt * 100 / txPkts); got > 0 {
-				t.Fatalf("LossPct for flow %s: Lost_Percentage is %d, want 0", flow.Name(), got)
+				return false
 			}
 		}
 	}
+	return true
+}
+
+// awaitAdjacency wait for adjacency to be up/down
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state oc.E_Isis_IsisInterfaceAdjState) bool {
+	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	intf := isisPath.Interface(intfName)
+	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
+	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+		v, ok := val.Val()
+		return v == state && ok
+	}).Await(t)
+
+	return ok
 }
 
 // checkBidirectionalTraffic verify the bidirectional traffic on DUT ports.
-func checkBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, portList []*ondatra.Port) {
+func checkBidirectionalTraffic(t *testing.T, dut *ondatra.DUTDevice, portList []*ondatra.Port) error {
 
 	for _, port := range portList {
-		txPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().InPkts().State())
+		txPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().OutPkts().State())
 		rxPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().InPkts().State())
-
 		if got := (rxPkts - rxPktsBeforeTraffic[port]) / 100; got == 0 {
-			t.Fatalf("No Packet received, LossPct on Port %s: got %d", port.Name(), got)
+			return fmt.Errorf("No Packet received, LossPct on Port %s: got %d", port.Name(), got)
 		}
 		if got := (txPkts - txPktsBeforeTraffic[port]) / 100; got == 0 {
-			t.Fatalf("No Packet transmitted, LossPct on Port %s: got %d", port.Name(), got)
+			return fmt.Errorf("No Packet transmitted, LossPct on Port %s: got %d", port.Name(), got)
 		}
 	}
+	return nil
 }
 
 // confirmNonViableForwardingTraffic verify the traffic received on DUT
 // interfaces and transmitted to ATE-1
 func confirmNonViableForwardingTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice,
-	atePort []*ondatra.Port, dutPort []*ondatra.Port) {
+	atePort []*ondatra.Port, dutPort []*ondatra.Port) error {
+
 	// Ensure no traffic is transmitted out of DUT ports with Forwarding Viable False
 	for _, port := range atePort {
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port.ID()).Counters().InFrames().State())
 		if got := rxPkts / 100; got > 0 {
-			t.Fatalf("Packets are transmiited out of %s: got %d, want 0", port.Name(), got)
+			return fmt.Errorf("Packets are transmiited out of %s: got %d, want 0", port.Name(), got)
 		}
 	}
 	// Ensure that traffic is delivered to ATE-1 port1
@@ -953,21 +999,21 @@ func confirmNonViableForwardingTraffic(t *testing.T, dut *ondatra.DUTDevice, ate
 		rxPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().InPkts().State()) - rxPktsBeforeTraffic[port]
 		txPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortList[0].Name()).Counters().OutPkts().State()) - txPktsBeforeTraffic[port]
 		if got := rxPkts / 100; got == 0 {
-			t.Fatalf("LossPct, No packet Received on Interface %s: got %d, want packet", port.Name(), got)
+			return fmt.Errorf("No Packet received on Interface %s: got %d, want packet", port.Name(), got)
 		}
 		if got := txPkts / 100; got == 0 {
-			t.Fatalf("LossPct, No packet transmitted from Interface %s: got %d, want packet", dutPortList[0].Name(), got)
+			return fmt.Errorf("No Packet transmitted on Interface %s: got %d, want packet", port.Name(), got)
 		}
 	}
+	return nil
 }
 
-// validateLagTraffic to ensure traffic Received/Transmitted on DUT LAG_3
-func validateLagTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortList []*ondatra.Port) bool {
+// validateLag3Traffic to ensure traffic Received/Transmitted on DUT LAG_3
+func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, dutPortList []*ondatra.Port) bool {
 	result := false
-	for _, port := range dutPortList[6:8] {
+	for _, port := range dutPortList {
 		rxPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().InPkts().State()) - rxPktsBeforeTraffic[port]
 		txPkts := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().OutPkts().State()) - txPktsBeforeTraffic[port]
-
 		if got := rxPkts / 100; got > 0 {
 			if got := txPkts / 100; got > 0 {
 				result = true
@@ -983,15 +1029,9 @@ func validateLagTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow) []uint64 {
 	t.Helper()
 	var rxs []uint64
-	// pfx4FlowRx get the RX counters for the Flow which have traffic destined for prefix 100.0.4.0
-	pfx4FlowRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	for aggIdx, aggName := range aggNames {
+	for _, aggName := range aggNames {
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		if aggIdx == 0 {
-			rxs = append(rxs, (metrics.GetCounters().GetInFrames() - pfx4FlowRx))
-		} else {
-			rxs = append(rxs, metrics.GetCounters().GetInFrames())
-		}
+		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
 	}
 	var total uint64
 	for _, rx := range rxs {
