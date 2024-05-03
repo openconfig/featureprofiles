@@ -398,7 +398,7 @@ def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
         for t in testbeds:
             reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
-        time.sleep(5)
+        time.sleep(random.randint(5,60))
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
