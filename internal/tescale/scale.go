@@ -136,13 +136,13 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 
 	nhgID := idPool.NextNHGID()
 	nhID := idPool.NextNHID()
-	nhgRedirectToDefault := nhgID
+	nhgRedirectToVrfR := nhgID
 	// build backup NHG and NH.
 	vrfDefault.NHs = append(vrfDefault.NHs,
 		fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithNextHopNetworkInstance(VRFR),
 	)
 	vrfDefault.NHGs = append(vrfDefault.NHGs,
-		fluent.NextHopGroupEntry().WithID(nhgRedirectToDefault).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF),
+		fluent.NextHopGroupEntry().WithID(nhgRedirectToVrfR).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF),
 	)
 
 	// Build IPv4 entry and related NHGs and NHs.
@@ -151,6 +151,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NHG has the same backup to Repair VRF.
 	tunnelNHGRatio := param.V4TunnelCount / param.V4TunnelNHGCount
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
+		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
 
@@ -161,15 +162,14 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 				vrfDefault.NHs = append(vrfDefault.NHs,
 					fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip),
 				)
-				vrfDefault.NHGs = append(vrfDefault.NHGs,
-					fluent.NextHopGroupEntry().WithID(nhgID).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToDefault),
-				)
+				nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 			}
+			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 		}
 
 		// Build IPv4 entry
 		vrfTConf.V4Entries = append(vrfTConf.V4Entries,
-			fluent.IPv4Entry().WithPrefix(ip).WithNextHopGroup(nhgID).WithNetworkInstance(VRFT).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFT).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}
 
@@ -179,7 +179,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * each NHG points to unique NHs
 	for _, ip := range v4VIPAddrs.AllIPs() {
 		nhgID := idPool.NextNHGID()
-
+		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF)
 		// Build NHs and link NHs to NHG.
 		for i := 0; i < param.EgressNHGSplitCount; i++ {
 			vip := v4EgressIPAddrs.AllIPs()[i]
@@ -187,14 +187,13 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 			vrfDefault.NHs = append(vrfDefault.NHs,
 				fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip),
 			)
-			vrfDefault.NHGs = append(vrfDefault.NHGs,
-				fluent.NextHopGroupEntry().WithID(nhgID).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF),
-			)
+			nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 		}
 
+		vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 		// Build IPv4 entry
 		vrfDefault.V4Entries = append(vrfDefault.V4Entries,
-			fluent.IPv4Entry().WithPrefix(ip).WithNextHopGroup(nhgID).WithNetworkInstance(defaultVRF).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(defaultVRF).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}
 
@@ -205,7 +204,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	nhgID = idPool.NextNHGID()
 	nhgDecapToDefault := nhgID
 	vrfDefault.NHs = append(vrfDefault.NHs,
-		fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithNetworkInstance(defaultVRF),
+		fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithNetworkInstance(defaultVRF).WithNextHopNetworkInstance(defaultVRF),
 	)
 	vrfDefault.NHGs = append(vrfDefault.NHGs,
 		fluent.NextHopGroupEntry().WithID(nhgID).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF),
@@ -216,22 +215,25 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NH has one entry for decap and encap
 	// * All NHG has a backup for decap then goto default VRF.
 	reEncapNHGRatio := param.V4TunnelCount / param.V4ReEncapNHGCount
+	nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
+	nhgID = idPool.NextNHGID()
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
-		if idx%reEncapNHGRatio == 0 {
-			nhgID = idPool.NextNHGID()
-		}
-
+		nhID = idPool.NextNHID()
 		vrfDefault.NHs = append(vrfDefault.NHs,
 			fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 				WithNetworkInstance(defaultVRF).WithIPinIP(tunnelSrcIP, v4TunnelIPAddrs.AllIPs()[(idx+1)%len(v4TunnelIPAddrs.AllIPs())]),
 		)
-		vrfDefault.NHGs = append(vrfDefault.NHGs,
-			fluent.NextHopGroupEntry().WithID(nhgID).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault),
-		)
+		if idx != 0 && idx%reEncapNHGRatio == 0 {
+			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
+			nhgID = idPool.NextNHGID()
+			nhgEntry = fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
+		}
+		nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 		vrfRConf.V4Entries = append(vrfRConf.V4Entries,
-			fluent.IPv4Entry().WithPrefix(ip).WithNextHopGroup(nhgID).WithNetworkInstance(VRFR).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFR).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}
+	vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 
 	v4VIPAddrs = NewIPPool(iputil.GenerateIPs(V4VIPIPBlock, (param.V4TunnelNHGCount*param.V4TunnelNHGSplitCount)+2))
 
@@ -240,6 +242,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * do the same as Transit VRF
 	// * but with decap to default NHG
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
+		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
 
@@ -250,15 +253,14 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 				vrfDefault.NHs = append(vrfDefault.NHs,
 					fluent.NextHopEntry().WithIndex(nhID).WithNetworkInstance(defaultVRF).WithIPAddress(vip),
 				)
-				vrfDefault.NHGs = append(vrfDefault.NHGs,
-					fluent.NextHopGroupEntry().WithID(nhgID).AddNextHop(nhID, 1).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToDefault),
-				)
+				nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 			}
+			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 		}
 
 		// Build IPv4 entry
 		vrfRDConf.NHs = append(vrfRDConf.NHs,
-			fluent.IPv4Entry().WithPrefix(ip).WithNextHopGroup(nhgID).WithNetworkInstance(VRFRD).WithNextHopGroupNetworkInstance(defaultVRF),
+			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFRD).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}
 

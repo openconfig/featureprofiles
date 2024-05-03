@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -320,6 +321,7 @@ func TestScaling(t *testing.T) {
 		if err := awaitTimeout(ctx, client, t, 2*time.Minute); err != nil {
 			t.Fatalf("Could not program entries, got err: %v", err)
 		}
+		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
 
 	createFlow(t, ate, top, vrfConfigs[1])
@@ -330,7 +332,11 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 	dstIPs := []string{}
 	for _, v4Entry := range vrfTConf.V4Entries {
 		ep, _ := v4Entry.EntryProto()
-		dstIPs = append(dstIPs, ep.GetIpv4().GetPrefix())
+		dstIPs = append(dstIPs, strings.Split(ep.GetIpv4().GetPrefix(), "/")[0])
+	}
+	rxNames := []string{}
+	for i := 0; i < 16; i++ {
+		rxNames = append(rxNames, fmt.Sprintf(`dst%d.IPv4`, i))
 	}
 
 	top.Flows().Clear()
@@ -340,8 +346,8 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 	flow.Rate().SetPps(100)
 	flow.Duration().Continuous()
 	flow.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{"port2"})
+		SetTxNames([]string{"src.IPv4"}).
+		SetRxNames(rxNames)
 	ethHeader := flow.Packet().Add().Ethernet()
 	ethHeader.Src().SetValue(atePort1.MAC)
 	v4 := flow.Packet().Add().Ipv4()
