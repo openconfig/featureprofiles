@@ -69,7 +69,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 		routeAddress.SetPrefix(prefixP4Len)
 		routeAddress.SetCount(prefixesCount)
 		bgp4PeerRoute.AddPath().SetPathId(pathID)
-		bgp4PeerRoute.ExtendedCommunities().Items()[0].NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
+		bgp4PeerRoute.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
 	}
 
 	configureFlow(bs)
