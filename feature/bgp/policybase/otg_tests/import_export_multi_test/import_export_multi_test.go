@@ -143,7 +143,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	myCommunitySets := []string{"50:1"}
 	if deviations.BgpCommunityMemberIsAString(dut) {
 		myCommunitySets = []string{"(^|\\s)30:[0-9]+($|\\s)"}
-	} 
+	}
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
