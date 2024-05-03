@@ -15,15 +15,12 @@
 package bgp_graceful_restart_test
 
 import (
-	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -519,9 +516,9 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 		startTime := time.Now()
 		t.Log("Trigger Graceful Restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
-			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-			aclConf := configACLInterface(t, iFace, ifName)
-			gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+		aclConf := configACLInterface(t, iFace, ifName)
+		gnmi.Replace(t, dut, aclConf.Config(), iFace)
 		replaceDuration := time.Since(startTime)
 		time.Sleep(grTimer - stopDuration - replaceDuration)
 		t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
@@ -556,9 +553,9 @@ func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-			aclPath := configACLInterface(t, iFace, ifName)
-			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+		aclPath := configACLInterface(t, iFace, ifName)
+		gnmi.Replace(t, dut, aclPath.Config(), iFace)
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {
