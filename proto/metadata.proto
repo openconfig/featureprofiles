@@ -489,6 +489,8 @@ message Metadata {
     bool bgp_actions_set_community_method_unsupported = 174;
     // Ensure no configurations exist under BGP Peer Groups
     bool set_no_peer_group = 175;
+    // Bgp community member is a string
+    bool bgp_community_member_is_a_string = 176;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
