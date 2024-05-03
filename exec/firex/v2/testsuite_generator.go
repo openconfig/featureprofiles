@@ -540,11 +540,7 @@ func main() {
 	tbFound := map[string]bool{}
 
 	for i := range suite {
-		fmt.Printf("suite[i].Name: %v\n", suite[i].Name)
 		for j := range suite[i].Tests {
-			fmt.Printf("suite[i].Tests[j].Name: %v\n", suite[i].Tests[j].Name)
-			fmt.Printf("suite[i].Tests[j].Priority: %v\n", suite[i].Tests[j].Priority)
-
 			suite[i].Tests[j].ShortName = strings.Split(suite[i].Tests[j].Name, " ")[0]
 			if len(testRepoRev) > 0 {
 				suite[i].Tests[j].Internal = false
