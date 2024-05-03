@@ -574,6 +574,8 @@ message Metadata {
     bool install_position_and_install_component_unsupported = 196;
     // Encap tunnel is shut then zero traffic will flow to backup NHG
     bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
+    // Flag to indicate support for max ecmp paths for isis.
+    bool max_ecmp_paths = 198;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
