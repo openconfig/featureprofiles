@@ -22,3 +22,12 @@ platform_exceptions:  {
     skip_bgp_send_community_type:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    omit_l2_mtu: true
+    default_network_instance: "default"
+  }
+}
