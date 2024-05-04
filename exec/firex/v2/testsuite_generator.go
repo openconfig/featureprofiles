@@ -430,7 +430,7 @@ func main() {
 	// adjust timeouts, priorities, & owners
 	for i := range suite {
 		if suite[i].Priority == 0 {
-			suite[i].Priority = 100000000
+			suite[i].Priority = 1000
 		}
 
 		for j := range suite[i].Tests {
@@ -447,7 +447,7 @@ func main() {
 			}
 
 			if suite[i].Tests[j].Priority == 0 {
-				suite[i].Tests[j].Priority = 100000000
+				suite[i].Tests[j].Priority = 1000
 			}
 
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {

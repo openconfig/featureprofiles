@@ -440,7 +440,7 @@ tests:
     owners:
       - agvarghe
     mustpass: true
-    priority: 192
+    priority: 1002
     pr: 1119
     internal: true
     testbeds:
@@ -471,7 +471,7 @@ tests:
     owners:
       - sprem
     mustpass: true
-    priority: 191
+    priority: 1002
     testbeds:
       - 2DUT-TB2
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -616,7 +616,7 @@ tests:
       - agvarghe
     mustpass: true
   - name: gNMI-1.3 (Benchmarking Drained Configuration Convergence Time)
-    path: feature/experimental/system/gnmi/benchmarking/ate_tests/drained_configuration_convergence_time
+    path: feature/experimental/system/gnmi/benchmarking/otg_tests/drained_configuration_convergence_time
     owners:
       - agvarghe
     mustpass: true
@@ -647,7 +647,7 @@ tests:
     owners:
       - wdolaast
     mustpass: true
-    priority: 190
+    priority: 1001
     testbeds:
       - 2DUT-TB2
   - name: gNOI-6.1 (Factory Reset)
