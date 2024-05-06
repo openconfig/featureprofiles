@@ -68,13 +68,18 @@ that certificate using the included trust_bundle.
 
 Perform this test with both RSA dn ECDSA key-types.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Protocol/RPC Parameter Coverage
+TODO(OCRPC): Record may not be correct or complete
 
-None
+```yaml
+rpcs:
+  gnsi:
+    certz.v1.Certz.GetProfileList:
+```
+
 
 ## Minimum DUT Platform Requirement
 

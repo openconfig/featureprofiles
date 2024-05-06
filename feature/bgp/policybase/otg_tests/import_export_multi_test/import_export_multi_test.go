@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package import_export_test covers RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
-package import_export_test
+package import_export_multi_test
 
 import (
 	"strconv"
@@ -141,6 +141,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	addCommunitiesSetRefsAction := []string{"add-communities"}
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
 	myCommunitySets := []string{"50:1"}
+	if deviations.BgpCommunityMemberIsAString(dut) {
+		myCommunitySets = []string{"(^|\\s)30:[0-9]+($|\\s)"}
+	}
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()

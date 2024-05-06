@@ -487,14 +487,18 @@ message Metadata {
     bool default_import_export_policy = 173;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
+    // Ensure no configurations exist under BGP Peer Groups
+    bool set_no_peer_group = 175;
+    // Bgp community member is a string
+    bool bgp_community_member_is_a_string = 176;
     // support for ipv4 to ipv6 next hop
-    bool ipv4_static_route_with_ipv6_nh_unsupported = 175;
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 177;
     // support for ipv6 to ipv4 next hop
-    bool ipv6_static_route_with_ipv4_nh_unsupported = 176;
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 178;
     // support for static route with drop nh
-    bool static_route_with_drop_nh = 177;
+    bool static_route_with_drop_nh = 179;
     // support for static route with drop nh
-    bool static_route_with_explicit_metric = 178;
+    bool static_route_with_explicit_metric = 180;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
