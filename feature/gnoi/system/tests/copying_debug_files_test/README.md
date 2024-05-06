@@ -39,19 +39,22 @@
   
 * NOS implementations will need to model their agent that handles device configuration as a [" component of the type SOFTWARE_MODULE"](https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-types.yang#L394) and represent it under the componenets/component tree
 
+## OpenConfig Path and RPC Coverage
 
-## Config Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-N/A
+TODO(OCPATH): State paths (if any)
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
 
-## Protocol/RPC Parameter Coverage
+  ## State paths
 
-*   gNOI
-    *   System
-        *   KillProcess
-    *   Healthz
-        *   Get
-        *   Check
-        *   Artifact
+rpcs:
+  gnoi:
+    system.System.KillProcess:
+    healthz.Healthz.Artifact:
+    healthz.Healthz.Check:
+    healthz.Healthz.Get:
+```

@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,31 +21,60 @@
 package main
 
 import (
-	"flag"
+	goflag "flag"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/tools/internal/fpciutil"
 	"github.com/openconfig/featureprofiles/tools/internal/mdocspec"
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
 	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/exp/maps"
 )
 
 // Config is the set of flags for this binary.
 type Config struct {
-	DownloadPath string
+	DownloadPath   string
+	FeatureDir     string
+	NonTestREADMEs stringMap
+}
+
+func newConfig() *Config {
+	return &Config{
+		NonTestREADMEs: map[string]struct{}{},
+	}
+}
+
+type stringMap map[string]struct{}
+
+func (m stringMap) String() string {
+	return strings.Join(maps.Keys(m), ",")
+}
+
+func (m stringMap) Type() string {
+	return "stringMap"
+}
+
+func (m stringMap) Set(readmePath string) error {
+	m[readmePath] = struct{}{}
+	return nil
 }
 
 // New registers a flagset with the configuration needed by this binary.
 func New(fs *flag.FlagSet) *Config {
-	c := &Config{}
+	c := newConfig()
 
 	if fs == nil {
 		fs = flag.CommandLine
 	}
 	fs.StringVar(&c.DownloadPath, "download-path", "./tmp", "path into which to download OpenConfig GitHub repos for validation")
+	fs.StringVar(&c.FeatureDir, "feature-dir", "", "path to the feature directory of featureprofiles, for which all README.md files are validated for their coverage spec")
+	fs.Var(&c.NonTestREADMEs, "non-test-readme", "README that's exempt from coverage spec validation (can be specified multiple times)")
 
 	return c
 }
@@ -58,13 +87,48 @@ func init() {
 	config = New(nil)
 }
 
+func readmeFiles(featureDir string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(featureDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Name() != fpciutil.READMEname {
+			return nil
+		}
+
+		files = append(files, path)
+		return nil
+	})
+	return files, err
+}
+
 func main() {
+	flag.CommandLine.AddGoFlagSet(goflag.CommandLine) // for compatibility with glog
 	flag.Parse()
 
-	files := flag.NArg()
-	if files == 0 {
-		flag.Usage()
-		log.Exit("Must provide README files as arguments")
+	fileCount := flag.NArg()
+	var files []string
+	switch {
+	case fileCount != 0 && config.FeatureDir != "":
+		log.Exit("If -feature-dir flag is specified, README files must not be specified as positional arguments.")
+	case fileCount != 0:
+		files = flag.Args()
+	case config.FeatureDir == "":
+		var err error
+		config.FeatureDir, err = fpciutil.FeatureDir()
+		if err != nil {
+			log.Exitf("Unable to locate feature root: %v", err)
+		}
+		fallthrough
+	case config.FeatureDir != "":
+		var err error
+		files, err = readmeFiles(config.FeatureDir)
+		if err != nil {
+			log.Exitf("Error gathering README.md files for validation: %v", err)
+		}
+	default:
+		log.Exit("Program internal error: input not handled.")
 	}
 
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
@@ -76,7 +140,12 @@ func main() {
 	}
 
 	erredFiles := map[string]struct{}{}
-	for _, file := range flag.Args() {
+	for _, file := range files {
+		if _, ok := config.NonTestREADMEs[file]; ok {
+			// Allowlist
+			continue
+		}
+
 		log.Infof("Validating %q", file)
 		b, err := os.ReadFile(file)
 		if err != nil {
