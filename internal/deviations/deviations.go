@@ -936,3 +936,13 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
 }
+
+// SetNoPeerGroup Ensure that no BGP configurations exists under PeerGroups.
+func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNoPeerGroup()
+}
+
+// BgpCommunityMemberIsAString returns true if device community member is not a list
+func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
+}
