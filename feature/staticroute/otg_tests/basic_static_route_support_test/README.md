@@ -177,32 +177,36 @@
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 *   Validate that traffic is NOT received from DUT
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/recurse
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/recurse:
 
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/preference
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/recurse
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/preference:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/recurse:
 
-## Protocol/RPC Parameter Coverage
-
-*   gNMI
-    *   Get
-    *   Set
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 
