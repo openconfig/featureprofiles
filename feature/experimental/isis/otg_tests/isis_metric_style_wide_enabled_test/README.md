@@ -78,7 +78,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceed-max-seq-nums:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/id-len-mismatch:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/lsp-errors:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/manual-address-drop-from-area:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/manual-address-drop-from-areas:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/max-area-address-mismatches:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/own-lsp-purges:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes:
