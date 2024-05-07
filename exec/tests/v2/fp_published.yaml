@@ -774,8 +774,7 @@ tests:
       - arvbaska
     timeout: 3600    
     mustpass: true
-    internal: true
-    pr: 1105  
+    pr: 2889  
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/encap_decap_scale
     owners:

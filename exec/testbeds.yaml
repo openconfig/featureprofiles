@@ -35,7 +35,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40058
       gnmi_port: 50058
       
