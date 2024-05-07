@@ -1636,6 +1636,8 @@ github.com/open-traffic-generator/keng-operator v0.3.28 h1:FpDe1wtGODN7ByAhF2LxM
 github.com/open-traffic-generator/keng-operator v0.3.28/go.mod h1:+koaOnSyrJHdzxnaye+M6k+ZbszQlWI9u3tMxSpORNA=
 github.com/open-traffic-generator/snappi/gosnappi v1.3.0 h1:6SFSuZLTuncLW1xMcBG5HEvVCWh9wVuxiYb71C3yj7s=
 github.com/open-traffic-generator/snappi/gosnappi v1.3.0/go.mod h1:CaE4nisXftNXdXWvTSqb4eiW2WMFIXkJsH5rqPoipcg=
+github.com/openconfig/attestz v0.2.0 h1:VuksFIG1OlGnRuUpdTFAkMyAY59ITvyLbp4AtiTXV64=
+github.com/openconfig/attestz v0.2.0/go.mod h1:byY6H68zm3VXmQHEb4O4OZtRtFyHEjkmzrvIljYc79Y=
 github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31 h1:K/9O+J20+liIof8WjquMydnebD0N1U9ItjhJYF6H4hg=
 github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31/go.mod h1:ZRUrfwYYY+pLaOoWPad3p/8J4LLQcSqtXhBCkD2pXJc=
 github.com/openconfig/gnmi v0.0.0-20200414194230-1597cc0f2600/go.mod h1:M/EcuapNQgvzxo1DDXHK4tx3QpYM/uG4l591v33jG2A=
@@ -1671,8 +1673,8 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
-github.com/openconfig/ondatra v0.5.6 h1:1NkkmyPG8To5+aoAO1bIGEstfHB4My/Szc13IM+Kup8=
-github.com/openconfig/ondatra v0.5.6/go.mod h1:hFxrMsLsOmvOzHeUDDJZcypenZIo6lt6NrPOdDmnHHM=
+github.com/openconfig/ondatra v0.5.8 h1:hTkewcIRtOC6FOpcGThFZPS38EgCbfqh+uwlppMotiA=
+github.com/openconfig/ondatra v0.5.8/go.mod h1:6vT2uWz1neH/hDa4ZX8H8pT6sYZHvIftrUugQyG9RrA=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
