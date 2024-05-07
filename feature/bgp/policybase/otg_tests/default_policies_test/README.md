@@ -1,4 +1,4 @@
-# RT-7: BGP default policies
+# RT-7.1: BGP default policies
 
 ## Summary
 
@@ -23,7 +23,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
 * DUT:Port2 has IBGP peering with ATE:Port2 using its loopback interface. The loopback interface is reachable only via IS-IS. Ensure ATE:Port2 advertises IPv4-prefix4, IPv4-prefix5, IPv4-prefix6, IPv6-prefix4, IPv6-prefix5 and IPv6-prefix6 over IBGP. Please also configure IPv4-prefix8 and IPv6-prefix8 on ATE:Port2 but these shouldnt be advertised over IBGP to the DUT
 * Conduct following test procedures by applying policies at the Peer-group and Neighbor AFI-SAFI levels.
 
-### RT-7.1 : Policy definition in policy chain is not satisfied and Default Policy has REJECT_ROUTE action
+### RT-7.1.1 : Policy definition in policy chain is not satisfied and Default Policy has REJECT_ROUTE action
   * Create a default-policy REJECT-ALL with action as REJECT_ROUTE and apply the same to both IPV4-unicast and IPV6-unicast AFI-SAFI
   * Create policy EBGP-IMPORT-IPV4 that only accepts IPv4-prefix1 and IPv4-prefix2 and then terminates
   * Create policy EBGP-IMPORT-IPV6 that only accepts IPv6-prefix1 and IPv6-prefix2 and then terminates
@@ -44,7 +44,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 should reject export of IPv4-prefix2 and IPv6-prefix2
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
 
-### RT-7.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action  
+### RT-7.1.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action  
   * Continue with the same configuration as RT-7.1
   * Replace the default-policy REJECT-ALL with default-policy ACCEPT-ALL which has action ACCEPT_ROUTE.
   * Ensure ACCEPT-ALL default-policy is applied to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
@@ -55,7 +55,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 should allow export of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
       
-### RT-7.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action
+### RT-7.1.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action
   * Continue with the same configuration as RT-7.2. However, do not attach any non-default import/export policies to the peers at either the peer-group or neighbor levels.
   * Ensure that the ACCEPT-ALL default-policy with default action of ACCEPT_ROUTE is appled to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
   * Following test expectations. If expectations not met, the test should fail.
@@ -65,7 +65,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 should allow export of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
 
-### RT-7.4 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has REJECT_ROUTE action
+### RT-7.1.4 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has REJECT_ROUTE action
   * Continue with the same configuration as RT-7.3. Ensure no non-default import/export policies are applied to the peers at either the peer-group or neighbor levels.
   * Ensure that only the REJECT-ALL default-policy with default action of REJECT_ROUTE is appled to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
   * Following test expectations. If expectations not met, the test should fail.
@@ -75,7 +75,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 should reject export of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
 
-### RT-7.5 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for only IBGP peer
+### RT-7.1.5 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for only IBGP peer
 #### TODO: RT-7.5 should be automated only after the expected behavior is confirmed in https://github.com/openconfig/public/issues/981
   * Continue with the same configuration as RT-7.4. However, do not attach any non-default OR default import/export policies to the IBGP peer at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
   * Ensure that only the ACCEPT-ALL IMPORT/EXPORT default-policy with default action of ACCEPT_ROUTE is appled to the EBGP peer on both IPv4-unicast and IPv6-unicast AFI-SAFI
@@ -86,8 +86,8 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 should allow export of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
    
-### RT-7.6 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for both EBGP and IBGP peers
-#### TODO: RT-7.6 should be automated only after the expected behavior is confirmed in https://github.com/openconfig/public/issues/981
+### RT-7.1.6 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for both EBGP and IBGP peers
+#### TODO: RT-7.1.6 should be automated only after the expected behavior is confirmed in https://github.com/openconfig/public/issues/981
   * Continue with the same configuration as RT-7.5. However, do not attach any non-default OR default import/export policies to the IBGP and EBGP peers at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should reject import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3

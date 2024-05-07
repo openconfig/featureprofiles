@@ -1,12 +1,12 @@
-# RT-2.3: BGP Policy Community Set
+# RT-7.2: BGP Policy Community Set
 
 ## Summary
 
-BGP policy configuration for AS Paths and Community Sets
+BGP policy configuration for Community Sets
 
 ## Subtests
 
-* RT-2.3.1 - Setup BGP sessions
+* RT-7.2.1 - Setup BGP sessions
   * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
   * Configure ATE port 1 to advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
@@ -21,7 +21,7 @@ BGP policy configuration for AS Paths and Community Sets
   * Validate that traffic can be received on ATE port-1 for all installed
         routes.
 
-* RT-2.3.2 - Validate community-set
+* RT-7.2.2 - Validate community-set
   * Configure the following community sets on the DUT.
     * Create a community-set named `any_my_3_comms` with members as follows:
       * `{ community-member = [ "100:1", "200:2", "300:3" ] }`
@@ -38,16 +38,16 @@ BGP policy configuration for AS Paths and Community Sets
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_all_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ALL
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ALL
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_no_3_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'no_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = INVERT
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'no_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
       * actions/config/policy-result = ACCEPT_ROUTE
     * statement[name='accept_any_my_regex_comms']/
-      * conditions/bgp-conditions/match-as-path-set/config/as-path-set = 'all_3_comms'
-      * conditions/bgp-conditions/match-as-path-set/config/match-set-options = ANY
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'all_3_comms'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Send traffic from ATE port-2 to all prefix-sets.
@@ -63,8 +63,6 @@ BGP policy configuration for AS Paths and Community Sets
 | prefix-set-3 | reject         | reject      | accept     | accept             |
 | prefix-set-4 | reject         | reject      | accept     | reject             |
 
-* TODO: add coverage for link-bandwidth community in separate test.
-
 ## Config Parameter Coverage
 
 ### Policy definition
@@ -77,7 +75,9 @@ BGP policy configuration for AS Paths and Community Sets
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
 * /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
+* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/
 import-policy
 

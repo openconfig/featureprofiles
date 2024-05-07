@@ -267,8 +267,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 	agg := tc.top.Lags().Add().SetName("lag")
 	if tc.lagType == lagTypeSTATIC {
-		lagId, _ := strconv.Atoi(tc.aggID)
-		agg.Protocol().Static().SetLagId(uint32(lagId))
+		lagID, _ := strconv.Atoi(tc.aggID)
+		agg.Protocol().Static().SetLagId(uint32(lagID))
 		for i, p := range tc.atePorts {
 			port := tc.top.Ports().Add().SetName(p.ID())
 			newMac, err := incrementMAC(ateIPs.MAC, i+1)
@@ -352,9 +352,10 @@ func TestGNMIPortDown(t *testing.T) {
 	portStateAction.Port().Link().SetPortNames([]string{atePort.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
 
+	want := oc.Interface_OperStatus_DOWN
+	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 1*time.Minute, want)
 	dutPortStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State())
-
-	if want := oc.Interface_OperStatus_DOWN; dutPortStatus != want {
+	if dutPortStatus != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", dutPortStatus, want)
 	}
 
