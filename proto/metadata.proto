@@ -491,6 +491,8 @@ message Metadata {
     bool set_no_peer_group = 175;
     // Bgp community member is a string
     bool bgp_community_member_is_a_string = 176;
+    // Device does not support P4RT Capabilities rpc.
+    bool p4rt_capabilities_unsupported = 177;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

@@ -946,3 +946,8 @@ func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
 func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
 }
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}
