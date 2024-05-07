@@ -1,10 +1,10 @@
-// Copyright 2024 Google LLC
+// Copyright © 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      https://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// fpcli is a helper CLI for FP-related tooling
 package main
 
-var (
-	// nonTestREADMEs are exempt from coverage spec validation.
-	nonTestREADMEs = map[string]struct{}{
-		"security/gnsi/certz/test_data/README.md": {},
-		"experimental/p4rt/README.md":             {},
-	}
-)
+import "github.com/openconfig/featureprofiles/tools/fpcli/cmd"
+
+func main() {
+	cmd.Execute()
+}

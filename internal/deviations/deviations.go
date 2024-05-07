@@ -377,6 +377,11 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
+// RibWecmp returns if device requires CLI knob to enable wecmp feature.
+func RibWecmp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRibWecmp()
+}
+
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
@@ -905,4 +910,39 @@ func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
 // BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
 func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
+}
+
+// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
+func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
+}
+
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
+func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
+}
+
+// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
+
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
+}
+
+// SetNoPeerGroup Ensure that no BGP configurations exists under PeerGroups.
+func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNoPeerGroup()
+}
+
+// BgpCommunityMemberIsAString returns true if device community member is not a list
+func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
 }
