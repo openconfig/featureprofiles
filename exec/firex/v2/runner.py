@@ -57,25 +57,34 @@ whitelist_arguments([
     'collect_dut_info'
 ])
 
-def _get_go_root_path(ws=None):
+def _get_user_nobackup_path(ws=None):
     p = os.path.join('/nobackup', getuser())
     if os.access(p, os.W_OK | os.X_OK):
         return p
     return ws
         
 def _get_go_path():
-    return os.path.join(_get_go_root_path(), 'go')
+    return os.path.join(_get_user_nobackup_path(), 'go')
 
 def _get_go_bin_path():
     return os.path.join(_get_go_path(), 'bin')
+
+def _get_venv_path(ws=None):
+    return os.path.join(_get_user_nobackup_path(ws), 'b4_firex_venv')
+
+def _get_venv_python_bin(ws):
+    return os.path.join(_get_venv_path(ws), 'bin', 'python')
+
+def _get_venv_pip_bin(ws):
+    return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
     PATH = "{}:{}".format(
         os.path.dirname(GO_BIN), os.environ["PATH"]
     )
 
-    gorootpath = _get_go_root_path(ws)
-    gocache = os.path.join(gorootpath, '.gocache')
+    nobackup_path = _get_user_nobackup_path(ws)
+    gocache = os.path.join(nobackup_path, '.gocache')
     os.makedirs(gocache, exist_ok=True)
 
     return {
@@ -381,7 +390,7 @@ def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
         if testbed.get('sim', False): 
             return testbed
 
-        python_bin = os.path.join(ws, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
@@ -409,7 +418,7 @@ def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbe
     id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
-        python_bin = os.path.join(ws, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j release {id}')
         if output['status'] != 'ok':
@@ -1281,15 +1290,14 @@ def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
         os.path.join(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
     ]
     
-    venv_path = os.path.join(ws, 'venv')
-    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
-    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+    venv_path = _get_venv_path(ws)
+    venv_pip_bin = _get_venv_pip_bin(ws)
+    venv_python_bin = _get_venv_python_bin(ws)
 
-    if os.path.exists(venv_python_bin): 
-        return
+    if not os.path.exists(venv_python_bin): 
+        logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
     
     try:
-        logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
         logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
     except Exception as e:
         check_output(f'rm -rf {venv_path}')
@@ -1300,7 +1308,7 @@ def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
     try:
-        python_bin = os.path.join(ws, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
             check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
