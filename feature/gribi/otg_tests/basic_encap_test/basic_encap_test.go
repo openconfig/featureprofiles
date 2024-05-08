@@ -209,7 +209,7 @@ var (
 	}
 
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
+		Desc:       "dutPort2",
 		IPv4Sec:    "192.0.2.21",
 		IPv4LenSec: ipv4PrefixLen,
 	}
@@ -221,7 +221,7 @@ var (
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
+		Desc:       "dutPort3",
 		IPv4Sec:    "192.0.2.25",
 		IPv4LenSec: ipv4PrefixLen,
 	}
@@ -233,7 +233,7 @@ var (
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
-		Desc:    "dutPort4",
+		Desc:       "dutPort4",
 		IPv4Sec:    "192.0.2.29",
 		IPv4LenSec: ipv4PrefixLen,
 	}
@@ -245,7 +245,7 @@ var (
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.33",
 		IPv4LenSec: ipv4PrefixLen,
 	}

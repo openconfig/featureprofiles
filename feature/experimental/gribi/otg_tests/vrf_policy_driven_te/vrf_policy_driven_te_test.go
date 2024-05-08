@@ -257,7 +257,7 @@ var (
 		IPv6Len: 128,
 	}
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
+		Desc:       "dutPort2",
 		IPv4Sec:    "192.0.2.33",
 		IPv4LenSec: plenIPv4,
 	}
@@ -269,7 +269,7 @@ var (
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
+		Desc:       "dutPort3",
 		IPv4Sec:    "192.0.2.37",
 		IPv4LenSec: plenIPv4,
 	}
@@ -281,7 +281,7 @@ var (
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
-		Desc:    "dutPort4",
+		Desc:       "dutPort4",
 		IPv4Sec:    "192.0.2.41",
 		IPv4LenSec: plenIPv4,
 	}
@@ -293,7 +293,7 @@ var (
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.45",
 		IPv4LenSec: plenIPv4,
 	}
@@ -304,7 +304,7 @@ var (
 		IPv4Len: plenIPv4,
 	}
 	dutPort6DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.49",
 		IPv4LenSec: plenIPv4,
 	}
@@ -315,7 +315,7 @@ var (
 		IPv4Len: plenIPv4,
 	}
 	dutPort7DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.53",
 		IPv4LenSec: plenIPv4,
 	}
@@ -1933,19 +1933,20 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 	// v4 header stripped and are forwarded according to the route in the DEFAULT
 	// VRF that matches the inner IP address.
 	portList := []string{"port8"}
+	t.Run("Verify packets are decap & forward with Default vrf", func(t *testing.T) {
+		flow1 := createFlow(&flowArgs{flowName: "flow1",
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, InnHdrSrcIPv6: atePort1.IPv6,
+			InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
-	flow1 := createFlow(&flowArgs{flowName: "flow1",
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP1, InnHdrSrcIPv6: atePort1.IPv6,
-		InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false, outHdrDscp: []uint32{dscpEncapNoMatch}})
+		flow2 := createFlow(&flowArgs{flowName: "flow2",
+			outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIP: atePort1.IPv4,
+			InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, outHdrDscp: []uint32{dscpEncapNoMatch}})
 
-	flow2 := createFlow(&flowArgs{flowName: "flow2",
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIP: traffiDstIP2, InnHdrSrcIP: atePort1.IPv4,
-		InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true, outHdrDscp: []uint32{dscpEncapNoMatch}})
-
-	sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
-	verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
-	captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
-		outDstIP: []string{traffiDstIP1}, inHdrIP: ipv4InnerDst, validateTTL: false, validateDecap: true})
+		sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
+		verifyTraffic(t, args, []string{"flow1", "flow2"}, !wantLoss)
+		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
+			outDstIP: []string{traffiDstIP1}, inHdrIP: ipv4InnerDst, validateTTL: false, validateDecap: true})
+	})
 
 	// Test with packets with a destination address that does not match
 	// the decap route, and verify that such packets are not decapped.
