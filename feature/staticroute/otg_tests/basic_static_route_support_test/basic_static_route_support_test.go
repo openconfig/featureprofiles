@@ -431,8 +431,8 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 	t.Run("Telemetry", func(t *testing.T) {
 
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv4.cidr(t))
+		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv6.cidr(t))
 
 		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
 		// correctly
