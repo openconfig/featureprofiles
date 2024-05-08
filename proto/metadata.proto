@@ -491,6 +491,16 @@ message Metadata {
     bool set_no_peer_group = 175;
     // Bgp community member is a string
     bool bgp_community_member_is_a_string = 176;
+    // Flag to indicate whether IPv4 static routes with IPv6 next-hops are unsupported.
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 177;
+    // Flag to indicate whether IPv6 static routes with IPv4 next-hops are unsupported.
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 178;
+    // Flag to indicate support for static routes that simply drop packets
+    bool static_route_with_drop_nh = 179;
+    // Flag to indicate support for static routes that can be configured with an explicit metric.
+    bool static_route_with_explicit_metric = 180;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

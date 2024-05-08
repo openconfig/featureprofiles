@@ -935,6 +935,7 @@ func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 // BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
 func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
+
 }
 
 // SetNoPeerGroup Ensure that no BGP configurations exists under PeerGroups.
@@ -945,4 +946,24 @@ func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
 // BgpCommunityMemberIsAString returns true if device community member is not a list
 func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
+}
+
+// IPv4StaticRouteWithIPv6NextHopUnsupported unsupported ipv4 with ipv6 nexthop
+func IPv4StaticRouteWithIPv6NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv4StaticRouteWithIpv6NhUnsupported()
+}
+
+// IPv6StaticRouteWithIPv4NextHopUnsupported unsported ipv6 with ipv4 nexthop
+func IPv6StaticRouteWithIPv4NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NhUnsupported()
+}
+
+// StaticRouteWithDropNhUnsupported unsuported drop nexthop
+func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithDropNh()
+}
+
+// StaticRouteWithExplicitMetric set explict metric
+func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
 }
