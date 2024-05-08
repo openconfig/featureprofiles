@@ -344,65 +344,81 @@ ates {
   ports {
     id: "dut1_ate_port1"
     name: "7/3"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port2"
     name: "7/7"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port3"
     name: "7/5"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port4"
     name: "7/6"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port5"
     name: "7/4" # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port6"
     name: "7/8"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port7"
     name: "7/11"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
    id: "dut1_ate_port8"
    name: "7/12"  # Change this to the actual port name.
+    speed: S_10GB  
   }
     ports {
     id: "dut2_ate_port1"
     name: "9/9"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port2"
     name: "9/16"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port3"
     name: "9/11"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port4"
     name: "9/12"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port5"
     name: "9/13" # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port6"
     name: "9/14"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port7"
     name: "9/15"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
    id: "dut2_ate_port8"
    name: "9/10"  # Change this to the actual port name.
-  }
+   speed: S_10GB  
+  }   
 }
