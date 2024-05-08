@@ -144,42 +144,49 @@ In the topology above,
 
 ### Config paths
 
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config
-
-*   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
-
-*   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability
-
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style
-
-*   /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp
-
-*   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range/exact
-
-*   /routing-policy/policy-definitions/policy-definition/config/name
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
-
 ### Telemetry Parameter Coverage
 
-*   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp
-*   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight
-*   /interfaces/interface/state/counters/out-pkts
-*   /interfaces/interface/state/counters/in-pkts
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+TODO(OCPATH): Container path originally part of spec that needs to be separated
+into leaves: /routing-policy/defined-sets/prefix-sets/prefix-set:
+
+```yaml
+paths:
+  ## Config Paths ##
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/safi-name:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+    value: exact
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+    value: ACCEPT_ROUTE
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
+
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/in-pkts:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
