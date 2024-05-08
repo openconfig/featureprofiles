@@ -22,6 +22,8 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
+        Mode: [ "ON_CHANGE", "ONCE" ]
+    gNMI.Get:
 ```
 
 
