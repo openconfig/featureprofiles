@@ -87,17 +87,13 @@ func init() {
 	config = New(nil)
 }
 
-func readmeFiles(featureDir string, nonTestREADMEs stringMap) ([]string, error) {
+func readmeFiles(featureDir string) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(featureDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.Name() != fpciutil.READMEname {
-			return nil
-		}
-		if _, ok := nonTestREADMEs[path]; ok {
-			// Allowlist
 			return nil
 		}
 
@@ -116,7 +112,9 @@ func main() {
 	switch {
 	case fileCount != 0 && config.FeatureDir != "":
 		log.Exit("If -feature-dir flag is specified, README files must not be specified as positional arguments.")
-	case fileCount == 0 && config.FeatureDir == "":
+	case fileCount != 0:
+		files = flag.Args()
+	case config.FeatureDir == "":
 		var err error
 		config.FeatureDir, err = fpciutil.FeatureDir()
 		if err != nil {
@@ -125,12 +123,10 @@ func main() {
 		fallthrough
 	case config.FeatureDir != "":
 		var err error
-		files, err = readmeFiles(config.FeatureDir, config.NonTestREADMEs)
+		files, err = readmeFiles(config.FeatureDir)
 		if err != nil {
 			log.Exitf("Error gathering README.md files for validation: %v", err)
 		}
-	case fileCount != 0:
-		files = flag.Args()
 	default:
 		log.Exit("Program internal error: input not handled.")
 	}
@@ -145,6 +141,11 @@ func main() {
 
 	erredFiles := map[string]struct{}{}
 	for _, file := range files {
+		if _, ok := config.NonTestREADMEs[file]; ok {
+			// Allowlist
+			continue
+		}
+
 		log.Infof("Validating %q", file)
 		b, err := os.ReadFile(file)
 		if err != nil {

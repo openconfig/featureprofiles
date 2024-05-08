@@ -30,7 +30,7 @@ import (
 
 // ErrNotFound indicates the OpenConfig Path and RPC Coverage YAML block was
 // not found or was invalid.
-var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading titled %q, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md for example`, OCSpecHeading)
+var ErrNotFound = fmt.Errorf(`did not detect valid yaml block under a heading titled %q, please see https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md#openconfig-path-and-rpc-coverage for example, and https://github.com/openconfig/featureprofiles/tree/main/tools/fpcli/README.md for a tool for viewing the full names of all extant OC RPCs`, OCSpecHeading)
 
 // Parse extracts sorted OpenConfig Path and RPC Coverage from a
 // featureprofiles README.
