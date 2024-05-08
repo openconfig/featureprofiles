@@ -14,4 +14,19 @@ platform_exceptions: {
     missing_isis_interface_afi_safi_enable: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    isis_interface_afi_unsupported: true
+    isis_instance_enabled_required:  true
+    missing_value_for_defaults:  true
+    skip_isis_set_level:  true
+    skip_setting_disable_metric_propagation:  true
+  }
+}
