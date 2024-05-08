@@ -90,6 +90,8 @@ options {
 
 duts {
   id: "dut1"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   name: "DUT1"  # Change this to the device hostname.
 
   # Options inherited by all protocols on this device unless
@@ -208,6 +210,8 @@ duts {
 
 duts {
   id: "dut2"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   name: "DUT2"  # Change this to the device hostname.
 
   options {
