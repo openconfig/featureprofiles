@@ -642,11 +642,13 @@
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/match-set-options
 *  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/tag-set
 
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Get
-  * Set
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 

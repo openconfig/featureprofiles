@@ -27,7 +27,7 @@ platform_exceptions:  {
     default_network_instance: "default"
     missing_value_for_defaults: true
     skip_set_rp_match_set_options: true
-    default_import_export_policy: false
+    default_import_export_policy: true
 
   }
 }
