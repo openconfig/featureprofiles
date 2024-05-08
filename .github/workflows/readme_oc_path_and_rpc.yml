@@ -65,18 +65,27 @@ jobs:
         if [ ! -z "${HEAD}" ]; then
           readonly BASE="$(git merge-base origin/main "${HEAD}")"
 
-          echo "########## Changed READMEs to be validated:"
-          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort
+          affected_readmes=()
+          for f in $(git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | xargs -r dirname | sort -u | sed 's/$/\/README.md/'); do
+            if [ -f "$f" ]; then
+              affected_readmes+=("$f")
+            fi
+          done
 
-          echo "########## Validating Changed READMEs:"
-          git diff --name-only "${BASE}" "${HEAD}" | grep -E '^\W*feature' | grep -E 'README.md$' | sort | xargs validate_readme_spec --alsologtostderr "${exemption_flags[@]}"
+          echo "########## READMEs in changed directories to be validated (including ones to be exempted):"
+          printf '%s\n' "${affected_readmes[@]}"
+
+          echo "########## Validating READMEs in changed directories:"
+          for f in "${affected_readmes[@]}"; do
+            validate_readme_spec --alsologtostderr "${exemption_flags[@]}" "${f}"
+          done
         fi
 
         ##### END: Validate Changed Test READMEs #####
 
         echo "########## Validating already-converted READMEs:"
         validate feature/aft
-        validate feature/bgp/policybase/otg_tests/import_export_multi
+        validate feature/bgp/policybase/otg_tests/import_export_multi_test
         validate feature/gnmi
         validate feature/gnoi
         validate feature/isis

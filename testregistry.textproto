@@ -792,7 +792,7 @@ test: {
 test: {
   id: "RT-7.11"
   description: "RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import-export-multi/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import_export_multi_test/README.md"
   exec: " "
 }
 test: {
