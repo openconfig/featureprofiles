@@ -395,7 +395,7 @@ network-instances {
     * outer_src: `ipv4_outer_src_111`
     * outer_dst: `ipv4_outer_decap_match`
     * dscp: `dscp_encap_d`
-    * proto: `41`    
+    * proto: `41`
     ```
 
 3.  Send traffic to DUT-1, covering all the installed v4 and v6 entries in the decap and encap VRFs. Validate that all traffic are all decapped per the DECAP VRFs and then encapsulated per the ENCAP VRFs and received as encapsulated packet by ATE.
@@ -440,3 +440,43 @@ network-instances {
 ## Required DUT platform
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance:
+
+  ## State paths:
+  /network-instances/network-instance/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance:
+
+rpcs:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
