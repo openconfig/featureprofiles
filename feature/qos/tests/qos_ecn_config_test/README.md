@@ -106,7 +106,7 @@ paths used for test setup are not listed here.
 paths:
   ## Config paths
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
-  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-thresholdd:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop:
@@ -118,7 +118,7 @@ paths:
   ## State paths:
 
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold:
-  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-thresholdd:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/weight:
   /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/drop:
