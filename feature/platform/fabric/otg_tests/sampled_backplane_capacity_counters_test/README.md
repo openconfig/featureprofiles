@@ -75,19 +75,17 @@ This test if to verify that DUT supports gNMI Subscribe with ON_CHANGE for backp
 This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 ```yaml
 paths:
-## Config parameter coverage
+  ## Config parameter coverage
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /components/component/{fabric}/config/power-admin-state:
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
-*   /components/component/{fabric}/config/power-admin-state
-
-## Telemetry parameter coverage
-
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+  ## Telemetry parameter coverage
+  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
 
 rpcs:
   gnmi:
