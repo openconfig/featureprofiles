@@ -1682,19 +1682,25 @@ var (
 	phyInt = attrs.Attributes{
 		Name:    "PhysicalInt",
 		Desc:    "dutsrc",
-		IPv6:    "fe80::2",
+		IPv6:    "fe80::5",
 		IPv6Len: 128,
 	}
 	beInt = attrs.Attributes{
-		Name:    "BundleInt",
+		Name:    "BundleInt-1",
 		Desc:    "BundleInt",
-		IPv6:    "fe80::3",
+		IPv6:    "fe80::4",
 		IPv6Len: 128,
 	}
 	mgmtInt = attrs.Attributes{
 		Name:    "MgmntInt",
 		Desc:    "Management",
-		IPv6:    "fe80::4",
+		IPv6:    "fe80::3",
+		IPv6Len: 128,
+	}
+	beInt1 = attrs.Attributes{
+		Name:    "BundleInt-2",
+		Desc:    "BundleInt",
+		IPv6:    "fe80::2",
 		IPv6Len: 128,
 	}
 )
@@ -1728,7 +1734,7 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("configureDUTLinkLocalInterface - %s", interfaces.attr.Name)
 		time.Sleep(1 * time.Second)
 		Intf := interfaces.attr.NewOCInterface(interfaces.intf, dut)
-		if interfaces.attr.Name == "BundleInt" {
+		if interfaces.attr.Desc == "BundleInt" {
 			Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		}
 		subInt := Intf.GetOrCreateSubinterface(0)
@@ -1909,12 +1915,12 @@ func testInterfacetypeOnChange(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func testInterfacetypeanyOnChange2(t *testing.T, dut *ondatra.DUTDevice) {
+func testInterfacetypeanyOnChange(t *testing.T, dut *ondatra.DUTDevice) {
 
 	for _, interfaces := range interfaceList {
 		t.Logf("configure inetrafce %s", interfaces.intf)
 		intftype := oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		if interfaces.attr.Name == "BundleInt" {
+		if interfaces.attr.Desc == "BundleInt" {
 			intftype = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		} else {
 			intftype = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -1924,8 +1930,6 @@ func testInterfacetypeanyOnChange2(t *testing.T, dut *ondatra.DUTDevice) {
 			Type: intftype,
 		})
 	}
-	// fmt.Println(gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().SubinterfaceAny().Ipv6().AddressAny().Config()))
-
 	gotCount := 0
 	watcher := gnmi.WatchAll(t,
 		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
@@ -1933,6 +1937,7 @@ func testInterfacetypeanyOnChange2(t *testing.T, dut *ondatra.DUTDevice) {
 		time.Minute,
 		func(value *ygnmi.Value[*oc.Interface_Subinterface_Ipv6_Address]) bool {
 			ip, present := value.Val()
+			fmt.Printf("**val :%v\n", value)
 			if !present {
 				return false
 			}
@@ -1945,7 +1950,7 @@ func testInterfacetypeanyOnChange2(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 			t.Logf("intf - %s", intf)
 			t.Logf("ip - %s", ip.GetIp())
-			if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" {
+			if ip.GetIp() == "fe80::2" || ip.GetIp() == "fe80::3" || ip.GetIp() == "fe80::4" || ip.GetIp() == "fe80::5" {
 				gotCount += 1
 				t.Logf("Interface %s id updated to target value %v", intf, ip.GetIp())
 			}
@@ -1968,6 +1973,11 @@ func TestIPv6LinkLocal(t *testing.T) {
 	interfaceList = []InterfaceInfo{
 
 		{
+			name: "BundlelInt",
+			intf: "Bundle-Ether120",
+			attr: beInt,
+		},
+		{
 			name: "ManagementInt",
 			intf: "MgmtEth0/RP0/CPU0/0",
 			attr: mgmtInt,
@@ -1979,8 +1989,8 @@ func TestIPv6LinkLocal(t *testing.T) {
 		},
 		{
 			name: "BundlelInt",
-			intf: "Bundle-Ether120",
-			attr: beInt,
+			intf: "Bundle-Ether121",
+			attr: beInt1,
 		},
 	}
 	portData = []Data{
@@ -2127,6 +2137,6 @@ func TestIPv6LinkLocal(t *testing.T) {
 	})
 
 	t.Run("Configure Local Unicast IPv6 and verify and EDT", func(t *testing.T) {
-		testInterfacetypeanyOnChange2(t, dut)
+		testInterfacetypeanyOnChange(t, dut)
 	})
 }

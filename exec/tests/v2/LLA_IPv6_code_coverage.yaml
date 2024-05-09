@@ -1,11 +1,11 @@
-name: qos-ate 
+name: LLA-IPv6 
 owners: 
   - suredhar
 testbeds:
   - 8812-FOC2326NBZB
 tests:
-- name: qos-ate
-  path: feature/cisco/qos/ate_tests
+- name: LLA-IPv6
+  path: feature/cisco/interface
   timeout: 36000
   mustpass: true
   internal: true
