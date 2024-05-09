@@ -196,13 +196,14 @@ func getIakCert(t *testing.T, conn grpc.ClientConnInterface, inputType string) (
 	return resp, nil
 }
 
-func rotateOIAKCert(t *testing.T, conn grpc.ClientConnInterface, inputType string, oIAKCert string) (*enrollzpb.RotateOIakCertResponse, error) {
+func rotateOIAKCert(t *testing.T, conn grpc.ClientConnInterface, inputType string, oIAKCert string, oIDEVIDCert string) (*enrollzpb.RotateOIakCertResponse, error) {
 
 	request := &enrollzpb.RotateOIakCertRequest{
 		ControlCardSelection: &cpb.ControlCardSelection{
 			ControlCardId: nil,
 		},
-		OiakCert: oIAKCert,
+		OiakCert:    oIAKCert,
+		OidevidCert: oIDEVIDCert,
 	}
 
 	switch {
@@ -264,7 +265,7 @@ func getOptionsFromBindingFile() (*bindpb.Options, error) {
 
 func extractPubKeyFromCert(t *testing.T, cert string) (any, error) {
 	certFile := []byte(strings.Replace(string(cert), "\\n", "\n", -1))
-	t.Logf("Extracted Pubkey from IAK Cert:\n%s", string(certFile))
+	t.Logf("Extracted Pubkey from Cert:\n%s", string(certFile))
 
 	block, _ := pem.Decode(certFile)
 	if block == nil {
@@ -336,10 +337,14 @@ func signCertificate(csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.Pri
 	return certPEM, nil
 }
 
-func generateOiakCert(t *testing.T, iakCert string, dirName string, expiredCert bool) (string, error) {
-	pubKey, err := extractPubKeyFromCert(t, iakCert)
+func generateOiakCert(t *testing.T, resp *enrollzpb.GetIakCertResponse, dirName string, expiredCert bool) (string, string, error) {
+	iakPubKey, err := extractPubKeyFromCert(t, resp.IakCert)
 	if err != nil {
-		return "", err
+		return "", "", err
+	}
+	idevidPubKey, err := extractPubKeyFromCert(t, resp.IdevidCert)
+	if err != nil {
+		return "", "", err
 	}
 	caCertFile := path.Join(dirName, "cacert.rsa.pem")
 	caKeyFile := path.Join(dirName, "cakey.rsa.pem")
@@ -347,34 +352,38 @@ func generateOiakCert(t *testing.T, iakCert string, dirName string, expiredCert 
 	if err == nil {
 		err := os.Remove(caCertFile)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 	_, err = os.Stat(caKeyFile)
 	if err == nil {
 		err := os.Remove(caKeyFile)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 	caKey, caCert, err := cert.GenRootCA("ROOTCA", x509.RSA, 100, dirName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	pvtKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	csrPEM, err := generateCSR(pvtKey, "Google")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	signedCertPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), pubKey.(*rsa.PublicKey), expiredCert)
+	signedCertiakPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), iakPubKey.(*rsa.PublicKey), expiredCert)
+	if err != nil {
+		return "", "", err
+	}
+	signedCertidevidPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), idevidPubKey.(*rsa.PublicKey), expiredCert)
 
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return string(signedCertPEM), nil
+	return string(signedCertiakPEM), string(signedCertidevidPEM), nil
 }
 
 func generateOiakCertWithInValidPubKey(dirName string, expiredCert bool) (string, error) {
@@ -474,17 +483,25 @@ func verifySignature(t *testing.T, resp *attestzpb.AttestResponse) error {
 		t.Logf("Failed to read the Pubkey from OIAK Certificate")
 		return err
 	}
-	quoteSignData, err := hex.DecodeString(string(resp.QuoteSignature))
-	if err != nil {
-		t.Logf("Error decoding hex data: %v", err)
-		return err
-	}
-	quoteData, err := hex.DecodeString(string(resp.Quoted))
-	if err != nil {
-		t.Logf("Error decoding hex data: %v", err)
-		return err
-	}
+	// quoteSignData, err := hex.DecodeString(string(resp.QuoteSignature))
+	// if err != nil {
+	// 	t.Logf("Error decoding hex data: %v", err)
+	// 	return err
+	// }
+	// quoteData, err := hex.DecodeString(string(resp.Quoted))
+	// if err != nil {
+	// 	t.Logf("Error decoding hex data: %v", err)
+	// 	return err
+	// }
 
+	quoteSignData, err := base64.StdEncoding.DecodeString(string(resp.QuoteSignature))
+	if err != nil {
+		return err
+	}
+	quoteData, err := base64.StdEncoding.DecodeString(string(resp.Quoted))
+	if err != nil {
+		return err
+	}
 	hash := sha256.Sum256(quoteData)
 
 	err = rsa.VerifyPKCS1v15(pubKey.(*rsa.PublicKey), crypto.SHA256, hash[:], quoteSignData)
@@ -526,22 +543,18 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 }
 
-func verifyPCRValues(t *testing.T, pcrValFromCMD string, pcrValFromAttestZ map[int32][]byte) error {
+func verifyPCRValues(t *testing.T, dut *ondatra.DUTDevice, pcrIndices string, pcrValFromAttestZ map[int32][]byte, controllerCardLoc string) error {
+	pcrValFromCMD := CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("show  platform security attest pcr %s location %s", pcrIndices, controllerCardLoc))
+
 	pattern := regexp.MustCompile(`\d+\s+(.*?)=`)
 	pcrValList := pattern.FindAllString(pcrValFromCMD, -1)
 	errCount := 0
 	for i := 0; i < len(pcrValFromAttestZ); i++ {
-		hexBytes, err := hex.DecodeString(string(pcrValFromAttestZ[int32(i)]))
-		if err != nil {
-			t.Fatalf(fmt.Sprintf("Error decoding hex: %s", err))
-		}
-
-		base64Encoded := base64.StdEncoding.EncodeToString(hexBytes)
-		if strings.Contains(pcrValList[i], base64Encoded) {
+		if strings.Contains(pcrValList[i], string(pcrValFromAttestZ[int32(i)])) {
 			t.Logf("PCR value %d matched Successfully", i)
 		} else {
 			t.Logf("PCR value from cmd: %d: %s", i, pcrValList[i])
-			t.Logf("PCR value from AttestZ Request: %d: %s", i, base64Encoded)
+			t.Logf("PCR value from AttestZ Request: %d: %s", i, string(pcrValFromAttestZ[int32(i)]))
 			t.Logf("PCR value %d mismatch", i)
 			errCount = errCount + 1
 		}
@@ -554,21 +567,23 @@ func verifyPCRValues(t *testing.T, pcrValFromCMD string, pcrValFromAttestZ map[i
 
 func verifyControlCardId(t *testing.T, dut *ondatra.DUTDevice, controlCardIds *cpb.ControlCardVendorId, controllCard []string) error {
 
+	platformData := CMDViaGNMI(context.Background(), t, dut, "show platform")
+	pidPattern := regexp.MustCompile(`(.*)\((Active)`)
+	pid := pidPattern.FindString(platformData)
 	chassisData := CMDViaGNMI(context.Background(), t, dut, "show inventory chassis")
-	// pidPattern := regexp.MustCompile(`PID:\s+(.*)\s+,`)
-	// pid := pidPattern.FindString(chassisData)
+
 	snPattern := regexp.MustCompile(`SN:\s+(.*)\s+`)
 	serialNo := snPattern.FindString(chassisData)
 
 	errCount := 0
-	// if strings.Contains(pid, controlCardIds.ChassisPartNumber) {
-	// 	t.Logf("Chassid Part number verified successfully")
-	// } else {
-	// 	t.Logf("Chassis Part number from CMD: %s", pid)
-	// 	t.Logf("Chassis Part number from attestZ request: %s", controlCardIds.ChassisPartNumber)
-	// 	t.Logf("Chassid Part number mismatch")
-	// 	errCount = errCount + 1
-	// }
+	if strings.Contains(pid, controlCardIds.ChassisPartNumber) {
+		t.Logf("Chassid Part number verified successfully")
+	} else {
+		t.Logf("Chassis Part number from CMD: %s", pid)
+		t.Logf("Chassis Part number from attestZ request: %s", controlCardIds.ChassisPartNumber)
+		t.Logf("Chassid Part number mismatch")
+		errCount = errCount + 1
+	}
 	if strings.Contains(serialNo, controlCardIds.ChassisSerialNumber) {
 		t.Logf("Chassis Serial Number verified successfully")
 	} else {
@@ -675,18 +690,19 @@ func TestRotateOIak(t *testing.T) {
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
 			t.Run(fmt.Sprintf("Roatate OIAK Certificate with %s", cType), func(t *testing.T) {
-				var signedCertPEM string
+				var signedCertiakPEM string
+				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
 
 				resp, err := getIakCert(t, conn, cType)
 				if err != nil {
 					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
 				}
-				signedCertPEM, err = generateOiakCert(t, resp.IakCert, dirName, false)
+				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, resp, dirName, false)
 				if err != nil {
 					t.Fatalf("Error in generating OIAK Certificate: %v", err)
 				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM)
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM)
 				if err != nil {
 					t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
 				}
@@ -698,18 +714,19 @@ func TestRotateOIak(t *testing.T) {
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
 			t.Run(fmt.Sprintf("Roatate Expired OIAK Certificate with %s", cType), func(t *testing.T) {
-				var signedCertPEM string
+				var signedCertiakPEM string
+				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
 
 				resp, err := getIakCert(t, conn, cType)
 				if err != nil {
 					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
 				}
-				signedCertPEM, err = generateOiakCert(t, resp.IakCert, dirName, true)
+				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, resp, dirName, true)
 				if err != nil {
 					t.Fatalf("Error in generating OIAK Certificate: %v", err)
 				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM)
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM)
 				if err != nil {
 					if strings.Contains(err.Error(), "AttestZ client oIAK certificate not valid yet") {
 						t.Logf("Certificate not valid yet is an expected error")
@@ -723,14 +740,14 @@ func TestRotateOIak(t *testing.T) {
 	}
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate OIAK Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Roatate OIAK and ODEVID Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
 				var signedCertPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
 				signedCertPEM, err = generateOiakCertWithInValidPubKey(dirName, false)
 				if err != nil {
 					t.Fatalf("Error in generating OIAK Certificate: %v", err)
 				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM)
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM, signedCertPEM)
 				if err != nil {
 					if strings.Contains(err.Error(), "AttestZ client mismatch oIAK pubkey") {
 						t.Logf("AttestZ client mismatch OIAK pubkey is an expected error")
@@ -783,8 +800,7 @@ func TestGetPCRIndices(t *testing.T) {
 					t.Fatalf("Error in verifying signature %v", err)
 				}
 
-				pcrValues := CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("show  platform security attest pcr %s", pcrIndices))
-				err = verifyPCRValues(t, pcrValues, resp.PcrValues)
+				err = verifyPCRValues(t, dut, pcrIndices, resp.PcrValues, cardType[0])
 				if err != nil {
 					t.Fatalf(err.Error())
 				} else {
