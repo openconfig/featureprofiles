@@ -48,8 +48,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    internal: true
-    pr: 1113
+    pr: 2962  
   - name: TE-4.1 (Base Leader Election)
     path: feature/gribi/otg_tests/base_leader_election_test
     owners:
@@ -80,8 +79,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    internal: true
-    pr: 1113      
+    pr: 2962  
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -128,8 +126,7 @@ tests:
       - mananpat
     mustpass: true
     priority: 3
-    internal: true
-    pr: 1113  
+    pr: 2962  
   - name: TE-11.2 (Backup NHG Multiple NH)
     path: feature/gribi/otg_tests/backup_nhg_multiple_nh_test
     owners:
@@ -426,8 +423,7 @@ tests:
     mustpass: true
     priority: 48
     skip: false 
-    internal: true
-    pr: 1112
+    pr: 2963
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
@@ -755,27 +751,26 @@ tests:
     owners:
       - arvbaska
     mustpass: true
+    pr: 2887  
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     priority: 65
-    internal: true
-    pr: 1107  
   - name: TE-17.1 (DCGate Decap - VRF selection policy driven TE)
     path: feature/experimental/gribi/otg_tests/vrf_policy_driven_te
     owners:
       - arvbaska
     timeout: 3600  
     mustpass: true
-    internal: true
-    pr: 1103  
+    pr: 2887  
+    testbeds_exclude:
+      - 8201-32FH_FLM254206E7    
   - name: TE-16.2 (DCGate - encap FRR test)
     path: feature/gribi/otg_tests/encap_frr
     owners:
       - arvbaska
     timeout: 3600    
     mustpass: true
-    internal: true
-    pr: 1105  
+    pr: 2889  
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/encap_decap_scale
     owners:
