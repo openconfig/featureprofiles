@@ -79,18 +79,23 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
-  /components/component/{fabric}/config/power-admin-state:
+  /components/component/config/power-admin-state:
+    platform_type: ["FABRIC"]
 
   ## Telemetry parameter coverage
   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+    platform_type: ["INTEGRATED_CIRCUIT"]
   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
 
 rpcs:
   gnmi:
     gNMI.Set:
-    gNMI.Update:
+    Mode: [ "TARGET_DEFINED", "ON_CHANGE" ]
     gNMI.Subscribe:
 ```
 
