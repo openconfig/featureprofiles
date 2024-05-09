@@ -79,7 +79,7 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
-  /components/component/config/power-admin-state:
+  /components/component/fabric/config/power-admin-state:
     platform_type: ["FABRIC"]
 
   ## Telemetry parameter coverage
@@ -95,8 +95,8 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
-    Mode: [ "TARGET_DEFINED", "ON_CHANGE" ]
     gNMI.Subscribe:
+          Mode: [ "ON_CHANGE", "SAMPLE" ]
 ```
 
 ## Required DUT platform
