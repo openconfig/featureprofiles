@@ -401,22 +401,12 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			counters := make(map[string]map[string]uint64)
 			var counterNames []string
 
-			if !deviations.QOSDroppedOctets(dut) {
-				counterNames = []string{
+			counterNames = []string{
 
-					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-					"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
-					"dutQosDroppedOctetsAfterTraffic",
-				}
-			} else {
-				counterNames = []string{
-
-					"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
-					"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
-					"dutQosDroppedPktsAfterTraffic",
-				}
-
+				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
+				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
+				"dutQosDroppedOctetsBeforeTraffic", "dutQosDroppedPktsAfterTraffic",
+				"dutQosDroppedOctetsAfterTraffic",
 			}
 
 			for _, name := range counterNames {
@@ -450,13 +440,12 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				}
 				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-				if !deviations.QOSDroppedOctets(dut) {
-					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-					if !ok {
-						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
-					}
-					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+				if !ok {
+					t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
 				}
+				counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
+
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -476,9 +465,8 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
 				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
 				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				if !deviations.QOSDroppedOctets(dut) {
-					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
-				}
+				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
 				if ateTxPkts == 0 {
@@ -519,13 +507,12 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 					}
 				}
 
-				if !deviations.QOSDroppedOctets(dut) {
-					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-					t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-					if dutDropOctetCounterDiff != 0 {
-						t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
-					}
+				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+				t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+				if dutDropOctetCounterDiff != 0 {
+					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
 				}
+
 			}
 
 			// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
@@ -545,12 +532,11 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 					if len(droppedPkts) < minWant {
 						t.Errorf("DroppedPkts: got %d, want >= %d", len(droppedPkts), minWant)
 					}
-					if !deviations.QOSDroppedOctets(dut) {
-						droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
-						if len(droppedOctets) < minWant {
-							t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
-						}
+					droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
+					if len(droppedOctets) < minWant {
+						t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
 					}
+
 				}
 			}
 		})

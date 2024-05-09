@@ -32,7 +32,6 @@ platform_exceptions:  {
     vendor:  JUNIPER
   }
   deviations:  {
-    explicit_interface_ref_definition:  true
     gribi_decap_mixed_plen_unsupported:  true
   }
 }

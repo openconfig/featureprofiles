@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    explicit_interface_ref_definition: true
     backplane_facing_capacity_unsupported: true
   }
 }
