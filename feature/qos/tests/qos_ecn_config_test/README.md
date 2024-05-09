@@ -1,10 +1,10 @@
 # DP-1.3: QoS ECN feature config
 
-## Summary
+Summary
 
 Verify QoS ECN feature configuration.
 
-## Procedure
+Procedure
 
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2.
 
@@ -56,11 +56,11 @@ Verify QoS ECN feature configuration.
         *   Validate ECN profile can be applied under output interface queue using
             OC telemetry.
 
-## Config parameter coverage
+Config parameter coverage
 
 *   ECN
     *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold-percent
-    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent    
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
@@ -74,12 +74,12 @@ Verify QoS ECN feature configuration.
     *   /qos/interfaces/interface/output/queues/queue/config/name
     *   /qos/interfaces/interface/output/queues/queue/config/queue-management-profile
 
-## telemetry parameter coverage
+Telemetry parameter coverage
 
 *   ECN
 
     *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold-percent
-    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent  
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn
@@ -93,6 +93,11 @@ Verify QoS ECN feature configuration.
     *   /qos/interfaces/interface/output/queues/queue/state/name
     *   /qos/interfaces/interface/output/queues/queue/state/queue-management-profile
 
-## platform
+Protocol/RPC Parameter coverage
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+
+Minimum DUT platform requirement
 
  * vRX
