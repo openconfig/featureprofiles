@@ -93,7 +93,7 @@ Telemetry parameter coverage
     *   /qos/interfaces/interface/output/queues/queue/state/name
     *   /qos/interfaces/interface/output/queues/queue/state/queue-management-profile
 
-Protocol/RPC Parameter coverage
+OpenConfig Path and RPC Coverage
   gnmi:
     gNMI.Set:
       union_replace: true
