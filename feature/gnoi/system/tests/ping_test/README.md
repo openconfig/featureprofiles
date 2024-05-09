@@ -38,3 +38,14 @@ ICMP, which is default.
             interface MTU of a transit router to test do_not_fragment.
         *   TODO: verify these for vlan tagged vs untagged packets. May need +4
             bytes
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
+rpcs:
+  gnoi:
+    system.System.Ping:
+```
+
