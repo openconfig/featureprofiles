@@ -106,13 +106,9 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
-  /components/component/{fabric}/config/power-admin-state:
+  /components/component/fabric/config/power-admin-state:
 
-  ## State paths:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
-  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+  ## State paths: N/A
 
 rpcs:
   gnmi:
