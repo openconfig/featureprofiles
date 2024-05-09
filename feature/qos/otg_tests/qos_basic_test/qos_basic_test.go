@@ -399,9 +399,8 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 
 			counters := make(map[string]map[string]uint64)
-			var counterNames []string
 
-			counterNames = []string{
+			var counterNames = []string{
 
 				"ateOutPkts", "ateInPkts", "dutQosPktsBeforeTraffic", "dutQosOctetsBeforeTraffic",
 				"dutQosPktsAfterTraffic", "dutQosOctetsAfterTraffic", "dutQosDroppedPktsBeforeTraffic",
