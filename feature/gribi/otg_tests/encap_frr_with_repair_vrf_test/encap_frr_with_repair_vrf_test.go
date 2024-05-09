@@ -1477,6 +1477,14 @@ func TestEncapFrr(t *testing.T) {
 			}
 			sendTraffic(t, args, tc.capturePortList, captureState)
 			headerDstIP := map[string][]string{"outerIP": tc.encapHeaderOuterIPList, "innerIP": tc.encapHeaderInnerIPList}
+
+			if deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) {
+				if tc.encapUnviable == "primarySingle" || tc.encapUnviable == "primaryBackupSingle" || tc.encapUnviable == "primaryBackupRoutingSingle" {
+					tc.loadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
+				} else if tc.encapUnviable == "primaryAll" {
+					tc.loadBalancePercent = []float64{0, 0, 0, 0, 0, 0, 1}
+				}
+			}
 			verifyTraffic(t, args, tc.capturePortList, tc.loadBalancePercent, !wantLoss, checkEncap, headerDstIP)
 		})
 	}
