@@ -1,10 +1,10 @@
 # DP-1.3: QoS ECN feature config
 
-Summary
+## Summary
 
 Verify QoS ECN feature configuration.
 
-Procedure
+## Procedure
 
 *   Connect DUT port-1 to ATE port-1, DUT port-2 to ATE port-2.
 
@@ -56,7 +56,7 @@ Procedure
         *   Validate ECN profile can be applied under output interface queue using
             OC telemetry.
 
-Config parameter coverage
+## Config parameter coverage
 
 *   ECN
     *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold-percent
@@ -74,7 +74,7 @@ Config parameter coverage
     *   /qos/interfaces/interface/output/queues/queue/config/name
     *   /qos/interfaces/interface/output/queues/queue/config/queue-management-profile
 
-Telemetry parameter coverage
+## telemetry parameter coverage
 
 *   ECN
 
@@ -93,11 +93,42 @@ Telemetry parameter coverage
     *   /qos/interfaces/interface/output/queues/queue/state/name
     *   /qos/interfaces/interface/output/queues/queue/state/queue-management-profile
 
-OpenConfig Path and RPC Coverage
-  gnmi:
-    gNMI.Set:
-      union_replace: true
-
-Minimum DUT platform requirement
+## platform
 
  * vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-thresholdd:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/queue-management-profile:
+
+  ## State paths:
+
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-thresholdd:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/drop:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-drop-probability-percent:
+  /qos/interfaces/interface/input/classifiers/classifier/state/name:
+  /qos/interfaces/interface/output/queues/queue/state/name:
+  /qos/interfaces/interface/output/queues/queue/state/queue-management-profile:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
