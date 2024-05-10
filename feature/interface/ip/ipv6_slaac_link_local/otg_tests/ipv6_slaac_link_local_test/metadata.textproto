@@ -8,3 +8,11 @@ testbed: TESTBED_DUT
 tags: TAGS_AGGREGATION
 tags: TAGS_TRANSIT
 tags: TAGS_DATACENTER_EDGE
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
