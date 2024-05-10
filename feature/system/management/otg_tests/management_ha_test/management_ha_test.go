@@ -41,7 +41,6 @@ const (
 	prefixesCount = 1
 	pathID        = 1
 	defaultRoute  = "0:0:0:0:0:0:0:0"
-	dutAS         = 65501
 )
 
 var (
@@ -91,11 +90,10 @@ func TestManagementHA1(t *testing.T) {
 
 	configureEmulatedNetworks(bs)
 
-	bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(dutAS)
+	bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
 	if dut.Vendor() != ondatra.NOKIA {
-		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).SetRouteDistinguisher(fmt.Sprintf("%d:%d", dutAS, 100))
+		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
 	}
-	bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	bs.PushAndStart(t)
 	if verfied := verifyDUTBGPEstablished(t, bs.DUT, mgmtVRF); verfied {
 		t.Log("DUT BGP sessions established")
@@ -310,7 +308,6 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps")
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
-	batchSet.Set(t, dut)
 	if deviations.TableConnectionsUnsupported(dut) {
 		stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
 		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
@@ -332,9 +329,8 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 		tableConn1 := root.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
 		tableConn1.SetImportPolicy([]string{"rp"})
 		gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRF).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
-
-		batchSet.Set(t, dut)
 	}
+	batchSet.Set(t, dut)
 }
 
 func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut *ondatra.DUTDevice) {
