@@ -142,7 +142,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
 	myCommunitySets := []string{"50:1"}
 	if deviations.BgpCommunityMemberIsAString(dut) {
-		myCommunitySets = []string{"(^|\\s)30:[0-9]+($|\\s)"}
+		regexCommunities = []string{"(^|\\s)30:[0-9]+($|\\s)"}
 	}
 
 	root := &oc.Root{}
