@@ -1,4 +1,4 @@
-# gNMI-??: Telemetry: Fan Tray Type Test
+# gNMI-2.1: Telemetry: Fan Tray Type Test
 
 ## Summary
 
@@ -29,4 +29,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-N/A
+MMF
