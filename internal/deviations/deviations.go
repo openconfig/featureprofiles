@@ -377,6 +377,11 @@ func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
 }
 
+// RibWecmp returns if device requires CLI knob to enable wecmp feature.
+func RibWecmp(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRibWecmp()
+}
+
 // InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
 func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
@@ -875,8 +880,90 @@ func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
 }
 
-// Device missing 400ZR optical-channel tunable parameters telemetry.
-// Arista: https://partnerissuetracker.corp.google.com/issues/330777809
+// MissingZROpticalChannelTunableParametersTelemetry returns true for devices missing 400ZR
+// optical-channel tunable parameters telemetry: min/max/avg.
+// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
 func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
+}
+
+// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
+func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
+}
+
+// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
+func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
+}
+
+// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
+func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
+	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
+}
+
+// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
+func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
+}
+
+// BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
+func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
+}
+
+// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
+func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
+}
+
+// TableConnectionsUnsupported returns true if Table Connections are unsupported.
+func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
+}
+
+// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
+func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
+}
+
+// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
+}
+
+// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
+func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
+
+}
+
+// SetNoPeerGroup Ensure that no BGP configurations exists under PeerGroups.
+func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSetNoPeerGroup()
+}
+
+// BgpCommunityMemberIsAString returns true if device community member is not a list
+func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
+}
+
+// IPv4StaticRouteWithIPv6NextHopUnsupported unsupported ipv4 with ipv6 nexthop
+func IPv4StaticRouteWithIPv6NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv4StaticRouteWithIpv6NhUnsupported()
+}
+
+// IPv6StaticRouteWithIPv4NextHopUnsupported unsported ipv6 with ipv4 nexthop
+func IPv6StaticRouteWithIPv4NextHopUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NhUnsupported()
+}
+
+// StaticRouteWithDropNhUnsupported unsuported drop nexthop
+func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithDropNh()
+}
+
+// StaticRouteWithExplicitMetric set explict metric
+func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
 }

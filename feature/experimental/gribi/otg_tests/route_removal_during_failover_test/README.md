@@ -30,11 +30,18 @@ Validate gRIBI route flush during SSO
 
 *   Send traffic from ATE port-1 to prefixes in IPBlock1 and ensure traffic flows 100% and reaches ATE port-2.
 
-## Protocol/RPC Parameter coverage
-
-*   gNOI:
-    *   System
-        *   SwitchControlProcessor
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Config parameter coverage
 
