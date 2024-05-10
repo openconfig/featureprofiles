@@ -33,5 +33,5 @@ for target in sys.argv[1].split(','):
         created_on = datetime.datetime.fromisoformat(created_on_str)
         if created_on < datetime.datetime.now(created_on.tzinfo)-datetime.timedelta(days=1):
             print(f"Force deleting stale session: {session.Id}")
-            api_url = f"https://{u.hostname}:{port}/ixnetworkweb/api/v1/sessions/{session.Id}"
+            api_url = f"{u.scheme}://{u.hostname}:{port}/ixnetworkweb/api/v1/sessions/{session.Id}"
             requests.delete(api_url, headers={"X-Api-Key": api_key}, verify=False)
