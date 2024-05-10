@@ -14,16 +14,18 @@ Enable IPv6 on interface level so ipv6 address of link-local scope is generated/
 
 ## OpenConfig Path and RPC Coverage
 
+```yaml
 paths:
     ## Config paths
-    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip
+    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
     ## State paths
-    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip
+    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
 
 rpcs:
   gnmi:
     gNMI.Subscribe:
     gNMI.Set:
+```
 
 ## Protocol/RPC Parameter Coverage
 None
