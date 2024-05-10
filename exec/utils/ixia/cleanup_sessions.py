@@ -12,7 +12,7 @@ for target in sys.argv[1].split(','):
     if u.port: port = u.port
 
     test_platform = TestPlatform(u.hostname, port)
-    assert test_platform.Platform == "linux"
+    if not test_platform.Platform == "linux": continue
 
     test_platform.Authenticate(u.username, u.password)
     api_key = test_platform.ApiKey
