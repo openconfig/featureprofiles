@@ -24,26 +24,6 @@ def _lockfile(filename):
             raise
     return True
 
-def _unlockfile(filename):
-    if os.path.exists(filename):
-        os.remove(filename)
-    if filename in _session_locked_files:
-        _session_locked_files.remove(filename)
-
-def _lock_hw(hw):
-    if type(hw) == str:
-        return _lockfile(os.path.join(ldir, hw))
-    
-    locked = []
-    for e in hw:
-        if _lockfile(os.path.join(ldir, e)):
-            locked.append(e)
-        else:
-            for lf in locked:
-                _unlockfile(lf)
-            return False
-    return True
-
 def _print_table(rows):
   max_col_lens = list(map(max, zip(*[(len(str(cell)) for cell in row) for row in rows])))
   print('┌' + '┬'.join('─' * (n + 2) for n in max_col_lens) + '┐')
@@ -93,27 +73,25 @@ def _show(available_only=False, json_output=False):
     else:
         _print_table(data)
 
-def _get_testbed(id):
+def _get_testbed(id, json_output=False):
     for tb in testbeds:
         if tb['id'] == id:
             return tb
-    return None
+    if json_output: print(json.dumps({"status": "not found"}))
+    else: print(f"Testbed '{id}' not found.")
+    exit(1)
 
 def _trylock_helper(tb):
     if tb.get('sim', False):
         return True
-    return _lock_hw(tb['hw'])
+    lock_file = os.path.join(ldir, tb['hw'])
+    return _lockfile(lock_file)
 
 def _release_helper(tb):
-    if tb.get('sim', False):
-        return
-    
-    if type(tb['hw']) == str:
-        tb['hw'] = [tb['hw']]
-
-    for e in tb['hw']:
-        lock_file = os.path.join(ldir, e)
-        _unlockfile(lock_file)
+    if not tb.get('sim', False):
+        lock_file = os.path.join(ldir, tb['hw'])
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
 def _release_all(tbs):
     for tb in tbs:
@@ -153,12 +131,13 @@ def _release(testbeds, json_output=False):
 def _get_testbeds(ids, json_output=False):
     testbeds = []
     for id in ids.split(","):
-        tb = _get_testbed(id)
-        if not tb:
-            if json_output: print(json.dumps({"status": "not found"}))
-            else: print(f"Testbed '{id}' not found.")
-            exit(1)
-        testbeds.append(tb)
+        tb = _get_testbed(id, json_output)
+        hw = tb.get('hw', '')
+        if type(hw) == str or len(hw) <= 1:
+            testbeds.append(tb)
+        else:
+            for h in hw:
+                testbeds.append(_get_testbed(h, json_output))   
     return testbeds
     
 def _is_valid_file(parser, arg):
