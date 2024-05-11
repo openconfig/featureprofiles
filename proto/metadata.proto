@@ -283,10 +283,6 @@ message Metadata {
     bool ate_port_link_state_operations_unsupported = 94;
     // Creates a user and assigns role/rbac to said user via native model.
     bool set_native_user = 95;
-    // Devices require configuring lspRefreshInterval ISIS timer when
-    // lspLifetimeInterval is configured.
-    // Arista: partnerissuetracker.corp.google.com/293667850
-    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
     // Device does not support telemetry path
     // /components/component/cpu/utilization/state/avg for linecards' CPU card.
     bool linecard_cpu_utilization_unsupported = 98;
