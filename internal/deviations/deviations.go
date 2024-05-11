@@ -496,12 +496,6 @@ func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
 }
 
-// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
-// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
-func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
 // LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
 // /components/component/cpu/utilization/state/avg for linecards' CPU card.
 // Default value is false.
