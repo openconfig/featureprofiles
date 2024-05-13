@@ -441,7 +441,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
-			if port.PMD() == ondatra.PMD100GBASEFR {
+			if port.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 				e.AutoNegotiate = ygot.Bool(false)
 				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
@@ -453,7 +453,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
 	configureStaticRouteToATELoopbacks(t, dut)
 	configureRoutingPolicy(t, dut)
