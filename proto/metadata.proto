@@ -499,7 +499,8 @@ message Metadata {
     bool static_route_with_drop_nh = 179;
     // Flag to indicate support for static routes that can be configured with an explicit metric.
     bool static_route_with_explicit_metric = 180;
-
+    // Support for bgp default import/export policy
+    bool bgp_default_policy_unsupported = 181;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
