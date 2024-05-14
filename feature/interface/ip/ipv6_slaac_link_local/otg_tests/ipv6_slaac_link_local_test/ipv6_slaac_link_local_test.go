@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -29,7 +30,10 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ond
 
 	intf := &oc.Interface{Name: ygot.String(p.Name())}
 	intf.Description = ygot.String(intfDesc)
-	intf.GetOrCreateSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		intf.GetOrCreateSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+	}
 	intf.GetOrCreateSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), intf)
 }
