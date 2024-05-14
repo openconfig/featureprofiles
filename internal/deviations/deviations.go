@@ -967,3 +967,8 @@ func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
 }
+
+// Device does not support regex with routing-policy community-member.
+func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
+}
