@@ -51,10 +51,11 @@ func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, fr
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
+	t.Logf("Configured Interface = %v with targetOutputPower = %v and frequency = %v .", dp.Name(), targetOutputPower, frequency)
 }
 
 func verifyCDValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[float64], sensorName string, status portState) float64 {
-	CDSample := pStream.Next()
+	CDSample := pStream.Nexts(5)[4]
 	if CDSample == nil {
 		t.Fatalf("CD telemetry %s was not streamed in the most recent subscription interval", sensorName)
 	}
@@ -99,16 +100,51 @@ func verifyAllCDValues(t *testing.T, dut1 *ondatra.DUTDevice, p1StreamInstant, p
 
 }
 
+func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		default:
+			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
+		}
+	}
+	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
+	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for _, comp := range comps {
+		comp, ok := comp.Val()
+
+		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
+			return comp.GetName()
+		}
+	}
+	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
+	return ""
+}
+
+func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
+	for {
+		if comp.GetName() == parentHardwarePortName {
+			return true
+		}
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
+			return false
+		}
+		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
+	}
+}
+
 func TestCDValue(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
 	dp2 := dut1.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut1)
-
-	// Derive transceiver names from ports.
 	tr1 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	component1 := gnmi.OC().Component(tr1)
+	opticalCompName := opticalChannelComponentFromPort(t, dut1, dp1)
+	component1 := gnmi.OC().Component(opticalCompName)
 
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
@@ -126,8 +162,14 @@ func TestCDValue(t *testing.T) {
 			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
 			// Disable or shut down the interface on the DUT.
-			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
-			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), false)
+			if deviations.TransceiverComponentStateFlapUnsupported(dut1) {
+				gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
+				gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), false)
+			} else {
+				gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), false)
+				gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), false)
+			}
+
 			// Wait for channels to be down.
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
@@ -136,8 +178,13 @@ func TestCDValue(t *testing.T) {
 			time.Sleep(flapInterval)
 
 			// Re-enable interfaces.
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+			if deviations.TransceiverComponentStateFlapUnsupported(dut1) {
+				gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+				gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), true)
+			} else {
+				gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
+				gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+			}
 			// Wait for channels to be up.
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
@@ -152,29 +199,4 @@ func TestCDValue(t *testing.T) {
 	}
 }
 
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			return fmt.Sprintf("%s-Optical0", transceiverName)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
-	}
-}
+

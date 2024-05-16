@@ -972,3 +972,8 @@ func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
 }
+
+// TransceiverComponentStateFlapUnsupported returns true if transceiver component flap is unsupported
+func TransceiverComponentStateFlapUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverComponentStateFlapUnsupported()
+}
