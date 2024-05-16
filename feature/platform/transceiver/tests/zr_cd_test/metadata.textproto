@@ -14,7 +14,6 @@ platform_exceptions: {
     missing_port_to_optical_channel_component_mapping: true
   }
 }
-
 platform_exceptions: {
   platform: {
     vendor: JUNIPER

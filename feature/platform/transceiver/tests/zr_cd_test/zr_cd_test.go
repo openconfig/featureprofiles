@@ -198,5 +198,3 @@ func TestCDValue(t *testing.T) {
 		}
 	}
 }
-
-
