@@ -131,11 +131,15 @@ func TestSoftwareUpgrade(t *testing.T) {
 			t.Fatalf("Found unexpected image after install on %v", dut.ID())
 		}
 
-		if ret, err := sendCLI(t, dut, "clear configuration inconsistency"); err == nil {
-			t.Logf("%s", ret)
-		} else {
-			t.Logf("Error running command: %v. Ignoring...", err)
-		}
+		//TODO: remove one configuration inconsistency issue is resolved
+		time.Sleep(5 * time.Second)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if ret, err := sendCLI(t, dut, "clear configuration inconsistency"); err == nil {
+				t.Logf("%s", ret)
+			} else {
+				t.Logf("Error running command: %v. Ignoring...", err)
+			}
+		})
 	}
 }
 
