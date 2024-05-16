@@ -977,4 +977,3 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
-
