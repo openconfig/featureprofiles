@@ -12,17 +12,13 @@ import os
 def CerebroFilesForFeature(
     uid,
     feature_id,
-    platforms=None,
-    get_feature_files=True):
+    platforms=None):
     if platforms is None:
         platforms = list(CEREBRO_PLAT_NAME_TO_PLAT.keys())
 
-    if get_feature_files:
-        cerebro_feature_files = _cerebro_http_get_feature_id_path(
-            'getFiles', uid, feature_id,
-            required_response_keys=['files'])['files']
-    else:
-        cerebro_feature_files = []
+    cerebro_feature_files = _cerebro_http_get_feature_id_path(
+        'getFiles', uid, feature_id,
+        required_response_keys=['files'])['files']
 
     return cerebro_feature_files
 
