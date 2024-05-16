@@ -283,7 +283,7 @@ func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *
 	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
 		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
 	}
-	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
