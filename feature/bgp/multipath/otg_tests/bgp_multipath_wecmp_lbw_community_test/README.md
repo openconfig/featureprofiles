@@ -57,7 +57,7 @@ Validate BGP in multipath UCMP support with link bandwidth community
 *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=<id>]/state
 *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
 
-## Protocol/RPC Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
