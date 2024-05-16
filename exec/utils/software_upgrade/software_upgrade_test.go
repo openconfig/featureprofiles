@@ -130,6 +130,12 @@ func TestSoftwareUpgrade(t *testing.T) {
 		if !verifyInstall(t, dut, lineup, efr) {
 			t.Fatalf("Found unexpected image after install on %v", dut.ID())
 		}
+
+		if ret, err := sendCLI(t, dut, "clear configuration inconsistency"); err == nil {
+			t.Logf("%s", ret)
+		} else {
+			t.Logf("Error running command: %v. Ignoring...", err)
+		}
 	}
 }
 
@@ -234,6 +240,7 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
+	t.Logf("Running: %s", cmd)
 	out, err := sshClient.RunCommand(ctx, cmd)
 	return out.Output(), err
 }
