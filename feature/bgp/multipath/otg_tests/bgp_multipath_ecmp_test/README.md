@@ -84,10 +84,12 @@ Validate BGP in multipath scenario
 
 ## Protocol/RPC Parameter Coverage
 
-*   gNMI
-    *   Set
-    *   Subscribe
-
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
 ## Required DUT platform
 
 *   FFF - Fixed Form Factor

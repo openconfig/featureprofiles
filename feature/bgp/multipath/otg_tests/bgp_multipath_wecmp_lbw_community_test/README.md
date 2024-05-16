@@ -59,10 +59,12 @@ Validate BGP in multipath UCMP support with link bandwidth community
 
 ## Protocol/RPC Parameter Coverage
 
-*   gNMI
-    *   Set
-    *   Subscribe
-
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
 ## Required DUT platform
 
 *   FFF - Fixed Form Factor
