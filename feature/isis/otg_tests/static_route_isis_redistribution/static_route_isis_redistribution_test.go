@@ -296,43 +296,6 @@ func configureOTGFlows(t *testing.T, top gosnappi.Config, ts *isissession.TestSe
 	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
 }
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	b := &gnmi.SetBatch{}
-	i1 := isissession.DUTTrafficAttrs.NewOCInterface(p1.Name(), dut)
-	i2 := isissession.DUTISISAttrs.NewOCInterface(p2.Name(), dut)
-	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
-		i1.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-		i2.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-	}
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), i1)
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), i2)
-	b.Set(t, dut)
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-	}
-
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-	}
-}
-
-func configureDutISIS(t *testing.T) (ts *isissession.TestSession) {
-	ts = isissession.MustNew(t).WithISIS()
-	if err := ts.PushDUT(context.Background(), t); err != nil {
-		t.Fatalf("Unable to push initial DUT config: %v", err)
-	}
-
-	return ts
-}
-
 func advertiseRoutesWithISIS(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 
