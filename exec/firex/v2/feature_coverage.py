@@ -1,16 +1,37 @@
 from firexapp.engine.celery import app
 from microservices.firex_base import InjectArgs
 from microservices.chaintasks import RunTests
-from microservices.feature_coverage import CerebroGetTestsForFeature
+from firexkit.task import flame
+from microservices.feature_coverage import CEREBRO_PLAT_NAME_TO_PLAT, _cerebro_http_get_feature_id_path
 from diff2func import map_file_to_pims_comp
 import os
 
+@app.task(returns=['cerebro_feature_files'])
+@flame('feature_id', lambda feature_id: f"feature_id: {feature_id}")
+@flame('platforms', lambda platforms: f"platforms: {platforms}")
+def CerebroFilesForFeature(
+    uid,
+    feature_id,
+    platforms=None,
+    get_feature_files=True):
+    if platforms is None:
+        platforms = list(CEREBRO_PLAT_NAME_TO_PLAT.keys())
+
+    if get_feature_files:
+        cerebro_feature_files = _cerebro_http_get_feature_id_path(
+            'getFiles', uid, feature_id,
+            required_response_keys=['files'])['files']
+    else:
+        cerebro_feature_files = []
+
+    return cerebro_feature_files
+
 @app.task(bind=True)
 def B4FeatureCoverageRunTests(self, uid, feature_id, platforms=["8000"], testsuites=None):
-    get_tests_result = self.enqueue_child_and_get_results(
-        CerebroGetTestsForFeature.s(uid=uid, feature_id=feature_id, platforms=platforms))
+    cerebro_data = self.enqueue_child_and_get_results(
+        CerebroFilesForFeature.s(uid=uid, feature_id=feature_id, platforms=platforms))
 
-    cerebro_feature_files = get_tests_result['cerebro_feature_files']
+    cerebro_feature_files = cerebro_data['cerebro_feature_files']
     if not cerebro_feature_files:
         raise Exception(
             f"Cerebro has no files for {feature_id}. Coverage can't be found without "
