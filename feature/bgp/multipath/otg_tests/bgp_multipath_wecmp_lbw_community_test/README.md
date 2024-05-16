@@ -60,6 +60,18 @@ Validate BGP in multipath UCMP support with link bandwidth community
 ## Protocol/RPC Parameter Coverage
 
 ```yaml
+paths:
+  config:
+    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
+    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
+    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type
+    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled 
+  telemetry:
+    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state
+    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=<id>]/state
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops  
 rpcs:
   gnmi:
     gNMI.Get:
