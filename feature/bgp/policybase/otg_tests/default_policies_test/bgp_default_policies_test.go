@@ -15,6 +15,8 @@
 package bgp_default_policies_test
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -24,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -86,6 +89,7 @@ const (
 	ipv6Prefix7        = "2001:DB8:2::7"
 	ipv6Prefix8        = "2001:DB8:2::8"
 	maskLenExact       = "exact"
+	replacePolicy      = true
 )
 
 var (
@@ -162,6 +166,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
+	}
+
 }
 
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
@@ -437,7 +452,6 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantRx, wantSent uint32, isV4 bool) {
 	t.Helper()
-
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	t.Logf("Prefix telemetry on DUT for peer %v", nbr)
 
@@ -447,15 +461,25 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	} else {
 		prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 	}
-	if gotInstalled := gnmi.Get(t, dut, prefixPath.Installed().State()); gotInstalled != wantInstalled {
+	if gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotInstalled, ok := val.Val()
+		return ok && gotInstalled == wantInstalled
+	}).Await(t); !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
+
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx := gnmi.Get(t, dut, prefixPath.ReceivedPrePolicy().State()); gotRx != wantRx {
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+			gotRx, ok := val.Val()
+			return ok && gotRx == wantRx
+		}).Await(t); !ok {
 			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 		}
 	}
-	if gotSent := gnmi.Get(t, dut, prefixPath.Sent().State()); gotSent != wantSent {
+	if gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotSent, ok := val.Val()
+		return ok && gotSent == wantSent
+	}).Await(t); !ok {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
@@ -559,70 +583,134 @@ func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList
 	}
 }
 
+func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, action string, replace bool) {
+
+	var routingPolicyDefaultAction = []any{
+		map[string]any{
+			"default-action": map[string]any{
+				"policy-result": action,
+			},
+		},
+	}
+	defaultAction, err := json.Marshal(routingPolicyDefaultAction)
+	if err != nil {
+		t.Fatalf("Error with json Marshal: %v", err)
+	}
+
+	var updates []*gpb.Update
+	for _, policy := range []string{ebgpExportIPv4, ebgpExportIPv6, ibgpExportIPv4, ibgpExportIPv6, ebgpImportIPv4, ebgpImportIPv6, ibgpImportIPv4, ibgpImportIPv6} {
+		update := gpb.Update{
+			Path: &gpb.Path{
+				Elem: []*gpb.PathElem{
+					{Name: "routing-policy"},
+					{Name: "policy", Key: map[string]string{"name": policy}},
+				},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_JsonIetfVal{
+					JsonIetfVal: defaultAction,
+				},
+			},
+		}
+		updates = append(updates, &update)
+	}
+	gpbSetRequest := &gpb.SetRequest{
+		Prefix: &gpb.Path{
+			Origin: "native",
+		},
+		Update: updates,
+	}
+	if replace {
+		gpbSetRequest = &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Replace: updates,
+		}
+	}
+
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Unexpected error updating SRL routing-policy default-action: %v", err)
+	}
+	time.Sleep(5 * time.Second)
+}
+
 func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	t.Run("Create and apply default-policy REJECT-ALL with action as REJECT_ROUTE", func(t *testing.T) {
-		configureBGPDefaultPolicy(t, dut, rejectRoute)
+		if deviations.BgpDefaultPolicyUnsupported(dut) {
+			configureRoutingPolicyDefaultAction(t, dut, "reject", !replacePolicy)
+		} else {
+			configureBGPDefaultPolicy(t, dut, rejectRoute)
+		}
 	})
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ebgpExportIPv4}, importPol: []string{ebgpImportIPv4},
-		wantInstalled: 2, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 1, isV4: true})
+		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ebgpExportIPv6}, importPol: []string{ebgpImportIPv6},
-		wantInstalled: 2, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 1, isV4: false})
+		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ibgpExportIPv4}, importPol: []string{ibgpImportIPv4},
-		wantInstalled: 2, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 1, isV4: true})
+		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ibgpExportIPv6}, importPol: []string{ibgpImportIPv6},
-		wantInstalled: 2, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 1, isV4: false})
+		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
 }
 
 func testDefaultPolicyAcceptRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Run("Create and apply default-policy ACCEPT-ALL with action as ACCEPT_ROUTE", func(t *testing.T) {
-		configureBGPDefaultPolicy(t, dut, acceptRoute)
+		if deviations.BgpDefaultPolicyUnsupported(dut) {
+			configureRoutingPolicyDefaultAction(t, dut, "accept", !replacePolicy)
+		} else {
+			configureBGPDefaultPolicy(t, dut, acceptRoute)
+		}
 	})
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{ebgpExportIPv4}, importPol: []string{ebgpImportIPv4},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: true})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{ebgpExportIPv6}, importPol: []string{ebgpImportIPv6},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: false})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{ibgpExportIPv4}, importPol: []string{ibgpImportIPv4},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: true})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{ibgpExportIPv6}, importPol: []string{ibgpImportIPv6},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: false})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: false})
 }
 
 func testDefaultPolicyAcceptRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	t.Run("Create and apply default-policy ACCEPT-ALL with action as ACCEPT_ROUTE", func(t *testing.T) {
-		configureBGPDefaultPolicy(t, dut, acceptRoute)
-	})
-
-	t.Run("Delete prefix set policies", func(t *testing.T) {
-		deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
+		if deviations.BgpDefaultPolicyUnsupported(dut) {
+			configureRoutingPolicyDefaultAction(t, dut, "accept", replacePolicy)
+		} else {
+			configureBGPDefaultPolicy(t, dut, acceptRoute)
+			t.Run("Delete prefix set policies", func(t *testing.T) {
+				deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
+			})
+		}
 	})
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: true})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: false})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: true})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: acceptRoute,
 		defImportPol: acceptRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 3, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 3, isV4: false})
+		wantInstalled: 3, wantRx: 3, wantRxPrePolicy: 3, wantSent: 3, isV4: false})
 }
 
 func testNoPolicyConfiguredIBGPPeer(t *testing.T, dut *ondatra.DUTDevice) {
@@ -641,21 +729,25 @@ func testDefaultPolicyRejectRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 	t.Helper()
 
 	t.Run("Create and apply default-policy REJECT-ALL with action as REJECT_ROUTE", func(t *testing.T) {
-		configureBGPDefaultPolicy(t, dut, rejectRoute)
+		if deviations.BgpDefaultPolicyUnsupported(dut) {
+			configureRoutingPolicyDefaultAction(t, dut, "reject", replacePolicy)
+		} else {
+			configureBGPDefaultPolicy(t, dut, rejectRoute)
+		}
 	})
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 0, isV4: true})
+		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 0, isV4: false})
+		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 0, isV4: true})
+		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 3, wantRxPrePoloicy: 3, wantSent: 0, isV4: false})
+		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
 }
 
 func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice) {
@@ -687,11 +779,11 @@ func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 type peerDetails struct {
-	ipAddr                                            string
-	defExportPol, defImportPol                        oc.E_RoutingPolicy_DefaultPolicyType
-	exportPol, importPol                              []string
-	wantInstalled, wantRx, wantRxPrePoloicy, wantSent uint32
-	isV4                                              bool
+	ipAddr                                           string
+	defExportPol, defImportPol                       oc.E_RoutingPolicy_DefaultPolicyType
+	exportPol, importPol                             []string
+	wantInstalled, wantRx, wantRxPrePolicy, wantSent uint32
+	isV4                                             bool
 }
 
 func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *peerDetails) {
@@ -709,12 +801,14 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 
 	peerTel := gnmi.Get(t, dut, afiSafiPath.State())
 
-	if gotDefExPolicy := peerTel.GetApplyPolicy().GetDefaultExportPolicy(); gotDefExPolicy != nbr.defExportPol {
-		t.Errorf("Default export policy type mismatch: got %v, want %v", gotDefExPolicy, nbr.defExportPol)
-	}
+	if !deviations.BgpDefaultPolicyUnsupported(dut) {
+		if gotDefExPolicy := peerTel.GetApplyPolicy().GetDefaultExportPolicy(); gotDefExPolicy != nbr.defExportPol {
+			t.Errorf("Default export policy type mismatch: got %v, want %v", gotDefExPolicy, nbr.defExportPol)
+		}
 
-	if gotDefImPolicy := peerTel.GetApplyPolicy().GetDefaultImportPolicy(); gotDefImPolicy != nbr.defImportPol {
-		t.Errorf("Default import policy type mismatch: got %v, want %v", gotDefImPolicy, nbr.defImportPol)
+		if gotDefImPolicy := peerTel.GetApplyPolicy().GetDefaultImportPolicy(); gotDefImPolicy != nbr.defImportPol {
+			t.Errorf("Default import policy type mismatch: got %v, want %v", gotDefImPolicy, nbr.defImportPol)
+		}
 	}
 	if len(nbr.exportPol) != 0 {
 		if gotExportPol := peerTel.GetApplyPolicy().GetExportPolicy(); cmp.Diff(gotExportPol, nbr.exportPol) != "" {
@@ -727,19 +821,33 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 		}
 	}
 
-	if gotInstalled := peerTel.GetPrefixes().GetInstalled(); gotInstalled != nbr.wantInstalled {
+	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotInstalled, ok := val.Val()
+		return ok && gotInstalled == nbr.wantInstalled
+	}).Await(t); !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, nbr.wantInstalled)
 	}
+
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxPrePol := peerTel.GetPrefixes().GetReceivedPrePolicy(); gotRxPrePol != nbr.wantRxPrePoloicy {
-			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePoloicy)
+		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+			gotRxPrePol, ok := val.Val()
+			return ok && gotRxPrePol == nbr.wantRxPrePolicy
+		}).Await(t); !ok {
+			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePolicy)
 		}
 	}
-	if gotRx := peerTel.GetPrefixes().GetReceived(); gotRx != nbr.wantRx {
-		t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRx, nbr.wantRx)
+	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotRx, ok := val.Val()
+		return ok && gotRx == nbr.wantRx
+	}).Await(t); !ok {
+		t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, nbr.wantRx)
 	}
+
 	if nbr.defImportPol == oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE && !deviations.SkipNonBgpRouteExportCheck(dut) {
-		if gotSent := peerTel.GetPrefixes().GetSent(); gotSent != nbr.wantSent {
+		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+			gotSent, ok := val.Val()
+			return ok && gotSent == nbr.wantSent
+		}).Await(t); !ok {
 			t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, nbr.wantSent)
 		}
 	}
@@ -789,6 +897,9 @@ func TestBGPDefaultPolicies(t *testing.T) {
 
 	t.Run("Configure ISIS on DUT", func(t *testing.T) {
 		dutIsisIntfNames := []string{dut.Port(t, "port2").Name(), loopbackIntfName}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			dutIsisIntfNames = []string{dut.Port(t, "port2").Name() + ".0", loopbackIntfName + ".0"}
+		}
 		configureISIS(t, dut, dutIsisIntfNames, dutAreaAddress, dutSysID)
 	})
 
@@ -823,10 +934,17 @@ func TestBGPDefaultPolicies(t *testing.T) {
 	})
 
 	t.Run("Verify prefix telemetry on DUT for all iBGP and eBGP peers", func(t *testing.T) {
-		verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
-		verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
-		verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)
-		verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 3, !v4Prefixes)
+		if deviations.DefaultImportExportPolicy(dut) {
+			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 3, 3, 3, v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 3, v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 3, 3, 3, !v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 3, !v4Prefixes)
+		} else {
+			verifyPrefixesTelemetry(t, dut, atePort1.IPv4, 0, 3, 0, v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV4, 3, 3, 0, v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, atePort1.IPv6, 0, 3, 0, !v4Prefixes)
+			verifyPrefixesTelemetry(t, dut, otgIsisPort2LoopV6, 3, 3, 0, !v4Prefixes)
+		}
 	})
 
 	t.Run("Add static routes for ip prefixes IPv4/v6-prefix7 and IPv4/v6-prefix8", func(t *testing.T) {

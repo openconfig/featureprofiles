@@ -968,7 +968,13 @@ func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
 }
 
+// BgpDefaultPolicyUnsupported return true if BGP default-import/export-policy is not supported.
+func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
+}
+
 // Devices does not support bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
+
