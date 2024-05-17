@@ -74,9 +74,7 @@ func TestMain(m *testing.M) {
 func updateTelemetryPaths() {
 	if *args.NumControllerCards > 0 {
 		for mode, paths := range backplaneFacingCapacityPaths {
-			for _, path := range paths {
-				telemetryPaths[mode] = append(telemetryPaths[mode], path)
-			}
+			telemetryPaths[mode] = append(telemetryPaths[mode], paths...)
 		}
 	}
 }
