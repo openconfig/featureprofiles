@@ -501,6 +501,8 @@ message Metadata {
     bool static_route_with_explicit_metric = 180;
     // Support for bgp default import/export policy
     bool bgp_default_policy_unsupported = 181;
+    // Flag to check if transceiver component enable/disable config is supported
+    bool transceiver_component_state_flap_unsupported = 182;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
