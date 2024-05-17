@@ -81,9 +81,14 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		communitySet.SetCommunityMember(cs)
 		communitySet.SetMatchSetOptions(matchSetOptions)
 	}
-
+	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
-		communitySetCLIConfig := fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1'\n end-set", communitySetName)
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1'\n end-set", communitySetName)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
+		}
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
