@@ -156,6 +156,7 @@ func TestBGPSetup(t *testing.T) {
 	if !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 		gEBGP.AllowMultipleAs = ygot.Bool(true)
 	}
+
 	configureOTG(t, bs)
 	bs.PushAndStart(t)
 
