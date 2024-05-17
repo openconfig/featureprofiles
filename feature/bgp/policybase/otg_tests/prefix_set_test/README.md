@@ -72,7 +72,6 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
 
   ## State paths
-  ### Policy definition state
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance[name=DEFAULT]/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
   /network-instances/network-instance[name=DEFAULT]/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy:
