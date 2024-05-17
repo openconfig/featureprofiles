@@ -1691,12 +1691,6 @@ var (
 		IPv6:    "fe80::4",
 		IPv6Len: 128,
 	}
-	// mgmtInt = attrs.Attributes{
-	// 	Name:    "MgmntInt",
-	// 	Desc:    "Management",
-	// 	IPv6:    "fe80::3",
-	// 	IPv6Len: 128,
-	// }
 	beInt1 = attrs.Attributes{
 		Name:    "BundleInt-2",
 		Desc:    "BundleInt",
@@ -1977,11 +1971,6 @@ func TestIPv6LinkLocal(t *testing.T) {
 			intf: "Bundle-Ether120",
 			attr: beInt,
 		},
-		// {
-		// 	name: "ManagementInt",
-		// 	intf: "MgmtEth0/RP0/CPU0/0",
-		// 	attr: mgmtInt,
-		// },
 		{
 			name: "PhysicalInt",
 			intf: physicalInt1,
@@ -2002,10 +1991,6 @@ func TestIPv6LinkLocal(t *testing.T) {
 			port:   "Bundle-Ether120",
 			ipAddr: srcDUTGlobalIPv6,
 		},
-		// {
-		// 	port:   "MgmtEth0/RP0/CPU0/0",
-		// 	ipAddr: srcDUTGlobalIPv6,
-		// },
 	}
 
 	t.Run("Configure Local Unicast IPv6 and verify", func(t *testing.T) {
