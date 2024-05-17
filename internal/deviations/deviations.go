@@ -977,3 +977,8 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
+
+// Devices does not support multipath under neighbor or afisafi
+func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+}

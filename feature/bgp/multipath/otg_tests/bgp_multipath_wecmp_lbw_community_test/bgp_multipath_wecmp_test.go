@@ -95,8 +95,8 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	v4.Dst().SetValue(prefixesStart)
+	v4.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(bs.ATEPorts[0].IPv4)
+	v4.Dst().Increment().SetCount(3).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
@@ -116,8 +116,8 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
 	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	expectedPerLinkFmsP3 := (linkBw[0] / (linkBw[0] + linkBw[1])) * int(framesTx)
-	expectedPerLinkFmsP4 := (linkBw[1] / (linkBw[0] + linkBw[1])) * int(framesTx)
+	expectedPerLinkFmsP3 := int(float32(linkBw[0]) / (float32(linkBw[0] + linkBw[1])) * float32(framesTx))
+	expectedPerLinkFmsP4 := int(float32(linkBw[1]) / (float32(linkBw[0] + linkBw[1])) * float32(framesTx))
 	t.Logf("Total packets %d flow through the %d links and expected per link packets: %d, %d", framesTx, expectedLinks, expectedPerLinkFmsP3, expectedPerLinkFmsP4)
 
 	p3Min := expectedPerLinkFmsP3 - (expectedPerLinkFmsP3 * lbToleranceFms / 100)
@@ -146,6 +146,10 @@ func TestBGPSetup(t *testing.T) {
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, false)
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+	}
 	gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 
@@ -165,10 +169,8 @@ func TestBGPSetup(t *testing.T) {
 	prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
 	ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
 	hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-	if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
-		if got, want := len(hopGroup.NextHop), 2; got != want {
-			t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
-		}
+	if got, want := len(hopGroup.NextHop), 2; got != want {
+		t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
 	}
 
 	sleepTime := time.Duration(totalPackets/trafficPps) + 5
@@ -178,7 +180,5 @@ func TestBGPSetup(t *testing.T) {
 
 	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 	checkPacketLoss(t, bs.ATE)
-	if !deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
-		verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
-	}
+	verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
 }
