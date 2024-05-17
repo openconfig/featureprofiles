@@ -31,10 +31,13 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	intf := &oc.Interface{Name: ygot.String(p.Name())}
 	intf.Description = ygot.String(intfDesc)
 	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := intf.GetOrCreateSubinterface(0)
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		intf.GetOrCreateSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+		s.GetOrCreateIpv4().SetEnabled(true)
 	}
-	intf.GetOrCreateSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	if deviations.InterfaceEnabled(dut) {
+		s.GetOrCreateIpv6().SetEnabled(true)
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), intf)
 }
 

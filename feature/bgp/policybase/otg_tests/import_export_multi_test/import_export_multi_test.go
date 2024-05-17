@@ -116,7 +116,7 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -130,7 +130,6 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	policyV4.SetImportPolicy([]string{"routePolicy"})
 	policyV4.SetExportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
-
 }
 
 func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
@@ -272,9 +271,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(bgpActionMethod)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(bgpSetCommunityOptionType)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(bgpActionMethod)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(bgpSetCommunityOptionType)
 	}
 
 	stmt3.GetOrCreateActions().SetPolicyResult(nextstatementResult)
@@ -327,9 +326,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		// TODO: Add bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 	}
 	// set-local-pref = 5
 	stmt4.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)

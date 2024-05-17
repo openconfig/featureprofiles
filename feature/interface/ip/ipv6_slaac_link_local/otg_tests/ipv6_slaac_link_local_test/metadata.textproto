@@ -16,3 +16,11 @@ platform_exceptions: {
     ipv4_missing_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
