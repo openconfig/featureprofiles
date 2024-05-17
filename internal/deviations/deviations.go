@@ -972,3 +972,8 @@ func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
 }
+
+// Device does not support regex with routing-policy community-member.
+func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
+}
