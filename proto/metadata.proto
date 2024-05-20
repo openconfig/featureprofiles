@@ -501,6 +501,9 @@ message Metadata {
     bool static_route_with_explicit_metric = 180;
     // Support for bgp default import/export policy
     bool bgp_default_policy_unsupported = 181;
+    // Flag to enable bgp explicity on default vrf
+    // Arista: b/329094094#comment9
+    bool explicit_enable_bgp_on_default_vrf = 182;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
