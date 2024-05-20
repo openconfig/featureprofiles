@@ -972,3 +972,8 @@ func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
 }
+
+// ExplicitEnableBGPOnDefaultVRF return true if BGP needs to be explicity enabled on default VRF
+func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
+}

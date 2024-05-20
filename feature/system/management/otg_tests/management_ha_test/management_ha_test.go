@@ -52,7 +52,7 @@ var (
 		IPv6Len: 128,
 	}
 
-	mgmtVRF  = "mgmtvrf1"
+	mgmtVRF  = "mvrf1"
 	bgpPorts = []string{"port1", "port2"}
 
 	lossTolerance = float64(1)
@@ -90,7 +90,9 @@ func TestManagementHA1(t *testing.T) {
 
 	configureEmulatedNetworks(bs)
 
-	bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
+	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
+	}
 	if dut.Vendor() != ondatra.NOKIA {
 		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
 	}
@@ -170,6 +172,10 @@ func TestManagementHA1(t *testing.T) {
 			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
 		}
 	})
+
+	defer func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(mgmtVRF).Config())
+	}()
 }
 
 func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
