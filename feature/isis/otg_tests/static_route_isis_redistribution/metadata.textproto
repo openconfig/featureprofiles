@@ -4,7 +4,7 @@
 uuid: "1d0a79c7-7aa8-43a8-b83f-620d40fa1e1a"
 plan_id: "RT-2.12"
 description: "Static route to IS-IS redistribution"
-testbed: TESTBED_DUT_ATE_4LINKS
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -24,9 +24,10 @@ platform_exceptions: {
     omit_l2_mtu: true
     static_protocol_name: "STATIC"
     isis_interface_afi_unsupported: true
-    isis_instance_enabled_required:  true
-    missing_value_for_defaults:  true
-    skip_isis_set_level:  true
-    skip_setting_disable_metric_propagation:  true
+    isis_instance_enabled_required: true
+    missing_value_for_defaults: true
+    skip_isis_set_level: true
+    skip_setting_disable_metric_propagation: true
+    ipv6_static_route_with_ipv4_next_hop_requires_static_arp: true
   }
 }
