@@ -1691,6 +1691,14 @@ var (
 		IPv6:    "fe80::4",
 		IPv6Len: 128,
 	}
+	mgmtInt = attrs.Attributes{
+		Name:    "MgmntInt",
+		Desc:    "Management",
+		IPv6:    "fe80::3",
+		IPv6Len: 128,
+		IPv4:    "5.78.26.10",
+		IPv4Len: 16,
+	}
 	beInt1 = attrs.Attributes{
 		Name:    "BundleInt-2",
 		Desc:    "BundleInt",
@@ -1728,11 +1736,17 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("configureDUTLinkLocalInterface - %s", interfaces.attr.Name)
 		time.Sleep(1 * time.Second)
 		Intf := interfaces.attr.NewOCInterface(interfaces.intf, dut)
+		if interfaces.attr.Desc == "Management" {
+			Intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
 		if interfaces.attr.Desc == "BundleInt" {
 			Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		}
 		subInt := Intf.GetOrCreateSubinterface(0)
 		subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+		if interfaces.attr.Desc == "Management" {
+			subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+		}
 		subInt.GetOrCreateIpv6().GetOrCreateAddress(interfaces.attr.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
 	}
@@ -1916,10 +1930,11 @@ func testInterfacetypeanyOnChange(t *testing.T, dut *ondatra.DUTDevice) {
 		intftype := oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		if interfaces.attr.Desc == "BundleInt" {
 			intftype = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-		} else {
-			intftype = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		}
-		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), &oc.Interface{
+		// else {
+		// 	intftype = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		// }
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), &oc.Interface{
 			Name: ygot.String(interfaces.intf),
 			Type: intftype,
 		})
@@ -1977,6 +1992,11 @@ func TestIPv6LinkLocal(t *testing.T) {
 			attr: phyInt,
 		},
 		{
+			name: "ManagementInt",
+			intf: "MgmtEth0/RP0/CPU0/0",
+			attr: mgmtInt,
+		},
+		{
 			name: "BundlelInt",
 			intf: "Bundle-Ether121",
 			attr: beInt1,
@@ -2030,14 +2050,18 @@ func TestIPv6LinkLocal(t *testing.T) {
 	t.Run("Update LLA IPv6", func(t *testing.T) {
 
 		IPv6 := "fe80::1"
-
 		configureDUTLinkLocalInterface(t, dut)
 		for _, interfaces := range interfaceList {
 			Intf := &oc.Interface{Name: ygot.String(interfaces.intf)}
-			if interfaces.attr.Name == "BundleInt" {
+			if interfaces.attr.Desc == "BundleInt" {
 				Intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+			} else {
+				Intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			}
 			subInt := Intf.GetOrCreateSubinterface(0)
+			if interfaces.attr.Desc == "Management" {
+				subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+			}
 			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetPrefixLength(128)
 			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
