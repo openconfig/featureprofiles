@@ -87,8 +87,10 @@ specified operating temperature and voltage.
         * Typical measurement range 0 to 131 mA.
 
 ## OpenConfig Path and RPC Coverage
-The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
-    ```yaml
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
     paths:
         ## Config Paths ##
         /components/component/transceiver/config/enabled:
@@ -100,6 +102,5 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
         /components/component/optical-channel/state/laser-bias-current/max:
     rpcs:
         gnmi:
-            gNMI.Subscribe:
-            gNMI.Set:
-    ```
+        gNMI.Subscribe:
+```

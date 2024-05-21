@@ -55,8 +55,10 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
     *   Reported temperature value must always be of type decimal64. 
 
 ## OpenConfig Path and RPC Coverage
-The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
-    ```yaml
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
     paths:
         ## Config Paths ##
         /interfaces/interface/config/enabled:
@@ -67,6 +69,5 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
         /platform/components/component/state/temperature/avg:
     rpcs:
         gnmi:
-            gNMI.Subscribe:
-            gNMI.Set:
-    ```
+        gNMI.Subscribe:
+```
