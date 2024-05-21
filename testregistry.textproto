@@ -487,7 +487,7 @@ test: {
 test: {
   id: "RT-1.27"
   description: "Static route to BGP redistribution"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static-route_bgp_redistribution/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/static_route_bgp_redistribution/otg_tests/static_route_bgp_redistribution_test/README.md"
   exec: " "
 }
 test: {
@@ -769,7 +769,7 @@ test: {
 test: {
   id: "RT-7.5"
   description: "BGP Policy - Set Link Bandwidth Community"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/link_bandwidth_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/link_bandwidth_test/README.md"
 }
 test: {
   id: "RT-7.6"
@@ -792,7 +792,7 @@ test: {
 test: {
   id: "RT-7.11"
   description: "RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import-export-multi/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/import_export_multi_test/README.md"
   exec: " "
 }
 test: {
@@ -1035,14 +1035,14 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-9"
-  description: "MPLS based forwarding Static LSP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
-}
-test: {
   id: "TE-9.1"
   description: "Base gRIBI MPLS Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
+}
+test: {
+  id: "TE-9.2"
+  description: "MPLS based forwarding Static LSP"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
 }
 test: {
   id: "TE-10"
@@ -1241,6 +1241,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
 }
 test: {
+  id: "gNMI-1.22"
+  description: "Controller card port attributes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
+}
+test: {
   id: "gNMI-1.4"
   description: "Telemetry: Inventory"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/ate_tests/telemetry_inventory_test/README.md"
@@ -1333,6 +1338,12 @@ test: {
 test: {
   id: "gNOI-6.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/README.md"
+}
+test: {
+  id: "gNPSI-1"
+  description: "Sampling and Subscription Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
+  exec: " "
 }
 test: {
   id: "TRANSCEIVER-1"
