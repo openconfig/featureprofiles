@@ -100,6 +100,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
         /components/component/optical-channel/state/laser-bias-current/avg:
         /components/component/optical-channel/state/laser-bias-current/min:
         /components/component/optical-channel/state/laser-bias-current/max:
+    
     rpcs:
         gnmi:
         gNMI.Subscribe:

@@ -67,6 +67,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
         /platform/components/component/state/temperature/min:
         /platform/components/component/state/temperature/max:
         /platform/components/component/state/temperature/avg:
+    
     rpcs:
         gnmi:
         gNMI.Subscribe:
