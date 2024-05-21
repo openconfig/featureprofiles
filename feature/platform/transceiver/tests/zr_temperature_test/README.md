@@ -64,9 +64,13 @@ paths:
     /interfaces/interface/config/enabled:
     ## State Paths ##
     /components/component/state/temperature/instant:
+        platform_type: [ "TRANSCEIVER" ]
     /components/component/state/temperature/min:
+        platform_type: [ "TRANSCEIVER" ]
     /components/component/state/temperature/max:
+        platform_type: [ "TRANSCEIVER" ]
     /components/component/state/temperature/avg:
+        platform_type: [ "TRANSCEIVER" ]
     
 rpcs:
     gnmi:
