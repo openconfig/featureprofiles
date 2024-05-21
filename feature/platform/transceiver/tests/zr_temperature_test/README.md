@@ -56,7 +56,7 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 
 ## OpenConfig Path and RPC Coverage
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
-    ''' yaml
+    ```yaml
     paths:
         ## Config Paths ##
         /interfaces/interface/config/enabled
@@ -69,4 +69,4 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
         gnmi:
             gNMI.Subscribe:
             gNMI.Set:
-    '''
+    ```

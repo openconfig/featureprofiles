@@ -88,7 +88,7 @@ specified operating temperature and voltage.
 
 ## OpenConfig Path and RPC Coverage
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
-    ''' yaml
+    ```yaml
     paths:
         ## Config Paths ##
         /components/component/transceiver/config/enabled
@@ -102,4 +102,4 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
         gnmi:
             gNMI.Subscribe:
             gNMI.Set:
-    '''
+    ```
