@@ -63,10 +63,10 @@ paths:
     ## Config Paths ##
     /interfaces/interface/config/enabled:
     ## State Paths ##
-    /platform/components/component/state/temperature/instant:
-    /platform/components/component/state/temperature/min:
-    /platform/components/component/state/temperature/max:
-    /platform/components/component/state/temperature/avg:
+    /components/component/state/temperature/instant:
+    /components/component/state/temperature/min:
+    /components/component/state/temperature/max:
+    /components/component/state/temperature/avg:
     
 rpcs:
     gnmi:
