@@ -94,12 +94,17 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
     ## Config Paths ##
     /components/component/transceiver/config/enabled:
+        platform_type: [ "OPTICAL_CHANNEL" ]
     /interfaces/interface/config/enabled:
     ## State Paths ##
     /components/component/optical-channel/state/laser-bias-current/instant:
+        platform_type: [ "OPTICAL_CHANNEL" ]
     /components/component/optical-channel/state/laser-bias-current/avg:
+        platform_type: [ "OPTICAL_CHANNEL" ]
     /components/component/optical-channel/state/laser-bias-current/min:
+        platform_type: [ "OPTICAL_CHANNEL" ]
     /components/component/optical-channel/state/laser-bias-current/max:
+        platform_type: [ "OPTICAL_CHANNEL" ]
     
 rpcs:
     gnmi:
