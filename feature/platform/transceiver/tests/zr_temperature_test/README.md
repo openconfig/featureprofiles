@@ -59,12 +59,12 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
     ```yaml
     paths:
         ## Config Paths ##
-        /interfaces/interface/config/enabled
+        /interfaces/interface/config/enabled:
         ## State Paths ##
-        /platform/components/component/state/temperature/instant
-        /platform/components/component/state/temperature/min
-        /platform/components/component/state/temperature/max
-        /platform/components/component/state/temperature/avg
+        /platform/components/component/state/temperature/instant:
+        /platform/components/component/state/temperature/min:
+        /platform/components/component/state/temperature/max:
+        /platform/components/component/state/temperature/avg:
     rpcs:
         gnmi:
             gNMI.Subscribe:
