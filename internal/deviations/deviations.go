@@ -977,3 +977,8 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
 }
+
+// RequireAllowMultiASWithAFI returns true if BGP requires allow-multi-as with AFI.
+func RequireAllowMultiASWithAFI(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireAllowMultiAsWithAfi()
+}

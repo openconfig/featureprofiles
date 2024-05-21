@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    require_allow_multi_as_with_afi : true
   }
 }
 platform_exceptions: {

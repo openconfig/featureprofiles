@@ -15,6 +15,8 @@
 package bgp_multipath_ecmp_test
 
 import (
+	"fmt"
+	"math/rand"
 	"sort"
 	"strconv"
 	"testing"
@@ -79,12 +81,12 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	for i := 1; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
-	flow := bs.ATETop.Flows().Add().SetName("flow")
+	flow := bs.ATETop.Flows().Add().SetName(fmt.Sprintf("flow-%s", strconv.Itoa(1)))
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().
 		SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4"}).
 		SetRxNames(rxNames)
-	flow.Duration().FixedPackets().SetPackets(totalPackets)
+	flow.Duration().FixedPackets().SetPackets(totalPackets / 4)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
 
@@ -93,6 +95,19 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
 	v4.Dst().SetValue(prefixesStart)
+	v4.Priority().Dscp().Phb().SetValue(10)
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 10000))
+	udp.DstPort().SetValues(randRange(50001, 10000))
+
+}
+func randRange(max int, count int) []uint32 {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	for len(result) < count {
+		result = append(result, uint32(rand.Intn(max)))
+	}
+	return result
 }
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
@@ -123,7 +138,7 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
-	countersPath := gnmi.OTG().Flow("flow").Counters()
+	countersPath := gnmi.OTG().Flow(fmt.Sprintf("flow-%s", strconv.Itoa(1))).Counters()
 	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.InPkts().State())
 	txPackets := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
 	lostPackets := txPackets - rxPackets
@@ -134,6 +149,7 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 	if got := lostPackets * 100 / txPackets; got != lossTolerancePct {
 		t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerancePct)
 	}
+
 }
 
 type testCase struct {
@@ -178,7 +194,13 @@ func TestBGPSetup(t *testing.T) {
 				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
 			}
 			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
-				gEBGP.AllowMultipleAs = ygot.Bool(true)
+				if deviations.RequireAllowMultiASWithAFI(bs.DUT) {
+					multAS := bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+					multAS.SetAllowMultipleAs(true)
+				} else {
+					gEBGP.AllowMultipleAs = ygot.Bool(true)
+				}
+
 			}
 
 			configureOTG(t, bs)
