@@ -1,4 +1,3 @@
-
 # TRANSCEIVER-8: Telemetry: 400ZR Optics module temperature streaming.
 
 ## Summary
@@ -55,13 +54,19 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
         any invalid string values like "nil" or "-inf".
     *   Reported temperature value must always be of type decimal64. 
 
-OpenConfig Path and RPC Coverage
+## OpenConfig Path and RPC Coverage
 The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
+    ''' yaml
     paths:
-        ## Config Parameter coverage
+        ## Config Paths ##
         /interfaces/interface/config/enabled
-        ## Telemetry Parameter coverage
+        ## State Paths ##
         /platform/components/component/state/temperature/instant
         /platform/components/component/state/temperature/min
         /platform/components/component/state/temperature/max
         /platform/components/component/state/temperature/avg
+    rpcs:
+        gnmi:
+            gNMI.Subscribe:
+            gNMI.Set:
+    '''
