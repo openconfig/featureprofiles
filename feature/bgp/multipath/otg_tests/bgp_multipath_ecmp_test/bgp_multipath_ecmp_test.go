@@ -86,7 +86,7 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	flow.TxRx().Device().
 		SetTxNames([]string{bs.ATEPorts[0].Name + ".IPv4"}).
 		SetRxNames(rxNames)
-	flow.Duration().FixedPackets().SetPackets(totalPackets / 4)
+	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
 
