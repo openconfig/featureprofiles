@@ -59,16 +59,16 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
-    paths:
-        ## Config Paths ##
-        /interfaces/interface/config/enabled:
-        ## State Paths ##
-        /platform/components/component/state/temperature/instant:
-        /platform/components/component/state/temperature/min:
-        /platform/components/component/state/temperature/max:
-        /platform/components/component/state/temperature/avg:
+paths:
+    ## Config Paths ##
+    /interfaces/interface/config/enabled:
+    ## State Paths ##
+    /platform/components/component/state/temperature/instant:
+    /platform/components/component/state/temperature/min:
+    /platform/components/component/state/temperature/max:
+    /platform/components/component/state/temperature/avg:
     
-    rpcs:
-        gnmi:
+rpcs:
+    gnmi:
         gNMI.Subscribe:
 ```

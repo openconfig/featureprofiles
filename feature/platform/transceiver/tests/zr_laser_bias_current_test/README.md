@@ -91,17 +91,17 @@ specified operating temperature and voltage.
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
-    paths:
-        ## Config Paths ##
-        /components/component/transceiver/config/enabled:
-        /interfaces/interface/config/enabled:
-        ## State Paths ##
-        /components/component/optical-channel/state/laser-bias-current/instant:
-        /components/component/optical-channel/state/laser-bias-current/avg:
-        /components/component/optical-channel/state/laser-bias-current/min:
-        /components/component/optical-channel/state/laser-bias-current/max:
+paths:
+    ## Config Paths ##
+    /components/component/transceiver/config/enabled:
+    /interfaces/interface/config/enabled:
+    ## State Paths ##
+    /components/component/optical-channel/state/laser-bias-current/instant:
+    /components/component/optical-channel/state/laser-bias-current/avg:
+    /components/component/optical-channel/state/laser-bias-current/min:
+    /components/component/optical-channel/state/laser-bias-current/max:
     
-    rpcs:
-        gnmi:
+rpcs:
+    gnmi:
         gNMI.Subscribe:
 ```
