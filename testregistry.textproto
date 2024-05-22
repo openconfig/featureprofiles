@@ -318,6 +318,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "Health-1.1"
+  description: "Healthz component status paths"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
+  exec: " "
+}
+test: {
   id: "IC-1"
   description: "Integrated Circuit Utilization and Thresholds"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"

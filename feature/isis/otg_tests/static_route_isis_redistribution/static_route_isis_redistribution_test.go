@@ -170,7 +170,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn.SetDisableMetricPropagation(metricPropagation)
 	}
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
+	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
 	if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
 		addfmly = oc.Types_ADDRESS_FAMILY_IPV6
@@ -182,7 +182,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn1.SetDisableMetricPropagation(metricPropagation)
 	}
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
+	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
 
 	batchSet.Set(t, dut)
 }
@@ -330,6 +330,13 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string,
 	}
 }
 
+func getTagSetName(dut *ondatra.DUTDevice, policyName, stmtName, afStr string) string {
+	if deviations.RoutingPolicyTagSetEmbedded(dut) {
+		return fmt.Sprintf("%s %s", policyName, stmtName)
+	}
+	return fmt.Sprintf("tag-set-%s", afStr)
+}
+
 func TestStaticToISISRedistribution(t *testing.T) {
 	var ts *isissession.TestSession
 
@@ -381,7 +388,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		tagSet                    string
 		tagValue                  oc.UnionUint32
 	}{{
-		desc:                      "RT-2.12.1: Redistribute IPv4 static route to IS-IS with metric propogation diabled",
+		desc:                      "RT-2.12.1: Redistribute IPv4 static route to IS-IS with metric propagation disabled",
 		metricPropogation:         false,
 		protoAf:                   oc.Types_ADDRESS_FAMILY_IPV4,
 		defaultImportPolicyConfig: true,
@@ -389,7 +396,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		RplStatement:              "PASS-ALL",
 		policyStmtType:            oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	}, {
-		desc:                      "RT-2.12.2: Redistribute IPv4 static route to IS-IS with metric propogation enabled",
+		desc:                      "RT-2.12.2: Redistribute IPv6 static route to IS-IS with metric propagation disabled",
 		metricPropogation:         false,
 		protoAf:                   oc.Types_ADDRESS_FAMILY_IPV6,
 		defaultImportPolicyConfig: true,
@@ -397,7 +404,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		RplStatement:              "PASS-ALL",
 		policyStmtType:            oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 	}, {
-		desc:                      "RT-2.12.3: Redistribute IPv6 static route to IS-IS with metric propogation diabled",
+		desc:                      "RT-2.12.3: Redistribute IPv4 static route to IS-IS with metric propagation enabled",
 		metricPropogation:         true,
 		protoAf:                   oc.Types_ADDRESS_FAMILY_IPV4,
 		defaultImportPolicyConfig: true,
@@ -424,7 +431,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		desc:               "RT-2.12.6: Redistribute IPv4 static route to IS-IS matching a prefix using a route-policy",
 		importPolicyConfig: true,
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
-		rplPrefixMatch:     v4Route,
+		rplPrefixMatch:     v4Route + "/" + strconv.FormatUint(uint64(v4RoutePrefix), 10),
 		PrefixSet:          v4PrefixSet,
 		RplName:            v4RoutePolicy,
 		prefixMatchMask:    prefixMatch,
@@ -443,13 +450,13 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v4Flow},
-		tagSet:             "tag-set-v4",
+		tagSet:             getTagSetName(ts.DUT, v4RoutePolicy, v4Statement, "v4"),
 		tagValue:           100,
 	}, {
 		desc:               "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
 		importPolicyConfig: true,
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV6,
-		rplPrefixMatch:     v6Route,
+		rplPrefixMatch:     v6Route + "/" + strconv.FormatUint(uint64(v6RoutePrefix), 10),
 		PrefixSet:          v6PrefixSet,
 		RplName:            v6RoutePolicy,
 		prefixMatchMask:    prefixMatch,
@@ -458,7 +465,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v6Flow},
 	}, {
-		desc:               "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
+		desc:               "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a tag",
 		importPolicyConfig: true,
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
 		RplName:            v6RoutePolicy,
@@ -467,7 +474,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v4Flow},
-		tagSet:             "tag-set-v6",
+		tagSet:             getTagSetName(ts.DUT, v6RoutePolicy, v6Statement, "v6"),
 		tagValue:           100,
 	}}
 
