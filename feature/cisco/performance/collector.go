@@ -1,218 +1,419 @@
 package performance
 
 import (
-	"math"
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Collector struct {
-	sync.WaitGroup
-	CpuLogs [][]*oc.System_Cpu
-	// MemLogs []*oc.System_Memory
-	MemLogs []MemData
+type PerformanceData struct {
+	Timestamp          string `bson:"timestamp,omitempty" json:"timestamp"`
+	PartNo             string `bson:"partNo,omitempty" json:"partNo"`
+	SoftwareVersion    string `bson:"softwareVersion,omitempty" json:"softwareVersion"`
+	Release            string `bson:"release,omitempty" json:"release"`
+	Name               string `bson:"name,omitempty" json:"name"`
+	SerialNo           string `bson:"serialNo,omitempty" json:"serialNo"`
+	Location           string `bson:"location,omitempty" json:"location"`
+	Type               string `bson:"type,omitempty" json:"type"`
+	Feature            string `bson:"type,omitempty" json:"feature"`
+	Trigger            string `bson:"trigger,omitempty" json:"trigger"`
+	FinishedCollecting FinishedCollecting
+	ProcessData        []ProcessData `bson:"processData,omitempty" json:"processData"`
+	MemoryUsed         float64       `bson:"memoryUsed,omitempty" json:"memoryUsed"`
+	MemoryFree         float64       `bson:"memoryFree,omitempty" json:"memoryFree"`
+	CpuUser            float64       `bson:"cpuUser,omitempty" json:"cpuUser"`
+	CpuKernel          float64       `bson:"cpuKernel,omitempty" json:"cpuKernel"`
 }
 
-func CollectAllData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
-	t.Helper()
-	collector := &Collector{
-		CpuLogs: make([][]*oc.System_Cpu, 0),
-		// MemLogs: make([]*oc.System_Memory, 0),
-		MemLogs: make([]MemData, 0),
+type ProcessData struct {
+	ProcessName string  `bson:"processName,omitempty" json:"processName"`
+	ProcessMem  float64 `bson:"processMem,omitempty" json:"processMem"`
+	ProcessCpu  float64 `bson:"processCpu,omitempty" json:"processCpu"`
+}
+
+type FinishedCollecting bool
+
+const (
+	During FinishedCollecting = false
+	Done   FinishedCollecting = true
+)
+
+type FinishCollection func()
+
+// Starts background data collection. returns function which stops the collection when called
+func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string) (FinishCollection, error) {
+	t.Logf("Collector starting at %s", time.Now())
+
+	// openconfig-system:system/state
+	sys := gnmi.Get(t, dut, gnmi.OC().System().State())
+
+	// openconfig-platform:components/component/state
+	platform := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+
+	var dataEntries []PerformanceData
+
+	data := PerformanceData{
+		// Platform: "8201",
+		SoftwareVersion: sys.GetSoftwareVersion(),
+		// Release:  "24.2.1",
+		Feature: featureName,
+		Trigger: triggerName,
 	}
-	collector.Add(2)
-	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
-	// go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
-	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
-	return collector
-}
 
-func CollectCpuData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
-	t.Helper()
-	collector := &Collector{
-		CpuLogs: make([][]*oc.System_Cpu, 0),
-	}
-	collector.Add(1)
-	go receiveCpuData(t, getCpuData(t, dut, frequency, duration), collector)
-	return collector
-}
-
-func CollectMemData(t *testing.T, dut *ondatra.DUTDevice, frequency time.Duration, duration time.Duration) *Collector {
-	t.Helper()
-	collector := &Collector{
-		MemLogs: make([]MemData, 0),
-	}
-	collector.Add(1)
-	go receiveMemData(t, getMemData(t, dut, frequency, duration), collector)
-	return collector
-}
-
-func getCpuData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan []*oc.System_Cpu {
-	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
-	t.Helper()
-	cpuChan := make(chan []*oc.System_Cpu, 100)
-
-	go func() {
-		ticker := time.NewTicker(freq)
-		timer := time.NewTimer(dur)
-		done := false
-		defer close(cpuChan)
-		for !done {
-			select {
-			case <-ticker.C:
-				var data []*oc.System_Cpu
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					data = gnmi.GetAll(t, dut, gnmi.OC().System().CpuAny().State())
-					// Cisco-IOS-XR-wdsysmon-fd-oper:system-monitoring/cpu-utilization
-					t.Logf("CPU Data: \n %s\n", util.PrettyPrintJson(data))
-				}); errMsg != nil {
-					t.Logf("CPU collector failed: %s", *errMsg)
-					continue
-				}
-				cpuChan <- data
-			case <-timer.C:
-				done = true
+	for _, component := range platform {
+		switch component.GetType() {
+		case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD:
+			if component.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+				data.Type = "RP"
 			}
+		case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD:
+			data.Type = "LC"
+		default:
+			continue
 		}
-	}()
+		data.PartNo = component.GetPartNo()
+		data.Name = component.GetName()
+		data.Location = component.GetLocation()
+		data.SerialNo = component.GetSerialNo()
+		dataEntries = append(dataEntries, data)
+	}
 
-	return cpuChan
+	t.Logf("Image: %+v", data)
+
+	for _, entry := range dataEntries {
+		fmt.Printf("data entry: %+v\n", entry)
+	}
+
+	completedChan := make(chan FinishedCollecting, 1)
+
+	// begin collection thread
+	resultChan := collectAllData(t, dut, completedChan, dataEntries)
+
+	var results []PerformanceData
+
+	finish := func() {
+		t.Logf("Collector finished at %s", time.Now())
+		completedChan <- Done
+		results = <-resultChan
+
+		err := pushToDB(results)
+		if err != nil {
+			t.Fatalf("Could not push to DB: %s", err)
+		}
+	}
+
+	return finish, nil
 }
 
-func getMemData(t *testing.T, dut *ondatra.DUTDevice, freq time.Duration, dur time.Duration) chan MemData {
-	// oc leaves for memory do not work!! and cpu information require extra analysis, commenting this code for now
-	t.Helper()
-	// memChan := make(chan *oc.System_Memory, 100)
-	memChan := make(chan MemData, 100)
+func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan FinishedCollecting, perfData []PerformanceData) chan []PerformanceData {
+	wg := &sync.WaitGroup{}
+	resultChan := make(chan []PerformanceData)
+	results := []PerformanceData{}
+	mu := &sync.Mutex{}
+	stageChannelsMultiplexed := []chan FinishedCollecting{}
+	for _, data := range perfData {
+		wg.Add(1)
 
-	go func() {
-		ticker := time.NewTicker(freq)
-		timer := time.NewTimer(dur)
-		done := false
-		defer close(memChan)
-		for !done {
-			select {
-			case <-ticker.C:
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					// Cisco-IOS-XR-wd-oper:watchdog/nodes/node/memory-state
-					// var data MemData
-					// data, err := GetAllNativeModel(t, dut, "Cisco-IOS-XR-wd-oper:watchdog/nodes/node/memory-state")
-					data, err := DeserializeMemData(t, dut)
-					if err != nil {
-						t.Logf("Memory collector failed: %s", err)
+		stageChanCurrent := make(chan FinishedCollecting, 1)
+		stageChannelsMultiplexed = append(stageChannelsMultiplexed, stageChanCurrent)
+
+		go func(dataCurrent PerformanceData, stageChanCurrent chan FinishedCollecting) {
+			defer wg.Done()
+			t.Logf("Starting collection for component: %s", dataCurrent.Name)
+			cliClient := dut.RawAPIs().CLI(t)
+			t.Logf("Established client for component: %s", dataCurrent.Name)
+			ticker := time.NewTicker(time.Second)
+			dataCurrent.FinishedCollecting = <-stageChanCurrent
+			done := false
+			for !done {
+				select {
+				case dataCurrent.FinishedCollecting = <-stageChanCurrent:
+					if dataCurrent.FinishedCollecting == Done {
+						t.Logf("Received done signal on component: %s", dataCurrent.Name)
+						done = true
 					}
+				case <-ticker.C:
+					if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+						var finalData *PerformanceData
+						var err error
+						switch dataCurrent.Type {
+						case "RP":
+							finalData, err = TopCpuMemoryUtilization(t, dut, cliClient, dataCurrent)
+							if finalData != nil {
+								t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
+							}
+						case "LC":
+							finalData, err = TopLineCardCpuMemoryUtilization(t, dut, cliClient, dataCurrent)
+							if finalData != nil {
+								t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
+							}
+						}
 
-					// Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id
-					// nativeModelObj2, err := GetAllNativeModel(t, dut, "Cisco-IOS-XR-procmem-oper:processes-memory/nodes/node/process-ids/process-id")
-					// if err != nil {
-					// 	t.Logf("Memory collector failed: %s", err)
-					// } else {
-					// 	t.Logf("Mem Data: \n %s\n", util.PrettyPrintJson(nativeModelObj2))
-					// }
-					memChan <- *data
-				}); errMsg != nil {
-					t.Logf("Memory collector failed: %s", *errMsg)
-					continue
+						if err != nil {
+							t.Logf("Could not get response on component %s (%s), attempting to reestablish client", dataCurrent.Name, err)
+							cliClient = dut.RawAPIs().CLI(t)
+						}
+
+						if finalData != nil {
+							mu.Lock()
+							results = append(results, *finalData)
+							mu.Unlock()
+						}
+
+					}); errMsg != nil {
+						t.Logf(*errMsg)
+						continue
+					}
 				}
-			case <-timer.C:
-				done = true
+			}
+		}(data, stageChanCurrent)
+	}
+
+	// multiplex message of trigger status
+	go func() {
+		for stage := range stageChan {
+			for i, channel := range stageChannelsMultiplexed {
+				t.Logf("Waiting to forward %s to channel %d", stage, i)
+				channel <- stage
+				t.Logf("Forward %s to channel %d", stage, i)
 			}
 		}
 	}()
 
-	return memChan
+	go func() {
+		wg.Wait()
+		resultChan <- results
+	}()
+
+	return resultChan
 }
 
-func receiveCpuData(t *testing.T, cpuChan chan []*oc.System_Cpu, collector *Collector) {
-	t.Helper()
-	defer collector.Done()
-	for cpuData := range cpuChan {
-		// TODO: change from log to capture
-		t.Logf("\nCPU INFO:, t: %s\n%s\n", time.Now(), util.PrettyPrintJson(cpuData))
-		collector.CpuLogs = append(collector.CpuLogs, cpuData)
+// CLI Parser that runs the top linux command on the DUT
+func TopCpuMemoryUtilization(t testing.TB, dut *ondatra.DUTDevice, cliClient binding.CLIClient, data PerformanceData) (*PerformanceData, error) {
+	if cliClient == nil {
+		return nil, errors.New("CLI client not established")
 	}
-}
+	command := "run top -b | head -n 30"
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	cliOutput, err := cliClient.RunCommand(ctx, command)
 
-func receiveMemData(t *testing.T, memChan chan MemData, collector *Collector) {
-	t.Helper()
-	defer collector.Done()
-	for memData := range memChan {
-		// TODO: change from log to capture
-		t.Logf("\nMemory INFO:, t: %s\n%s\n", time.Now(), util.PrettyPrintJson(memData))
-		collector.MemLogs = append(collector.MemLogs, memData)
+	// if ctx.Err() == context.DeadlineExceeded {
+	// 	return nil, errors.New("context deadline exceeded")
+	// }
+
+	if err != nil {
+		return nil, err
 	}
-}
 
-type MemVerifier struct {
-	freeMemoryAvgBefore int
-	usedMemoryAvgBefore int
-	freeMemoryAvgAfter  int
-	usedMemoryAvgAfter  int
-	memoryStateAfter    string
-}
+	lines := strings.Split(cliOutput.Output(), "\n")
+	// procRe := regexp.MustCompile(`^\s*\d+\s+\w+\s+\d+\s+-?\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+(\d+\.\d+)`)
+	memRe := regexp.MustCompile(`MiB Mem :\s+(\d+\.\d+) total,\s+(\d+\.\d+) free,\s+(\d+\.\d+) used`)
+	cpuRe := regexp.MustCompile(`\%Cpu\(s\):\s+(\d+\.\d+)\s+us,\s+(\d+\.\d+)\s+sy,.+`)
 
-func NewVerifier() *MemVerifier {
-	return &MemVerifier{}
-}
+	var freeMem, usedMem, cpuUser, cpuKernel float64
 
-func (v *MemVerifier) SampleBefore(t *testing.T, dut *ondatra.DUTDevice) {
-	c := CollectMemData(t, dut, time.Second, 5*time.Second)
-	c.Wait()
-	totalFree := 0
-	totalUsed := 0
-	for _, mem := range c.MemLogs {
-		totalFree += int(mem.FreeMemory)
-		totalUsed += int(mem.PhysicalMemory - mem.FreeMemory)
-	}
-	// Integer floor divison
-	// susceptible to skew from missing data
-	v.freeMemoryAvgBefore = totalFree / (len(c.MemLogs))
-	v.usedMemoryAvgBefore = totalUsed / (len(c.MemLogs))
-}
+	for _, line := range lines {
+		// process usage
+		// if processMatches := procRe.FindStringSubmatch(line); len(processMatches) > 2 {
+		// 	procCpuUsage, err := strconv.ParseFloat(processMatches[1], 64)
+		// 	if err != nil {
+		// 		continue
+		// 	}
+		// 	procMemUsage, err := strconv.ParseFloat(processMatches[2], 64)
+		// 	if err != nil {
+		// 		continue
+		// 	}
+		// }
 
-func (v *MemVerifier) SampleAfter(t *testing.T, dut *ondatra.DUTDevice) {
-	c := CollectMemData(t, dut, time.Second, 5*time.Second)
-	c.Wait()
-	totalFree := 0
-	totalUsed := 0
-	for _, mem := range c.MemLogs {
-		totalFree += int(mem.FreeMemory)
-		totalUsed += int(mem.PhysicalMemory - mem.FreeMemory)
-		v.memoryStateAfter = mem.MemoryState
-	}
-	// Integer floor divison
-	// susceptible to skew from missing data
-	v.freeMemoryAvgAfter = totalFree / (len(c.MemLogs))
-	v.usedMemoryAvgAfter = totalUsed / (len(c.MemLogs))
-}
+		// Check for total, free, and used memory
+		if memMatches := memRe.FindStringSubmatch(line); len(memMatches) > 3 {
+			freeMem, err = strconv.ParseFloat(memMatches[2], 64)
+			if err != nil {
+				return nil, err
+			}
+			usedMem, err = strconv.ParseFloat(memMatches[3], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
 
-func (v *MemVerifier) Verify(t *testing.T) bool {
-	percentDiff := func(before, after int) float64 {
-		if after > before {
-			//1.25
-			return float64(after)/float64(before) - 1
-		} else {
-			//0.75
-			return (1 - float64(after)/float64(before)) * -1
+		// Check for cpu usage in user and kernel spaces
+		if cpuMatches := cpuRe.FindStringSubmatch(line); len(cpuMatches) > 2 {
+			cpuUser, err = strconv.ParseFloat(cpuMatches[1], 64)
+			if err != nil {
+				return nil, err
+			}
+			cpuKernel, err = strconv.ParseFloat(cpuMatches[2], 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	diffFreeMem := percentDiff(v.freeMemoryAvgBefore, v.freeMemoryAvgAfter)
-	diffUsedMem := percentDiff(v.usedMemoryAvgBefore, v.usedMemoryAvgAfter)
+	data.Timestamp = time.Now().Format(time.RFC3339)
+	data.MemoryUsed = usedMem
+	data.MemoryFree = freeMem
+	data.CpuUser = cpuUser
+	data.CpuKernel = cpuKernel
 
-	t.Logf("Free memory avg\nbefore:\t%d\nafter:\t%d\ndelta:\t%+.2f%%\n", v.freeMemoryAvgBefore, v.freeMemoryAvgAfter, math.Round(diffFreeMem*10000)/100)
-	t.Logf("Used memory avg\nbefore:\t%d\nafter:\t%d\ndelta:\t%+.2f%%\n", v.usedMemoryAvgBefore, v.usedMemoryAvgAfter, math.Round(diffUsedMem*10000)/100)
-	t.Logf("Memory state: %s", v.memoryStateAfter)
+	return &data, nil
+}
 
-	if math.Abs(diffFreeMem) > 0.25 || math.Abs(diffUsedMem) > 0.25 || v.memoryStateAfter != "normal" {
-		return false
+// CLI Parser that runs the top linux command on each line card in the DUT
+func TopLineCardCpuMemoryUtilization(t testing.TB, dut *ondatra.DUTDevice, cliClient binding.CLIClient, data PerformanceData) (*PerformanceData, error) {
+	if cliClient == nil {
+		return nil, errors.New("CLI client not established")
 	}
-	return true
+	var node int64
+	nodesRe := regexp.MustCompile(`^\d+\/(\d+)\/CPU\d+`)
+
+	if nodeStr := nodesRe.FindStringSubmatch(data.Name); len(nodeStr) > 1 {
+		nodeVal, err := strconv.ParseInt(nodeStr[1], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		node = nodeVal
+	}
+	t.Logf("collecting line card slot %d", node)
+
+	commandFormat := "run ssh 172.0.%d.1 top -b | head -n 30"
+
+	command := fmt.Sprintf(commandFormat, node)
+
+	t.Logf("Running: `%s`", command)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	cliOutput, err := cliClient.RunCommand(ctx, command)
+
+	// if ctx.Err() == context.DeadlineExceeded {
+	// 	return nil, errors.New("context deadline exceeded")
+	// }
+
+	if err != nil {
+		return nil, err
+	}
+
+	t.Log("successfully ran command")
+
+	var freeMem, usedMem, cpuUser, cpuKernel float64
+
+	lines := strings.Split(cliOutput.Output(), "\n")
+	// procRe := regexp.MustCompile(`^\s*\d+\s+\w+\s+\d+\s+-?\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+(\d+\.\d+)`)
+	memRe := regexp.MustCompile(`MiB Mem :\s+(\d+\.\d+) total,\s+(\d+\.\d+) free,\s+(\d+\.\d+) used`)
+	cpuRe := regexp.MustCompile(`\%Cpu\(s\):\s+(\d+\.\d+)\s+us,\s+(\d+\.\d+)\s+sy,.+`)
+
+	for _, line := range lines {
+		// Check for CPU and MEM usage
+		// if processMatches := procRe.FindStringSubmatch(line); len(processMatches) > 2 {
+		// 	procCpuUsage, err := strconv.ParseFloat(processMatches[1], 64)
+		// 	if err != nil {
+		// 		continue
+		// 	}
+		// 	procMemUsage, err := strconv.ParseFloat(processMatches[2], 64)
+		// 	if err != nil {
+		// 		continue
+		// 	}
+		// }
+
+		// Check for total, free, and used memory
+		if memMatches := memRe.FindStringSubmatch(line); len(memMatches) > 3 {
+			freeMem, err = strconv.ParseFloat(memMatches[2], 64)
+			if err != nil {
+				return nil, err
+			}
+			usedMem, err = strconv.ParseFloat(memMatches[3], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Check for cpu usage in user and kernel spaces
+		if cpuMatches := cpuRe.FindStringSubmatch(line); len(cpuMatches) > 2 {
+			cpuUser, err = strconv.ParseFloat(cpuMatches[1], 64)
+			if err != nil {
+				return nil, err
+			}
+			cpuKernel, err = strconv.ParseFloat(cpuMatches[2], 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	data.Timestamp = time.Now().Format(time.RFC3339)
+	data.MemoryUsed = usedMem
+	data.MemoryFree = freeMem
+	data.CpuUser = cpuUser
+	data.CpuKernel = cpuKernel
+
+	return &data, nil
+
+}
+
+func castSliceToInterface(data []PerformanceData) []interface{} {
+	castData := make([]interface{}, len(data))
+	for i, entry := range data {
+		entry.Timestamp = options.TimeSeries().TimeField
+		castData[i] = entry
+	}
+	return castData
+}
+
+func pushToDB(data []PerformanceData) error {
+	// Set client options
+	clientOptions := options.Client().ApplyURI("mongodb://xr-sf-npi-lnx:27017")
+
+	// Connect to MongoDB
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel() // cancel when we are finished consuming the context
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		return err
+	}
+	defer client.Disconnect(ctx)
+
+	// Check the connection
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Access the collection
+	collection := client.Database("XR_SF_NPI_OC_MODELS").Collection("oc-perf-sandbox")
+
+	// topts := options.TimeSeries().SetTimeField("timestamp")
+	// opts := options.CreateCollection()
+
+	wrappedData := struct {
+		TimeSeries []PerformanceData `bson:"timeseries" json:"timeseries"`
+	}{
+		TimeSeries: data,
+	}
+
+	// Insert the document into the collection
+	// result, err := collection.InsertMany(ctx, castSliceToInterface(data))
+	result, err := collection.InsertOne(ctx, wrappedData)
+
+	fmt.Printf("result: %v\n", result)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
