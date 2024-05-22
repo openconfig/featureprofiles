@@ -508,6 +508,10 @@ message Metadata {
     // this implies that 1. routing policy tag set name needs to be '<policy name> <statement name>'
     // 2. only one policy statement can make use of a tag-set, and 3. tag must be refered by a policy
     bool routing_policy_tag_set_embedded = 183;
+    // Devices does not support allow multiple as under AFI/SAFI.
+    // CISCO: b/340859662
+    bool skip_afi_safi_path_for_bgp_multiple_as = 184;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }

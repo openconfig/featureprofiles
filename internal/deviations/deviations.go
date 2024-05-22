@@ -983,3 +983,8 @@ func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
 }
+
+// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
+}
