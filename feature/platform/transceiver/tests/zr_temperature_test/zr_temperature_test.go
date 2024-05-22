@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -32,7 +33,7 @@ const (
 	sensorType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
 	dp16QAM           = 1
 	targetOutputPower = -10
-	frequency         = 193100000
+	frequency         = 193500000
 )
 
 func TestMain(m *testing.M) {
@@ -105,25 +106,30 @@ func TestZRTemperatureState(t *testing.T) {
 		}
 	}
 	p1StreamInstant := samplestream.New(t, dut1, component1.Temperature().Instant().State(), 10*time.Second)
-	p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
-	p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
-	p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
 	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
-	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
-	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
-	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
-	if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
-		t.Logf("The average is between the maximum and minimum values")
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", temperatureAvg, temperatureMax, temperatureMin)
+		p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
+		p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
+		p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
+
+		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
+		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
+		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
+		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
+		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
+		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+		if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
+			t.Logf("The average is between the maximum and minimum values")
+		} else {
+			t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", temperatureAvg, temperatureMax, temperatureMin)
+		}
+		p1StreamMin.Close()
+		p1StreamMax.Close()
+		p1StreamAvg.Close()
 	}
-	p1StreamMin.Close()
-	p1StreamMax.Close()
-	p1StreamAvg.Close()
 	p1StreamInstant.Close()
 }
 
@@ -169,12 +175,16 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
-	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
-	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
-	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
+	} else {
+		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
+		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
+		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
+		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
+		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
+		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+	}
 	i = d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -183,15 +193,19 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	temperatureInstant = verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
-	temperatureMax = verifyTemperatureSensorValue(t, p1StreamMax, "Max")
-	t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-	temperatureMin = verifyTemperatureSensorValue(t, p1StreamMin, "Min")
-	t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-	temperatureAvg = verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
-	t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
-	if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
-		t.Logf("The average is between the maximum and minimum values")
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		t.Fatalf("The average is not between the maximum and minimum values")
+		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
+		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
+		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
+		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
+		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
+		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+		if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
+			t.Logf("The average is between the maximum and minimum values")
+		} else {
+			t.Fatalf("The average is not between the maximum and minimum values")
+		}
 	}
 }
