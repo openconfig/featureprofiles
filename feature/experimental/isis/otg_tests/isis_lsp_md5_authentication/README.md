@@ -47,8 +47,3 @@ IS-IS LSP authentication MD5
 ## Protocol/RPC Parameter Coverage
 
 * IS-IS
-
-
-## Minimum DUT Platform Requirement
-
-* MFF
