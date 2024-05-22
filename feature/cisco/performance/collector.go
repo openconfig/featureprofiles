@@ -137,7 +137,6 @@ func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan Finishe
 			cliClient := dut.RawAPIs().CLI(t)
 			t.Logf("Established client for component: %s", dataCurrent.Name)
 			ticker := time.NewTicker(time.Second)
-			dataCurrent.FinishedCollecting = <-stageChanCurrent
 			done := false
 			for !done {
 				select {
