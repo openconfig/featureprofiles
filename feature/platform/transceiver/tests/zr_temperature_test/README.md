@@ -54,16 +54,19 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
         any invalid string values like "nil" or "-inf".
     *   Reported temperature value must always be of type decimal64. 
 
+## Config Parameter coverage
+
+*   /interfaces/interface/config/enabled
+
+## Telemetry Parameter coverage
+
+*   /platform/components/component/state/temperature/instant
+*   /platform/components/component/state/temperature/min
+*   /platform/components/component/state/temperature/max
+*   /platform/components/component/state/temperature/avg
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
-paths:
-  ## Config Parameter coverage
-  /interfaces/interface/config/enabled:
-  ## Telemetry Parameter coverage
-  /platform/components/component/state/temperature/instant:
-  /platform/components/component/state/temperature/min:
-  /platform/components/component/state/temperature/max:
-  /platform/components/component/state/temperature/avg:
 rpcs:
   gnmi:
     gNMI.Get:
