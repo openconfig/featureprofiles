@@ -48,9 +48,9 @@ import (
 	"regexp"
 
 	log "github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/metadata/metadata"
+	"github.com/openconfig/featureprofiles/internal/metadata"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
