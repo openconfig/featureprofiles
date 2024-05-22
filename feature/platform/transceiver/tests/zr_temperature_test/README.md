@@ -64,3 +64,12 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
 *   /platform/components/component/state/temperature/min
 *   /platform/components/component/state/temperature/max
 *   /platform/components/component/state/temperature/avg
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

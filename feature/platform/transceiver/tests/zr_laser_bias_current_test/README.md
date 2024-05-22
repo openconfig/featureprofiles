@@ -97,3 +97,12 @@ specified operating temperature and voltage.
 *   /components/component/optical-channel/state/laser-bias-current/avg
 *   /components/component/optical-channel/state/laser-bias-current/min
 *   /components/component/optical-channel/state/laser-bias-current/max
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
