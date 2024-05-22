@@ -504,9 +504,13 @@ message Metadata {
     // Flag to enable bgp explicity on default vrf
     // Arista: b/329094094#comment9
     bool explicit_enable_bgp_on_default_vrf = 182;
+    // tag-set is not a real separate entity, but is embedded in the policy statement.
+    // this implies that 1. routing policy tag set name needs to be '<policy name> <statement name>'
+    // 2. only one policy statement can make use of a tag-set, and 3. tag must be refered by a policy
+    bool routing_policy_tag_set_embedded = 183;
     // Devices does not support allow multiple as under AFI/SAFI.
     // CISCO: b/340859662
-    bool skip_afi_safi_path_for_bgp_multiple_as = 183;
+    bool skip_afi_safi_path_for_bgp_multiple_as = 184;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
