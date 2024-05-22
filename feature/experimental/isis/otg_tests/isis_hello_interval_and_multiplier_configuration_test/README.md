@@ -12,17 +12,17 @@ IS-IS hello-interval and multiplier Configuration Test
 * Baseline Configuration:
     * Set the hello-interval to a standard value (e.g., 10 seconds).
     * Set the hello-multiplier to its default (typically 3) 
-    * Check that the ST values are reported correctly.
+    * Check that the streaming telemetry values are reported correctly.
 * Adjusting Hello-Interval:
     * Change the hello-interval to a different value.
     * Verify that IS-IS adjacency is coming up.
-    * Verify that the updated Hello-Interval time is reflected in isis database output. 
-    * Verify that the correct ST values are reported correctly by the device.
+    * Verify that the updated Hello-Interval time is reflected in isis adjacency output. 
+    * Verify that the correct streaming telemetry values are reported correctly by the device.
 * Adjusting Hello-Multiplier:
     * Change the hello-multiplier to a different value.
     * Verify that IS-IS adjacency is coming up.
-    * Verify that the updated Hello-Multiplier is reflected in isis database output. 
-    * Verify that the correct ST values are reported correctly by the device.
+    * Verify that the updated Hello-Multiplier is reflected in isis adjacency output. 
+    * Verify that the correct streaming telemetry values are reported correctly by the device.
 
 ## Config Parameter Coverage
 
