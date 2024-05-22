@@ -1,4 +1,4 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "41faf6fd-dcc6-4ebf-8ace-b71fa22d8bf7"
@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    skip_afi_safi_path_for_bgp_multiple_as: true
   }
 }
 platform_exceptions: {
@@ -37,3 +38,4 @@ platform_exceptions: {
   }
 }
 tags: TAGS_DATACENTER_EDGE
+
