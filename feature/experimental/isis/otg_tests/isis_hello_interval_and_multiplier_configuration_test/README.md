@@ -48,8 +48,3 @@ IS-IS hello-interval and multiplier Configuration Test
 ## Protocol/RPC Parameter Coverage
 
 * IS-IS
-
-
-## Minimum DUT Platform Requirement
-
-* MFF
