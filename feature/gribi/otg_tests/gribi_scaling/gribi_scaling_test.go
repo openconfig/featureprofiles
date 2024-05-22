@@ -304,7 +304,6 @@ func TestScaling(t *testing.T) {
 	}
 	gribi.BecomeLeader(t, client)
 
-	// pushIPv4EntriesRefactored(t, args, subIntfIPs)
 	vrfConfigs := tescale.BuildVRFConfig(dut, subIntfIPs,
 		tescale.Param{
 			V4TunnelCount:         *fpargs.V4TunnelCount,
