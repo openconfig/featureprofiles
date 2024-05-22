@@ -55,7 +55,7 @@ const (
 type FinishCollection func()
 
 // Starts background data collection. returns function which stops the collection when called
-func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string) (FinishCollection, error) {
+func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) (FinishCollection, error) {
 	t.Logf("Collector starting at %s", time.Now())
 
 	// openconfig-system:system/state
@@ -101,7 +101,7 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 	completedChan := make(chan FinishedCollecting, 1)
 
 	// begin collection thread
-	resultChan := collectAllData(t, dut, completedChan, dataEntries)
+	resultChan := collectAllData(t, dut, completedChan, dataEntries, frequency)
 
 	var results []PerformanceData
 
@@ -119,7 +119,7 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 	return finish, nil
 }
 
-func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan FinishedCollecting, perfData []PerformanceData) chan []PerformanceData {
+func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan FinishedCollecting, perfData []PerformanceData, frequency time.Duration) chan []PerformanceData {
 	wg := &sync.WaitGroup{}
 	resultChan := make(chan []PerformanceData)
 	results := []PerformanceData{}
@@ -136,7 +136,7 @@ func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan Finishe
 			t.Logf("Starting collection for component: %s", dataCurrent.Name)
 			cliClient := dut.RawAPIs().CLI(t)
 			t.Logf("Established client for component: %s", dataCurrent.Name)
-			ticker := time.NewTicker(time.Second)
+			ticker := time.NewTicker(frequency)
 			done := false
 			for !done {
 				select {
