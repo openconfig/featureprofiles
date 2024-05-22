@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package openconfig.testing;
 
-import "third_party/openconfig/ondatra/proto/testbed.proto";
+import "github.com/openconfig/ondatra/proto/testbed.proto";
 
 // Metadata about a Feature Profiles test.
 message Metadata {
@@ -504,7 +504,6 @@ message Metadata {
     // Flag to enable bgp explicity on default vrf
     // Arista: b/329094094#comment9
     bool explicit_enable_bgp_on_default_vrf = 182;
-
     // Devices does not support allow multiple as under AFI/SAFI.
     // CISCO: b/340859662
     bool skip_afi_safi_path_for_bgp_multiple_as = 183;
