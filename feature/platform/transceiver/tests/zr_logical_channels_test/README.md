@@ -98,36 +98,42 @@ Once the ZR link is estabished proceed to configure the following entities:
           logical channelsthat are covered under separately published tests
           under platforms/transceiver.
 
-## Config Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled 
-*   /terminal-device/logical-channels/channel/config/admin-state
-*   /terminal-device/logical-channels/channel/config/description
-*   /terminal-device/logical-channels/channel/config/index
-*   /terminal-device/logical-channels/channel/config/logical-channel-type
-*   /terminal-device/logical-channels/channel/config/rate-class
-*   /terminal-device/logical-channels/channel/config/trib-protocol
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel
-
-## Telemetry Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled 
-*   /terminal-device/logical-channels/channel/state/admin-state
-*   /terminal-device/logical-channels/channel/state/description
-*   /terminal-device/logical-channels/channel/state/index
-*   /terminal-device/logical-channels/channel/state/logical-channel-type
-*   /terminal-device/logical-channels/channel/state/rate-class
-*   /terminal-device/logical-channels/channel/state/trib-protocol
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
-*   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## Config Parameter coverage
+  /components/component/transceiver/config/enabled:
+  /interfaces/interface/config/enabled:
+  /terminal-device/logical-channels/channel/config/admin-state:
+  /terminal-device/logical-channels/channel/config/description:
+  /terminal-device/logical-channels/channel/config/index:
+  /terminal-device/logical-channels/channel/config/logical-channel-type:
+  /terminal-device/logical-channels/channel/config/rate-class:
+  /terminal-device/logical-channels/channel/config/trib-protocol:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
+  ## Telemetry Parameter coverage
+  /components/component/transceiver/config/enabled:
+  /interfaces/interface/config/enabled:
+  /terminal-device/logical-channels/channel/state/admin-state:
+  /terminal-device/logical-channels/channel/state/description:
+  /terminal-device/logical-channels/channel/state/index:
+  /terminal-device/logical-channels/channel/state/logical-channel-type:
+  /terminal-device/logical-channels/channel/state/rate-class:
+  /terminal-device/logical-channels/channel/state/trib-protocol:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

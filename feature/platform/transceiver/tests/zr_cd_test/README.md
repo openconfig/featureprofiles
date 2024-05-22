@@ -66,13 +66,19 @@ to fiber measured in ps/nm
         range again.
         * Typical CD expected value range is 0 to 2400 ps/nm.
 
-## Config Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-
-## Telemetry Parameter coverage
-
-*   /platform/components/component/optical-channel/state/chromatic-dispersion/instant
-*   /platform/components/component/optical-channel/state/chromatic-dispersion/avg
-*   /platform/components/component/optical-channel/state/chromatic-dispersion/min
-*   /platform/components/component/optical-channel/state/chromatic-dispersion/max
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## Config Parameter coverage
+  /components/component/transceiver/config/enabled:
+  ## Telemetry Parameter coverage
+  /platform/components/component/optical-channel/state/chromatic-dispersion/instant:
+  /platform/components/component/optical-channel/state/chromatic-dispersion/avg:
+  /platform/components/component/optical-channel/state/chromatic-dispersion/min:
+  /platform/components/component/optical-channel/state/chromatic-dispersion/max:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

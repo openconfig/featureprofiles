@@ -86,14 +86,20 @@ specified operating temperature and voltage.
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
 
-## Config Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled
-
-## Telemetry Parameter coverage
-
-*   /components/component/optical-channel/state/laser-bias-current/instant
-*   /components/component/optical-channel/state/laser-bias-current/avg
-*   /components/component/optical-channel/state/laser-bias-current/min
-*   /components/component/optical-channel/state/laser-bias-current/max
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## Config Parameter coverage
+  /components/component/transceiver/config/enabled:
+  /interfaces/interface/config/enabled:
+  ## Telemetry Parameter coverage
+  /components/component/optical-channel/state/laser-bias-current/instant:
+  /components/component/optical-channel/state/laser-bias-current/avg:
+  /components/component/optical-channel/state/laser-bias-current/min:
+  /components/component/optical-channel/state/laser-bias-current/max:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

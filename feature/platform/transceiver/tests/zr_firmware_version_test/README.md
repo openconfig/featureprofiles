@@ -21,10 +21,16 @@ Validate 400ZR optics module reports correct firmware version.
     *   Reset the optic through software
     *   Verify the ZR optics still reports correct firmware version. 
 
-## Config Parameter coverage
-
-*   /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled
-
-## Telemetry Parameter coverage
-
-    *  /platform/components/component/state/firmware-version
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## Config Parameter coverage
+  /components/component/oc-transceiver:transceiver/oc-transceiver/config/enabled:
+  ## Telemetry Parameter coverage
+  /platform/components/component/state/firmware-version:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

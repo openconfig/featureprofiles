@@ -69,18 +69,24 @@ Validate 400ZR modules report correct inventory information.
     *   Telemetry subscription should be ON_CHANGE and streamed data should
         be of type String.
 
-## Config Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled
-
-## Telemetry Parameter coverage
-
-*   /platform/components/component/state/serial-no
-*   /platform/components/component/state/part-no
-*   /platform/components/component/state/type
-*   /platform/components/component/state/description
-*   /platform/components/component/state/mfg-name
-*   /platform/components/component/state/mfg-date
-*   /platform/components/component/state/hardware-version
-*   /platform/components/component/state/firmware-version
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  ## Config Parameter coverage
+  /components/component/transceiver/config/enabled:
+  /interfaces/interface/config/enabled
+  ## Telemetry Parameter coverage
+  /platform/components/component/state/serial-no:
+  /platform/components/component/state/part-no:
+  /platform/components/component/state/type:
+  /platform/components/component/state/description:
+  /platform/components/component/state/mfg-name:
+  /platform/components/component/state/mfg-date:
+  /platform/components/component/state/hardware-version:
+  /platform/components/component/state/firmware-version:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
