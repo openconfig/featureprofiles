@@ -47,10 +47,10 @@ import (
 	"fmt"
 	"regexp"
 
-	log "github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/metadata"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
-	"github.com/openconfig/ondatra"
+	"google3/base/go/log"
+	"google3/third_party/openconfig/featureprofiles/internal/metadata/metadata"
+	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
@@ -978,8 +978,7 @@ func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
 }
 
-// RoutingPolicyTagSetEmbedded returns true if the implementation does not support tag-set(s) as a
-// separate entity, but embeds it in the policy statement
-func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
+// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
 }
