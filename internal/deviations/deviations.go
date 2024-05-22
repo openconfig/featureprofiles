@@ -977,3 +977,9 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
 }
+
+// RoutingPolicyTagSetEmbedded returns true if the implementation does not support tag-set(s) as a
+// separate entity, but embeds it in the policy statement
+func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
+}
