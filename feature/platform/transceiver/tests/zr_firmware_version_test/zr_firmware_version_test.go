@@ -15,12 +15,11 @@
 package zr_firmware_version_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -47,12 +46,13 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 	i.Enabled = ygot.Bool(enable)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	component := opticalChannelComponentFromPort(t, dut1, dp)
+	component := components.OpticalChannelComponentFromPort(t, dut1, dp)
 	gnmi.Replace(t, dut1, gnmi.OC().Component(component).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
 }
+
 func verifyFirmwareVersionValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.SampleStream[string]) {
 	firmwareVersionSample := pStream.Next()
 	if firmwareVersionSample == nil {
@@ -90,6 +90,7 @@ func TestZRFirmwareVersionState(t *testing.T) {
 
 	p1Stream.Close()
 }
+
 func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
@@ -118,31 +119,4 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	configInterface(t, dut1, dp1, true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
-}
-
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			return fmt.Sprintf("%s-Optical0", transceiverName)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
-	}
 }
