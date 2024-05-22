@@ -1,10 +1,10 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,974 +12,530 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package deviations defines the arguments to enable temporary workarounds for the
-// featureprofiles test suite using command line flags.
-//
-// If we consider device compliance level in tiers:
-//
-//   - Tier 0: Full OpenConfig compliance.  The device can do everything specified by
-//     OpenConfig.
-//   - Tier 1: Test plan compliance.  The device can pass a test without deviation, which
-//     means it satisfies the test requirements.  This is the target compliance tier for
-//     featureprofiles tests.
-//   - Tier 2: Deviated test plan compliance.  The device can pass a test with deviation.
-//
-// Deviations typically work by reducing testing requirements or by changing the way the
-// configuration is done.  However, the targeted compliance tier is always without
-// deviation.
-//
-// Requirements for deviations:
-//
-//   - Deviations may only use OpenConfig compliant behavior.
-//   - Deviations should be small in scope, typically affecting one sub-test, one
-//     OpenConfig path or small OpenConfig sub-tree.
-//
-// If a device could not pass without deviation, that is considered non-compliant
-// behavior.  Ideally, a device should pass both with and without a deviation which means
-// the deviation could be safely removed.  However, when the OpenConfig model allows the
-// device to reject the deviated case even if it is compliant, then this should be
-// explained on a case-by-case basis.
-//
-// To add, remove and enable deviations follow the guidelines at deviations/README.md
-package deviations
-
-import (
-	"fmt"
-	"regexp"
-
-	"google3/base/go/log"
-	"google3/third_party/openconfig/featureprofiles/internal/metadata/metadata"
-	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
-	"google3/third_party/openconfig/ondatra/ondatra"
-)
-
-func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
-	var matchedPlatformException *mpb.Metadata_PlatformExceptions
-
-	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		if platformExceptions.GetPlatform().Vendor.String() == "" {
-			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
-		}
-
-		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
-			continue
-		}
-
-		// If hardware_model_regex is set and does not match, continue
-		if hardwareModelRegex := platformExceptions.GetPlatform().GetHardwareModelRegex(); hardwareModelRegex != "" {
-			matchHw, errHw := regexp.MatchString(hardwareModelRegex, dvc.Model())
-			if errHw != nil {
-				return nil, fmt.Errorf("error with regex match %v", errHw)
-			}
-			if !matchHw {
-				continue
-			}
-		}
-
-		// If software_version_regex is set and does not match, continue
-		if softwareVersionRegex := platformExceptions.GetPlatform().GetSoftwareVersionRegex(); softwareVersionRegex != "" {
-			matchSw, errSw := regexp.MatchString(softwareVersionRegex, dvc.Version())
-			if errSw != nil {
-				return nil, fmt.Errorf("error with regex match %v", errSw)
-			}
-			if !matchSw {
-				continue
-			}
-		}
-
-		if matchedPlatformException != nil {
-			return nil, fmt.Errorf("cannot have more than one match within platform_exceptions fields %v and %v", matchedPlatformException, platformExceptions)
-		}
-		matchedPlatformException = platformExceptions
-	}
-	return matchedPlatformException, nil
-}
-
-func mustLookupDeviations(dvc *ondatra.Device) *mpb.Metadata_Deviations {
-	platformExceptions, err := lookupDeviations(dvc)
-	if err != nil {
-		log.Exitf("Error looking up deviations: %v", err)
-	}
-	if platformExceptions == nil {
-		log.Infof("Did not match any platform_exception %v, returning default values", metadata.Get().GetPlatformExceptions())
-		return &mpb.Metadata_Deviations{}
-	}
-	return platformExceptions.GetDeviations()
-}
-
-func lookupDUTDeviations(dut *ondatra.DUTDevice) *mpb.Metadata_Deviations {
-	return mustLookupDeviations(dut.Device)
-}
-
-func lookupATEDeviations(ate *ondatra.ATEDevice) *mpb.Metadata_Deviations {
-	return mustLookupDeviations(ate.Device)
-}
-
-// BannerDelimiter returns if device requires the banner to have a delimiter character.
-// Full OpenConfig compliant devices should work without delimiter.
-func BannerDelimiter(dut *ondatra.DUTDevice) string {
-	return lookupDUTDeviations(dut).GetBannerDelimiter()
-}
-
-// OmitL2MTU returns if device does not support setting the L2 MTU.
-func OmitL2MTU(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOmitL2Mtu()
-}
-
-// GRIBIMACOverrideStaticARPStaticRoute returns whether the device needs to configure Static ARP + Static Route to override setting MAC address in Next Hop.
-func GRIBIMACOverrideStaticARPStaticRoute(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiMacOverrideStaticArpStaticRoute()
-}
-
-// AggregateAtomicUpdate returns if device requires that aggregate Port-Channel and its members be defined in a single gNMI Update transaction at /interfaces.
-// Otherwise lag-type will be dropped, and no member can be added to the aggregate.
-// Full OpenConfig compliant devices should pass both with and without this deviation.
-func AggregateAtomicUpdate(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateAtomicUpdate()
-}
-
-// DefaultNetworkInstance returns the name used for the default network instance for VRF.
-func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
-	if dni := lookupDUTDeviations(dut).GetDefaultNetworkInstance(); dni != "" {
-		return dni
-	}
-	return "DEFAULT"
-}
-
-// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
-// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
-func ExplicitP4RTNodeComponent(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitP4RtNodeComponent()
-}
-
-// ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
-func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
-}
-
-// MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
-func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingBgpLastNotificationErrorCode()
-}
-
-// GRIBIMACOverrideWithStaticARP returns whether for a gRIBI IPv4 route the device does not support a mac-address only next-hop-entry.
-func GRIBIMACOverrideWithStaticARP(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiMacOverrideWithStaticArp()
-}
-
-// CLITakesPrecedenceOverOC returns whether config pushed through origin CLI takes precedence over config pushed through origin OC.
-func CLITakesPrecedenceOverOC(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetCliTakesPrecedenceOverOc()
-}
-
-// BGPTrafficTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-func BGPTrafficTolerance(dut *ondatra.DUTDevice) int32 {
-	return lookupDUTDeviations(dut).GetBgpToleranceValue()
-}
-
-// StaticProtocolName returns the name used for the static routing protocol.
-func StaticProtocolName(dut *ondatra.DUTDevice) string {
-	if spn := lookupDUTDeviations(dut).GetStaticProtocolName(); spn != "" {
-		return spn
-	}
-	return "DEFAULT"
-}
-
-// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
-}
-
-// SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
-func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSwitchChipIdUnsupported()
-}
-
-// BackplaneFacingCapacityUnsupported returns whether the device supports backplane-facing-capacity leaves for some of the components.
-func BackplaneFacingCapacityUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBackplaneFacingCapacityUnsupported()
-}
-
-// SchedulerInputWeightLimit returns whether the device does not support weight above 100.
-func SchedulerInputWeightLimit(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSchedulerInputWeightLimit()
-}
-
-// ECNProfileRequiredDefinition returns whether the device requires additional config for ECN.
-func ECNProfileRequiredDefinition(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEcnProfileRequiredDefinition()
-}
-
-// ISISGlobalAuthenticationNotRequired returns true if ISIS Global authentication not required.
-func ISISGlobalAuthenticationNotRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisGlobalAuthenticationNotRequired()
-}
-
-// ISISExplicitLevelAuthenticationConfig returns true if ISIS Explicit Level Authentication configuration is required
-func ISISExplicitLevelAuthenticationConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisExplicitLevelAuthenticationConfig()
-}
-
-// ISISSingleTopologyRequired sets isis af ipv6 single topology on the device if value is true.
-func ISISSingleTopologyRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisSingleTopologyRequired()
-}
-
-// ISISMultiTopologyUnsupported returns if device skips isis multi-topology check.
-func ISISMultiTopologyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisMultiTopologyUnsupported()
-}
-
-// ISISInterfaceLevel1DisableRequired returns if device should disable isis level1 under interface mode.
-func ISISInterfaceLevel1DisableRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInterfaceLevel1DisableRequired()
-}
-
-// MissingIsisInterfaceAfiSafiEnable returns if device should set and validate isis interface address family enable.
-// Default is validate isis address family enable at global mode.
-func MissingIsisInterfaceAfiSafiEnable(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingIsisInterfaceAfiSafiEnable()
-}
-
-// Ipv6DiscardedPktsUnsupported returns whether the device supports interface ipv6 discarded packet stats.
-func Ipv6DiscardedPktsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv6DiscardedPktsUnsupported()
-}
-
-// LinkQualWaitAfterDeleteRequired returns whether the device requires additional time to complete post delete link qualification cleanup.
-func LinkQualWaitAfterDeleteRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLinkQualWaitAfterDeleteRequired()
-}
-
-// StatePathsUnsupported returns whether the device supports following state paths
-func StatePathsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStatePathUnsupported()
-}
-
-// DropWeightLeavesUnsupported returns whether the device supports drop and weight leaves under queue management profile.
-func DropWeightLeavesUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDropWeightLeavesUnsupported()
-}
-
-// SwVersionUnsupported returns true if the device does not support reporting software version according to the requirements in gNMI-1.10.
-func SwVersionUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSwVersionUnsupported()
-}
-
-// HierarchicalWeightResolutionTolerance returns the allowed tolerance for BGP traffic flow while comparing for pass or fail conditions.
-// Default minimum value is 0.2. Anything less than 0.2 will be set to 0.2.
-func HierarchicalWeightResolutionTolerance(dut *ondatra.DUTDevice) float64 {
-	hwrt := lookupDUTDeviations(dut).GetHierarchicalWeightResolutionTolerance()
-	if minHWRT := 0.2; hwrt < minHWRT {
-		return minHWRT
-	}
-	return hwrt
-}
-
-// InterfaceEnabled returns if device requires interface enabled leaf booleans to be explicitly set to true.
-func InterfaceEnabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceEnabled()
-}
-
-// InterfaceCountersFromContainer returns if the device only supports querying counters from the state container, not from individual counter leaves.
-func InterfaceCountersFromContainer(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceCountersFromContainer()
-}
-
-// IPv4MissingEnabled returns if device does not support interface/ipv4/enabled.
-func IPv4MissingEnabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv4MissingEnabled()
-}
-
-// IPNeighborMissing returns true if the device does not support interface/ipv4(6)/neighbor,
-// so test can suppress the related check for interface/ipv4(6)/neighbor.
-func IPNeighborMissing(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpNeighborMissing()
-}
-
-// GRIBIRIBAckOnly returns if device only supports RIB ack, so tests that normally expect FIB_ACK will allow just RIB_ACK.
-// Full gRIBI compliant devices should pass both with and without this deviation.
-func GRIBIRIBAckOnly(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiRibackOnly()
-}
-
-// MissingValueForDefaults returns if device returns no value for some OpenConfig paths if the operational value equals the default.
-func MissingValueForDefaults(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingValueForDefaults()
-}
-
-// TraceRouteL4ProtocolUDP returns if device only support UDP as l4 protocol for traceroute.
-// Default value is false.
-func TraceRouteL4ProtocolUDP(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTracerouteL4ProtocolUdp()
-}
-
-// LLDPInterfaceConfigOverrideGlobal returns if LLDP interface config should override the global config,
-// expect neighbours are seen when lldp is disabled globally but enabled on interface
-func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLldpInterfaceConfigOverrideGlobal()
-}
-
-// SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
-// so the test will skip checking them.
-// Full OpenConfig compliant devices should pass both with and without this deviation.
-func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
-}
-
-// MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
-// Fully-compliant devices should pass with and without this deviation.
-func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPrepolicyReceivedRoutes()
-}
-
-// DeprecatedVlanID returns if device requires using the deprecated openconfig-vlan:vlan/config/vlan-id or openconfig-vlan:vlan/state/vlan-id leaves.
-func DeprecatedVlanID(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDeprecatedVlanId()
-}
-
-// OSActivateNoReboot returns if device requires separate reboot to activate OS.
-func OSActivateNoReboot(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOsactivateNoreboot()
-}
-
-// ConnectRetry returns if /bgp/neighbors/neighbor/timers/config/connect-retry is not supported.
-func ConnectRetry(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetConnectRetry()
-}
-
-// InstallOSForStandbyRP returns if device requires OS installation on standby RP as well as active RP.
-func InstallOSForStandbyRP(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOsinstallForStandbyRp()
-}
-
-// GNOIStatusWithEmptySubcomponent returns if the response of gNOI reboot status is a single value (not a list),
-// the device requires explict component path to account for a situation when there is more than one active reboot requests.
-func GNOIStatusWithEmptySubcomponent(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGnoiStatusEmptySubcomponent()
-}
-
-// NetworkInstanceTableDeletionRequired returns if device requires explicit deletion of network-instance table.
-func NetworkInstanceTableDeletionRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceTableDeletionRequired()
-}
-
-// ExplicitPortSpeed returns if device requires port-speed to be set because its default value may not be usable.
-// Fully compliant devices selects the highest speed available based on negotiation.
-func ExplicitPortSpeed(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitPortSpeed()
-}
-
-// ExplicitInterfaceInDefaultVRF returns if device requires explicit attachment of an interface or subinterface to the default network instance.
-// OpenConfig expects an unattached interface or subinterface to be implicitly part of the default network instance.
-// Fully-compliant devices should pass with and without this deviation.
-func ExplicitInterfaceInDefaultVRF(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitInterfaceInDefaultVrf()
-}
-
-// RibWecmp returns if device requires CLI knob to enable wecmp feature.
-func RibWecmp(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetRibWecmp()
-}
-
-// InterfaceConfigVRFBeforeAddress returns if vrf should be configured before IP address when configuring interface.
-func InterfaceConfigVRFBeforeAddress(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceConfigVrfBeforeAddress()
-}
-
-// ExplicitInterfaceRefDefinition returns if device requires explicit interface ref configuration when applying features to interface.
-func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitInterfaceRefDefinition()
-}
-
-// QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
-func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosDroppedOctets()
-}
-
-// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
-func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
-}
-
-// BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
-func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
-}
-
-// ExplicitIPv6EnableForGRIBI returns if device requires Ipv6 to be enabled on interface for gRIBI NH programmed with destination mac address.
-func ExplicitIPv6EnableForGRIBI(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv6EnableForGribiNhDmac()
-}
-
-// ISISInstanceEnabledRequired returns if isis instance name string should be set on the device.
-func ISISInstanceEnabledRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInstanceEnabledRequired()
-}
-
-// GNOISubcomponentPath returns if device currently uses component name instead of a full openconfig path.
-func GNOISubcomponentPath(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGnoiSubcomponentPath()
-}
-
-// NoMixOfTaggedAndUntaggedSubinterfaces returns if device does not support a mix of tagged and untagged subinterfaces
-func NoMixOfTaggedAndUntaggedSubinterfaces(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNoMixOfTaggedAndUntaggedSubinterfaces()
-}
-
-// DequeueDeleteNotCountedAsDrops returns if device dequeues and deletes the pkts after a while and those are not counted
-// as drops
-func DequeueDeleteNotCountedAsDrops(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDequeueDeleteNotCountedAsDrops()
-}
-
-// RoutePolicyUnderAFIUnsupported returns if Route-Policy under the AFI/SAFI is not supported
-func RoutePolicyUnderAFIUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetRoutePolicyUnderAfiUnsupported()
-}
-
-// StorageComponentUnsupported returns if telemetry path /components/component/storage is not supported.
-func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStorageComponentUnsupported()
-}
-
-// GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
-func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
-}
-
-// NtpNonDefaultVrfUnsupported returns true if the device does not support ntp nondefault vrf.
-// Default value is false.
-func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
-}
-
-// SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
-// Default value is false.
-func SkipControllerCardPowerAdmin(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipControllerCardPowerAdmin()
-}
-
-// QOSOctets returns if device should skip checking QOS octet stats for interface.
-func QOSOctets(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosOctets()
-}
-
-// ISISInterfaceAfiUnsupported returns true for devices that don't support configuring
-// ISIS /afi-safi/af/config container.
-func ISISInterfaceAfiUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisInterfaceAfiUnsupported()
-}
-
-// P4RTModifyTableEntryUnsupported returns true for devices that don't support
-// modify table entry operation in P4 Runtime.
-func P4RTModifyTableEntryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetP4RtModifyTableEntryUnsupported()
-}
-
-// OSComponentParentIsSupervisorOrLinecard returns true if parent of OS component is
-// of type SUPERVISOR or LINECARD.
-func OSComponentParentIsSupervisorOrLinecard(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOsComponentParentIsSupervisorOrLinecard()
-}
-
-// OSComponentParentIsChassis returns true if parent of OS component is of type CHASSIS.
-func OSComponentParentIsChassis(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOsComponentParentIsChassis()
-}
-
-// ISISRequireSameL1MetricWithL2Metric returns true for devices that require configuring
-// the same ISIS Metrics for Level 1 when configuring Level 2 Metrics.
-func ISISRequireSameL1MetricWithL2Metric(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisRequireSameL1MetricWithL2Metric()
-}
-
-// BGPSetMedRequiresEqualOspfSetMetric returns true for devices that require configuring
-// the same OSPF setMetric when BGP SetMED is configured.
-func BGPSetMedRequiresEqualOspfSetMetric(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedRequiresEqualOspfSetMetric()
-}
-
-// SetNativeUser creates a user and assigns role/rbac to that user via native model.
-func SetNativeUser(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetNativeUser()
-}
-
-// P4RTGdpRequiresDot1QSubinterface returns true for devices that require configuring
-// subinterface with tagged vlan for p4rt packet in.
-func P4RTGdpRequiresDot1QSubinterface(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetP4RtGdpRequiresDot1QSubinterface()
-}
-
-// ISISLspLifetimeIntervalRequiresLspRefreshInterval returns true for devices that require
-// configuring lspRefreshInterval ISIS timer when lspLifetimeInterval is configured.
-func ISISLspLifetimeIntervalRequiresLspRefreshInterval(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspLifetimeIntervalRequiresLspRefreshInterval()
-}
-
-// LinecardCPUUtilizationUnsupported returns if the device does not support telemetry path
-// /components/component/cpu/utilization/state/avg for linecards' CPU card.
-// Default value is false.
-func LinecardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLinecardCpuUtilizationUnsupported()
-}
-
-// ConsistentComponentNamesUnsupported returns if the device does not support consistent component names for GNOI and GNMI.
-// Default value is false.
-func ConsistentComponentNamesUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetConsistentComponentNamesUnsupported()
-}
-
-// ControllerCardCPUUtilizationUnsupported returns if the device does not support telemetry path
-// /components/component/cpu/utilization/state/avg for controller cards' CPU card.
-// Default value is false.
-func ControllerCardCPUUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetControllerCardCpuUtilizationUnsupported()
-}
-
-// FabricDropCounterUnsupported returns if the device does not support counter for fabric block lost packets.
-// Default value is false.
-func FabricDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetFabricDropCounterUnsupported()
-}
-
-// LinecardMemoryUtilizationUnsupported returns if the device does not support memory utilization related leaves for linecard components.
-// Default value is false.
-func LinecardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLinecardMemoryUtilizationUnsupported()
-}
-
-// QOSVoqDropCounterUnsupported returns if the device does not support telemetry path
-// /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
-// Default value is false.
-func QOSVoqDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosVoqDropCounterUnsupported()
-}
-
-// ISISTimersCsnpIntervalUnsupported returns true for devices that do not support
-// configuring csnp-interval timer for ISIS.
-func ISISTimersCsnpIntervalUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisTimersCsnpIntervalUnsupported()
-}
-
-// ISISCounterManualAddressDropFromAreasUnsupported returns true for devices that do not
-// support telemetry for isis system-level-counter manual-address-drop-from-areas.
-func ISISCounterManualAddressDropFromAreasUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisCounterManualAddressDropFromAreasUnsupported()
-}
-
-// ISISCounterPartChangesUnsupported returns true for devices that do not
-// support telemetry for isis system-level-counter part-changes.
-func ISISCounterPartChangesUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisCounterPartChangesUnsupported()
-}
-
-// GRIBISkipFIBFailedTrafficForwardingCheck returns true for devices that do not
-// support fib forwarding for fib failed routes.
-func GRIBISkipFIBFailedTrafficForwardingCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipFibFailedTrafficForwardingCheck()
-}
-
-// SkipTCPNegotiatedMSSCheck returns true for devices that do not
-// support telemetry to check negotiated tcp mss value.
-func SkipTCPNegotiatedMSSCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipTcpNegotiatedMssCheck()
-}
-
-// TransceiverThresholdsUnsupported returns true if the device does not support threshold container under /components/component/transceiver.
-// Default value is false.
-func TransceiverThresholdsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTransceiverThresholdsUnsupported()
-}
-
-// InterfaceLoopbackModeRawGnmi returns true if interface loopback mode needs to be updated using raw gnmi API due to server version.
-// Default value is false.
-func InterfaceLoopbackModeRawGnmi(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceLoopbackModeRawGnmi()
-}
-
-// ISISLspMetadataLeafsUnsupported returns true for devices that don't support ISIS-Lsp
-// metadata paths: checksum, sequence-number, remaining-lifetime.
-func ISISLspMetadataLeafsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLspMetadataLeafsUnsupported()
-}
-
-// QOSQueueRequiresID returns if device should configure QOS queue along with queue-id
-func QOSQueueRequiresID(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosQueueRequiresId()
-}
-
-// BgpLlgrOcUndefined returns true if device should does not support OC path to disable BGP LLGR.
-func BgpLlgrOcUndefined(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpLlgrOcUndefined()
-}
-
-// QOSBufferAllocationConfigRequired returns if device should configure QOS buffer-allocation-profile
-func QOSBufferAllocationConfigRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosBufferAllocationConfigRequired()
-}
-
-// BGPGlobalExtendedNextHopEncodingUnsupported returns true for devices that do not support configuring
-// BGP ExtendedNextHopEncoding at thee global level.
-func BGPGlobalExtendedNextHopEncodingUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpGlobalExtendedNextHopEncodingUnsupported()
-}
-
-// TunnelStatePathUnsupported returns true for devices that require configuring
-// /interfaces/interface/state/counters/in-pkts, in-octets,out-pkts, out-octetsis not supported.
-func TunnelStatePathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTunnelStatePathUnsupported()
-}
-
-// TunnelConfigPathUnsupported returns true for devices that require configuring
-// Tunnel source-address destination-address, encapsulation type are not supported in OC
-func TunnelConfigPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTunnelConfigPathUnsupported()
-}
-
-// EcnSameMinMaxThresholdUnsupported returns true for devices that don't support the same minimum and maximum threshold values
-// CISCO: minimum and maximum threshold values are not the same, the difference between minimum and maximum threshold value should be 6144.
-func EcnSameMinMaxThresholdUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEcnSameMinMaxThresholdUnsupported()
-}
-
-// QosSchedulerConfigRequired returns if device should configure QOS buffer-allocation-profile
-func QosSchedulerConfigRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosSchedulerConfigRequired()
-}
-
-// QosSetWeightConfigUnsupported returns whether the device does not support set weight leaves under qos ecn.
-func QosSetWeightConfigUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosSetWeightConfigUnsupported()
-}
-
-// QosGetStatePathUnsupported returns whether the device does not support get state leaves under qos.
-func QosGetStatePathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosGetStatePathUnsupported()
-}
-
-// InterfaceRefInterfaceIDFormat returns if device is required to use interface-id format of interface name + .subinterface index with Interface-ref container
-func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
-}
-
-// ISISLevelEnabled returns if device should enable isis under level.
-func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisLevelEnabled()
-}
-
-// MemberLinkLoopbackUnsupported returns true for devices that require configuring
-// loopback on aggregated links instead of member links.
-func MemberLinkLoopbackUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMemberLinkLoopbackUnsupported()
-}
-
-// SkipPlqInterfaceOperStatusCheck returns true for devices that do not support
-// PLQ operational status check for interfaces
-func SkipPlqInterfaceOperStatusCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPlqInterfaceOperStatusCheck()
-}
-
-// BGPExplicitPrefixLimitReceived returns if device must specify the received prefix limits explicitly
-// under the "prefix-limit-received" field rather than simply "prefix-limit".
-func BGPExplicitPrefixLimitReceived(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpExplicitPrefixLimitReceived()
-}
-
-// BGPMissingOCMaxPrefixesConfiguration returns true for devices that does not configure BGP
-// maximum routes correctly when max-prefixes OC leaf is configured.
-func BGPMissingOCMaxPrefixesConfiguration(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpMissingOcMaxPrefixesConfiguration()
-}
-
-// SkipBgpSessionCheckWithoutAfisafi returns if device needs to skip checking AFI-SAFI disable.
-func SkipBgpSessionCheckWithoutAfisafi(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpSessionCheckWithoutAfisafi()
-}
-
-// MismatchedHardwareResourceNameInComponent returns true for devices that have separate
-// naming conventions for hardware resource name in /system/ tree and /components/ tree.
-func MismatchedHardwareResourceNameInComponent(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMismatchedHardwareResourceNameInComponent()
-}
-
-// MissingHardwareResourceTelemetryBeforeConfig returns true for devices that don't
-// support telemetry for hardware resources before used-threshold-upper configuration.
-func MissingHardwareResourceTelemetryBeforeConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingHardwareResourceTelemetryBeforeConfig()
-}
-
-// GNOISubcomponentRebootStatusUnsupported returns true for devices that do not support subcomponent reboot status check.
-func GNOISubcomponentRebootStatusUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGnoiSubcomponentRebootStatusUnsupported()
-}
-
-// SkipNonBgpRouteExportCheck returns true for devices that exports routes from all
-// protocols to BGP if the export-policy is ACCEPT.
-func SkipNonBgpRouteExportCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipNonBgpRouteExportCheck()
-}
-
-// ISISMetricStyleTelemetryUnsupported returns true for devices that do not support state path
-// /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
-func ISISMetricStyleTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisMetricStyleTelemetryUnsupported()
-}
-
-// StaticRouteNextHopInterfaceRefUnsupported returns if device does not support Interface-ref under static-route next-hop
-func StaticRouteNextHopInterfaceRefUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStaticRouteNextHopInterfaceRefUnsupported()
-}
-
-// SkipStaticNexthopCheck returns if device needs index starting from non zero
-func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
-}
-
-// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
-func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
-}
-
-// Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
-func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
-}
-
-// PrefixLimitExceededTelemetryUnsupported is to skip checking prefix limit telemetry flag.
-func PrefixLimitExceededTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPrefixLimitExceededTelemetryUnsupported()
-}
-
-// SkipSettingAllowMultipleAS return true if device needs to skip setting allow-multiple-as while configuring eBGP
-func SkipSettingAllowMultipleAS(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSettingAllowMultipleAs()
-}
-
-// SkipPbfWithDecapEncapVrf return true if device needs to skip test with which has PBF with decap encap VRF as action
-func SkipPbfWithDecapEncapVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPbfWithDecapEncapVrf()
-}
-
-// TTLCopyUnsupported returns true for devices which does not support TTL copy.
-func TTLCopyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTtlCopyUnsupported()
-}
-
-// GribiDecapMixedPlenUnsupported returns true if devices does not support
-// programming with mixed prefix length.
-func GribiDecapMixedPlenUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiDecapMixedPlenUnsupported()
-}
-
-// SkipIsisSetLevel return true if device needs to skip setting isis-actions set-level while configuring routing-policy statement action
-func SkipIsisSetLevel(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipIsisSetLevel()
-}
-
-// SkipIsisSetMetricStyleType return true if device needs to skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
-func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
-}
-
-// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
-func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
-}
-
-// SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
-func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
-}
-
-// BGPConditionsMatchCommunitySetUnsupported returns true if device doesn't support bgp-conditions/match-community-set leaf
-func BGPConditionsMatchCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpConditionsMatchCommunitySetUnsupported()
-}
-
-// PfRequireMatchDefaultRule returns true for device which requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
-func PfRequireMatchDefaultRule(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPfRequireMatchDefaultRule()
-}
-
-// MissingPortToOpticalChannelMapping returns true for devices missing component tree mapping from hardware port to optical channel.
-func MissingPortToOpticalChannelMapping(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingPortToOpticalChannelComponentMapping()
-}
-
-// SkipContainerOp returns true if gNMI container OP needs to be skipped.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-func SkipContainerOp(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipContainerOp()
-}
-
-// ReorderCallsForVendorCompatibilty returns true if call needs to be updated/added/deleted.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-func ReorderCallsForVendorCompatibilty(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetReorderCallsForVendorCompatibilty()
-}
-
-// AddMissingBaseConfigViaCli returns true if missing base config needs to be added using CLI.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-func AddMissingBaseConfigViaCli(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAddMissingBaseConfigViaCli()
-}
-
-// SkipMacaddressCheck returns true if mac address for an interface via gNMI needs to be skipped.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
-func SkipMacaddressCheck(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipMacaddressCheck()
-}
-
-// BGPRibOcPathUnsupported returns true if BGP RIB OC telemetry path is not supported.
-func BGPRibOcPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpRibOcPathUnsupported()
-}
-
-// SkipPrefixSetMode return true if device needs to skip setting prefix-set mode while configuring prefix-set routing-policy
-func SkipPrefixSetMode(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipPrefixSetMode()
-}
-
-// SetMetricAsPreference returns true for devices which set metric as
-// preference for static next-hop
-func SetMetricAsPreference(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetMetricAsPreference()
-}
-
-// IPv6StaticRouteWithIPv4NextHopRequiresStaticARP returns true if devices don't support having an
-// IPv6 static Route with an IPv4 address as next hop and requires configuring a static ARP entry.
-// Arista: https://partnerissuetracker.corp.google.com/issues/316593298
-func IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NextHopRequiresStaticArp()
-}
-
-// PfRequireSequentialOrderPbrRules returns true for device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
-func PfRequireSequentialOrderPbrRules(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPfRequireSequentialOrderPbrRules()
-}
-
-// MissingStaticRouteNextHopMetricTelemetry returns true for devices missing
-// static route next-hop metric telemetry.
-// Arista: https://partnerissuetracker.corp.google.com/issues/321010782
-func MissingStaticRouteNextHopMetricTelemetry(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingStaticRouteNextHopMetricTelemetry()
-}
-
-// UnsupportedStaticRouteNextHopRecurse returns true for devices that don't support recursive
-// resolution of static route next hop.
-// Arista: https://partnerissuetracker.corp.google.com/issues/314449182
-func UnsupportedStaticRouteNextHopRecurse(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUnsupportedStaticRouteNextHopRecurse()
-}
-
-// MissingStaticRouteDropNextHopTelemetry returns true for devices missing
-// static route telemetry with DROP next hop.
-// Arista: https://partnerissuetracker.corp.google.com/issues/330619816
-func MissingStaticRouteDropNextHopTelemetry(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingStaticRouteDropNextHopTelemetry()
-}
-
-// MissingZROpticalChannelTunableParametersTelemetry returns true for devices missing 400ZR
-// optical-channel tunable parameters telemetry: min/max/avg.
-// Arista: https://partnerissuetracker.corp.google.com/issues/319314781
-func MissingZROpticalChannelTunableParametersTelemetry(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMissingZrOpticalChannelTunableParametersTelemetry()
-}
-
-// PLQReflectorStatsUnsupported returns true for devices that does not support packet link qualification(PLQ) reflector packet sent/received stats.
-func PLQReflectorStatsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPlqReflectorStatsUnsupported()
-}
-
-// PLQGeneratorCapabilitiesMaxMTU returns supported max_mtu for devices that does not support packet link qualification(PLQ) Generator max_mtu to be atleast >= 8184.
-func PLQGeneratorCapabilitiesMaxMTU(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxMtu()
-}
-
-// PLQGeneratorCapabilitiesMaxPPS returns supported max_pps for devices that does not support packet link qualification(PLQ) Generator max_pps to be atleast >= 100000000.
-func PLQGeneratorCapabilitiesMaxPPS(dut *ondatra.DUTDevice) uint64 {
-	return lookupDUTDeviations(dut).GetPlqGeneratorCapabilitiesMaxPps()
-}
-
-// BgpExtendedCommunityIndexUnsupported return true if BGP extended community index is not supported.
-func BgpExtendedCommunityIndexUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpExtendedCommunityIndexUnsupported()
-}
-
-// BgpCommunitySetRefsUnsupported return true if BGP community set refs is not supported.
-func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
-}
-
-// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
-func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
-}
-
-// TableConnectionsUnsupported returns true if Table Connections are unsupported.
-func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
-}
-
-// UseVendorNativeTagSetConfig returns whether a device requires native model to configure tag-set
-func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeTagSetConfig()
-}
-
-// SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
-func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
-}
-
-// BgpActionsSetCommunityMethodUnsupported return true if BGP actions set-community method is unsupported
-func BgpActionsSetCommunityMethodUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpActionsSetCommunityMethodUnsupported()
-
-}
-
-// SetNoPeerGroup Ensure that no BGP configurations exists under PeerGroups.
-func SetNoPeerGroup(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSetNoPeerGroup()
-}
-
-// BgpCommunityMemberIsAString returns true if device community member is not a list
-func BgpCommunityMemberIsAString(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpCommunityMemberIsAString()
-}
-
-// IPv4StaticRouteWithIPv6NextHopUnsupported unsupported ipv4 with ipv6 nexthop
-func IPv4StaticRouteWithIPv6NextHopUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv4StaticRouteWithIpv6NhUnsupported()
-}
-
-// IPv6StaticRouteWithIPv4NextHopUnsupported unsported ipv6 with ipv4 nexthop
-func IPv6StaticRouteWithIPv4NextHopUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIpv6StaticRouteWithIpv4NhUnsupported()
-}
-
-// StaticRouteWithDropNhUnsupported unsuported drop nexthop
-func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStaticRouteWithDropNh()
-}
-
-// StaticRouteWithExplicitMetric set explict metric
-func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
-}
-
-// BgpDefaultPolicyUnsupported return true if BGP default-import/export-policy is not supported.
-func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
-}
-
-// ExplicitEnableBGPOnDefaultVRF return true if BGP needs to be explicity enabled on default VRF
-func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
-}
-
-// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
-func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
+syntax = "proto3";
+
+package openconfig.testing;
+
+import "third_party/openconfig/ondatra/proto/testbed.proto";
+
+// Metadata about a Feature Profiles test.
+message Metadata {
+  // UUID of the test.
+  string uuid = 1;
+  // ID of the test in the test plan.
+  string plan_id = 2;
+  // One-line description of the test.
+  string description = 3;
+
+  // Types of testbeds on which the test may run.
+  enum Testbed {
+    TESTBED_UNSPECIFIED = 0;
+    TESTBED_DUT = 1;
+    TESTBED_DUT_DUT_4LINKS = 2;
+    TESTBED_DUT_ATE_2LINKS = 3;
+    TESTBED_DUT_ATE_4LINKS = 4;
+    TESTBED_DUT_ATE_9LINKS_LAG = 5;
+    TESTBED_DUT_DUT_ATE_2LINKS = 6;
+    TESTBED_DUT_ATE_8LINKS = 7;
+    TESTBED_DUT_400ZR = 8;
+  }
+  // Testbed on which the test is intended to run.
+  Testbed testbed = 4;
+
+  message Platform {
+    // Vendor of the device.
+    ondatra.Device.Vendor vendor = 1;
+    // Regex for hardware model of the device.
+    // The empty string will match any hardware model.
+    string hardware_model_regex = 3;
+    // Regex for software version of the device.
+    // The empty string will match any software version.
+    string software_version_regex = 4;
+    // Reserved field numbers and identifiers.
+    reserved 2;
+    reserved "hardware_model";
+  }
+
+  message Deviations {
+    // Device does not support interface/ipv4/enabled,
+    // so suppress configuring this leaf.
+    bool ipv4_missing_enabled = 1;
+    // Device does not support fragmentation bit for traceroute.
+    bool traceroute_fragmentation = 2;
+    // Device only support UDP as l4 protocol for traceroute.
+    bool traceroute_l4_protocol_udp = 3;
+    // Device does not support
+    // bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
+    bool prepolicy_received_routes = 4;
+    // Expected ucmp traffic tolerance. Minimum value is 0.2, anything less
+    // will be coerced to 0.2.
+    // Juniper: partnerissuetracker.corp.google.com/282234301
+    // Cisco: partnerissuetracker.corp.google.com/279477633
+    double hierarchical_weight_resolution_tolerance = 5;
+    // Device skip isis multi-topology check if value is true.
+    bool isis_multi_topology_unsupported = 6;
+    // Disable isis level1 under interface mode on the device if value is true.
+    bool isis_interface_level1_disable_required = 7;
+    // Set isis af ipv6 single topology on the device if value is true.
+    bool isis_single_topology_required = 8;
+    // Don't set isis instance enable flag on the device if value is true.
+    bool isis_instance_enabled_required = 10;
+    // Set and validate isis interface address family enable on the device if
+    // value is true.
+    bool missing_isis_interface_afi_safi_enable = 11;
+    // Don't set isis global authentication-check on the device if value is
+    // true.
+    bool isis_global_authentication_not_required = 12;
+    // Configure CSNP, LSP and PSNP under level authentication explicitly if
+    // value is true.
+    bool isis_explicit_level_authentication_config = 13;
+    // Device skip isis restart-suppress check if value is true.
+    bool isis_restart_suppress_unsupported = 14;
+    // Device does not support interface/ipv4(6)/neighbor.
+    // Cisco: partnerissuetracker.corp.google.com/268243828
+    bool ip_neighbor_missing = 15;
+    // Device requires separate reboot to activate OS.
+    bool osactivate_noreboot = 16;
+    // Device requires OS installation on standby RP as well as active RP.
+    bool osinstall_for_standby_rp = 17;
+    // Set this flag for LLDP interface config to override the global config.
+    bool lldp_interface_config_override_global = 18;
+    // Skip check for
+    // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
+    // leaf missing case.
+    bool missing_bgp_last_notification_error_code = 21;
+    // Device does not support interface-ref configuration when applying
+    // features to interface.
+    bool interface_ref_config_unsupported = 22;
+    // Device does not support these state paths.
+    // Juniper: partnerissuetracker.corp.google.com/279470921
+    bool state_path_unsupported = 23;
+    // Device requires Ipv6 to be enabled on interface for gRIBI NH programmed
+    // with destination mac address.
+    // Juniper: partnerissuetracker.corp.google.com/267642089
+    bool ipv6_enable_for_gribi_nh_dmac = 24;
+    // Device requires additional config for ECN.
+    // Juniper: partnerissuetracker.corp.google.com/277657269
+    bool ecn_profile_required_definition = 25;
+    // Set true for device that does not support interface ipv6 discarded packet
+    // statistics.
+    // Juniper: partnerissuetracker.corp.google.com/277762075
+    bool ipv6_discarded_pkts_unsupported = 26;
+    // Device does not support drop and weight leaves under queue management
+    // profile.
+    // Juniper: partnerissuetracker.corp.google.com/279471405
+    bool drop_weight_leaves_unsupported = 27;
+    // Config pushed through origin CLI takes precedence over config pushed
+    // through origin OC.
+    bool cli_takes_precedence_over_oc = 29;
+    // Device does not support weight above 100.
+    // Juniper: partnerissuetracker.corp.google.com/277066804
+    bool scheduler_input_weight_limit = 30;
+    // Device does not support id leaf for SwitchChip components.
+    // Juniper: partnerissuetracker.corp.google.com/277134501
+    bool switch_chip_id_unsupported = 31;
+    // Device does not support backplane-facing-capacity leaves for some of the
+    // components.
+    // Juniper: partnerissuetracker.corp.google.com/277134501
+    bool backplane_facing_capacity_unsupported = 32;
+    // Device only supports querying counters from the state container, not from
+    // individual counter leaves.
+    bool interface_counters_from_container = 33;
+    // Use this deviation when the device does not support a mix of tagged and
+    // untagged subinterfaces.
+    bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
+    // Device does not report P4RT node names in the component hierarchy.
+    bool explicit_p4rt_node_component = 35;
+    // Configure ACLs using vendor native model specifically for RT-1.4.
+    bool use_vendor_native_acl_config = 36;
+    // Device does not support reporting software version according to the
+    // requirements in gNMI-1.10.
+    bool sw_version_unsupported = 37;
+    // Device requires explicit interface ref configuration when applying
+    // features to interface.
+    bool explicit_interface_ref_definition = 38;
+    // Device does not support telemetry path /components/component/storage.
+    // Juniper: partnerissuetracker.corp.google.com/284239001
+    bool storage_component_unsupported = 39;
+    // Device requires gribi-protocol to be enabled under network-instance.
+    bool explicit_gribi_under_network_instance = 40;
+    // Device requires port-speed to be set because its default value may not be
+    // usable.
+    bool explicit_port_speed = 41;
+    // Device requires explicit attachment of an interface or subinterface to
+    // the default network instance.
+    // Nokia: partnerissuetracker.corp.google.com/260928639
+    bool explicit_interface_in_default_vrf = 42;
+    // Skip checking QOS Dropped octets stats for interface.
+    bool qos_dropped_octets = 43;
+    // Device is missing subinterface packet counters for IPv4/IPv6.
+    bool subinterface_packet_counters_missing = 44;
+    // Connect-retry is not supported
+    // /bgp/neighbors/neighbor/timers/config/connect-retry.
+    bool connect_retry = 45;
+    // Device does not support programming a gribi flow with a next-hop entry of
+    // mac-address only.
+    bool gribi_mac_override_with_static_arp = 46;
+    // Set true for device that does not support route-policy under AFI/SAFI.
+    bool route_policy_under_afi_unsupported = 47;
+    // Device does not support using gNOI to reboot the Fabric Component.
+    bool gnoi_fabric_component_reboot_unsupported = 48;
+    // Device does not support the ntp nondefault vrf case.
+    bool ntp_non_default_vrf_unsupported = 49;
+    // Device does not support setting the L2 MTU. OpenConfig allows a device to
+    // enforce that L2 MTU, which has a default value of 1514, must be set to a
+    // higher value than L3 MTU.
+    // Arista: partnerissuetracker.corp.google.com/243445300
+    bool omit_l2_mtu = 50;
+    // Skip power admin for controller card
+    bool skip_controller_card_power_admin = 51;
+    // Device requires the banner to have a delimiter character.
+    string banner_delimiter = 60;
+    // Allowed tolerance for BGP traffic flow while comparing for pass or fail
+    // condition.
+    int32 bgp_tolerance_value = 61;
+    // Device requires additional time to complete post delete link
+    // qualification cleanup.
+    bool link_qual_wait_after_delete_required = 62;
+    // The response of gNOI reboot status is a single value (not a list), so the
+    // device requires explict component path to account for a situation when
+    // there is more than one active reboot requests.
+    // Arista: partnerissuetracker.corp.google.com/245550570
+    bool gnoi_status_empty_subcomponent = 63;
+    // Device requiries explicit deletion of network-instance table.
+    bool network_instance_table_deletion_required = 64;
+    // Device requires a BGP session reset to utilize a new MD5 key.
+    bool bgp_md5_requires_reset = 65;
+    // Devices do not count dequeued and deleted packets as drops.
+    // Arista: partnerissuetracker.corp.google.com/275384848
+    bool dequeue_delete_not_counted_as_drops = 66;
+    // Device only supports RIB ack, so tests that normally expect FIB_ACK will
+    // allow just RIB_ACK.
+    bool gribi_riback_only = 67;
+    // Device requires that aggregate Port-Channel and its members be defined in
+    // a single gNMI Update transaction at /interfaces; otherwise lag-type will
+    // be dropped, and no member can be added to the aggregate.
+    // Arista: partnerissuetracker.corp.google.com/201574574
+    bool aggregate_atomic_update = 68;
+    // Device returns no value for some OpenConfig paths if the operational
+    // value equals the default.
+    // Arista: partnerissuetracker.corp.google.com/258286131
+    bool missing_value_for_defaults = 69;
+    // The name used for the static routing protocol.  The default name in
+    // OpenConfig is \"DEFAULT\" but some devices use other names.
+    // Arista: partnerissuetracker.corp.google.com/269699737
+    string static_protocol_name = 70;
+    // Device currently uses component name instead of a full openconfig path,
+    // so suppress creating a full oc compliant path for subcomponent.
+    bool gnoi_subcomponent_path = 71;
+    // When configuring interface, config VRF prior config IP address.
+    // Arista: partnerissuetracker.corp.google.com/261958938
+    bool interface_config_vrf_before_address = 72;
+    // Device requires using the deprecated openconfig-vlan:vlan/config/vlan-id
+    // or openconfig-vlan:vlan/state/vlan-id leaves.
+    // Arista: partnerissuetracker.corp.google.com/261085885
+    bool deprecated_vlan_id = 73;
+    // Device requires gRIBI MAC Override using Static ARP + Static Route
+    // Arista: partnerissuetracker.corp.google.com/234635355
+    bool gribi_mac_override_static_arp_static_route = 74;
+    // Device requires interface enabled leaf booleans to be explicitly set to
+    // true.
+    bool interface_enabled = 75;
+    // Skip checking QOS octet stats for interface.
+    // Arista: partnerissuetracker.corp.google.com/283541442
+    bool qos_octets = 76;
+    // Device CPU components do not map to a FRU parent component in the OC
+    // tree.
+    bool cpu_missing_ancestor = 77;
+    // Device needs subinterface 0 to be routed for non-zero sub-interfaces.
+    bool require_routed_subinterface_0 = 78;
+    // Device does not report last-switchover-reason as USER_INITIATED for
+    // gNOI.SwitchControlProcessor.
+    bool gnoi_switchover_reason_missing_user_initiated = 79;
+    // The name used for the default network instance for VRF.  The default name
+    // in OpenConfig is \"DEFAULT\" but some legacy devices still use
+    // \"default\".
+    string default_network_instance = 80;
+    // Device allows unset Election ID to be primary.
+    bool p4rt_unsetelectionid_primary_allowed = 81;
+    // Device sets ALREADY_EXISTS status code for all backup client responses.
+    bool bkup_arbitration_resp_code = 82;
+    // Device requires IPOverIP decapsulation for backup NHG without interfaces.
+    bool backup_nhg_requires_vrf_with_decap = 83;
+    // Devices don't support configuring ISIS /afi-safi/af/config container.
+    bool isis_interface_afi_unsupported = 85;
+    // Devices don't support modify table entry operation in P4 Runtime.
+    bool p4rt_modify_table_entry_unsupported = 86;
+    // Parent of OS component is of type SUPERVISOR or LINECARD.
+    bool os_component_parent_is_supervisor_or_linecard = 87;
+    // Parent of OS component is of type CHASSIS.
+    bool os_component_parent_is_chassis = 88;
+    // Devices require configuring the same ISIS Metrics for Level 1 when
+    // configuring Level 2 Metrics.
+    bool isis_require_same_l1_metric_with_l2_metric = 91;
+    // Devices require configuring the same OSPF setMetric when BGP
+    // SetMED is configured.
+    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
+    // Devices require configuring subinterface with tagged vlan for p4rt
+    // packet in.
+    bool p4rt_gdp_requires_dot1q_subinterface = 93;
+    // ATE port link state operations are a no-op in KNE/virtualized environments.
+    bool ate_port_link_state_operations_unsupported = 94;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 95;
+    // Devices require configuring lspRefreshInterval ISIS timer when
+    // lspLifetimeInterval is configured.
+    // Arista: partnerissuetracker.corp.google.com/293667850
+    bool isis_lsp_lifetime_interval_requires_lsp_refresh_interval = 96;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block lost packets.
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 105;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/317086576
+    bool isis_counter_part_changes_unsupported = 107;
+    // Devices do not support threshold container under /components/component/transceiver.
+    bool transceiver_thresholds_unsupported = 108;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 109;
+    // Devices do not support showing negotiated tcp mss value in bgp tcp mss telemetry.
+    // Juniper: b/300499125
+    bool skip_tcp_negotiated_mss_check = 110;
+    // Devices don't support ISIS-Lsp metadata paths: checksum, sequence-number,
+    // remaining-lifetime.
+    bool isis_lsp_metadata_leafs_unsupported = 111;
+    // QOS queue requires configuration with queue-id
+    bool qos_queue_requires_id = 112;
+    // Devices do not support forwarding for fib failed routes.
+    bool skip_fib_failed_traffic_forwarding_check = 113;
+    // QOS requires buffer-allocation-profile configuration
+    bool qos_buffer_allocation_config_required = 114;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP global level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
+    // OC unsupported for BGP LLGR disable.
+    // Juniper: b/303479602
+    bool bgp_llgr_oc_undefined = 116;
+    // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 117;
+    // Device does not support tunnel interfaces source and destination address config paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 118;
+    // Cisco: Device does not support same minimun and maximum threshold value in QOS ECN config.
+    bool ecn_same_min_max_threshold_unsupported = 119;
+    // Cisco: QOS requires scheduler configuration.
+    bool qos_scheduler_config_required = 120;
+    // Cisco: Device does not support set weight config under QOS ECN configuration.
+    bool qos_set_weight_config_unsupported = 121;
+    // Cisco: Device does not support these get state path.
+    bool qos_get_state_path_unsupported = 122;
+    // Devices requires enabled leaf under isis level
+    // Juniper: partnerissuetracker.corp.google.com/302661486
+    bool isis_level_enabled = 123;
+    // Devices which require to use interface-id format of interface name + .subinterface index with Interface-ref container
+    bool interface_ref_interface_id_format = 124;
+    // Devices does not support member link loopback
+    // Juniper: b/307763669
+    bool member_link_loopback_unsupported = 125;
+    // Device does not support PLQ operational status check on interface
+    // Juniper: b/308990185
+    bool skip_plq_interface_oper_status_check = 126;
+    // Device set received prefix limits explicitly under prefix-limit-received rather than
+    // "prefix-limit"
+    bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Devices that don't support telemetry for hardware resources before
+    // used-threshold-upper configuration.
+    bool missing_hardware_resource_telemetry_before_config = 131;
+    // Device does not support reboot status check on subcomponents.
+    bool gnoi_subcomponent_reboot_status_unsupported = 132;
+    // Devices exports routes from all protocols to BGP if the export-policy is ACCEPT
+    // Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 133;
+    // Devices do not support path
+    // /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+    // Arista: https://partnerissuetracker.corp.google.com/issues/317064733
+    bool isis_metric_style_telemetry_unsupported = 134;
+    // Devices do not support configuring Interface-ref under Static-Route Next-Hop
+    bool static_route_next_hop_interface_ref_unsupported = 135;
+    // Devices which does not support nexthop index state
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 136;
+    // Devices which needs to enable leaf specific flag
+    // Juniper: b/319202763
+    bool enable_flowctrl_flag = 137;
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974 
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
+    //Skip tests with decap encap vrf as PBF action
+    // Nokia: partnerissuetracker.corp.google.com/issues/323251581
+     bool skip_pbf_with_decap_encap_vrf = 141;
+    // Devices which does not support copying TTL.
+    // Juniper: b/307258544
+    bool ttl_copy_unsupported = 142;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 143;
+    // Skip setting isis-actions set-level while configuring routing-policy statement action
+    bool skip_isis_set_level = 144;
+    // Skip setting isis-actions set-metric-style-type while configuring routing-policy statement action
+    bool skip_isis_set_metric_style_type = 145;
+    // Skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
+    bool skip_set_rp_match_set_options = 146;
+    // Skip setting disable-metric-propagation while configuring table-connection
+    bool skip_setting_disable_metric_propagation = 147;
+    // Devices do not support BGP conditions match-community-set
+    bool bgp_conditions_match_community_set_unsupported = 148;
+    // Device requires match condition for ethertype v4 and v6 for default rule with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 149;       
+    // Devices missing component tree mapping from hardware port
+    // to optical channel.
+    bool missing_port_to_optical_channel_component_mapping = 150;
+    // Skip gNMI container OP tc.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_container_op = 151;
+    // Reorder calls for vendor compatibility.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool reorder_calls_for_vendor_compatibilty = 152;
+    // Add missing base config using cli.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool add_missing_base_config_via_cli = 153;
+    // skip_macaddress_check returns true if mac address for an interface via gNMI needs to be skipped.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_macaddress_check = 154;
+    // Devices are having native telemetry paths for BGP RIB verification.
+    // Juniper : b/306144372
+    bool bgp_rib_oc_path_unsupported = 155;
+    // Skip setting prefix-set mode while configuring prefix-set routing-policy
+    bool skip_prefix_set_mode = 156;
+    // Devices set metric as preference for static next-hop
+    bool set_metric_as_preference = 157;
+    // Devices don't support having an IPv6 static Route with an IPv4 address
+    // as next hop and requires configuring a static ARP entry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+    bool ipv6_static_route_with_ipv4_next_hop_requires_static_arp = 158;
+    // Device requires policy-forwarding rules to be in sequential order in the gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 159;
+    // Device telemetry missing next hop metric value.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+    bool missing_static_route_next_hop_metric_telemetry = 160;
+    // Device does not support recursive resolution of static route next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+    bool unsupported_static_route_next_hop_recurse = 161;
+    // Device missing telemetry for static route that has DROP next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+    bool missing_static_route_drop_next_hop_telemetry = 162;
+    // Device missing 400ZR optical-channel tunable parameters telemetry:
+    // min/max/avg.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
+    bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Device that does not support packet link qualification reflector packet sent/received stats.
+    bool plq_reflector_stats_unsupported = 164;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 165;    
+    // Device that does not support PLQ Generator max_pps to be atleast >= 100000000.
+    uint64 plq_generator_capabilities_max_pps = 166;  
+    // Support for bgp extended community index
+    bool bgp_extended_community_index_unsupported = 167;
+    // Support for bgp community set refs
+    bool bgp_community_set_refs_unsupported = 168;
+    // Arista device needs CLI knob to enable WECMP feature
+    bool rib_wecmp = 169;
+    // Device not supporting table-connection need to set this true
+    bool table_connections_unsupported = 170;
+    // Configure tag-set using vendor native model
+    bool use_vendor_native_tag_set_config = 171;
+    // Skip setting send-community-type in bgp global config
+    bool skip_bgp_send_community_type = 172;
+    // Device does not have a default deny action in the absence of a route policy
+    bool default_import_export_policy = 173;
+    // Support for bgp actions set-community method
+    bool bgp_actions_set_community_method_unsupported = 174;
+    // Ensure no configurations exist under BGP Peer Groups
+    bool set_no_peer_group = 175;
+    // Bgp community member is a string
+    bool bgp_community_member_is_a_string = 176;
+    // Flag to indicate whether IPv4 static routes with IPv6 next-hops are unsupported.
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 177;
+    // Flag to indicate whether IPv6 static routes with IPv4 next-hops are unsupported.
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 178;
+    // Flag to indicate support for static routes that simply drop packets
+    bool static_route_with_drop_nh = 179;
+    // Flag to indicate support for static routes that can be configured with an explicit metric.
+    bool static_route_with_explicit_metric = 180;
+    // Support for bgp default import/export policy
+    bool bgp_default_policy_unsupported = 181;
+    // Flag to enable bgp explicity on default vrf
+    // Arista: b/329094094#comment9
+    bool explicit_enable_bgp_on_default_vrf = 182;
+
+    // Devices does not support allow multiple as under AFI/SAFI.
+    // CISCO: b/340859662
+    bool skip_afi_safi_path_for_bgp_multiple_as = 183;
+
+    // Reserved field numbers and identifiers.
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
+  }
+
+  message PlatformExceptions {
+    Platform platform = 1;
+    Deviations deviations = 2;
+  }
+
+  // The `platform` field for each `platform_exceptions` should be mutually
+  // exclusive. Duplicate matches will result in a test failure.
+  repeated PlatformExceptions platform_exceptions = 5;
+
+  enum Tags {
+    TAGS_UNSPECIFIED = 0;
+    TAGS_AGGREGATION = 1;
+    TAGS_DATACENTER_EDGE = 2;
+    TAGS_EDGE = 3;
+    TAGS_TRANSIT = 4;
+  }
+
+  // The `tags` used to identify the area(s) testcase applies to. An empty tag
+  // is the default implying it applies to all areas.
+  repeated Tags tags = 6;
+
+  // Whether this test only checks paths for presence rather than semantic
+  // checks.
+  bool path_presence_test = 7;
 }
 
