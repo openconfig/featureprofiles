@@ -121,12 +121,12 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port):
+def _otg_docker_compose_template(control_port, gnmi_port, version):
     return f"""
 version: "2"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:1.3.0-2
+    image: ghcr.io/open-traffic-generator/keng-controller:{version["controller"]}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -147,7 +147,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:1.3.0-4
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{version["hw"]}
     restart: always
     command:
       - "dotnet"
@@ -162,7 +162,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:1.13.15
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{version["gnmi"]}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -181,12 +181,12 @@ services:
         mode: "non-blocking"
 """
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed):
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_version))
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -559,6 +559,7 @@ def b4_chain_provider(ws, testsuite_id,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
+                    test_log_directory_path=test_log_directory_path,
                     internal_fp_repo_dir=internal_fp_repo_dir,
                     reserved_testbed=reserved_testbed,
                     test_repo_dir=test_repo_dir,
@@ -865,7 +866,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
     testbed_test_list_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_tests_list.txt')
-    otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
     if reserved_testbed.get('sim', False):
@@ -953,12 +953,10 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
-    reserved_testbed['otg_docker_compose_file'] = otg_docker_compose_file
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     reserved_testbed['test_list_file'] = testbed_test_list_file
     
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
-    _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
 
 # noinspection PyPep8Naming
@@ -1318,11 +1316,19 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, reserved_testbed):
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_version={
+    "controller": "1.3.0-2",
+    "hw": "1.3.0-4",
+    "gnmi": "1.13.15",
+}):
     # TODO: delete this line
     logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
-    docker_file = reserved_testbed["otg_docker_compose_file"]
+    
+    docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
+    reserved_testbed['otg_docker_compose_file'] = docker_file
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
+
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
     remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
 
@@ -1341,10 +1347,12 @@ def CollectIxiaLogs(self, reserved_testbed, out_dir):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def TeardownIxiaController(self, reserved_testbed):
-    pname = reserved_testbed["id"].lower()
-    docker_file = reserved_testbed["otg_docker_compose_file"]
-    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    if 'otg_docker_compose_file' in reserved_testbed:
+        pname = reserved_testbed["id"].lower()
+        docker_file = reserved_testbed["otg_docker_compose_file"]
+        cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+        del reserved_testbed["otg_docker_compose_file"]
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))
