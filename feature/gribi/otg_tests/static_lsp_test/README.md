@@ -17,10 +17,20 @@ Validate static lsp functionality.
 
 ## OpenConfig Path and RPC Coverage
 
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
+
 ```yaml
-openconfig_paths:
-  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config
-  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
-  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
-  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
-  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state
+paths:
+  ## Config paths
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
+
+  ## State paths
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state
+
+rpcs:
+  gnmi:
+    gNMI.Set
+    gNMI.Subscribe
