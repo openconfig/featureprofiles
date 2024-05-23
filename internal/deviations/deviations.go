@@ -992,3 +992,8 @@ func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
 func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
 }
+
+// SamePolicyAttachedToAllAfis returns true if same import policy has to be applied for all AFIs
+func SamePolicyAttachedToAllAfis(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSamePolicyAttachedToAllAfis()
+}
