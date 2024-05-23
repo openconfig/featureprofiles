@@ -137,7 +137,7 @@ func GnmiCLIConfig(t testing.TB, dut *ondatra.DUTDevice, config string) {
 	}
 }
 
-// BuildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
+// buildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
 func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{{

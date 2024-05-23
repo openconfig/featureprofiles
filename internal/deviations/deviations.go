@@ -973,7 +973,18 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
 }
 
-// Device does not support regex with routing-policy community-member.
-func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
+// ExplicitEnableBGPOnDefaultVRF return true if BGP needs to be explicity enabled on default VRF
+func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
+}
+
+// RoutingPolicyTagSetEmbedded returns true if the implementation does not support tag-set(s) as a
+// separate entity, but embeds it in the policy statement
+func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
+}
+
+// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
 }
