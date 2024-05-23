@@ -99,22 +99,23 @@ func TestSysGrpcState(t *testing.T) {
 		if sysGrpc == nil {
 			t.Fatalf("Got nil system grpc server data")
 		}
-		grpcPort := *sysGrpc.Port
-		grpcName := *sysGrpc.Name
-		grpcEn := *sysGrpc.Enable
-		grpcTs := *sysGrpc.TransportSecurity
+		grpcPort := sysGrpc.GetPort()
+		grpcName := sysGrpc.GetName()
+		grpcEn := sysGrpc.GetEnable()
+		grpcTs := sysGrpc.GetTransportSecurity()
 		sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 	})
 	t.Run("Subscribe /system/grpc-servers", func(t *testing.T) {
-		sysGrpcCont := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
-		if sysGrpcCont[0] == nil {
+		v := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
+		if sysGrpcCont, pres := v[0].Val(); !pres {
 			t.Fatalf("Got nil system grpc server data")
+		} else {
+			grpcPort := sysGrpcCont.GetPort()
+			grpcName := sysGrpcCont.GetName()
+			grpcEn := sysGrpcCont.GetEnable()
+			grpcTs := sysGrpcCont.GetTransportSecurity()
+			sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 		}
-		grpcPort := *sysGrpcCont[0].Port
-		grpcName := *sysGrpcCont[0].Name
-		grpcEn := *sysGrpcCont[0].Enable
-		grpcTs := *sysGrpcCont[0].TransportSecurity
-		sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 	})
 }
 
