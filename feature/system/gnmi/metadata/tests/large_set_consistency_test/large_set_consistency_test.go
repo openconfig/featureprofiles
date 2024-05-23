@@ -316,7 +316,7 @@ func TestLargeSetConsistency(t *testing.T) {
 				default:
 					t.Logf("[%d - running] checking config protobuf-metadata", i)
 					time.Sleep(5 * time.Millisecond)
-					checkMetadata1(t, gnmiClient, dut, done)
+					checkMetadata2(t, gnmiClient, dut)
 				}
 			}
 		}(i)
