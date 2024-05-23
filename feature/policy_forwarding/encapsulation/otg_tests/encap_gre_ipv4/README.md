@@ -25,11 +25,11 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
 
 1.  All DUT Ports are configured as a singleton IP interfaces.
 
-2.  IPv4 and IPv6 static routes to test destinations networks IPV4-DST/IPV6-DST are configured on DUT towards ATE Port 3.
+2.  IPv4 and IPv6 static routes to test destination networks IPV4-DST/IPV6-DST are configured on DUT towards ATE Port 3.
 
-3.  Static routes to 32x IPv4 GRE encap destinations towards ATE Port 2.
+3.  Another set of IPv4 static routes to 32x IPv4 GRE encap destinations towards ATE Port 2.
 
-4.  3 IPv4 and 3 IPv6 source prefixes will be used to generate tests traffic 
+4.  2 IPv4 and 2 IPv6 source prefixes will be used to generate tests traffic 
 (SRC1-SRC2). Apply policy-forwarding with 4 rules to DUT Port 1:
     - Match IPV4-SRC1 and accept/foward.
     - Match IPV6-SRC1 and accept/foward.
