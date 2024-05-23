@@ -967,3 +967,24 @@ func StaticRouteWithDropNhUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteWithExplicitMetric(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteWithExplicitMetric()
 }
+
+// BgpDefaultPolicyUnsupported return true if BGP default-import/export-policy is not supported.
+func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
+}
+
+// ExplicitEnableBGPOnDefaultVRF return true if BGP needs to be explicity enabled on default VRF
+func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
+}
+
+// RoutingPolicyTagSetEmbedded returns true if the implementation does not support tag-set(s) as a
+// separate entity, but embeds it in the policy statement
+func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
+}
+
+// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
+}
