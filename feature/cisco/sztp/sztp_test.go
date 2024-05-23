@@ -249,8 +249,7 @@ func TestTLS(t *testing.T) {
 	t.Log("Connecting to grpc")
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "username", *sshUser, "password", *sshPass)
 	tlsCredential := credentials.NewTLS(configGrpc)
-	conn, err := grpc.DialContext(ctx,
-		fmt.Sprintf("%s:%s", *sshIP, "7001"),
+	conn, err := grpc.NewClient(fmt.Sprintf("%s:%s", *sshIP, "7001"),
 		grpc.WithTransportCredentials(tlsCredential),
 	)
 	if err != nil {
