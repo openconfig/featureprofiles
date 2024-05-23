@@ -36,6 +36,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -213,18 +214,6 @@ type testArgs struct {
 	otg        *otg.OTG
 }
 
-type policyFwRule struct {
-	SeqID           uint32
-	family          string
-	protocol        oc.UnionUint8
-	dscpSet         []uint8
-	sourceAddr      string
-	decapNi         string
-	postDecapNi     string
-	decapFallbackNi string
-	networkInstance string
-}
-
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
@@ -342,117 +331,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
-}
-
-func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	d := &oc.Root{}
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-
-	pfRule1 := &policyFwRule{SeqID: 1, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule2 := &policyFwRule{SeqID: 2, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule3 := &policyFwRule{SeqID: 3, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
-	pfRule4 := &policyFwRule{SeqID: 4, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
-
-	pfRule5 := &policyFwRule{SeqID: 5, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule6 := &policyFwRule{SeqID: 6, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule7 := &policyFwRule{SeqID: 7, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
-	pfRule8 := &policyFwRule{SeqID: 8, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
-
-	pfRule9 := &policyFwRule{SeqID: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
-	pfRule10 := &policyFwRule{SeqID: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
-	pfRule11 := &policyFwRule{SeqID: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
-	pfRule12 := &policyFwRule{SeqID: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
-
-	pfRule13 := &policyFwRule{SeqID: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
-		networkInstance: niEncapTeVrfA}
-	pfRule14 := &policyFwRule{SeqID: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
-		networkInstance: niEncapTeVrfA}
-	pfRule15 := &policyFwRule{SeqID: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
-		networkInstance: niEncapTeVrfB}
-	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
-		networkInstance: niEncapTeVrfB}
-	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: deviations.DefaultNetworkInstance(dut)}
-
-	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
-		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
-		pfRule15, pfRule16, pfRule17}
-
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niP := ni.GetOrCreatePolicyForwarding()
-	niPf := niP.GetOrCreatePolicy(polName)
-	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	for _, pfRule := range pfRuleList {
-		pfR := niPf.GetOrCreateRule(pfRule.SeqID)
-
-		if pfRule.family == "ipv4" {
-			pfRProtoIP := pfR.GetOrCreateIpv4()
-			if pfRule.protocol != 0 {
-				pfRProtoIP.Protocol = oc.UnionUint8(pfRule.protocol)
-			}
-			if pfRule.sourceAddr != "" {
-				pfRProtoIP.SourceAddress = ygot.String(pfRule.sourceAddr)
-			}
-			if pfRule.dscpSet != nil {
-				pfRProtoIP.DscpSet = pfRule.dscpSet
-			}
-		} else if pfRule.family == "ipv6" {
-			pfRProtoIP := pfR.GetOrCreateIpv6()
-			if pfRule.dscpSet != nil {
-				pfRProtoIP.DscpSet = pfRule.dscpSet
-			}
-		}
-
-		pfRAction := pfR.GetOrCreateAction()
-		if pfRule.decapNi != "" {
-			pfRAction.DecapNetworkInstance = ygot.String(pfRule.decapNi)
-		}
-		if pfRule.postDecapNi != "" {
-			pfRAction.PostDecapNetworkInstance = ygot.String(pfRule.postDecapNi)
-		}
-		if pfRule.decapFallbackNi != "" {
-			pfRAction.DecapFallbackNetworkInstance = ygot.String(pfRule.decapFallbackNi)
-		}
-		if pfRule.networkInstance != "" {
-			pfRAction.NetworkInstance = ygot.String(pfRule.networkInstance)
-		}
-	}
-
-	p1 := dut.Port(t, "port1")
-	intf := niP.GetOrCreateInterface(p1.Name())
-	intf.ApplyVrfSelectionPolicy = ygot.String(polName)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-}
-
-// configureNetworkInstance configures vrfs DECAP_TE_VRF,ENCAP_TE_VRF_A,ENCAP_TE_VRF_B,
-// TE_VRF_222, TE_VRF_111.
-func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	c := &oc.Root{}
-	vrfs := []string{"DECAP_TE_VRF", niEncapTeVrfA, niEncapTeVrfB, niTeVrf222, niTeVrf111}
-	for _, vrf := range vrfs {
-		ni := c.GetOrCreateNetworkInstance(vrf)
-		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
 }
 
@@ -1174,9 +1052,6 @@ func TestEncapFrr(t *testing.T) {
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	t.Log("Configure Non-Default Network Instances")
-	configNonDefaultNetworkInstance(t, dut)
-
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -1194,7 +1069,7 @@ func TestEncapFrr(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
-	configureVrfSelectionPolicy(t, dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		staticARPWithMagicUniversalIP(t, dut)

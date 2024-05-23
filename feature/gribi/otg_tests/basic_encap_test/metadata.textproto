@@ -15,6 +15,7 @@ platform_exceptions:  {
     interface_ref_interface_id_format:  true
     ttl_copy_unsupported:  true
     pf_require_match_default_rule:  true
+    pf_require_sequential_order_pbr_rules: true
   }
 }
 platform_exceptions:  {

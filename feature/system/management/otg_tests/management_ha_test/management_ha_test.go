@@ -51,10 +51,9 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-
 	mgmtVRF = map[ondatra.Vendor]string{
 		ondatra.JUNIPER: "mgmt_junos",
-		ondatra.ARISTA:  "mgmtvrf1",
+		ondatra.ARISTA:  "mvrf1",
 		ondatra.CISCO:   "mgmtvrf1",
 		ondatra.NOKIA:   "mgmtvrf1",
 	}
