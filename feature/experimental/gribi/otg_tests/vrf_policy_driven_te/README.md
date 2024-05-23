@@ -807,7 +807,7 @@ Tests support for TE disabled IPinIP IPv4 (IP protocol 4) cluster traffic arrivi
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance
-*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
+*   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-decap-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
 ## Telemetry Parameter Coverage
@@ -852,7 +852,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/post-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/post-decap-network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
 
   ## State paths
