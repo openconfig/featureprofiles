@@ -988,3 +988,7 @@ func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
 func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
 }
+
+func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
+}
