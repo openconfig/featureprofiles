@@ -29,7 +29,7 @@ type PerformanceData struct {
 	SerialNo           string `bson:"serialNo,omitempty" json:"serialNo"`
 	Location           string `bson:"location,omitempty" json:"location"`
 	Type               string `bson:"type,omitempty" json:"type"`
-	Feature            string `bson:"type,omitempty" json:"feature"`
+	Feature            string `bson:"feature,omitempty" json:"feature"`
 	Trigger            string `bson:"trigger,omitempty" json:"trigger"`
 	FinishedCollecting FinishedCollecting
 	ProcessData        []ProcessData `bson:"processData,omitempty" json:"processData"`
@@ -185,10 +185,8 @@ func collectAllData(t *testing.T, dut *ondatra.DUTDevice, stageChan chan Finishe
 	// multiplex message of trigger status
 	go func() {
 		for stage := range stageChan {
-			for i, channel := range stageChannelsMultiplexed {
-				t.Logf("Waiting to forward %s to channel %d", stage, i)
+			for _, channel := range stageChannelsMultiplexed {
 				channel <- stage
-				t.Logf("Forward %s to channel %d", stage, i)
 			}
 		}
 	}()
