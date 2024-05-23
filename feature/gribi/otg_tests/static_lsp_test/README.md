@@ -15,7 +15,6 @@ Validate static lsp functionality.
 *  Start 2 traffic flows with specified MPLS tags IPv4-MPLS[1000002]-MPLS[1000001]
 *  Verify that traffic is received at ATE2 with MPLS label [1000001] removed
 
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
