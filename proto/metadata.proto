@@ -513,6 +513,10 @@ message Metadata {
     bool skip_afi_safi_path_for_bgp_multiple_as = 184;
     // Device does not support regex with routing-policy community-member.
     bool community_member_regex_unsupported = 185;
+    // Support for same import policy attached to all AFIs for given (src-protocol,
+    // dst-protocol, network-instance) triple
+    // Arista: b/339645876#comment4
+    bool same_policy_attached_to_all_afis = 186;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
