@@ -1,13 +1,12 @@
 package zr_logical_channels_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -51,8 +50,8 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
-	oc1 := opticalChannelFromPort(t, dut, p1)
-	oc2 := opticalChannelFromPort(t, dut, p2)
+	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
+	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
 
 	configureLogicalChannels(t, dut, 40000, 40001, oc1)
 	configureLogicalChannels(t, dut, 40002, 40003, oc2)
@@ -267,36 +266,5 @@ func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, optica
 				t.Errorf("Coherent Logical Channel: %s, diff (-got +want):\n%s", tc.desc, diff)
 			}
 		})
-	}
-}
-
-// opticalChannelFromPort returns the connected optical channel component name for a given ondatra port.
-func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			return fmt.Sprintf("%s-Optical0", p.Name())
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-
-		compName = comp.GetParent()
 	}
 }
