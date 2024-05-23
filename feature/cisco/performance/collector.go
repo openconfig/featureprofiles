@@ -363,15 +363,6 @@ func TopLineCardCpuMemoryUtilization(t testing.TB, dut *ondatra.DUTDevice, cliCl
 
 }
 
-func castSliceToInterface(data []PerformanceData) []interface{} {
-	castData := make([]interface{}, len(data))
-	for i, entry := range data {
-		entry.Timestamp = options.TimeSeries().TimeField
-		castData[i] = entry
-	}
-	return castData
-}
-
 func pushToDB(data []PerformanceData) error {
 	// Set client options
 	clientOptions := options.Client().ApplyURI("mongodb://xr-sf-npi-lnx:27017")
