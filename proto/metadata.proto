@@ -511,6 +511,8 @@ message Metadata {
     // Devices does not support allow multiple as under AFI/SAFI.
     // CISCO: b/340859662
     bool skip_afi_safi_path_for_bgp_multiple_as = 184;
+    // Device does not support regex with routing-policy community-member.
+    bool community_member_regex_unsupported = 185;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
