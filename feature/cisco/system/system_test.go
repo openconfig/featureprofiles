@@ -95,15 +95,16 @@ func TestSysGrpcState(t *testing.T) {
 		}
 	})
 	t.Run("Subscribe /system/grpc-servers/grpc-server['DEFAULT']", func(t *testing.T) {
-		sysGrpc := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").State())
-		if sysGrpc == nil {
-			t.Fatalf("Got nil system grpc server data")
+		v := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").State())
+		if sysGrpc, ok := v.Val(); !ok {
+			t.Errorf("Got nil system grpc server data")
+		} else {
+			grpcPort := sysGrpc.GetPort()
+			grpcName := sysGrpc.GetName()
+			grpcEn := sysGrpc.GetEnable()
+			grpcTs := sysGrpc.GetTransportSecurity()
+			sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 		}
-		grpcPort := sysGrpc.GetPort()
-		grpcName := sysGrpc.GetName()
-		grpcEn := sysGrpc.GetEnable()
-		grpcTs := sysGrpc.GetTransportSecurity()
-		sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 	})
 	t.Run("Subscribe /system/grpc-servers", func(t *testing.T) {
 		v := gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
