@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"github.com/openconfig/featureprofiles/tools/internal/fpciutil"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,8 +24,8 @@ type testcase struct {
 
 // read reads the markdown and existing rundata from the test directory.
 func (tc *testcase) read(testdir string) error {
-	if err := readFile(filepath.Join(testdir, "README.md"), tc.readMarkdown); err != nil {
-		return fmt.Errorf("could not parse README.md: %w", err)
+	if err := readFile(filepath.Join(testdir, fpciutil.READMEname), tc.readMarkdown); err != nil {
+		return fmt.Errorf("could not parse %s: %w", fpciutil.READMEname, err)
 	}
 	if err := readFile(filepath.Join(testdir, "metadata.textproto"), tc.readProto); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not parse metadata.textproto: %w", err)
