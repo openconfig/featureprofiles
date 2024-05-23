@@ -449,7 +449,7 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, afi
 				},
 			}
 
-			peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, afiType)
+			peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, afiTypes)
 		}
 	}
 
@@ -461,7 +461,7 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, afi
 }
 
 // getPeerGroup build peer-config
-func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType []oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 
@@ -474,11 +474,13 @@ func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType oc.E_BgpTypes_AFI_
 	}
 
 	// policy under peer group AFI
-	afisafi := pg.GetOrCreateAfiSafi(afiType)
-	afisafi.Enabled = ygot.Bool(true)
-	rpl := afisafi.GetOrCreateApplyPolicy()
-	rpl.SetExportPolicy([]string{RPLPermitAll})
-	rpl.SetImportPolicy([]string{RPLPermitAll})
+	for _, afi := range afiType {
+		afisafi := pg.GetOrCreateAfiSafi(afi)
+		afisafi.Enabled = ygot.Bool(true)
+		rpl := afisafi.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{RPLPermitAll})
+		rpl.SetImportPolicy([]string{RPLPermitAll})
+	}
 	return pg
 }
 
