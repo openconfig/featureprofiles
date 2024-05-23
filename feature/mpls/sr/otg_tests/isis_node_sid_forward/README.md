@@ -10,15 +10,16 @@ Topology: ATE1—DUT1–ATE2
                                
 *   Configure Segment Routing Global Block (start: 400000 range: 65001)
 *   Enable Segment Routing for the ISIS
+*   Enable MPLS forwarding
 
-Advertise 2 prefixes with SIDs to DUT from ATE2:
+Advertise 2 prefixes with SIDs to DUT from ATE1:
 
 *  Prefix (1) with node-SID is advertised by the direct ISIS neighbor
 *  Prefix (2) with node-SID is advertised by simulated indirect ISIS speaker
 
 Verify: 
 *  DUT receives prefixes with SIDs and has a correct emulated ISIS topology (database).
-*  DUT advertises both node-SID to ATE1.
+*  DUT advertises both prefixes with node-SID to ATE2.
 
 
 Generate traffic:
@@ -27,7 +28,7 @@ Generate traffic:
 *   Verify that corresponding SID forwarding counters are incremented.
 
 ## Config Parameter Coverage
-
+* `/network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled`
 * `/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config`
 * `/network-instances/network-instance/segment-routing/srlbs/srlb/config`
 
