@@ -87,10 +87,10 @@ func TestSysGrpcState(t *testing.T) {
 		if sysData, pres := v.Val(); !pres {
 			t.Fatalf("Got nil system state data")
 		} else {
-			grpcPort := *sysData.GetGrpcServer("DEFAULT").Port
-			grpcName := *sysData.GetGrpcServer("DEFAULT").Name
-			grpcEn := *sysData.GetGrpcServer("DEFAULT").Enable
-			grpcTs := *sysData.GetGrpcServer("DEFAULT").TransportSecurity
+			grpcPort := sysData.GetGrpcServer("DEFAULT").GetPort()
+			grpcName := sysData.GetGrpcServer("DEFAULT").GetName()
+			grpcEn := sysData.GetGrpcServer("DEFAULT").GetEnable()
+			grpcTs := sysData.GetGrpcServer("DEFAULT").GetTransportSecurity()
 			sysGrpcVerify(t, grpcPort, grpcName, grpcTs, grpcEn)
 		}
 	})
