@@ -39,6 +39,7 @@ type Attributes struct {
 	MAC     string
 	Name    string // Interface name, only applied to ATE ports.
 	Desc    string // Description, only applied to DUT interfaces.
+	Subinterface  uint32 //Subinterface
 	IPv4Len uint8  // Prefix length for IPv4.
 	IPv6Len uint8  // Prefix length for IPv6.
 	MTU     uint16
@@ -74,7 +75,7 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		e.MacAddress = ygot.String(a.MAC)
 	}
 
-	s := intf.GetOrCreateSubinterface(0)
+	s := intf.GetOrCreateSubinterface(a.Subinterface)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
