@@ -41,7 +41,6 @@ const (
 	prefixesCount = 1
 	pathID        = 1
 	defaultRoute  = "0:0:0:0:0:0:0:0"
-	dutAS         = 65501
 )
 
 var (
@@ -53,11 +52,27 @@ var (
 		IPv6Len: 128,
 	}
 
-	mgmtVRF  = "mgmtvrf1"
+	mgmtVRF = map[ondatra.Vendor]string{
+		ondatra.JUNIPER: "mgmt_junos",
+		ondatra.ARISTA:  "mgmtvrf1",
+		ondatra.CISCO:   "mgmtvrf1",
+		ondatra.NOKIA:   "mgmtvrf1",
+	}
+	loopbackIntf = map[ondatra.Vendor]int{
+		ondatra.JUNIPER: 0,
+		ondatra.ARISTA:  1,
+		ondatra.CISCO:   1,
+		ondatra.NOKIA:   1,
+	}
+	loopbackSubIntf = map[ondatra.Vendor]int32{
+		ondatra.JUNIPER: 100,
+		ondatra.ARISTA:  0,
+		ondatra.CISCO:   0,
+		ondatra.NOKIA:   0,
+	}
 	bgpPorts = []string{"port1", "port2"}
 
-	setNoPeerGroup = true
-	lossTolerance  = float64(1)
+	lossTolerance = float64(1)
 )
 
 func TestMain(m *testing.M) {
@@ -70,11 +85,12 @@ func TestManagementHA1(t *testing.T) {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 1)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
+	mgmtVRFName := mgmtVRF[dut.Vendor()]
+	createInterfaces(t, dut, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName}, []uint32{0, 0, 0, 0, uint32(loopbackSubIntf[dut.Vendor()])})
+	addInterfacesToVRF(t, dut, mgmtVRFName, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName}, []uint32{0, 0, 0, 0, uint32(loopbackSubIntf[dut.Vendor()])})
 
-	addInterfacesToVRF(t, dut, mgmtVRF, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName})
-
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, &mgmtVRF)
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, &mgmtVRFName)
 	bs.WithEBGP(
 		t,
 		[]oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST},
@@ -82,10 +98,9 @@ func TestManagementHA1(t *testing.T) {
 		true,
 		true,
 	)
-
-	if setNoPeerGroup {
-		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
-		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
+	if deviations.SetNoPeerGroup(dut) {
+		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
+		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
 		for _, neighbor := range neighbors {
 			neighbor.PeerGroup = nil
 		}
@@ -93,11 +108,14 @@ func TestManagementHA1(t *testing.T) {
 
 	configureEmulatedNetworks(bs)
 
-	bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(dutAS)
-	bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).SetRouteDistinguisher(fmt.Sprintf("%d:%d", dutAS, 100))
-
+	if deviations.ExplicitEnableBGPOnDefaultVRF(dut) {
+		bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal().SetAs(cfgplugins.DutAS)
+	}
+	if dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER {
+		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
+	}
 	bs.PushAndStart(t)
-	if verfied := verifyDUTBGPEstablished(t, bs.DUT, mgmtVRF); verfied {
+	if verfied := verifyDUTBGPEstablished(t, bs.DUT, mgmtVRFName); verfied {
 		t.Log("DUT BGP sessions established")
 	} else {
 		t.Fatalf("BGP sessions not established")
@@ -105,9 +123,9 @@ func TestManagementHA1(t *testing.T) {
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
 	configureLoopbackOnDUT(t, bs.DUT)
-	advertiseDUTLoopbackToATE(t, bs.DUT)
+	advertiseDUTLoopbackToATE(t, bs.DUT, bs)
 	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
-	configureImportExportBGPPolicy(t, bs)
+	configureImportExportBGPPolicy(t, bs, dut)
 
 	t.Run("traffic received by port1 or port2", func(t *testing.T) {
 		createFlowV6(t, bs)
@@ -127,6 +145,7 @@ func TestManagementHA1(t *testing.T) {
 		createFlowV6(t, bs)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_DOWN)
+		time.Sleep(3 * time.Second)
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StopTraffic(t)
@@ -134,7 +153,8 @@ func TestManagementHA1(t *testing.T) {
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		framesTx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port4").ID()).Counters().OutFrames().State())
 		framesRx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port2").ID()).Counters().InFrames().State())
-		if lossPct(float64(framesTx), float64(framesRx)) > lossTolerance {
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", 10*time.Second)
+		if lossV6 > lossTolerance || framesRx < framesTx {
 			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
 		}
 	})
@@ -167,10 +187,15 @@ func TestManagementHA1(t *testing.T) {
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		framesTx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port4").ID()).Counters().OutFrames().State())
 		framesRx := gnmi.Get(t, bs.ATE.OTG(), gnmi.OTG().Port(bs.ATE.Port(t, "port1").ID()).Counters().InFrames().State())
-		if lossPct(float64(framesTx), float64(framesRx)) > lossTolerance {
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", 10*time.Second)
+		if lossV6 > lossTolerance || framesRx < framesTx {
 			t.Errorf("Frames sent/received: got: %d, want: %d", framesRx, framesTx)
 		}
 	})
+
+	defer func() {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(mgmtVRFName).Config())
+	}()
 }
 
 func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
@@ -198,6 +223,7 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 }
 
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, nextHopIP string) {
+	mgmtVRFName := mgmtVRF[dut.Vendor()]
 	c := &oc.NetworkInstance_Protocol{
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
 		Name:       ygot.String(deviations.StaticProtocolName(dut)),
@@ -210,7 +236,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, nextHopIP string
 	} else {
 		nh.Preference = ygot.Uint32(220)
 	}
-	sp := gnmi.OC().NetworkInstance(mgmtVRF).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	sp := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	gnmi.Update(t, dut, sp.Config(), c)
 	gnmi.Replace(t, dut, sp.Static(defaultRoute+"/0").Config(), s)
 }
@@ -235,23 +261,39 @@ func configureEmulatedNetworks(bs *cfgplugins.BGPSession) {
 }
 
 func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 1)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
+	dutlo0Attrs.Subinterface = uint32(loopbackSubIntf[dut.Vendor()])
 	loop := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 	loop.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loop)
 	t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 }
 
-func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfNames []string) {
+func createInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfNames []string, unit []uint32) {
+	root := &oc.Root{}
+	for index, intfName := range intfNames {
+		i := root.GetOrCreateInterface(intfName)
+		if intfName == netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()]) {
+			i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		} else {
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
+		si := i.GetOrCreateSubinterface(unit[index])
+		si.Enabled = ygot.Bool(true)
+		gnmi.Update(t, dut, gnmi.OC().Interface(intfName).Config(), i)
+	}
+}
+
+func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfNames []string, unit []uint32) {
 	root := &oc.Root{}
 	mgmtNI := root.GetOrCreateNetworkInstance(vrfname)
 	mgmtNI.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-	for _, intfName := range intfNames {
+	for index, intfName := range intfNames {
 		vi := mgmtNI.GetOrCreateInterface(intfName)
 		vi.Interface = ygot.String(intfName)
-		vi.Subinterface = ygot.Uint32(0)
+		vi.Subinterface = ygot.Uint32(unit[index])
 	}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(mgmtVRF).Config(), mgmtNI)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), mgmtNI)
 	t.Logf("Added interface %v to VRF %s", intfNames, vrfname)
 }
 
@@ -270,9 +312,9 @@ func verifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, ni string) bo
 	return true
 }
 
-func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice) {
+func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplugins.BGPSession) {
 	t.Helper()
-
+	mgmtVRFName := mgmtVRF[dut.Vendor()]
 	batchSet := &gnmi.SetBatch{}
 
 	root := &oc.Root{}
@@ -285,31 +327,44 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice) {
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("ps")
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
 		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	}
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps")
+
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
+	if deviations.TableConnectionsUnsupported(dut) {
+		stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
+			pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+			policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+			policyV6.SetExportPolicy([]string{"rp"})
+			gnmi.BatchUpdate(batchSet, pathV6.Config(), policyV6)
+		}
+	} else {
+		tableConn := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
+		if !deviations.SkipSettingDisableMetricPropagation(dut) {
+			tableConn.SetDisableMetricPropagation(false)
+		}
+		tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		tableConn.SetImportPolicy([]string{"rp"})
+		gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRFName).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
 
-	tableConn := root.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
-	if !deviations.SkipSettingDisableMetricPropagation(dut) {
-		tableConn.SetDisableMetricPropagation(false)
+		tableConn1 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
+		tableConn1.SetImportPolicy([]string{"rp"})
+		gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRFName).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
 	}
-	tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	tableConn.SetImportPolicy([]string{"rp"})
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRF).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
-
-	tableConn1 := root.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4)
-	tableConn1.SetImportPolicy([]string{"rp"})
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(mgmtVRF).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
-
 	batchSet.Set(t, dut)
 }
 
-func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession) {
+func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut *ondatra.DUTDevice) {
+	mgmtVRFName := mgmtVRF[dut.Vendor()]
 	root := &oc.Root{}
 	batchSet := &gnmi.SetBatch{}
 
@@ -322,7 +377,9 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession) {
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	prefixSet1 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("ps1")
-	prefixSet1.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet1.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet1.GetOrCreatePrefix(defaultRoute+"/0", "exact")
 
 	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
@@ -338,7 +395,9 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession) {
 	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	prefixSet2 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("ps2")
-	prefixSet2.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet2.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet2.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
 	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
@@ -349,11 +408,11 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession) {
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
-		pathV6 := gnmi.OC().NetworkInstance(mgmtVRF).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-		policyV6 := root.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+		pathV6 := gnmi.OC().NetworkInstance(mgmtVRFName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+		policyV6 := root.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(neighbor).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policyV6.SetImportPolicy([]string{"importRoutePolicy"})
 		policyV6.SetExportPolicy([]string{"exportRoutePolicy"})
-		gnmi.BatchReplace(batchSet, pathV6.Config(), policyV6)
+		gnmi.BatchUpdate(batchSet, pathV6.Config(), policyV6)
 	}
 
 	batchSet.Set(t, bs.DUT)
