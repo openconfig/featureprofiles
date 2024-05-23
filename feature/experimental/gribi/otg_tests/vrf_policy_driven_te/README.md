@@ -843,18 +843,17 @@ paths used for test setup are not listed here.
 ```yaml 
 paths:
   ## Config paths
-  /network-instances/network-instance/name:
-  /network-instances/network-instance/policy-forwarding/policies/policy/policy-id:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/protocol:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/dscp-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/source-address:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/protocol:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/dscp-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/source-address:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/post-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
 
   ## State paths
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
