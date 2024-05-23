@@ -16,10 +16,12 @@ Validate static lsp functionality.
 *  Verify that traffic is received at ATE2 with MPLS label [1000001] removed
 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config
-*   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
-*   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
-*   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
-*   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state
+```yaml
+openconfig_paths:
+  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config
+  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
+  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
+  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
+  - /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state
