@@ -1746,6 +1746,7 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 		if interfaces.attr.Desc == "Management" {
 			subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+			time.Sleep(20 * time.Second)
 		}
 		subInt.GetOrCreateIpv6().GetOrCreateAddress(interfaces.attr.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(interfaces.intf).Config(), Intf)
@@ -2061,6 +2062,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			subInt := Intf.GetOrCreateSubinterface(0)
 			if interfaces.attr.Desc == "Management" {
 				subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+				time.Sleep(20 * time.Second)
 			}
 			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetPrefixLength(128)
 			subInt.GetOrCreateIpv6().GetOrCreateAddress(IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
