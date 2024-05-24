@@ -291,11 +291,14 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 
-## Protocol/RPC Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-* gNMI
-  * Subscribe (ONCE)
-  * Set (REPLACE)
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
 
 ## Required DUT platform
 
