@@ -19,6 +19,7 @@ platform_exceptions:  {
     skip_setting_disable_metric_propagation:  true
     set_metric_as_preference:  true
     set_no_peer_group: true
+    explicit_enable_bgp_on_default_vrf: true
   }
 }
 platform_exceptions:  {
