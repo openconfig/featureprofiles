@@ -90,6 +90,18 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		}
 	}
 
+	if a.IPv4Sec != "" {
+		s4 := s.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			s4.Enabled = ygot.Bool(true)
+		}
+		a4 := s4.GetOrCreateAddress(a.IPv4Sec)
+		if a.IPv4LenSec > 0 {
+			a4.PrefixLength = ygot.Uint8(a.IPv4LenSec)
+			a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
+		}
+	}
+
 	if a.IPv6 != "" {
 		s6 := s.GetOrCreateIpv6()
 		if a.MTU > 0 {
