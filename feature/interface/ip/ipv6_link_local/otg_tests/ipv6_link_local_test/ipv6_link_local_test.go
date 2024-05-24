@@ -177,6 +177,10 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
 	subInt := srcIntf.GetOrCreateSubinterface(0)
+	subInt4 := subInt.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		subInt4.Enabled = ygot.Bool(true)
+	}
 	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
@@ -184,7 +188,11 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
 	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt4 := dstSubInt.GetOrCreateIpv4()
 	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		dstSubInt4.Enabled = ygot.Bool(true)
+	}
 	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
