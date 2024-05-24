@@ -470,7 +470,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
-func programAftWithDummyIp(t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
+func programAftWithDummyIP(t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
@@ -551,7 +551,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 				WithID(15).AddNextHop(16, 1),
 		)
 	} else if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		programAftWithDummyIp(t, dut, args)
+		programAftWithDummyIP(t, dut, args)
 	} else {
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
