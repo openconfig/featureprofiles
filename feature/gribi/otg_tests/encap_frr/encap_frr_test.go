@@ -128,7 +128,6 @@ const (
 	ateSrcNetFirstIP = "198.51.100.1"
 	ateSrcNetCount   = 250
 	ipOverIPProtocol = 4
-	seqIDBase        = 10
 
 	checkEncap = true
 	wantLoss   = true
@@ -194,7 +193,7 @@ var (
 		IPv6Len: 128,
 	}
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
+		Desc:       "dutPort2",
 		IPv4Sec:    "192.0.2.33",
 		IPv4LenSec: plenIPv4,
 	}
@@ -206,7 +205,7 @@ var (
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
+		Desc:       "dutPort3",
 		IPv4Sec:    "192.0.2.37",
 		IPv4LenSec: plenIPv4,
 	}
@@ -218,7 +217,7 @@ var (
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
-		Desc:    "dutPort4",
+		Desc:       "dutPort4",
 		IPv4Sec:    "192.0.2.41",
 		IPv4LenSec: plenIPv4,
 	}
@@ -230,7 +229,7 @@ var (
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.45",
 		IPv4LenSec: plenIPv4,
 	}
@@ -241,7 +240,7 @@ var (
 		IPv4Len: plenIPv4,
 	}
 	dutPort6DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.49",
 		IPv4LenSec: plenIPv4,
 	}
@@ -252,7 +251,7 @@ var (
 		IPv4Len: plenIPv4,
 	}
 	dutPort7DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
+		Desc:       "dutPort5",
 		IPv4Sec:    "192.0.2.53",
 		IPv4LenSec: plenIPv4,
 	}
@@ -429,16 +428,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		staticARPWithSpecificIP(t, dut)
 	}
-}
-
-// seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
-// like 1, 10, 11, 12,..., 2, 21, 22, ... while being sent by Ondatra to the DUT.
-// It now generates sequences like 11, 12, 13, ..., 19, 20, 21,..., 99.
-func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
-	if deviations.PfRequireSequentialOrderPbrRules(dut) {
-		return i + seqIDBase
-	}
-	return i
 }
 
 // configStaticArp configures static arp entries
