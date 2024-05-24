@@ -15,11 +15,11 @@
 package zr_laser_bias_current_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -32,7 +32,7 @@ import (
 const (
 	dp16QAM           = 1
 	targetOutputPower = -10
-	frequency         = 193100000
+	frequency         = 193500000
 )
 
 func TestMain(m *testing.M) {
@@ -62,33 +62,39 @@ func verifyLaserBiasCurrent(t *testing.T, pStream *samplestream.SampleStream[flo
 	return laserBiasVal
 }
 
-func verifyLaserBiasCurrentAll(t *testing.T, pStreamInstant *samplestream.SampleStream[float64], pStreamAvg *samplestream.SampleStream[float64], pStreamMax *samplestream.SampleStream[float64], pStreamMin *samplestream.SampleStream[float64]) {
+func verifyLaserBiasCurrentAll(t *testing.T, pStreamInstant *samplestream.SampleStream[float64], pStreamAvg *samplestream.SampleStream[float64], pStreamMax *samplestream.SampleStream[float64], pStreamMin *samplestream.SampleStream[float64], dut1 *ondatra.DUTDevice) {
 	laserbiasInstant := verifyLaserBiasCurrent(t, pStreamInstant, "laserbiasInstant")
 	t.Logf("laserBias Instant value: %f", laserbiasInstant)
-	laserbiasMin := verifyLaserBiasCurrent(t, pStreamMin, "laserbiasMin")
-	t.Logf("laserBias Min value: %f", laserbiasMin)
-	laserbiasMax := verifyLaserBiasCurrent(t, pStreamMax, "laserbiasMax")
-	t.Logf("laserBias Max value: %f", laserbiasMax)
-	laserbiasAvg := verifyLaserBiasCurrent(t, pStreamAvg, "laserbiasAvg")
-	t.Logf("laserBias Avg value: %f", laserbiasAvg)
-	if laserbiasAvg >= laserbiasMin && laserbiasAvg <= laserbiasMax {
-		t.Logf("The average is between the maximum and minimum values")
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		t.Fatalf("The average is not between the maximum and minimum values Avg:%f Min:%f Max:%f", laserbiasAvg, laserbiasMin, laserbiasMax)
+		laserbiasMin := verifyLaserBiasCurrent(t, pStreamMin, "laserbiasMin")
+		t.Logf("laserBias Min value: %f", laserbiasMin)
+		laserbiasMax := verifyLaserBiasCurrent(t, pStreamMax, "laserbiasMax")
+		t.Logf("laserBias Max value: %f", laserbiasMax)
+		laserbiasAvg := verifyLaserBiasCurrent(t, pStreamAvg, "laserbiasAvg")
+		t.Logf("laserBias Avg value: %f", laserbiasAvg)
+		if laserbiasAvg >= laserbiasMin && laserbiasAvg <= laserbiasMax {
+			t.Logf("The average is between the maximum and minimum values")
+		} else {
+			t.Fatalf("The average is not between the maximum and minimum values Avg:%f Min:%f Max:%f", laserbiasAvg, laserbiasMin, laserbiasMax)
+		}
 	}
 }
+
 func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp)
+	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp)
 	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
 }
+
 func TestZRLaserBiasCurrentState(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
@@ -103,7 +109,7 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverState, dp1.PMD())
 	}
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp1)
+	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component1 := gnmi.OC().Component(OCcomponent)
 	p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Instant().State(), 10*time.Second)
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
@@ -113,8 +119,9 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	defer p1StreamMax.Close()
 	defer p1StreamMin.Close()
 	defer p1StreamInstant.Close()
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 }
+
 func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
@@ -137,7 +144,7 @@ func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	i.Enabled = ygot.Bool(false)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp1)
+	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component1 := gnmi.OC().Component(OCcomponent)
 	p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Instant().State(), 10*time.Second)
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
@@ -147,16 +154,17 @@ func TestZRLaserBiasCurrentStateInterface_Flap(t *testing.T) {
 	defer p1StreamMin.Close()
 	defer p1StreamMax.Close()
 	defer p1StreamAvg.Close()
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 	// Wait 120 sec cooling off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	// Enable interface
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 	i.Enabled = ygot.Bool(true)
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 }
+
 func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
@@ -172,7 +180,7 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverState, dp1.PMD())
 	}
-	OCcomponent := opticalChannelComponentFromPort(t, dut1, dp1)
+	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component1 := gnmi.OC().Component(OCcomponent)
 	p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Instant().State(), 10*time.Second)
 	p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().LaserBiasCurrent().Min().State(), 10*time.Second)
@@ -184,35 +192,9 @@ func TestZRLaserBiasCurrentStateTransceiverOnOff(t *testing.T) {
 	defer p1StreamAvg.Close()
 	// Disable interface transceiver power off
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), false)
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 	// Enable interface transceiver power on
 	gnmi.Update(t, dut1, gnmi.OC().Component(dp1.Name()).Transceiver().Enabled().Config(), true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin)
-}
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			transceiverState := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			return fmt.Sprintf("%s-Optical0", transceiverState)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
-	}
+	verifyLaserBiasCurrentAll(t, p1StreamInstant, p1StreamAvg, p1StreamMax, p1StreamMin, dut1)
 }
