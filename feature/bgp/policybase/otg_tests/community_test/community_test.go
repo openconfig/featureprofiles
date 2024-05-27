@@ -313,4 +313,3 @@ func TestCommunitySet(t *testing.T) {
 		})
 	}
 }
-
