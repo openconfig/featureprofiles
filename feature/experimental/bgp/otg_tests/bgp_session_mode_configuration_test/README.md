@@ -12,10 +12,10 @@ DUT Port1 (AS 65501) ---eBGP --- ATE Port1 (AS 65502)
 
 *  Configure both DUT and ATE to operate in BGP passive mode under the neighbor section.
 *  Verify that the BGP adjacency will not be established.
-*  Verify the ST path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
+*  Verify the telemetry path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
 *  Configure BGP session on ATE to operate in BGP active mode when interacting with DUT.
 *  Verify that a BGP adjacency is established between the ATE and DUT
-*  Verify the ST path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
+*  Verify the telemetry path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
 *  Redo the same above steps but configure the passive mode under the peer group instead of the  bgp neighbor configuration.
 
 ## Config Parameter coverage
