@@ -37,7 +37,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
-	spb "github.com/openconfig/gnoi/system/system_go_proto"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
