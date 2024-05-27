@@ -545,3 +545,19 @@ func SliceEqual(a, b []string) bool {
 
 	return true
 }
+
+// UniqueValues returns a list of all unique values from a given input map.
+func UniqueValues(t *testing.T, m map[string]string) []string {
+	seen := make(map[string]bool) // a set of seen values
+	var result []string           // a slice to hold unique values
+
+	for _, value := range m {
+		if _, ok := seen[value]; !ok {
+			// If the value hasn't been seen yet, add it to the result slice
+			result = append(result, value)
+			// And mark it as seen
+			seen[value] = true
+		}
+	}
+	return result
+}

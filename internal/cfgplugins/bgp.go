@@ -229,16 +229,14 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 				bgp4Peer.SetPeerAddress(ipv4.Gateway())
 				bgp4Peer.SetAsNumber(uint32(asNumbers[i]))
 				bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-				bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 			case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
 				ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 				bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP6.peer")
 				bgp6Peer.SetPeerAddress(ipv6.Gateway())
 				bgp6Peer.SetAsNumber(uint32(asNumbers[i]))
 				bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-				bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true).SetExtendedNextHopEncoding(true)
-				bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+				bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 			}
 		}
 	}

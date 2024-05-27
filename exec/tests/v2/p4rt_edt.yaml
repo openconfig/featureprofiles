@@ -1,0 +1,11 @@
+name: p4rt_edt
+owners: 
+  - kjahed
+testbeds:
+  - 8808-1DUT
+tests:
+  - name: p4rt_edt
+    path: feature/experimental/p4rt/tests/cisco/p4rt_edt
+    mustpass: true
+    internal: true
+    branch: master

@@ -137,11 +137,6 @@ duts {
    name: "TenGigE0/7/0/12/1"  # Change this to the actual port name.
    speed: S_10GB       
   }
-  ports {
-   id: "port9"
-   name: "TenGigE0/7/0/7/1"  # Change this to the actual port name.
-   speed: S_10GB       
-  }
 }
 
 ates {
@@ -210,11 +205,6 @@ ates {
   ports {
    id: "port8"
    name: "9/10"  # Change this to the actual port name.
-   speed: S_10GB       
-  }
-  ports {
-   id: "port9"
-   name: "9/26"  # Change this to the actual port name.
    speed: S_10GB       
   }
 }

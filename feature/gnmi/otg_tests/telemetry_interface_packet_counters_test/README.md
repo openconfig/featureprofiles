@@ -59,49 +59,41 @@ following features:
     *   TODO: /interfaces/interface/state/cpu
     *   TODO: /interfaces/interface/state/management
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
 
-*   /interfaces/interface/state/counters/in-pkts
-*   /interfaces/interface/state/counters/out-pkts
+  ## State Paths ##
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
+  /interfaces/interface/ethernet/state/counters/in-maxsize-exceeded:
+  /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
+  /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
+  /interfaces/interface/ethernet/state/counters/in-crc-errors:
+  /interfaces/interface/ethernet/state/counters/in-fragment-frames:
+  /interfaces/interface/ethernet/state/counters/in-jabber-frames:
+  /interfaces/interface/state/cpu:
+  /interfaces/interface/state/management:
 
-*   /interfaces/interface/subinterfaces/subinterface]/ipv4/state/counters/in-pkts
-
-*   /interfaces/interface/subinterfaces/subinterface]/ipv4/state/counters/out-pkts
-
-*   /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/in-pkts
-
-*   /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/out-pkts
-
-*   /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/in-discarded-pkts
-
-*   /interfaces/interface/subinterfaces/subinterface]/ipv6/state/counters/out-discarded-pkts
-
-*   /interfaces/interface/ethernet/state/counters/in-maxsize-exceeded
-
-*   /interfaces/interface/ethernet/state/counters/in-mac-pause-frames
-
-*   /interfaces/interface/ethernet/state/counters/out-mac-pause-frames
-
-*   /interfaces/interface/ethernet/state/counters/in-crc-errors
-
-*   /interfaces/interface/ethernet/state/counters/in-fragment-frames
-
-*   /interfaces/interface/ethernet/state/counters/in-jabber-frames
-
-*   /interfaces/interface/state/cpu
-
-*   /interfaces/interface/state/management
-
-## Protocol/RPC Parameter coverage
-
-No coverage
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Minimum DUT platform requirement
 

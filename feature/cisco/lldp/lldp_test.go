@@ -42,8 +42,8 @@ func TestLldpState(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	iut := inputObj.Device(dut).GetInterface("$ports.peer_dut_1")
-	peerintf := inputObj.Device(peer).GetInterface("$ports.peer_dut_1")
+	iut := inputObj.Device(dut).GetInterface("$ports.port1")
+	peerintf := inputObj.Device(peer).GetInterface("$ports.port1")
 	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
 		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
