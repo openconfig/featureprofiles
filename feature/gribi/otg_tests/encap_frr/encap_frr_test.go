@@ -91,6 +91,7 @@ const (
 	niEncapTeVrfB          = "ENCAP_TE_VRF_B"
 	niTeVrf111             = "TE_VRF_111"
 	niTeVrf222             = "TE_VRF_222"
+	niDefault              = "DEFAULT"
 	tolerancePct           = 2
 	tolerance              = 0.2
 	encapFlow              = "encapFlow"
@@ -191,6 +192,75 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.33",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort2DummyIP = attrs.Attributes{
+		Desc:    "otgPort2",
+		IPv4:    "192.0.2.34",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:       "dutPort3",
+		IPv4Sec:    "192.0.2.37",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort3DummyIP = attrs.Attributes{
+		Desc:    "otgPort3",
+		IPv4:    "192.0.2.38",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort4DummyIP = attrs.Attributes{
+		Desc:       "dutPort4",
+		IPv4Sec:    "192.0.2.41",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort4DummyIP = attrs.Attributes{
+		Desc:    "otgPort4",
+		IPv4:    "192.0.2.42",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort5DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.45",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort5DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.46",
+		IPv4Len: plenIPv4,
+	}
+	dutPort6DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.49",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort6DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.50",
+		IPv4Len: plenIPv4,
+	}
+	dutPort7DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.53",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort7DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.54",
+		IPv4Len: plenIPv4,
+	}
 	loopbackIntfName string
 	atePortNamelist  []string
 )
@@ -257,7 +327,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -288,6 +358,29 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	a6.PrefixLength = ygot.Uint8(plenIPv6)
 
 	return i
+}
+
+// staticARPWithSecondaryIP configures secondary IPs and static ARP.
+func staticARPWithSpecificIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+	p5 := dut.Port(t, "port5")
+	p6 := dut.Port(t, "port6")
+	p7 := dut.Port(t, "port7")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), dutPort5DummyIP.NewOCInterface(p5.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), dutPort6DummyIP.NewOCInterface(p6.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), dutPort7DummyIP.NewOCInterface(p7.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), configStaticArp(p6.Name(), otgPort6DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), configStaticArp(p7.Name(), otgPort7DummyIP.IPv4, magicMac))
 }
 
 // configureDUT configures all the interfaces on the DUT.
@@ -332,6 +425,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		staticARPWithSpecificIP(t, dut)
+	}
 }
 
 // configStaticArp configures static arp entries
@@ -374,6 +470,53 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
+func programAftWithDummyIP(t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
+			WithIPAddress(otgPort2DummyIP.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
+			WithIPAddress(otgPort3DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()).
+			WithIPAddress(otgPort4DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(12).AddNextHop(13, 2),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()).
+			WithIPAddress(otgPort5DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(13).AddNextHop(14, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()).
+			WithIPAddress(otgPort6DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(14).AddNextHop(15, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()).
+			WithIPAddress(otgPort7DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(15).AddNextHop(16, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF5+"/"+maskLen32).WithNextHopGroup(15),
+	)
+}
+
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
@@ -407,6 +550,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(15).AddNextHop(16, 1),
 		)
+	} else if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		programAftWithDummyIP(t, dut, args)
 	} else {
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -577,7 +722,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1112).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(18),
+			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101),
 	)
@@ -652,7 +797,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if dut.Vendor() == ondatra.CISCO {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
