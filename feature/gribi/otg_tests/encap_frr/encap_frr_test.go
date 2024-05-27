@@ -37,7 +37,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
-	spb "google3/third_party/openconfig/gnoi/system/system_go_proto"
+	spb "github.com/openconfig/gnoi/system/system_go_proto"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -47,7 +47,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"google3/third_party/openconfig/testt/testt"
+	"github.com/openconfig/testt/testt"
 	"github.com/openconfig/ygot/ygot"
 )
 
