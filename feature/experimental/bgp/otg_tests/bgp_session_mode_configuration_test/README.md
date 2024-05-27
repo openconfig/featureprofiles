@@ -18,16 +18,17 @@ DUT Port1 (AS 65501) ---eBGP --- ATE Port1 (AS 65502)
 *  Verify the telemetry path output to confirm that the neighbor's BGP transport mode is displayed as "passive for the DUT.
 *  Redo the same above steps but configure the passive mode under the peer group instead of the  bgp neighbor configuration.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/passive-mode
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/passive-mode
+The below yaml defines the OC paths intended to be covered by this test.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/passive-mode
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/passive-mode
 
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode
-
-## Protocol/RPC Parameter coverage
-
-*   BGP
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode
+```

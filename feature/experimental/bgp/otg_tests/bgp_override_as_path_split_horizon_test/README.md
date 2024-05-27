@@ -37,17 +37,18 @@ DUT Port1 (AS 65501) ---eBGP --- ATE Port1 (AS 65502)
         *  4 Occurrences: 65502 65501 65501 65501 65501 65499
     *  Verify that the DUT accepts the route with 1, 3 and 4 occurrences of AS 6550
     *  Validate session state and capabilities received on DUT using telemetry.
-
-## Config Parameter coverage
-
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as
-
-## Telemetry Parameter coverage
-
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as
  
-## Protocol/RPC Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   BGP
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as
+
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as
+```

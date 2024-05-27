@@ -17,27 +17,22 @@ BGP Add Path send/receive disable
 *   Disable Add-Path Receive: On DUT, disable the Add-Path receive capability for the neighbor on ATE Port-1.
 *   Verify the telemetry path output to confirm the Add-Path receive capability for DUT is disabled for both ipv4 and ipv6 for the neighbor on ATE Port-1.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/receive
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send
+The below yaml defines the OC paths intended to be covered by this test.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/receive
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
-
-## Protocol/RPC Parameter coverage
-
-*   BGP
-
-    *   OPEN
-        *   Capabilities (Extended nexthop encoding capability (5), ADD-PATH (69))
-    *   UPDATE
-        *   Extended NLRI Encodings (RFC7911)
-        *   Nexthop AFI (RFC5549)
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+```
