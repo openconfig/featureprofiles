@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+/// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +71,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	if !(deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex) {
 		communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
-
 		cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
 		for _, commMatch := range communityMatch {
 			if commMatch != "" {
@@ -97,17 +96,16 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
 	}
-	//Add default Permit-all policy along with new policy config
-	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
-	st, err := pdAllow.AppendNewStatement("id-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
 		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else {
+		pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
+		st, err := pdAllow.AppendNewStatement("id-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 
@@ -297,7 +295,7 @@ func TestCommunitySet(t *testing.T) {
 			}
 			bs.PushAndStartATE(t)
 
-			//Verify BGP session after its reset with OTG push config & start
+			// Verify BGP session after its reset with OTG push config & start
 			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Starting traffic for IPv4 and v6")
