@@ -20,11 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -57,6 +59,14 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	cfgplugins.ConfigureInterface(t, dut, p1)
+	cfgplugins.ConfigureTargetOutputPowerAndFrequency(t, dut, p1, targetOutputPowerdBm, targetFrequencyHz)
+
+	cfgplugins.ConfigureInterface(t, dut, p2)
+	cfgplugins.ConfigureTargetOutputPowerAndFrequency(t, dut, p2, targetOutputPowerdBm, targetFrequencyHz)
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
@@ -66,14 +76,16 @@ func TestZrSupplyVoltage(t *testing.T) {
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+			opticalCompName := cfgplugins.OpticalChannelComponentFromPort(t, dut, dp)
+			opticalComp := gnmi.OC().Component(opticalCompName)
 			component := gnmi.OC().Component(tr)
 
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
+			outputPower := gnmi.Get(t, dut, opticalComp.OpticalChannel().TargetOutputPower().State())
 			if outputPower != targetOutputPowerdBm {
 				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
 			}
 
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
+			frequency := gnmi.Get(t, dut, opticalComp.OpticalChannel().Frequency().State())
 			if frequency != targetFrequencyHz {
 				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
 			}
@@ -102,7 +114,7 @@ func TestZrSupplyVoltage(t *testing.T) {
 				t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvg, volMax, volMin)
 			}
 
-			// Wait for the cooling off period
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), *ygot.Bool(false))
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			volInstNew := verifyVoltageValue(t, streamInst, "Instant")
@@ -119,6 +131,8 @@ func TestZrSupplyVoltage(t *testing.T) {
 			} else {
 				t.Fatalf("The average voltage after port down is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvgNew, volMaxNew, volMinNew)
 			}
+
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), *ygot.Bool(true))
 		})
 	}
 
