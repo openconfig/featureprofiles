@@ -24,27 +24,18 @@ IS-IS hello-interval and multiplier Configuration Test
     * Verify that the updated Hello-Multiplier is reflected in isis adjacency output in the ATE.
     * Verify that the correct streaming telemetry values are reported correctly by the DUT.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-* For prefix: /network-instances/network-instance/protocols/protocol/isis/
+The below yaml defines the OC paths intended to be covered by this test.
 
-* Parameters:
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier
 
-    * interfaces/interface/levels/level/timers/config/hello-interval
-    * interfaces/interface/levels/level/timers/config/hello-multiplier
-
-## Telemetry Parameter Coverage
-
-* For prefix: 
-
-    * /network-instances/network-instance/protocols/protocol/isis/
-
-* Parameters:
-
-    * interfaces/interface/levels/level/timers/state/hello-interval
-    * interfaces/interface/levels/level/timers/state/hello-multiplier
-    * interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
-
-## Protocol/RPC Parameter Coverage
-
-* IS-IS
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-interval
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
+```
