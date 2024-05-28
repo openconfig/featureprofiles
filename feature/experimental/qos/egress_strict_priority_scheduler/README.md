@@ -46,11 +46,6 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
-<<<<<<< HEAD
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-=======
   ### Classifiers
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/config/type:
@@ -83,7 +78,6 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
->>>>>>> d06c9142 (Create a Readme for  QoS-1.1, QoS-1.3 and QoS-1.5)
 
   ## State paths
   /qos/interfaces/interface/output/queues/queue/state/name:
