@@ -522,12 +522,6 @@ message Metadata {
     bool static_route_with_explicit_metric = 180;
     // Support for bgp default import/export policy
     bool bgp_default_policy_unsupported = 181;
-    // Devices does not support bgp max multipaths
-    // Juniper: b/319301559
-    bool bgp_max_multipath_paths_unsupported = 182;
-    // Devices does not multipath config at neighbor or afisafi level
-    // Juniper: b/341130490
-    bool multipath_unsupported_neighbor_or_afisafi = 183;
     // Flag to enable bgp explicity on default vrf
     // Arista: b/329094094#comment9
     bool explicit_enable_bgp_on_default_vrf = 182;
@@ -554,6 +548,13 @@ message Metadata {
     // wildcards has to be used.
     // CISCO: b/338523730
     bool skip_checking_attribute_index = 188;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 189;
+    // Devices does not multipath config at neighbor or afisafi level
+    // Juniper: b/341130490
+    bool multipath_unsupported_neighbor_or_afisafi = 190;
+    
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;

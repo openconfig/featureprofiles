@@ -973,14 +973,6 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyUnsupported()
 }
 
-// Devices does not support bgp max multipaths.
-func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
-}
-
-// Devices does not support multipath under neighbor or afisafi
-func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
 // ExplicitEnableBGPOnDefaultVRF return true if BGP needs to be explicity enabled on default VRF
 func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
@@ -1015,4 +1007,14 @@ func SkipSettingStatementForPolicy(dut *ondatra.DUTDevice) bool {
 // SkipCheckingAttributeIndex return true if device do not return bgp attribute for the bgp session specifying the index
 func SkipCheckingAttributeIndex(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipCheckingAttributeIndex()
+}
+
+// Devices does not support bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
+}
+
+// Devices does not support multipath under neighbor or afisafi
+func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
 }
