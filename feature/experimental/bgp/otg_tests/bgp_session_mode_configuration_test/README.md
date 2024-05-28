@@ -25,12 +25,12 @@ This example yaml defines the OC paths intended to be covered by this test.  OC 
 ```yaml
 paths:
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/passive-mode
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/passive-mode
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/passive-mode:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/config/passive-mode:
 
   ## State paths
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode:
 
 rpcs:
   gnmi:

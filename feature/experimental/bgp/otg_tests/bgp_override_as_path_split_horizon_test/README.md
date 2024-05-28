@@ -45,12 +45,12 @@ This example yaml defines the OC paths intended to be covered by this test.  OC 
 ```yaml
 paths:
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/config/allow-own-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/config/allow-own-as:
 
   ## State paths
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/as-path-options/state/allow-own-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/as-path-options/state/allow-own-as:
 
 rpcs:
   gnmi:
