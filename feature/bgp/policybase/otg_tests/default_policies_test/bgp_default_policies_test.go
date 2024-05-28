@@ -649,16 +649,16 @@ func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ebgpExportIPv4}, importPol: []string{ebgpImportIPv4},
-		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
+		wantInstalled: 2, wantRx: 3, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ebgpExportIPv6}, importPol: []string{ebgpImportIPv6},
-		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
+		wantInstalled: 2, wantRx: 3, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ibgpExportIPv4}, importPol: []string{ibgpImportIPv4},
-		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
+		wantInstalled: 2, wantRx: 3, wantRxPrePolicy: 3, wantSent: 1, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{ibgpExportIPv6}, importPol: []string{ibgpImportIPv6},
-		wantInstalled: 2, wantRx: 2, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
+		wantInstalled: 2, wantRx: 3, wantRxPrePolicy: 3, wantSent: 1, isV4: false})
 }
 
 func testDefaultPolicyAcceptRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
@@ -738,16 +738,16 @@ func testDefaultPolicyRejectRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
+		wantInstalled: 0, wantRx: 3, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: atePort1.IPv6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
+		wantInstalled: 0, wantRx: 3, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV4, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
+		wantInstalled: 0, wantRx: 3, wantRxPrePolicy: 3, wantSent: 0, isV4: true})
 	verifyPostPolicyPrefixTelemetry(t, dut, &peerDetails{ipAddr: otgIsisPort2LoopV6, defExportPol: rejectRoute,
 		defImportPol: rejectRoute, exportPol: []string{}, importPol: []string{},
-		wantInstalled: 0, wantRx: 0, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
+		wantInstalled: 0, wantRx: 3, wantRxPrePolicy: 3, wantSent: 0, isV4: false})
 }
 
 func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice) {

@@ -137,3 +137,13 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * afi-safis/afi-safi/state/prefixes/received
     * afi-safis/afi-safi/state/prefixes/received-pre-policy
     * afi-safis/afi-safi/state/prefixes/sent
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
