@@ -39,7 +39,9 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srlb:
   # telemetry
-  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/local-id:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/lower-bound:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state/upper-bound:
 
 rpcs:
   gnmi:
