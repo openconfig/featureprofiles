@@ -19,7 +19,7 @@ BGP Add Path send/receive disable
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
 ```yaml
 paths:
@@ -35,4 +35,14 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
 ```
+
+## Minimum DUT platform requirement
+
+* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+* FFF - fixed form factor

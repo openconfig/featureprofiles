@@ -20,7 +20,7 @@ DUT Port1 (AS 65501) ---eBGP --- ATE Port1 (AS 65502)
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
 ```yaml
 paths:
@@ -31,4 +31,14 @@ paths:
   ## State paths
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/passive-mode
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/transport/state/passive-mode
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
 ```
+
+## Minimum DUT platform requirement
+
+* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+* FFF - fixed form factor
