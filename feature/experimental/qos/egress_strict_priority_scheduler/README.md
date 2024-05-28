@@ -46,17 +46,51 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
+<<<<<<< HEAD
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+=======
+  ### Classifiers
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp:
+  /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc:
+
+  ### Forwarding Groups
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+
+  ### Queue
+  /qos/queues/queue/config/name:
+
+  ### Interfaces
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/output/scheduler-policy/config/name:
+
+  ### Scheduler policy
+  /qos/scheduler-policies/scheduler-policy/config/name:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/id:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/input-type:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/inputs/input/config/queue:
+>>>>>>> d06c9142 (Create a Readme for  QoS-1.1, QoS-1.3 and QoS-1.5)
 
   ## State paths
-  /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/name:
-  /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/transmit-pkts:
-  /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts:
   /qos/interfaces/interface/output/queues/queue/state/name:
   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
 
 rpcs:
   gnmi:
