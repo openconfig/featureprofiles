@@ -1,8 +1,12 @@
-# MPLS-1.1: MPLS label blocks
+# MPLS-1.1: MPLS label blocks using ISIS
 
 ## Summary
 
 Define reserved MPLS label blocks: static and MPLS-SR.
+
+## Testbed type
+
+*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## Procedure
 
@@ -19,14 +23,31 @@ On DUT1 configure:
 Verify:
 
 *   Defined blocks are configured on DUT1.
-*   DUT1 advertises its SR global block to ATE1.
+*   DUT1 advertises its SRGB and SRLB to ATE1.
 
-## Config Parameter Coverage
 
-* `/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config`
-* `/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config`
-* `/network-instances/network-instance/segment-routing/srlbs/srlb/config`
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
+  # configuration
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config:
+  /network-instances/network-instance/segment-routing/srgbs/srgb/config/:
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srlb:
+  # telemetry
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state:
 
-* `/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/state`
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
+## Required DUT platform
+
+* MFF
+* FFF
+* VRX
