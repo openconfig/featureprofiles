@@ -109,7 +109,8 @@ rpcs:
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address`
 
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/source`
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id`
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/source`
 
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination`
 OR
