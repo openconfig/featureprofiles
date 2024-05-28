@@ -88,10 +88,15 @@ paths:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
     # encap action
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/source:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/source:
     # either destination or identifying-prefix can be specified
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix:
+
+    # telemetry
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
 
 rpcs:
   gnmi:
@@ -101,26 +106,6 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
-
-
-### Config Parameter Coverage
-
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address`
-
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/source`
-
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination`
-OR
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix`
-
-
-### Telemetry Parameter Coverage
-
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets`
 
 ## Required DUT platform
 
