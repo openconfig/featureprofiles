@@ -62,10 +62,10 @@ paths:
   /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp:
   /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
   /qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class:
-  /qos/classifiers/classifier/terms/term/actions/remark/config:
+  /qos/classifiers/classifier/terms/term/actions/remark/config/set-dscp:
   /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc:
   /qos/interfaces/interface/input/classifiers/classifier/config/name:
-  /qos/interfaces/interface/input/classifiers/classifier/config:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
 
   ## State paths
   /qos/interfaces/interface/input/classifiers/classifier/terms/term/state/matched-packets:
