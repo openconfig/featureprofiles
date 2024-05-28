@@ -38,4 +38,14 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-interval
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/state/hello-multiplier
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
 ```
+
+## Minimum DUT platform requirement
+
+* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+* FFF - fixed form factor
