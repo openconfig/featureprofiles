@@ -92,6 +92,7 @@ def _get_go_env(ws=None):
         'GOCACHE': gocache,
         'GOTMPDIR': gocache,
         'GOROOT': '/auto/firex/sw/go',
+        'GOPROXY': "https://proxy.golang.org,direct",
         'PATH': PATH
     }
 
