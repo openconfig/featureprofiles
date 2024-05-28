@@ -31,8 +31,11 @@ Verify:
 ```yaml
 paths:
   # configuration
-  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config:
-  /network-instances/network-instance/segment-routing/srgbs/srgb/config/:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound:
+  /network-instances/network-instance/segment-routing/srgbs/srgb/config/local-id:
+  /network-instances/network-instance/segment-routing/srgbs/srgb/config/mpls-label-blocks:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srlb:
   # telemetry
