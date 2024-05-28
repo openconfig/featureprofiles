@@ -46,11 +46,9 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/priority:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/sequence:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/output/config:
 
   ## State paths
   /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/name:
