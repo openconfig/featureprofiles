@@ -4,8 +4,13 @@
 
 The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel when matching on source/destination.
 
-## Setup
+## Testbed type
 
+*  [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
+
+## Procedure
+
+### Test environment setup
 
 *   DUT has an ingress port and 2 egress ports.
 
@@ -21,7 +26,7 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
 *   ATE Port 3 is used as the fallback destination for
     pass-through traffic.
 
-### Configuration
+#### Configuration
 
 1.  All DUT Ports are configured as a singleton IP interfaces.
 
@@ -36,7 +41,8 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
     - Match IPV4-SRC2 and encapsulate to 32 IPv4 GRE destinations.
     - Match IPV6-SRC2 and encapsulate to 32 IPv4 GRE destinations.
 
-## Test cases
+5.   Set GRE encap source to device's loopback interface.
+6.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations.
 
 ### PF-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic
 Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST.
@@ -45,7 +51,7 @@ Verify:
 
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  No packet loss when forwarding.
-*  Traffic equally load-balanced across 32 GRE destinations
+*  Traffic equally load-balanced across 32 GRE destinations.
 *  Verify PF packet counters matching traffic generated.
 
 ### PF-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic
@@ -55,7 +61,7 @@ Verify:
 
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  No packet loss when forwarding.
-*  Traffic equally load-balanced across 32 GRE destinations
+*  Traffic equally load-balanced across 32 GRE destinations.
 *  Verify PF packet counters matching traffic generated.
 
 ### PF-1.1.3: Verify PF IPV4 forward action
@@ -74,15 +80,28 @@ Verify:
 *  All traffic received on ATE Port 3.
 *  No packet loss when forwarding.
 
+## OpenConfig Path and RPC Coverage
 
-## Config Parameter Coverage
+
+### Config Parameter Coverage
 
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address`
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address`
+
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre`
-*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destinations`
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/source`
+
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination`
+OR
+*   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix`
 
 
-## Telemetry Parameter Coverage
+### Telemetry Parameter Coverage
 
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts`
 *   `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets`
+
+## Required DUT platform
+
+* MFF
+* FFF
