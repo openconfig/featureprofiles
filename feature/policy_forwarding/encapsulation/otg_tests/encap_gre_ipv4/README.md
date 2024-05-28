@@ -82,6 +82,26 @@ Verify:
 
 ## OpenConfig Path and RPC Coverage
 
+```yaml
+paths:
+    # match condition
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
+    # encap action
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/source:
+    # either destination or identifying-prefix can be specified
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
+
 
 ### Config Parameter Coverage
 
