@@ -20,11 +20,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -36,6 +38,42 @@ const (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+		return fmt.Sprintf("%s-Optical0", transceiverName)
+	}
+	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for {
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
+		if !ok {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
+		}
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
+			return compName
+		}
+		if comp.GetParent() == "" {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
+		}
+		compName = comp.GetParent()
+	}
+}
+
+func interfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(dp.Name())
+	i.Enabled = ygot.Bool(true)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
+		Frequency:         ygot.Uint64(targetFrequencyHz),
+	})
 }
 
 func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStream[uint64]) {
@@ -57,25 +95,13 @@ func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStr
 
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	interfaceConfig(t, dut, dut.Port(t, "port1"))
+	interfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, "port1")
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-
-			// Derive transceiver names from ports.
-			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			component := gnmi.OC().Component(tr)
-
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPowerdBm {
-				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
-			}
-
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequencyHz {
-				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
-			}
 
 			streamFec := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFec.Close()

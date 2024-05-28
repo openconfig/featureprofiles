@@ -21,10 +21,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -33,10 +36,47 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyHz             = 193100000
 	targetFrequencyToleranceHz    = 100000
+	intUpdateTime                 = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+}
+
+func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+		return fmt.Sprintf("%s-Optical0", transceiverName)
+	}
+	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for {
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
+		if !ok {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
+		}
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
+			return compName
+		}
+		if comp.GetParent() == "" {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
+		}
+		compName = comp.GetParent()
+	}
+}
+
+func interfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(dp.Name())
+	i.Enabled = ygot.Bool(true)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
+		Frequency:         ygot.Uint64(targetFrequencyHz),
+	})
 }
 
 // validateStreamOutput validates that the OC path is streamed in the most recent subscription interval.
@@ -81,12 +121,14 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 
 func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	interfaceConfig(t, dut, dut.Port(t, "port1"))
+	interfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
 
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(false))
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
@@ -164,14 +206,14 @@ func TestLowPowerMode(t *testing.T) {
 			validateOutputPower(t, powerStreamMap)
 
 			// Derive transceiver names from ports.
-			component := gnmi.OC().Component(tr)
+			ocComponent := opticalChannelComponentFromPort(t, dut, dp)
 
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
+			outputPower := gnmi.Get(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().TargetOutputPower().State())
 			if math.Abs(float64(outputPower)-float64(targetOutputPowerdBm)) > targetOutputPowerTolerancedBm {
 				t.Fatalf("Output power is not within expected tolerance, got: %v want: %v tolerance: %v", outputPower, targetOutputPowerdBm, targetOutputPowerTolerancedBm)
 			}
 
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
+			frequency := gnmi.Get(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Frequency().State())
 			if math.Abs(float64(frequency)-float64(targetFrequencyHz)) > targetFrequencyToleranceHz {
 				t.Fatalf("Frequency is not within expected tolerance, got: %v want: %v tolerance: %v", frequency, targetFrequencyHz, targetFrequencyToleranceHz)
 			}
