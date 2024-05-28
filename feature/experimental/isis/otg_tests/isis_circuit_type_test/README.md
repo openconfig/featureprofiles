@@ -15,22 +15,25 @@
     * Verify that IS-IS adjacency is coming up.
     * Verify the output of streaming telemetry path displaying the interface circuit-type as point-to-point.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-* For prefix:
+The below yaml defines the OC paths intended to be covered by this test.
 
-     *   /network-instances/network-instance/protocols/protocol/isis/
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
 
-*   Parameters:
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/circuit-type:
 
-    *   interfaces/interface/config/circuit-type
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
 
-## Telemetry Parameter coverage
+## Minimum DUT platform requirement
 
-*   For prefix:
-
-    *   /network-instances/network-instance/protocols/protocol/isis/
-
-*   Parameters:
-
-    *   interfaces/interface/state/circuit-type
+* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+* FFF - fixed form factor
