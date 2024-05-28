@@ -76,3 +76,12 @@ to fiber measured in ps/nm
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/avg
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/min
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/max
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
