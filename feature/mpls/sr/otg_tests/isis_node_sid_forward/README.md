@@ -44,7 +44,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   # telemetry
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
-  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/state:
+  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/in-pkts:
+  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts:
 
 rpcs:
   gnmi:
