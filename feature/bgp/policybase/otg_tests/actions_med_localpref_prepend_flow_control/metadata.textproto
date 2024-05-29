@@ -13,6 +13,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     prepolicy_received_routes: true
+    default_import_export_policy: true
   }
 }
 platform_exceptions: {
