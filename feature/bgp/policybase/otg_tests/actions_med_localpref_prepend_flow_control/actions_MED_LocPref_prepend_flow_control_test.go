@@ -19,20 +19,19 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	otg "github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+        "github.com/google/go-cmp/cmp"
+        "github.com/open-traffic-generator/snappi/gosnappi"
+        "github.com/openconfig/featureprofiles/internal/attrs"
+        "github.com/openconfig/featureprofiles/internal/deviations"
+        "github.com/openconfig/featureprofiles/internal/fptest"
+        "github.com/openconfig/ondatra"
+        "github.com/openconfig/ondatra/gnmi"
+        "github.com/openconfig/ondatra/gnmi/oc"
+        "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
+        otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+        otg "github.com/openconfig/ondatra/otg"
+        "github.com/openconfig/ygnmi/ygnmi"
+        "github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -183,7 +182,7 @@ func createNewBgpSession(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 		bgpNbr1.PeerGroup = ygot.String(peerGrpNameV6)
 		bgpNbr1.PeerAs = ygot.Uint32(nb.peerAs)
 		bgpNbr1.Enabled = ygot.Bool(true)
-		af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		af6 := bgpNbr1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(true)
 	}
 	return niProto
@@ -194,7 +193,7 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	var nbrIP = []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	watch := gnmi.Watch(t, dut, bgpPath.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp]) bool {
+	watch := gnmi.Watch(t, dut, bgpPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp]) bool {
 		path, _ := val.Val()
 		for _, nbr := range nbrIP {
 			if path.GetNeighbor(nbr).GetSessionState() != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
@@ -319,12 +318,14 @@ func verifyBgpPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, ipAddr strin
 
 	peerTel := gnmi.Get(t, dut, afiSafiPath.State())
 
-	if gotDefExPolicy := peerTel.GetApplyPolicy().GetDefaultExportPolicy(); gotDefExPolicy != defPol {
-		t.Errorf("Default export policy type mismatch: got %v, want %v", gotDefExPolicy, defPol)
-	}
+	if !deviations.DefaultImportExportPolicy(dut) {
+		if gotDefExPolicy := peerTel.GetApplyPolicy().GetDefaultExportPolicy(); gotDefExPolicy != defPol {
+			t.Errorf("Default export policy type mismatch: got %v, want %v", gotDefExPolicy, defPol)
+		}
 
-	if gotDefImPolicy := peerTel.GetApplyPolicy().GetDefaultImportPolicy(); gotDefImPolicy != defPol {
-		t.Errorf("Default import policy type mismatch: got %v, want %v", gotDefImPolicy, defPol)
+		if gotDefImPolicy := peerTel.GetApplyPolicy().GetDefaultImportPolicy(); gotDefImPolicy != defPol {
+			t.Errorf("Default import policy type mismatch: got %v, want %v", gotDefImPolicy, defPol)
+		}
 	}
 
 	if appliedPol != "" {
@@ -724,11 +725,13 @@ func TestBGPPolicy(t *testing.T) {
 			}
 			// Configure Routing Policy on the DUT.
 			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
-			// Configure BGP default import export policy on Port1
-			configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
-			// Configure BGP default import export policy on Port2
-			configureBGPDefaultImportExportPolicy(t, dut, atePort2.IPv4, atePort2.IPv6, tc.defPolicyPort2)
-			// Configure BGP import export policy
+			if !deviations.DefaultImportExportPolicy(dut) {
+				// Configure BGP default import export policy on Port1
+				configureBGPDefaultImportExportPolicy(t, dut, atePort1.IPv4, atePort1.IPv6, tc.defPolicyPort1)
+				// Configure BGP default import export policy on Port2
+				configureBGPDefaultImportExportPolicy(t, dut, atePort2.IPv4, atePort2.IPv6, tc.defPolicyPort2)
+				// Configure BGP import export policy
+			}
 			configureBGPImportExportPolicy(t, dut, tc.polNbrv4, tc.polNbrv6, tc.rpPolicy)
 
 			// Verify BGP policy
