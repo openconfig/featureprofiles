@@ -75,6 +75,9 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop:
+  # application to the interface
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
+
   # telemetry
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
