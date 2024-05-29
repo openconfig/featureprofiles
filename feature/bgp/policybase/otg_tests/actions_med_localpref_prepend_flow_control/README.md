@@ -313,17 +313,16 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
     ## Config parameter coverage
-    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
     /routing-policy/policy-definitions/policy-definition/config/name:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-preference:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/local-prefrence:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/med:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/asn:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/prepend/config/repead-name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
     /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 

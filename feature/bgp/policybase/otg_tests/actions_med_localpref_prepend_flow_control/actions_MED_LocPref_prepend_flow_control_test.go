@@ -15,10 +15,6 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"strconv"
-	"strings"
-	"testing"
-	"time"
         "github.com/google/go-cmp/cmp"
         "github.com/open-traffic-generator/snappi/gosnappi"
         "github.com/openconfig/featureprofiles/internal/attrs"
@@ -32,6 +28,10 @@ import (
         otg "github.com/openconfig/ondatra/otg"
         "github.com/openconfig/ygnmi/ygnmi"
         "github.com/openconfig/ygot/ygot"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
