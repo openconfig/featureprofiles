@@ -15,23 +15,24 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-        "github.com/google/go-cmp/cmp"
-        "github.com/open-traffic-generator/snappi/gosnappi"
-        "github.com/openconfig/featureprofiles/internal/attrs"
-        "github.com/openconfig/featureprofiles/internal/deviations"
-        "github.com/openconfig/featureprofiles/internal/fptest"
-        "github.com/openconfig/ondatra"
-        "github.com/openconfig/ondatra/gnmi"
-        "github.com/openconfig/ondatra/gnmi/oc"
-        "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
-        otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-        otg "github.com/openconfig/ondatra/otg"
-        "github.com/openconfig/ygnmi/ygnmi"
-        "github.com/openconfig/ygot/ygot"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/golang/cmp/cmp"
+	"github.com/golang/ygot/ygot/ygot"
+	"github.com/open_traffic_generator/gosnappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest/fptest"
+	"github.com/openconfig/ondatra/gnmi/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg/otg"
+	"github.com/openconfig/ondatra/ondatra"
+	otg "github.com/openconfig/ondatra/otg/otg"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
