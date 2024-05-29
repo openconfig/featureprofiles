@@ -1008,3 +1008,8 @@ func SkipSettingStatementForPolicy(dut *ondatra.DUTDevice) bool {
 func SkipCheckingAttributeIndex(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipCheckingAttributeIndex()
 }
+
+// DefaultRoutePolicyUnsupported returns true if default route policy is not supported
+func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
+}
