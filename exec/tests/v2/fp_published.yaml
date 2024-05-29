@@ -288,6 +288,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
+    pr: 3015
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
