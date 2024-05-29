@@ -313,7 +313,7 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
     ## Config parameter coverage
-    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
