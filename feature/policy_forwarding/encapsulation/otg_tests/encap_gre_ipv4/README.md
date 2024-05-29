@@ -93,6 +93,8 @@ paths:
     # either destination or identifying-prefix can be specified
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix:
+    # application to the interface
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
 
     # telemetry
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
