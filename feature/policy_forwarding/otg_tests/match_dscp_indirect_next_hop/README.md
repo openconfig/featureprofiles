@@ -37,12 +37,12 @@ The test verifies policy-forwarding(PF) when matching specific DSCP values in IP
 3.  eBGP session is configured on DUT port 2. Indirect /32 and /128 prefixes (PF next-hops) are announced via eBGP.
 
 4.  PF is configured on DUT port 1 to match the traffic marked with rightmost 2 bits set in DSCP to 11. PF action is to redirect to BGP-announced next-hops: 
-  *  List of DSCP values (6-bit) to be matched  [3, 7, 19, 27, 35, 43, 51, 59]
+  *  List of DSCP values (6-bit) to be matched  [3, 11, 19, 27, 35, 43, 51, 59]
   *  Matching rules for IPv6 should map the above 6-bit DSCP values to the leftmost 6-bits of IPv6 traffic-class.
 
 ### PF-1.1.1: Verify PF next-hop action
-Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every DSCP value in the set [3, 7, 19, 27, 35, 43, 51, 59].
-IPv6 flows should use TC 8-bit values [12, 44, 76, 108, 140, 163, 204, 236]
+Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every DSCP value in the set [3, 11, 19, 27, 35, 43, 51, 59].
+IPv6 flows should use TC 8-bit values [12, 44, 76, 108, 172, 163, 204, 236]
 
 Verify:
 
@@ -59,7 +59,7 @@ Verify:
 *  No packet loss when forwarding.
 
 ### PF-1.1.3: Verify PF without NH present
-Withdraw next-hop prefixes from BGP announcement. Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every DSCP/TC value in the set [3, 7, 11, 19, 27, 35, 39, 51, 55, 59].
+Withdraw next-hop prefixes from BGP announcement. Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every IPv4 DSCP value in the set [3, 11, 19, 27, 35, 43, 51, 59] and IPv6 TC [0, 32, 64, 96, 128, 160, 192, 224].
 
 Verify:
 
