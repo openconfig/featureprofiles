@@ -49,27 +49,80 @@ Route Propagation and Specific Capabilities:
     *   ATE Port 1: Readvertise multiple paths.
     *   ATE Port 2: Verify that the DUT does not accept multiple paths and only a single path is propagated.
 
-## Config Parameter Coverage
+Initial Add-Path Configuration:
 
-For prefix:
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
+*   DUT & ATE: Configure both DUT and ATE to enable add-path send and receive capabilities for both IPv4 and IPv6 address families.
+*   Verification (Telemetry): Verify that the DUT's telemetry output reflects the enabled Add-Path capabilities.
 
-Parameters:
+Route Policy Configuration:
 
-*   afi-safis/afi-safi/add-paths/config/receive
-*   afi-safis/afi-safi/add-paths/config/send
-*   afi-safis/afi-safi/add-paths/config/send-max
+*   DUT: Configure Route-policy under BGP peer-group address-family and specify default accept for received prefixes on DUT.
+*   ATE Port 1: Advertise both IPv4 and IPv6 prefixes.
 
-## Telemetry Parameter Coverage
+Route Propagation and Specific Capabilities:
 
-/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
+*   MRAI:
+    *   DUT: Configure the Minimum Route Advertisement Interval (MRAI) for desired behavior.
+    *   ATE Port 2: Verify received routes adhere to the MRAI timing.
 
-## Protocol/RPC Parameter Coverage
+*   RFC5549:
+    *   DUT: Enable RFC5549 support.
+    *   ATE Port 1: Advertise IPv4 routes with IPv6 next-hops.
+    *   ATE Port 2: Validate correct acceptance and propagation of routes with IPv6 next-hops.
 
-BGP
+*   Add-Path (Initial State):
+    *   ATE Port 1: Advertise multiple routes with distinct path IDs for the same prefix.
+    *   ATE Port 2: Confirm that all advertised routes are accepted and propagated by the DUT due to the initially enabled Add-Path.
 
-*   OPEN
-    *   Capabilities (Extended nexthop encoding capability (5), ADD-PATH (69))
-*   UPDATE
-    *   Extended NLRI Encodings (RFC7911)
-    *   Nexthop AFI (RFC5549)
+*   Disabling Add-Path Send:
+    *   DUT: Disable Add-Path send for the neighbor connected to ATE Port 2 for both IPv4 and IPv6.
+    *   Verification (Telemetry): Confirm that the DUT's telemetry reflects the disabled Add-Path send status.
+    *   ATE Port 1: Readvertise multiple paths.
+    *   ATE Port 2: Verify that only a single best path is received by ATE Port 2 due to disabled Add-Path send on the DUT.
+
+*   Disabling Add-Path Receive:
+
+    *   DUT: Disable Add-Path receive for the neighbor connected to ATE Port 1 for both IPv4 and IPv6.
+    *   Verification (Telemetry): Confirm the disabled Add-Path receive status in telemetry.
+    *   ATE Port 1: Readvertise multiple paths.
+    *   ATE Port 2: Verify that the DUT does not accept multiple paths and only a single path is propagated.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send-max:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send-max:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max:
+
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send-max:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send-max:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send-max:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
+
+## Minimum DUT platform requirement
+
+* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
+* FFF - fixed form factor
