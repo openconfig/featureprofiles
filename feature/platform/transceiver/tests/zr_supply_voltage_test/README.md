@@ -51,6 +51,7 @@ Once the ZR link is estabished proceed with the following:
 *   /interfaces/interface/config/enabled
 
 ## OpenConfig Path and RPC Coverage
+
 ```yaml
 paths:
     /interfaces/interface/config/enabled:
