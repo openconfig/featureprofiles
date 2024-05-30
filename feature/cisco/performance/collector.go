@@ -29,24 +29,30 @@ import (
 )
 
 type PerformanceData struct {
-	Timestamp       string           `bson:"timestamp,omitempty" json:"timestamp"`
-	PartNo          string           `bson:"partNo,omitempty" json:"partNo"`
-	SoftwareRelease string           `bson:"softwareVersion,omitempty" json:"softwareVersion"`
-	SoftwareImage   string           `bson:"SoftwareImage,omitempty" json:"SoftwareImage"`
-	Release         string           `bson:"release,omitempty" json:"release"`
-	Name            string           `bson:"name,omitempty" json:"name"`
-	SerialNo        string           `bson:"serialNo,omitempty" json:"serialNo"`
-	Location        string           `bson:"location,omitempty" json:"location"`
-	Chassis         string           `bson:"chassis,omitempty" json:"chassis"`
-	Type            string           `bson:"type,omitempty" json:"type"`
-	Feature         string           `bson:"feature,omitempty" json:"feature"`
-	Trigger         string           `bson:"trigger,omitempty" json:"trigger"`
-	ProcessData     []ProcessData    `bson:"processData,omitempty" json:"processData"`
-	ScaleValues     *ScaleAttributes `bson:"scaleValues"`
-	MemoryUsed      float64          `bson:"memoryUsed,omitempty" json:"memoryUsed"`
-	MemoryFree      float64          `bson:"memoryFree,omitempty" json:"memoryFree"`
-	CpuUser         float64          `bson:"cpuUser,omitempty" json:"cpuUser"`
-	CpuKernel       float64          `bson:"cpuKernel,omitempty" json:"cpuKernel"`
+	Timestamp             string           `bson:"timestamp" json:"timestamp"`
+	PartNo                string           `bson:"partNo" json:"partNo"`
+	SoftwareRelease       string           `bson:"softwareVersion" json:"softwareVersion"`
+	SoftwareImage         string           `bson:"SoftwareImage" json:"SoftwareImage"`
+	Name                  string           `bson:"name" json:"name"`
+	SerialNo              string           `bson:"serialNo" json:"serialNo"`
+	Location              string           `bson:"location" json:"location"`
+	Chassis               string           `bson:"chassis" json:"chassis"`
+	Type                  string           `bson:"type" json:"type"`
+	Feature               string           `bson:"feature" json:"feature"`
+	Trigger               string           `bson:"trigger" json:"trigger"`
+	ProcessData           []ProcessData    `bson:"processData" json:"processData"`
+	ScaleValues           *ScaleAttributes `bson:"scaleValues"`
+	MemoryUsed            float64          `bson:"memoryUsed" json:"memoryUsed"`
+	MemoryFree            float64          `bson:"memoryFree" json:"memoryFree"`
+	CpuUser               float64          `bson:"cpuUser" json:"cpuUser"`
+	CpuKernel             float64          `bson:"cpuKernel" json:"cpuKernel"`
+	RedisUsedMem          int64            `bson:"redisUsedMem" json:"redisUsedMem"`
+	RedisUsedMemHuman     string           `bson:"redisUsedMemHuman" json:"redisUsedMemHuman"`
+	RedisUsedMemPeakHuman string           `bson:"redisUsedMemPeakHuman" json:"redisUsedMemPeakHuman"`
+	RedisUsedMemPeakPerc  string           `bson:"redisUsedMemPeakPerc" json:"redisUsedMemPeakPerc"`
+	RedisTotalMem         int64            `bson:"redisTotalMem" json:"redisTotalMem"`
+	RedisTotalMemHuman    string           `bson:"redisTotalMemHuman" json:"redisTotalMemHuman"`
+	RedisUsedMemAsPct     float64          `bson:"redisUsedMemAsPct" json:"redisUsedMemAsPct"`
 }
 
 type ProcessData struct {
@@ -164,16 +170,21 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 	imagePattern := regexp.MustCompile(`^\d+\.\d+\.\d+`)
 	release := imagePattern.FindString(imageStr)
 
-	data := PerformanceData{
-		SoftwareRelease: release,
-		SoftwareImage:   imageStr,
-		Feature:         featureName,
-		Trigger:         triggerName,
-		ScaleValues:     collector.scale,
-		Chassis:         collector.chassis, // Use the collected chassis information
-	}
-
 	for _, component := range collector.platform {
+		data := PerformanceData{
+			SoftwareRelease: release,
+			SoftwareImage:   imageStr,
+			Feature:         featureName,
+			Trigger:         triggerName,
+			ScaleValues:     collector.scale,
+			Chassis:         collector.chassis, // Use the collected chassis information
+			PartNo:          component.GetPartNo(),
+			Name:            component.GetName(),
+			Location:        component.GetLocation(),
+			SerialNo:        component.GetSerialNo(),
+			Timestamp:       time.Now().Format(time.RFC3339),
+		}
+
 		switch component.GetType() {
 		case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD:
 			if component.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
@@ -181,20 +192,34 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 					continue
 				}
 				data.Type = "RP"
+
+				// Collect Redis memory information only for RP
+				cliClient := dut.RawAPIs().CLI(t)
+				redisData, err := CollectRedisMemoryInfo(t, cliClient, data)
+				if err != nil {
+					t.Fatalf("Failed to collect Redis memory information: %v", err)
+				}
+				data = *redisData
+
 			}
 		case oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD:
 			data.Type = "LC"
+
+			// Set default values for Redis fields for LC
+			data.RedisUsedMem = 0
+			data.RedisUsedMemHuman = "none"
+			data.RedisUsedMemPeakHuman = "none"
+			data.RedisUsedMemPeakPerc = "none"
+			data.RedisTotalMem = 0
+			data.RedisTotalMemHuman = "none"
+			data.RedisUsedMemAsPct = 0
 		default:
 			continue
 		}
-		data.PartNo = component.GetPartNo()
-		data.Name = component.GetName()
-		data.Location = component.GetLocation()
-		data.SerialNo = component.GetSerialNo()
-		dataEntries = append(dataEntries, data)
-	}
 
-	t.Logf("Image: %+v", data)
+		dataEntries = append(dataEntries, data)
+		t.Logf("Image: %+v", data)
+	}
 
 	for _, entry := range dataEntries {
 		fmt.Printf("data entry: %+v\n", entry)
@@ -616,6 +641,7 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 	// Connect to MongoDB
 	collection, errDB := ConnectToMongo(t, c.flagOptions)
 	if errDB != nil {
+		t.Logf("Failed to connect to MongoDB: %v", errDB)
 		return errDB, false
 	}
 
@@ -633,6 +659,7 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 			document := bson.M{"timeseriesdata": timeseriesData}
 			result, err := collection.InsertOne(context.Background(), document)
 			if err != nil {
+				t.Logf("Failed to insert document into MongoDB: %v", err)
 				return err, uploadToDb
 			}
 			c.objectID = result.InsertedID.(primitive.ObjectID)
@@ -641,6 +668,7 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 			update := bson.M{"$push": bson.M{"timeseriesdata": wrappedData}}
 			_, err := collection.UpdateOne(context.Background(), filter, update)
 			if err != nil {
+				t.Logf("Failed to update document in MongoDB: %v", err)
 				return err, uploadToDb
 			}
 		}
@@ -649,6 +677,74 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 	}
 
 	return nil, uploadToDb
+}
+
+func CollectRedisMemoryInfo(t testing.TB, cliClient binding.CLIClient, data PerformanceData) (*PerformanceData, error) {
+	if cliClient == nil {
+		return nil, errors.New("CLI client not established")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	cliOutput, err := cliClient.RunCommand(ctx, "run redis-cli INFO MEMORY")
+
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(cliOutput.Output(), "\n")
+	redisMemRe := regexp.MustCompile(`used_memory:(\d+)`)
+	redisMemHumanRe := regexp.MustCompile(`used_memory_human:(\S+)`)
+	redisMemPeakHumanRe := regexp.MustCompile(`used_memory_peak_human:(\S+)`)
+	redisMemPeakPercRe := regexp.MustCompile(`used_memory_peak_perc:(\S+)`)
+	totalMemRe := regexp.MustCompile(`total_system_memory:(\d+)`)
+	totalMemHumanRe := regexp.MustCompile(`total_system_memory_human:(\S+)`)
+
+	var usedMem, totalMem int64
+	var usedMemFound, totalMemFound bool
+
+	for _, line := range lines {
+		if redisMemMatches := redisMemRe.FindStringSubmatch(line); len(redisMemMatches) > 1 {
+			var err error
+			usedMem, err = strconv.ParseInt(redisMemMatches[1], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.RedisUsedMem = usedMem
+			usedMemFound = true
+		}
+		if redisMemHumanMatches := redisMemHumanRe.FindStringSubmatch(line); len(redisMemHumanMatches) > 1 {
+			data.RedisUsedMemHuman = redisMemHumanMatches[1]
+		}
+		if redisMemPeakHumanMatches := redisMemPeakHumanRe.FindStringSubmatch(line); len(redisMemPeakHumanMatches) > 1 {
+			data.RedisUsedMemPeakHuman = redisMemPeakHumanMatches[1]
+		}
+		if redisMemPeakPercMatches := redisMemPeakPercRe.FindStringSubmatch(line); len(redisMemPeakPercMatches) > 1 {
+			data.RedisUsedMemPeakPerc = redisMemPeakPercMatches[1]
+		}
+		if totalMemMatches := totalMemRe.FindStringSubmatch(line); len(totalMemMatches) > 1 {
+			var err error
+			totalMem, err = strconv.ParseInt(totalMemMatches[1], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.RedisTotalMem = totalMem
+			totalMemFound = true
+		}
+		if totalMemHumanMatches := totalMemHumanRe.FindStringSubmatch(line); len(totalMemHumanMatches) > 1 {
+			data.RedisTotalMemHuman = totalMemHumanMatches[1]
+		}
+	}
+
+	// Calculate the percentage of memory used by Redis
+	if usedMemFound && totalMemFound {
+		usedMemAsPct := float64(usedMem) / float64(totalMem) * 100
+		data.RedisUsedMemAsPct = usedMemAsPct
+	} else {
+		data.RedisUsedMemAsPct = 0.0
+	}
+
+	return &data, nil
 }
 
 func CollectScaleAttributes(t *testing.T, dut *ondatra.DUTDevice, cliClient binding.CLIClient) (*ScaleAttributes, error) {
