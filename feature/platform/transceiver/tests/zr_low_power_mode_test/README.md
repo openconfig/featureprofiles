@@ -115,4 +115,5 @@ paths:
     /components/component/optical-channel/state/output-power/max:
 
 rpcs:
+    gNMI.Get:
 ```

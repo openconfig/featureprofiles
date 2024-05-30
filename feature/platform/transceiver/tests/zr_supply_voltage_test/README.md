@@ -57,4 +57,5 @@ paths:
         platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
+    gNMI.Get:
 ```
