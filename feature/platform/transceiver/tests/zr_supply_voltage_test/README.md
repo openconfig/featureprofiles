@@ -57,7 +57,4 @@ paths:
         platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
-    gnmi:
-        gNMI.Replace:
-        gNMI.Await:
 ```
