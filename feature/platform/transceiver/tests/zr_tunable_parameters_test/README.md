@@ -155,7 +155,6 @@ paths:
   /components/component/optical-channel/state/output-power/avg:
   /components/component/optical-channel/state/output-power/min:
   /components/component/optical-channel/state/output-power/max:
-  /components/component/optical-channel/config/operational-mode:
   /components/component/optical-channel/state/operational-mode:
 
 rpcs:
