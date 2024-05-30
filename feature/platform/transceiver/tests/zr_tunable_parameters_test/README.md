@@ -90,8 +90,8 @@ explicitly through OC operational mode.
     *   Verify the ZR optics frequency and TX output power telemetry values are
         set in the normal range.
     *   Disable or shut down the interface on the DUT.
-    *   Verify with interfaces in down state both optics are streaming uint 0
-        value for frequency.
+    *   Verify with interfaces in down state both optics are still streaming
+        configured value for frequency.
     *   Verify for the TX output power with interface in down state a decimal64
         value of -40 dB is streamed.
     *   Re-enable the interfaces on the DUT.
