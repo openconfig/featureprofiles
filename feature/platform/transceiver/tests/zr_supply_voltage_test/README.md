@@ -46,15 +46,13 @@ Once the ZR link is estabished proceed with the following:
         any invalid string values like "nil" or "-inf".
     *   Reported supply voltage value must always be of type decimal64. 
 
-## Config Parameter coverage
-
-*   /interfaces/interface/config/enabled
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
+    # Config Parameter coverage
     /interfaces/interface/config/enabled:
+    # Telemetry Parameter coverage
     /components/component/transceiver/state/supply-voltage/instant:
 
 rpcs:

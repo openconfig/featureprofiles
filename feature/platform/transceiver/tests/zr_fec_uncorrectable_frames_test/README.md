@@ -29,11 +29,18 @@ This is a post-FEC decoder error metric.
     verify relevant FEC uncorrectable frame count is streamed. If there are no
     errors a value of 0 should be streamed for no FEC uncorrectable frames. 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component/transceiver/config/enabled
-*   /interfaces/interface/config/enabled 
+```yaml
+paths:
+    # Config Parameter coverage
+    /interfaces/interface/config/enabled:
+    /components/component/transceiver/config/enabled:
+    # Telemetry Parameter coverage
+    /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
 
-## Telemetry Parameter coverage
-
-*  /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks
+rpcs:
+    gnmi:
+        gNMI.Replace:
+        gNMI.Await:
+```

@@ -94,21 +94,28 @@ Once the ZR link is estabished proceed with the following:
         stream any invalid string values like "nil" or "-inf" until valid values
         are available for streaming.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
+```yaml
+paths:
+    # Configure parameter
+    /interfaces/interface/config/enabled:
+    # Telemetry Parameter coverage
+    /platform/components/component/state/serial-no:
+    /platform/components/component/state/part-no:
+    /platform/components/component/state/type:
+    /platform/components/component/state/description:
+    /platform/components/component/state/mfg-name:
+    /platform/components/component/state/mfg-date:
+    /platform/components/component/state/hardware-version:
+    /platform/components/component/state/firmware-version:
+    /components/component/optical-channel/state/output-power/instant:
+    /components/component/optical-channel/state/output-power/avg:
+    /components/component/optical-channel/state/output-power/min:
+    /components/component/optical-channel/state/output-power/max:
 
-## Telemetry Parameter coverage
-
-*   /platform/components/component/state/serial-no
-*   /platform/components/component/state/part-no
-*   /platform/components/component/state/type
-*   /platform/components/component/state/description
-*   /platform/components/component/state/mfg-name
-*   /platform/components/component/state/mfg-date
-*   /platform/components/component/state/hardware-version
-*   /platform/components/component/state/firmware-version
-*   /components/component/optical-channel/state/output-power/instant
-*   /components/component/optical-channel/state/output-power/avg
-*   /components/component/optical-channel/state/output-power/min
-*   /components/component/optical-channel/state/output-power/max
+rpcs:
+    gnmi:
+        gNMI.Replace:
+        gNMI.Await:
+```
