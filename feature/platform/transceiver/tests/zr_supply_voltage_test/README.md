@@ -50,6 +50,8 @@ Once the ZR link is estabished proceed with the following:
 
 *   /interfaces/interface/config/enabled
 
-## Telemetry Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-    *   /components/component/transceiver/state/supply-voltage/instant
+    paths:
+        /interfaces/interface/config/enabled:
+        /components/component/transceiver/state/supply-voltage/instant:
