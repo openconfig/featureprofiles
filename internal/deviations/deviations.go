@@ -977,3 +977,34 @@ func BgpDefaultPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitEnableBGPOnDefaultVRF(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitEnableBgpOnDefaultVrf()
 }
+
+// RoutingPolicyTagSetEmbedded returns true if the implementation does not support tag-set(s) as a
+// separate entity, but embeds it in the policy statement
+func RoutingPolicyTagSetEmbedded(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyTagSetEmbedded()
+}
+
+// SkipAfiSafiPathForBgpMultipleAs return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipAfiSafiPathForBgpMultipleAs(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAfiSafiPathForBgpMultipleAs()
+}
+
+// CommunityMemberRegexUnsupported return true if device do not support community member regex
+func CommunityMemberRegexUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMemberRegexUnsupported()
+}
+
+// SamePolicyAttachedToAllAfis returns true if same import policy has to be applied for all AFIs
+func SamePolicyAttachedToAllAfis(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSamePolicyAttachedToAllAfis()
+}
+
+// SkipSettingStatementForPolicy return true if device do not support afi/safi path to enable allow multiple-as for eBGP
+func SkipSettingStatementForPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSettingStatementForPolicy()
+}
+
+// SkipCheckingAttributeIndex return true if device do not return bgp attribute for the bgp session specifying the index
+func SkipCheckingAttributeIndex(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipCheckingAttributeIndex()
+}
