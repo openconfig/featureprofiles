@@ -9,19 +9,19 @@ duts {
   hardware_model: "CISCO-8818"
   ports {
     id: "port1"
-    speed: S_400GB   
+    speed: S_100GB   
   }
   ports {
     id: "port2"
-    speed: S_400GB  
+    speed: S_100GB  
   }
   ports {
     id: "port3"
-    speed: S_400GB  
+    speed: S_100GB  
   }
   ports {
     id: "port4"
-    speed: S_400GB  
+    speed: S_100GB  
   }
     ports {
     id: "port5"
@@ -45,19 +45,19 @@ ates {
   id: "ate"
   ports {
     id: "port1"
-    speed: S_400GB   
+    speed: S_100GB   
   }
   ports {
     id: "port2"
-    speed: S_400GB  
+    speed: S_100GB  
   }
   ports {
     id: "port3"
-    speed: S_400GB  
+    speed: S_100GB  
   }
   ports {
     id: "port4"
-    speed: S_400GB  
+    speed: S_100GB  
   }
     ports {
     id: "port5"

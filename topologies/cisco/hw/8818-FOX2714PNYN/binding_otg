@@ -48,7 +48,7 @@ duts {
   hardware_model: "CISCO-8818"
   name: "8818"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
+    gnmi_set_file: "/Users/arvbaska/b4test/featureprofiles/topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto"
   }
   options {
     insecure: false 
@@ -79,23 +79,23 @@ duts {
   
   ports {
     id: "port1"
-    name: "FourHundredGigE0/0/0/0"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "HundredGigE0/0/0/6"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port2"
-    name: "FourHundredGigE0/0/0/35"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "HundredGigE0/0/0/34"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port3"
-    name: "FourHundredGigE0/16/0/0" # Change this to the actual port name.
-     speed: S_400GB   
+    name: "HundredGigE0/16/0/6" # Change this to the actual port name.
+     speed: S_100GB   
   }
   ports {
     id: "port4"
-    name: "FourHundredGigE0/16/0/35"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "HundredGigE0/16/0/34"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port5"
@@ -121,7 +121,7 @@ duts {
 
 ates {
   id: "ate"
-  name: "ott-ucs-b4:48818"
+  name: "10.85.84.159:48818"
   options {
     username: "admin"
     password: "admin"
@@ -130,23 +130,23 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10.85.84.214;1;3"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "10.85.84.214;1;77"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port2"
-    name: "10.85.84.214;1;4"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "10.85.84.214;1;78"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port3"
-    name: "10.85.84.214;1;5"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "10.85.84.214;1;79"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port4"
-    name: "10.85.84.214;1;6"  # Change this to the actual port name.
-    speed: S_400GB   
+    name: "10.85.84.214;1;80"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port5"
@@ -167,5 +167,15 @@ ates {
    id: "port8"
    name: "10.85.84.214;1;76"  # Change this to the actual port name.
    speed: S_100GB   
+  }
+  gnmi: {
+    target: "10.85.84.159:58818"
+    skip_verify: true
+    timeout: 30
+  }
+  otg: {
+    target: "10.85.84.159:48818"
+    insecure: true
+    timeout: 30
   }
 }
