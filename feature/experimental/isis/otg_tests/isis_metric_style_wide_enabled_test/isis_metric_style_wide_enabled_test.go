@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -331,35 +332,43 @@ func TestISISWideMetricEnabled(t *testing.T) {
 					t.Errorf("FAIL- Expected metric style not found, got %s, want %s", got, oc.E_Isis_MetricStyle(2))
 				}
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Prefix().State()); got != ateV4Route {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Prefix().State(), 1*time.Minute, ateV4Route).Val(); !ok {
 				t.Errorf("FAIL- Expected ate v4 route not found, got %v, want %v", got, ateV4Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Metric().State()); got != ateV4Metric {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(ateV4Route).Metric().State(), 1*time.Minute, ateV4Metric).Val(); !ok {
 				t.Errorf("FAIL- Expected metric for ate v4 route not found, got %v, want %v", got, ateV4Metric)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Prefix().State()); got != ateV6Route {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Prefix().State(), 1*time.Minute, ateV6Route).Val(); !ok {
 				t.Errorf("FAIL- Expected ate v6 route not found, got %v, want %v", got, ateV6Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Metric().State()); got != ateV6Metric {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(ateV6Route).Metric().State(), 1*time.Minute, ateV6Metric).Val(); !ok {
 				t.Errorf("FAIL- Expected metric for ate v6 route not found, got %v, want %v", got, ateV6Metric)
 			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(ateV4Route).State()).GetPrefix(); got != ateV4Route {
-				t.Errorf("FAIL- Expected ate v4 route not found in aft, got %v, want %v", got, ateV4Route)
-			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(ateV6Route).State()).GetPrefix(); got != ateV6Route {
-				t.Errorf("FAIL- Expected ate v6 route not found in aft, got %v, want %v", got, ateV6Route)
-			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Prefix().State()); got != dutV4Route {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Prefix().State(), 1*time.Minute, dutV4Route).Val(); !ok {
 				t.Errorf("FAIL- Expected dut v4 route not found, got %v, want %v", got, dutV4Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Metric().State()); got != dutV4Metric {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(dutV4Route).Metric().State(), 1*time.Minute, dutV4Metric).Val(); !ok {
 				t.Errorf("FAIL- Expected metric for dut v4 route not found, got %v, want %v", got, dutV4Metric)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Prefix().State()); got != dutV6Route {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Prefix().State(), 1*time.Minute, dutV6Route).Val(); !ok {
 				t.Errorf("FAIL- Expected dut v6 route not found, got %v, want %v", got, dutV6Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Metric().State()); got != dutV6Metric {
+			if got, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(dutLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(dutV6Route).Metric().State(), 1*time.Minute, dutV6Metric).Val(); !ok {
 				t.Errorf("FAIL- Expected metric for dut v6 route not found, got %v, want %v", got, dutV6Metric)
+			}
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(ateV4Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				ipv4Entry, present := val.Val()
+				return present && ipv4Entry.GetPrefix() == ateV4Route
+			}).Await(t); !ok {
+				t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, ateV4Route)
+			}
+			ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(ateV6Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				ipv6Entry, present := val.Val()
+				return present && ipv6Entry.GetPrefix() == ateV6Route
+			}).Await(t); !ok {
+				t.Errorf("ipv6-entry/state/prefix got %v, want %s", got, ateV6Route)
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {

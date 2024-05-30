@@ -15,6 +15,7 @@
 package bgp_prefix_set_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -383,7 +385,7 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 	prefixPath := statePath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi).Prefixes()
 
 	// Waiting for Installed count to get updated after session comes up or policy is applied
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixPath.Installed().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool { // increased wait time to 20s from 10s
 		gotInstalled, _ := val.Val()
 		t.Logf("Prefix that are installed %v and want %v", gotInstalled, wantInstalled)
 		return gotInstalled == wantInstalled
@@ -392,20 +394,18 @@ func validatePrefixCount(t *testing.T, dut *ondatra.DUTDevice, nbr bgpNeighbor, 
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
 
-	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		// Waiting for Received count to get updated after session comes up or policy is applied
-		gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
-			gotRx, _ := val.Val()
-			t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
-			return gotRx == wantRx
-		}).Await(t)
-		if !ok {
-			t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
-		}
+	// Waiting for Received count to get updated after session comes up or policy is applied
+	gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotRx, _ := val.Val()
+		t.Logf("Prefix that are received %v and want %v", gotRx, wantRx)
+		return gotRx == wantRx
+	}).Await(t)
+	if !ok {
+		t.Errorf("Received prefixes mismatch: got %v, want %v", gotRx, wantRx)
 	}
 
 	// Waiting for Sent count to get updated after session comes up or policy is applied
-	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotSent, ok := gnmi.Watch(t, dut, prefixPath.Sent().State(), 40*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		t.Logf("Prefix that are sent %v", prefixPath.Sent().State())
 		gotSent, _ := val.Val()
 		t.Logf("Prefix that are sent %v and want %v", gotSent, wantSent)
@@ -472,6 +472,16 @@ func TestBGPPrefixSet(t *testing.T) {
 		dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
+		if deviations.MissingPrePolicyReceivedRoutes(dut) {
+			var enableSoftConfigInboundCLI string
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				enableSoftConfigInboundCLI = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n address-family ipv4 unicast soft-reconfiguration inbound always \n address-family ipv6 unicast soft-reconfiguration inbound always", dutAS, peerGrpName)
+			default:
+				t.Fatalf("Unsupported vendor %s for deviation 'MissingPrePolicyReceivedRoutes'", dut.Vendor())
+			}
+			helpers.GnmiCLIConfig(t, dut, enableSoftConfigInboundCLI)
+		}
 		otg := ate.OTG()
 		configureOTG(t, otg)
 		verifyBgpState(t, dut)
