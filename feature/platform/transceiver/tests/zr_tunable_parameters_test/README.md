@@ -143,19 +143,33 @@ seconds is not supported, the sampling interval used must be communicated.
 ```yaml
 paths:
   /components/component/transceiver/config/enabled:
+    platform_type: ["TRANSCEIVER"]
   /components/component/optical-channel/config/frequency:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/config/target-output-power:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/config/operational-mode:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/frequency:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/carrier-frequency-offset/instant:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/carrier-frequency-offset/avg:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/carrier-frequency-offset/min:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/carrier-frequency-offset/max:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/output-power/instant:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/output-power/avg:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/output-power/min:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/output-power/max:
+    platform_type: ["OPTICAL_CHANNEL"]
   /components/component/optical-channel/state/operational-mode:
+    platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
   gnmi:
