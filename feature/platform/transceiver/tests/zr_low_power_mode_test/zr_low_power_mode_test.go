@@ -16,7 +16,6 @@ package zr_low_power_mode_test
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"testing"
 	"time"
