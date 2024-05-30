@@ -37,3 +37,14 @@ are the destination MAC addresses of the packets seen by the OTG.
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/ip
 *   /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/config/link-layer-address
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+  
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
