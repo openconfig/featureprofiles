@@ -56,4 +56,9 @@ Once the ZR link is estabished proceed with the following:
 paths:
     /interfaces/interface/config/enabled:
     /components/component/transceiver/state/supply-voltage/instant:
+
+rpcs:
+    gnmi:
+        gNMI.Replace:
+        gNMI.Await:
 ```
