@@ -101,18 +101,22 @@ paths:
     # Configure parameter
     /interfaces/interface/config/enabled:
     # Telemetry Parameter coverage
-    /platform/components/component/state/serial-no:
-    /platform/components/component/state/part-no:
-    /platform/components/component/state/type:
-    /platform/components/component/state/description:
-    /platform/components/component/state/mfg-name:
-    /platform/components/component/state/mfg-date:
-    /platform/components/component/state/hardware-version:
-    /platform/components/component/state/firmware-version:
+    /components/component/state/serial-no:
+    /components/component/state/part-no:
+    /components/component/state/type:
+    /components/component/state/description:
+    /components/component/state/mfg-name:
+    /components/component/state/mfg-date:
+    /components/component/state/hardware-version:
+    /components/component/state/firmware-version:
     /components/component/optical-channel/state/output-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
     gnmi:
