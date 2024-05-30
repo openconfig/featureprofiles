@@ -16,7 +16,7 @@ Topology: ATE1—DUT1–ATE2
                                
 *   Configure Segment Routing Global Block (start: 400000 range: 65001)
 *   Enable Segment Routing for the ISIS
-*   Enable MPLS forwarding
+*   Enable MPLS forwarding (if required)
 
 *  Prefix (1) with node-SID is advertised by the direct ISIS neighbor
 *  Prefix (2) with node-SID is advertised by simulated indirect ISIS speaker
@@ -38,8 +38,14 @@ Generate traffic:
 
 ```yaml
 paths:
-  # configuration
+  # srgb definition
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound:
+  /network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound:
+  # sr config
   /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
+  /network-instances/network-instance/segment-routing/srgbs/srgb/config/local-id:
+  /network-instances/network-instance/segment-routing/srgbs/srgb/config/mpls-label-blocks:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/srgb:
   # telemetry
