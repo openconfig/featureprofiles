@@ -28,8 +28,8 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
 
 #### Configuration
 
-1.  All DUT Ports are configured as a singleton IP interfaces.
-
+1.  All DUT Ports are configured as a singleton IP interfaces. Configure MTU of 9216 (L2) on ATE Port1, MTU 2000 on ATE Port 2, 3
+ 
 2.  IPv4 and IPv6 static routes to test destination networks IPV4-DST/IPV6-DST are configured on DUT towards ATE Port 3.
 
 3.  Another set of IPv4 static routes to 32x IPv4 GRE encap destinations towards ATE Port 2.
@@ -43,9 +43,14 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
 
 5.   Set GRE encap source to device's loopback interface.
 6.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations.
+7.   Configure QoS classifier for incoming traffic on ATE Port1 for IPv4 and IPv6 traffic. 
+     QoS classifier should remark egress packet to the matching ingress DSCP value (eg. match DSCP 32, set egress DSCP 32).
+     Match and remark all values for 3 leftmost DSCP bits [0, 8, 16, 24, 32, 40, 48, 56].
+    
 
 ### PF-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic
-Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST.
+Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST at linerate.
+Use 512 bytes frame size.
 
 Verify:
 
@@ -56,6 +61,7 @@ Verify:
 
 ### PF-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic
 Generate traffic on ATE Port 1 from IPV6-SRC2 from a random combination of 1000 source addresses to IPV6-DST.
+Use 512 bytes frame size.
 
 Verify:
 
@@ -79,6 +85,29 @@ Verify:
 
 *  All traffic received on ATE Port 3.
 *  No packet loss when forwarding.
+
+### PF-1.1.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic
+Generate traffic on ATE Port 1 from IPV4-SRC1 source for every DSCP value in [0, 8, 16, 24, 32, 40, 48, 56]
+
+Verify:
+
+*  All traffic received on ATE Port 2 GRE-encapsulated.
+*  Outer GRE IPv4 header has same marking as ingress non-encapsulated IPv4 packet.
+
+### PF-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic
+Generate traffic on ATE Port 1 from IPV6-SRC1 for every IPv6 TC 8-bit value [0, 32, 64, 96, 128, 160, 192, 224]
+
+Verify:
+
+*  All traffic received on ATE Port 2 GRE-encapsulated.
+*  Outer GRE IPv4 header has DSCP match to ingress IPv6 TC packet.
+
+### PF-1.1.7: Verify MTU handling during GRE encap
+Generate traffic on ATE Port 1 from IPv4 sources with frame size of 4000 with DF-bit set.
+
+Verify:
+
+*  DUT generates "Fragmentation Needed" message back to ATE source.
 
 ## OpenConfig Path and RPC Coverage
 
