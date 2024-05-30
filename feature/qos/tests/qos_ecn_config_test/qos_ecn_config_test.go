@@ -436,7 +436,6 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 				t.Errorf("outQueue.QueueManagementProfile().State(): got %v, want %v", got, want)
 			}
 		}
-
 		if deviations.QosGetStatePathUnsupported(dut) {
 			if got, want := gnmi.Get(t, dut, policy.Name().Config()), tc.scheduler; got != want {
 				t.Errorf("policy.Name().Config(): got %v, want %v", got, want)
