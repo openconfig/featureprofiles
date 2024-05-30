@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	samplingInterval              = 10 * time.Second
-	intUpdateTime                 = 2 * time.Minute
+	samplingInterval = 10 * time.Second
+	intUpdateTime    = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -87,10 +87,9 @@ func TestLowPowerMode(t *testing.T) {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-			
+
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-
 			// Stream all inventory information.
 			streamSerialNo := samplestream.New(t, dut, gnmi.OC().Component(tr).SerialNo().State(), samplingInterval)
 			defer streamSerialNo.Close()
@@ -120,7 +119,6 @@ func TestLowPowerMode(t *testing.T) {
 			}
 			validateStreamOutput(t, allStream)
 
-			
 			d := &oc.Root{}
 			i := d.GetOrCreateInterface(dp.Name())
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd

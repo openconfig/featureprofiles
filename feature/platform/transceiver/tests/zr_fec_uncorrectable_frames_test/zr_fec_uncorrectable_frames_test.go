@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	sampleInterval       = 10 * time.Second
-	intUpdateTime        = 2 * time.Minute
+	sampleInterval = 10 * time.Second
+	intUpdateTime  = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
