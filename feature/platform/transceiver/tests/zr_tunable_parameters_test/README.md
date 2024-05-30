@@ -138,14 +138,16 @@ explicitly through OC operational mode.
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 10
 seconds is not supported, the sampling interval used must be communicated.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
+
+### Config Parameter coverage
 
 *   /components/component/transceiver/config/enabled
 *   /components/component/optical-channel/config/frequency
 *   /components/component/optical-channel/config/target-output-power
 *   /components/component/optical-channel/config/operational-mode
 
-## Telemetry Parameter coverage
+### Telemetry Parameter coverage
 
 *   Frequency
     *   /components/component/optical-channel/state/frequency
@@ -162,10 +164,15 @@ seconds is not supported, the sampling interval used must be communicated.
     *   /components/component/optical-channel/config/operational-mode
     *   /components/component/optical-channel/state/operational-mode
 
-## Protocol/RPC Parameter Coverage
+### Protocol/RPC Parameter Coverage
 
-rpcs: gnmi: gNMI.Set: replace: true gNMI.Subscribe: on_change: true
+rpcs:
+  gnmi:
+    gNMI.Set:
+      replace: true
+    gNMI.Subscribe:
+      on_change: true
 
-## Minimum DUT Platform Requirement
+## Required DUT platform
 
 FFF
