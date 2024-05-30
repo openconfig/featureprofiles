@@ -54,6 +54,7 @@ paths:
     /interfaces/interface/config/enabled:
     # Telemetry Parameter coverage
     /components/component/transceiver/state/supply-voltage/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
 
 rpcs:
     gnmi:

@@ -36,6 +36,7 @@ paths:
     # Config Parameter coverage
     /interfaces/interface/config/enabled:
     /components/component/transceiver/config/enabled:
+        platform_type: ["OPTICAL_CHANNEL"]
     # Telemetry Parameter coverage
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
 
