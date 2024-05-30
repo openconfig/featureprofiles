@@ -140,6 +140,7 @@ seconds is not supported, the sampling interval used must be communicated.
 
 ## OpenConfig Path and RPC Coverage
 
+```yaml
 paths:
   /components/component/transceiver/config/enabled:
   /components/component/optical-channel/config/frequency:
@@ -163,6 +164,7 @@ rpcs:
       replace: true
     gNMI.Subscribe:
       on_change: true
+```
 
 ## Required DUT platform
 
