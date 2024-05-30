@@ -41,5 +41,6 @@ paths:
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
 
 rpcs:
-    gNMI.Get:
+    gnmi:
+        gNMI.Get:
 ```
