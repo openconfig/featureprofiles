@@ -102,13 +102,21 @@ paths:
     /interfaces/interface/config/enabled:
     # Telemetry Parameter coverage
     /components/component/state/serial-no:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/part-no:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/type:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/description:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/mfg-name:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/mfg-date:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/hardware-version:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/state/firmware-version:
+        platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/instant:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/avg:
