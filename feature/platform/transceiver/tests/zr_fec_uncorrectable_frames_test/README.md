@@ -43,4 +43,6 @@ paths:
 rpcs:
     gnmi:
         gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
 ```
