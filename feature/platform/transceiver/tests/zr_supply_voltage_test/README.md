@@ -51,7 +51,8 @@ Once the ZR link is estabished proceed with the following:
 *   /interfaces/interface/config/enabled
 
 ## OpenConfig Path and RPC Coverage
-
-    paths:
-        /interfaces/interface/config/enabled:
-        /components/component/transceiver/state/supply-voltage/instant:
+```yaml
+paths:
+    /interfaces/interface/config/enabled:
+    /components/component/transceiver/state/supply-voltage/instant:
+```
