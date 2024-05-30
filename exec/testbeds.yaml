@@ -121,6 +121,17 @@ testbeds:
       controller_port: 40059
       gnmi_port: 50059
 
+  8818-FOX2714PNYN:
+    hw: 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
+    binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
+    baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
+    otg:
+      host: ott-ucs-b4
+      controller_port: 48818
+      gnmi_port: 58818      
+
   2DUT-TB1:
     hw:
       - 8808-FOX2508P0JU
