@@ -1,4 +1,3 @@
-// Abstract Trigger Space to have Routines that could be re-usable for any Test Suite
 package performance
 
 import (
@@ -29,10 +28,6 @@ type ProcessState struct {
 	PlacementState string `json:"placement-state"`
 }
 
-func RestartEmsd(t *testing.T, dut *ondatra.DUTDevice) error {
-	return RestartProcess(t, dut, "emsd")
-}
-
 func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) error {
 
 	psInit := getProcessState(t, dut, processName)
@@ -41,26 +36,17 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 		t.Fatalf("Could not get process state info for \"%s\"", processName)
 	}
 
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	time.Sleep(5 * time.Second)
+	resp, err := dut.RawAPIs().GNOI(t).System().KillProcess(context.Background(), &gnoisys.KillProcessRequest{
+		Name:    processName,
+		Restart: true,
+		Signal:  gnoisys.KillProcessRequest_SIGNAL_TERM,
+	})
 	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
+		return err
 	}
-
-	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		resp, _ := gnoiClient.System().KillProcess(context.Background(), &gnoisys.KillProcessRequest{
-			Name:    processName,
-			Restart: true,
-			Signal:  gnoisys.KillProcessRequest_SIGNAL_TERM,
-		})
-		t.Logf("KillProcess Response '%s'", resp)
-	}); errMsg != nil {
-		t.Logf("Got testt.CaptureFatal errMsg: %s, Continue ...", *errMsg)
-	} else {
-		t.Logf("Process Restarted Successfully")
+	if resp == nil {
+		t.Error("Response is nil")
 	}
-
-	time.Sleep(30 * time.Second)
 
 	psFinal := getProcessState(t, dut, processName)
 
@@ -74,11 +60,8 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 }
 
 func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	Resp, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	_, err := gnoiClient.System().Reboot(context.Background(), &gnoisys.RebootRequest{
 		Method:  gnoisys.RebootMethod_COLD,
 		Delay:   0,
 		Message: "Reboot chassis without delay",
@@ -87,16 +70,15 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 	if err != nil {
 		t.Fatalf("Reboot failed %v", err)
 	}
-	t.Logf("Reload Response %v ", Resp)
-
 	startReboot := time.Now()
+	time.Sleep(5 * time.Second)
 	const maxRebootTime = 30
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
-		time.Sleep(90 * time.Second)
+		time.Sleep(1 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
@@ -110,6 +92,8 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
+	// gnmi.Await(t, dut, gnmi.OC().Component(dut.Device.Name()).OperStatus().State(), time.Minute*30, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 	return nil
 }
@@ -178,5 +162,10 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 	wg.Wait()
 	t.Log("All linecards successfully relaunched")
 
+	return nil
+}
+
+func GNMIBigSetRequest(t *testing.T, dut *ondatra.DUTDevice, set *gnmi.SetBatch, numLeaves int) error {
+	BatchSet(t, dut, set, numLeaves)
 	return nil
 }

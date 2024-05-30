@@ -642,7 +642,7 @@ func TestProbeReqWithoutFinalize(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -798,7 +798,7 @@ func TestInvalidWithFinalize(t *testing.T) {
 
 	// Perform eMSD process restart
 	t.Logf("Restarting emsd at %s", time.Now())
-	perf.RestartEmsd(t, dut)
+	perf.RestartProcess(t, dut, "emsd")
 	t.Logf("Restart emsd finished at %s", time.Now())
 
 	got, err = client.Get(context.Background(), getReq)
@@ -906,7 +906,7 @@ func TestInvalidXpathFinalize(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Pathz GET after process restart
@@ -1040,7 +1040,7 @@ func TestProbeReqWithFinalize(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -1682,7 +1682,7 @@ func TestConflictBwExplicitKeyAnsAsterisk_1(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -4077,7 +4077,7 @@ func TestConflictBwGroupAndUser_5(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -4213,7 +4213,7 @@ func TestGnmiOriginCli(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -4698,7 +4698,7 @@ func TestConflictBwUsers_2(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -5475,7 +5475,7 @@ func TestConflictBwGroups(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -5765,7 +5765,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -5845,7 +5845,7 @@ func TestPathz_txt_bak_1(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -6014,7 +6014,7 @@ func TestCiscoNative(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -6259,7 +6259,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -6417,7 +6417,7 @@ func TestPathz_txt_bak_2(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -6674,7 +6674,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -6754,7 +6754,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -6833,7 +6833,7 @@ func TestPathz_txt_bak_3(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -7171,7 +7171,7 @@ func TestPathz_txt_bak_4(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -7341,7 +7341,7 @@ func TestAuthzPathz_1(t *testing.T) {
 
 		// Perform eMSD process restart.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -7421,7 +7421,7 @@ func TestAuthzPathz_1(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Authz Backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -7545,7 +7545,7 @@ func TestAuthzPathz_1(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Authz Backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -7762,7 +7762,7 @@ func TestAuthzPathz_2(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Authz Backup file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -7842,7 +7842,7 @@ func TestAuthzPathz_2(t *testing.T) {
 
 		// Perform eMSD process restart after deleting Pathz file.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for active policy instance after process restart.
@@ -8957,7 +8957,7 @@ func TestRpSwitchover_4(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -9529,7 +9529,7 @@ func TestRpSwitchover_6(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
@@ -10122,7 +10122,7 @@ func TestRpSwitchover_9(t *testing.T) {
 
 		// Perform eMSD process restart
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart
@@ -10607,7 +10607,7 @@ func TestRpSwitchover_10(t *testing.T) {
 
 		// Perform eMSD process restart after RP_Switchover.
 		t.Logf("Restarting emsd at %s", time.Now())
-		perf.RestartEmsd(t, dut)
+		perf.RestartProcess(t, dut, "emsd")
 		t.Logf("Restart emsd finished at %s", time.Now())
 
 		// Perform GET operations for sandbox policy instance after process restart.
