@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"math/rand"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -37,8 +39,8 @@ const (
 	prefixesCount    = 4
 	pathID           = 1
 	maxPaths         = 2
-	trafficPps       = 1000
-	totalPackets     = 120000
+	trafficPps       = 100000
+	totalPackets     = 12000000
 	lossTolerancePct = 0
 	lbToleranceFms   = 20
 )
@@ -69,10 +71,24 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 		bgp4PeerRoute.AddPath().SetPathId(pathID)
 	}
 
-	configureFlow(bs)
+	configureFlow(t, bs)
 }
 
-func configureFlow(bs *cfgplugins.BGPSession) {
+func randRange(t *testing.T, start, end uint32, count int) []uint32 {
+	if count > int(end-start) {
+		t.Fatal("randRange: count greater than end-start.")
+	}
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	for len(result) < count {
+		diff := end - start
+		randomValue := rand.Int31n(int32(diff)) + int32(start)
+		result = append(result, uint32(randomValue))
+	}
+	return result
+}
+
+func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
@@ -91,6 +107,11 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
 	v4 := flow.Packet().Add().Ipv4()
+	v4.Src().Increment().SetStart(bs.ATEPorts[0].IPv4).SetCount(prefixesCount)
+	v4.Dst().Increment().SetStart(prefixesStart).SetCount(prefixesCount)
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
+	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
 	v4.Dst().SetValue(prefixesStart)
 }
@@ -174,15 +195,22 @@ func TestBGPSetup(t *testing.T) {
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 			pgUseMulitplePaths := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths()
 			if tc.enableMultipath {
+				t.Logf("Enable Multipath")
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
+				t.Logf("Enable Maximum Paths")
 				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
 			}
-			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
+				t.Logf("Enable MultiAS ")
+				gEBGP := bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+				gEBGP.AllowMultipleAs = ygot.Bool(true)
+			}
+			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && !deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
+				t.Logf("Enable MultiAS ")
 				gEBGP.AllowMultipleAs = ygot.Bool(true)
 			}
 
 			configureOTG(t, bs)
-
 			bs.PushAndStart(t)
 
 			t.Logf("Verify DUT BGP sessions up")
