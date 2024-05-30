@@ -140,31 +140,22 @@ seconds is not supported, the sampling interval used must be communicated.
 
 ## OpenConfig Path and RPC Coverage
 
-### Config Parameter coverage
-
-*   /components/component/transceiver/config/enabled
-*   /components/component/optical-channel/config/frequency
-*   /components/component/optical-channel/config/target-output-power
-*   /components/component/optical-channel/config/operational-mode
-
-### Telemetry Parameter coverage
-
-*   Frequency
-    *   /components/component/optical-channel/state/frequency
-    *   /components/component/optical-channel/state/carrier-frequency-offset/instant
-    *   /components/component/optical-channel/state/carrier-frequency-offset/avg
-    *   /components/component/optical-channel/state/carrier-frequency-offset/min
-    *   /components/component/optical-channel/state/carrier-frequency-offset/max
-*   TX Output Power
-    *   /components/component/optical-channel/state/output-power/instant
-    *   /components/component/optical-channel/state/output-power/avg
-    *   /components/component/optical-channel/state/output-power/min
-    *   /components/component/optical-channel/state/output-power/max
-*   Operational Mode
-    *   /components/component/optical-channel/config/operational-mode
-    *   /components/component/optical-channel/state/operational-mode
-
-### Protocol/RPC Parameter Coverage
+paths:
+  /components/component/transceiver/config/enabled
+  /components/component/optical-channel/config/frequency
+  /components/component/optical-channel/config/target-output-power
+  /components/component/optical-channel/config/operational-mode
+  /components/component/optical-channel/state/frequency
+  /components/component/optical-channel/state/carrier-frequency-offset/instant
+  /components/component/optical-channel/state/carrier-frequency-offset/avg
+  /components/component/optical-channel/state/carrier-frequency-offset/min
+  /components/component/optical-channel/state/carrier-frequency-offset/max
+  /components/component/optical-channel/state/output-power/instant
+  /components/component/optical-channel/state/output-power/avg
+  /components/component/optical-channel/state/output-power/min
+  /components/component/optical-channel/state/output-power/max
+  /components/component/optical-channel/config/operational-mode
+  /components/component/optical-channel/state/operational-mode
 
 rpcs:
   gnmi:
