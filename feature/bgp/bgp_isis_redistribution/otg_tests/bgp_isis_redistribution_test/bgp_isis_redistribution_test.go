@@ -756,7 +756,6 @@ func bgpISISRedistributionWithRouteTagPolicy(t *testing.T, dut *ondatra.DUTDevic
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn.SetDisableMetricPropagation(false)
 	}
-	// tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	tableConn.SetImportPolicy([]string{matchTagRedistributionPolicy})
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, afi).Config(), tableConn)
 }
@@ -765,7 +764,7 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	dut := ondatra.DUT(t, "dut")
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	//Ingress BGP policy to match community & prefix and set the route-Tag
+	//BGP Table-policy to match community & prefix and set the route-Tag
 	pdef1 := rp.GetOrCreatePolicyDefinition(tablePolicyMatchCommunitySetTag)
 	stmt1, err := pdef1.AppendNewStatement("SetTag")
 	if err != nil {
@@ -807,7 +806,6 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	if v4Nbr {
 		bgpTablePolicyCLI = fmt.Sprintf("router bgp %v instance BGP address-family ipv4 unicast \n table-policy %v", dutAS, tablePolicyMatchCommunitySetTag)
 		helpers.GnmiCLIConfig(t, dut, bgpTablePolicyCLI)
-		t.Log("WAIT")
 	} else {
 		bgpTablePolicyCLI = fmt.Sprintf("router bgp %v instance BGP address-family ipv6 unicast \n table-policy %v", dutAS, tablePolicyMatchCommunitySetTag)
 		helpers.GnmiCLIConfig(t, dut, bgpTablePolicyCLI)
