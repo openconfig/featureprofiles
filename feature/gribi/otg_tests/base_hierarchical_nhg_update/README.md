@@ -43,10 +43,6 @@ and it should not change the expected test result.
 *   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
     in <https://github.com/openconfig/featureprofiles/pull/2217>
 
-## Config Parameter coverage
-
-No configuration relevant.
-
 ## Telemetry Parameter coverage
 
 For prefix:
@@ -77,30 +73,18 @@ Parameters:
 *   next-hops/next-hop/state/ip-address
 *   next-hops/next-hop/state/mac-address
 
-## Protocol/RPC Parameter coverage
-
-*   gRIBI:
-    *   Modify()
-        *   ModifyRequest:
-            *   AFTOperation:
-                *   id
-                *   network_instance
-                *   op
-                *   Ipv4
-                    *   Ipv4EntryKey: prefix
-                    *   Ipv4Entry: next_hop_group
-                *   next_hop_group
-                    *   NextHopGroupKey: id
-                    *   NextHopGroup: next_hop
-                *   next_hop
-                    *   NextHopKey: id
-                    *   NextHop:
-                        *   mac_address
-                        *   interface_ref
-        *   ModifyResponse:
-            *   AFTResult:
-                *   id
-                *   status
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 
