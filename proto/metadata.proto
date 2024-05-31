@@ -18,6 +18,7 @@ package openconfig.testing;
 
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 
+
 // Metadata about a Feature Profiles test.
 message Metadata {
   // UUID of the test.
@@ -548,11 +549,15 @@ message Metadata {
     // wildcards has to be used.
     // CISCO: b/338523730
     bool skip_checking_attribute_index = 188;
+    // Devices does not suppport policy-chaining, so needs to flatten policies
+    // with multiple statements.
+    // CISCO: b/338526243
+    bool flatten_policy_with_multiple_statements = 189;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
-    message PlatformExceptions {
+  message PlatformExceptions {
     Platform platform = 1;
     Deviations deviations = 2;
   }
