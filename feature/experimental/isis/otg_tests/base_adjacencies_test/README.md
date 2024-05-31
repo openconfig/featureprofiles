@@ -156,11 +156,18 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/own-lsp-purges:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/seq-num-skips:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs:
-
-        ###For LSDB - subpaths of
-
-            # /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/
-
+        ###For LSDB - Examples of paths
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/lsp-id:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/maximum-area-addresses:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/pdu-type:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/sequence-number:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/state/type:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/area-address/state/address:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/hostname/state/hostname:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-interface-addresses/state/address:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-interface-addresses/state/address:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv4-te-router-id/state:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-te-router-id/state:
 
 rpcs:
   gnmi:
