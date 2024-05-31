@@ -84,11 +84,10 @@
 
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
-
 ```yaml
-paths:
-  rpcs:
-    gnmi:
-      gNMI.Subscribe:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
 ```
