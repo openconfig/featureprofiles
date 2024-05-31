@@ -62,7 +62,7 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
   ## Config paths
-  TODO: /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/authentication-check:
   /network-instances/network-instance/protocols/protocol/isis/global/config/net:
   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
   /network-instances/network-instance/protocols/protocol/isis/global/config/hello-padding:
