@@ -99,15 +99,18 @@ Different test scenarios requires different setups.
         traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
         at ATE port-4.
 
-## Config Parameter coverage
-
-No new configuration covered.
-
-## Telemetry Parameter coverage
-
-No new telemetry covered.
-
-## Protocol/RPC Parameter coverage
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 
