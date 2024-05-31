@@ -29,4 +29,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-MMF
+MMF. Note that the modular form factor device must contain FAN_TRAY type hardware.
