@@ -17,8 +17,10 @@ package chained_policies_test
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
+	
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
