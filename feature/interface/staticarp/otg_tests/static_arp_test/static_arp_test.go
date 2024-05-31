@@ -293,13 +293,12 @@ func testFlow(
 }
 
 func TestStaticARP(t *testing.T) {
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	config := configureATE(t)
-
 	// Configure the DUT with dynamic ARP.
 	configureDUT(t, noStaticMAC)
 
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	config := configureATE(t)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4Neighbor(dutSrc.IPv4).LinkLayerAddress().State())
