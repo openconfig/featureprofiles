@@ -364,7 +364,6 @@ paths used for test setup are not listed here.
 ```yaml 
 paths:
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/global/config:
   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
   /routing-policy/policy-definitions/policy-definition/config/name:
@@ -404,8 +403,6 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix:
 
 rpcs:
   gnmi:
