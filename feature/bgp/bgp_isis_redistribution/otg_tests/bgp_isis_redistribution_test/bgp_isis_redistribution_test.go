@@ -67,6 +67,7 @@ const (
 	matchTagRedistributionPolicy    = "MatchTagRedistributionPolicy"
 	nonMatchingCommunityVal         = "64655:200"
 	matchingCommunityVal            = "64657:100"
+	routeTagVal                     = 10000
 )
 
 var (
@@ -782,13 +783,13 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	stmt1.GetOrCreateActions().GetOrCreateSetTag().SetMode(oc.SetTag_Mode_INLINE)
-	stmt1.GetOrCreateActions().GetOrCreateSetTag().GetOrCreateInline().SetTag([]oc.RoutingPolicy_PolicyDefinition_Statement_Actions_SetTag_Inline_Tag_Union{oc.UnionUint32(10000)})
+	stmt1.GetOrCreateActions().GetOrCreateSetTag().GetOrCreateInline().SetTag([]oc.RoutingPolicy_PolicyDefinition_Statement_Actions_SetTag_Inline_Tag_Union{oc.UnionUint32(routeTagVal)})
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	//Create tag-set with above route tag value
 	tagSet := rp.GetOrCreateDefinedSets().GetOrCreateTagSet("RouteTagForRedistribution")
 	tagSet.SetName("RouteTagForRedistribution")
-	tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(10000)})
+	tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(routeTagVal)})
 
 	//Route-policy to match tag and accept
 	pdef2 := rp.GetOrCreatePolicyDefinition("MatchTagRedistributionPolicy")
