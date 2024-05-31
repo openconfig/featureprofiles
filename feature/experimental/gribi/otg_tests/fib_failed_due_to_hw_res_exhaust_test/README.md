@@ -31,3 +31,13 @@ Validate gRIBI FIB_FAILED functionality.
 ## Config parameter coverage
 
 ## Telemery parameter coverage
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```
