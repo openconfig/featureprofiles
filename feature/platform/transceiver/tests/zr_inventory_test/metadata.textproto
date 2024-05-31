@@ -10,5 +10,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    missing_port_to_optical_channel_component_mapping: true
   }
 }

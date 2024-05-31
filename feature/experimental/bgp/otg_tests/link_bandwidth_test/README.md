@@ -143,45 +143,41 @@ bandwidth communities to routes based on a prefix match.
         * Other implementations consider value 0 invalid or not having link-bandwidth. These implementations create ECMP group with all routes including this one, and ignores link-bandwidth of all members - distribute traffic equally.
         * This policy intention is to overcome this implementation difference, by deprefering (LocPref) routes with link-bandwidth 0 (only this routes) to prevent them becoming part of multipath, and remove link-bandwidth community so route will not be treated with WCMP behavior.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-## Configuration to enable advertise communities to bgp peer
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community
-
-### Policy for community-set configuration
-
-* /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name
-* /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/community-member
-
-### Policy action configuration
-
-* /routing-policy/policy-definitions/policy-definition/config/name
-* /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/config/options
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
-
-
-### Policy for community-set match configuration
-
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/community-set
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/match-set-options
-
-### Policy attachment point configuration
-
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
-* /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy
-* /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy
-
-## Telemetry Parameter Coverage
-
-* /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index
-* /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index
-
+```yaml
+paths:
+  ## Config Parameter Coverage
+  ## Configuration to enable advertise communities to bgp peer
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community:
+  ## Policy for community-set configuration
+  /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-member:
+  ## Policy action configuration
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/config/options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/method:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+  ## Policy for community-set match configuration
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/ext-community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-ext-community-set/config/match-set-options:
+  ## Policy attachment point configuration
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+  ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index:
+rpcs:
+    gnmi:
+        gNMI.Subscribe:
+```
 ## Minimum DUT Required
 
 vRX - Virtual Router Device
