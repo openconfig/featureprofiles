@@ -873,6 +873,7 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 	ts.ATE.OTG().PushConfig(t, ts.ATETop)
 	ts.ATE.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
+	cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {
