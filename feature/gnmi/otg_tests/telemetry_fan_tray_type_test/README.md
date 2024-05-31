@@ -18,7 +18,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## State Paths ##
   /components/component/state/type:
-
+    platform_type: ["FAN_TRAY"]
 rpcs:
   gnmi:
     gNMI.Subscribe:
