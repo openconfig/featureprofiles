@@ -122,7 +122,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/auth-type-fails:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/id-field-len-mismatches:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/lan-dis-changes:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/max-area-address-mismatch:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/rejected-adj:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address:
