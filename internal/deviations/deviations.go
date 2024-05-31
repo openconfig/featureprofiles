@@ -1017,4 +1017,7 @@ func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 // Devices does not support multipath under neighbor or afisafi
 func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+// FlattenPolicyWithMultipleStatements return true if devices does not support policy-chaining
+func FlattenPolicyWithMultipleStatements(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFlattenPolicyWithMultipleStatements()
 }
