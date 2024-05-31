@@ -159,7 +159,7 @@ paths:
 
         ###For LSDB - subpaths of
 
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database:
+            # /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/
 
 
 rpcs:
