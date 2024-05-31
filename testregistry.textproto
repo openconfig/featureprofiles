@@ -318,6 +318,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "Health-1.1"
+  description: "Healthz component status paths"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/healthz/tests/status/README.md"
+  exec: " "
+}
+test: {
   id: "IC-1"
   description: "Integrated Circuit Utilization and Thresholds"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"
@@ -553,6 +559,12 @@ test: {
   id: "RT-1.52"
   description: "BGP multipath ECMP support with Link Bandwidth Community"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_wecmp_lbw_community_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.55"
+  description: "BGP session mode (active/passive)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
   exec: " "
 }
 test: {
@@ -1239,6 +1251,11 @@ test: {
   id: "gNMI-1.21"
   description: "Integrated Circuit Hardware Resource Utilization Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_test/README.md"
+}
+test: {
+  id: "gNMI-1.22"
+  description: "Controller card port attributes"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/controllercard/tests/port/README.md"
 }
 test: {
   id: "gNMI-1.4"
