@@ -195,7 +195,7 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 
 				// Collect Redis memory information only for RP
 				cliClient := dut.RawAPIs().CLI(t)
-				redisData, err := CollectRedisMemoryInfo(t, cliClient, data)
+				redisData, err := CollectRedisMemoryInfo(cliClient, data)
 				if err != nil {
 					t.Fatalf("Failed to collect Redis memory information: %v", err)
 				}
@@ -679,7 +679,8 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 	return nil, uploadToDb
 }
 
-func CollectRedisMemoryInfo(t testing.TB, cliClient binding.CLIClient, data PerformanceData) (*PerformanceData, error) {
+func CollectRedisMemoryInfo(cliClient binding.CLIClient, data PerformanceData) (*PerformanceData, error) {
+
 	if cliClient == nil {
 		return nil, errors.New("CLI client not established")
 	}
@@ -819,4 +820,121 @@ func parseRouteSummary(summary string) int {
 		return 0
 	}
 	return totalRoutes
+}
+
+func AveragePerformanceData(data []PerformanceData) map[string]map[string]float64 {
+	aggregatedData := make(map[string]map[string]float64)
+
+	for _, entry := range data {
+		location := entry.Location
+
+		if _, exists := aggregatedData[location]; !exists {
+			aggregatedData[location] = map[string]float64{
+				"AvgRedisUsedMemAsPct": 0,
+				"AvgMemoryUsedPct":     0,
+				"AvgCpuUser":           0,
+				"AvgCpuKernel":         0,
+				"RedisUsedMemPeak":     0,
+				"MemoryUsedPeak":       0,
+				"CpuUserPeak":          0,
+				"CpuKernelPeak":        0,
+				"count":                0,
+			}
+		}
+
+		// Calculate memory usage percentage
+		memoryUsedPct := (entry.MemoryUsed / (entry.MemoryUsed + entry.MemoryFree)) * 100
+
+		// Aggregate the values
+		aggregatedData[location]["AvgRedisUsedMemAsPct"] += entry.RedisUsedMemAsPct
+		aggregatedData[location]["AvgMemoryUsedPct"] += memoryUsedPct
+		aggregatedData[location]["AvgCpuUser"] += entry.CpuUser
+		aggregatedData[location]["AvgCpuKernel"] += entry.CpuKernel
+
+		// Update peak values
+		if entry.RedisUsedMemAsPct > aggregatedData[location]["RedisUsedMemPeak"] {
+			aggregatedData[location]["RedisUsedMemPeak"] = entry.RedisUsedMemAsPct
+		}
+		if memoryUsedPct > aggregatedData[location]["MemoryUsedPeak"] {
+			aggregatedData[location]["MemoryUsedPeak"] = memoryUsedPct
+		}
+		if entry.CpuUser > aggregatedData[location]["CpuUserPeak"] {
+			aggregatedData[location]["CpuUserPeak"] = entry.CpuUser
+		}
+		if entry.CpuKernel > aggregatedData[location]["CpuKernelPeak"] {
+			aggregatedData[location]["CpuKernelPeak"] = entry.CpuKernel
+		}
+
+		aggregatedData[location]["count"]++
+	}
+
+	// Calculate the average for each location
+	for location, metrics := range aggregatedData {
+		count := metrics["count"]
+		aggregatedData[location]["AvgRedisUsedMemAsPct"] /= count
+		aggregatedData[location]["AvgMemoryUsedPct"] /= count
+		aggregatedData[location]["AvgCpuUser"] /= count
+		aggregatedData[location]["AvgCpuKernel"] /= count
+
+		// Remove count from the final output if not needed
+		delete(aggregatedData[location], "count")
+	}
+
+	return aggregatedData
+}
+
+func ComparePerformanceData(baseline, trigger map[string]map[string]float64) map[string]map[string]map[string]float64 {
+	compareData := make(map[string]map[string]map[string]float64)
+
+	for location, baselineMetrics := range baseline {
+		if _, exists := trigger[location]; !exists {
+			continue
+		}
+
+		triggerMetrics := trigger[location]
+		compareData[location] = map[string]map[string]float64{
+			"RedisUsedMemAsPct": {
+				"Baseline": baselineMetrics["RedisUsedMemAsPct"],
+				"Trigger":  triggerMetrics["RedisUsedMemAsPct"],
+				"Diff":     triggerMetrics["RedisUsedMemAsPct"] - baselineMetrics["RedisUsedMemAsPct"],
+			},
+			"MemoryUsedPct": {
+				"Baseline": baselineMetrics["MemoryUsedPct"],
+				"Trigger":  triggerMetrics["MemoryUsedPct"],
+				"Diff":     triggerMetrics["MemoryUsedPct"] - baselineMetrics["MemoryUsedPct"],
+			},
+			"CpuUser": {
+				"Baseline": baselineMetrics["CpuUser"],
+				"Trigger":  triggerMetrics["CpuUser"],
+				"Diff":     triggerMetrics["CpuUser"] - baselineMetrics["CpuUser"],
+			},
+			"CpuKernel": {
+				"Baseline": baselineMetrics["CpuKernel"],
+				"Trigger":  triggerMetrics["CpuKernel"],
+				"Diff":     triggerMetrics["CpuKernel"] - baselineMetrics["CpuKernel"],
+			},
+			"RedisUsedMemPeak": {
+				"Baseline": baselineMetrics["RedisUsedMemPeak"],
+				"Trigger":  triggerMetrics["RedisUsedMemPeak"],
+				"Diff":     triggerMetrics["RedisUsedMemPeak"] - baselineMetrics["RedisUsedMemPeak"],
+			},
+			"MemoryUsedPeak": {
+				"Baseline": baselineMetrics["MemoryUsedPeak"],
+				"Trigger":  triggerMetrics["MemoryUsedPeak"],
+				"Diff":     triggerMetrics["MemoryUsedPeak"] - baselineMetrics["MemoryUsedPeak"],
+			},
+			"CpuUserPeak": {
+				"Baseline": baselineMetrics["CpuUserPeak"],
+				"Trigger":  triggerMetrics["CpuUserPeak"],
+				"Diff":     triggerMetrics["CpuUserPeak"] - baselineMetrics["CpuUserPeak"],
+			},
+			"CpuKernelPeak": {
+				"Baseline": baselineMetrics["CpuKernelPeak"],
+				"Trigger":  triggerMetrics["CpuKernelPeak"],
+				"Diff":     triggerMetrics["CpuKernelPeak"] - baselineMetrics["CpuKernelPeak"],
+			},
+		}
+	}
+
+	return compareData
 }
