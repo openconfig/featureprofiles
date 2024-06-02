@@ -553,6 +553,9 @@ message Metadata {
     // with multiple statements.
     // CISCO: b/338526243
     bool flatten_policy_with_multiple_statements = 189;
+    // default_route_policy_unsupported is set to true for devices that do not
+    // support default route policy.
+    bool default_route_policy_unsupported = 190;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
