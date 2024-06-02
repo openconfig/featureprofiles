@@ -395,7 +395,7 @@ network-instances {
     * outer_src: `ipv4_outer_src_111`
     * outer_dst: `ipv4_outer_decap_match`
     * dscp: `dscp_encap_d`
-    * proto: `41`    
+    * proto: `41`
     ```
 
 3.  Send traffic to DUT-1, covering all the installed v4 and v6 entries in the decap and encap VRFs. Validate that all traffic are all decapped per the DECAP VRFs and then encapsulated per the ENCAP VRFs and received as encapsulated packet by ATE.
@@ -440,3 +440,23 @@ network-instances {
 ## Required DUT platform
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
+
+  ## State paths: N/A
+
+rpcs:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```

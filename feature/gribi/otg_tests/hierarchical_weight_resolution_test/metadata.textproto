@@ -21,7 +21,6 @@ platform_exceptions: {
   }
   deviations: {
     hierarchical_weight_resolution_tolerance: 0.4
-    explicit_interface_ref_definition: true
   }
 }
 platform_exceptions: {
