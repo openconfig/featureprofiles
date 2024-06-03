@@ -18,8 +18,8 @@ Ensure my MAC entries installed on the DUT are honored and used for routing.
 
 ```yaml
 paths:
-   /system/mac-address/config/routing-mac
-   /system/mac-address/state/routing-mac
+   /system/mac-address/config/routing-mac:
+   /system/mac-address/state/routing-mac:
 
 rpcs:
   gnmi:
