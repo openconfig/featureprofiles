@@ -601,7 +601,11 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 		}
 	}
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	if replace {
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	}
 	time.Sleep(5 * time.Second)
 }
 
@@ -659,7 +663,6 @@ func testDefaultPolicyAcceptRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 
 	t.Run("Create and apply default-policy ACCEPT-ALL with action as ACCEPT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 			configureRoutingPolicyDefaultAction(t, dut, "accept", replacePolicy)
 		} else {
 			configureBGPDefaultPolicy(t, dut, acceptRoute)
@@ -700,7 +703,6 @@ func testDefaultPolicyRejectRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 
 	t.Run("Create and apply default-policy REJECT-ALL with action as REJECT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			gnmi.Delete(t, dut, gnmi.OC().RoutingPolicy().Config())
 			configureRoutingPolicyDefaultAction(t, dut, "reject", replacePolicy)
 		} else {
 			configureBGPDefaultPolicy(t, dut, rejectRoute)
