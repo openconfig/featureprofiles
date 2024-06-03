@@ -18,7 +18,6 @@ package openconfig.testing;
 
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 
-
 // Metadata about a Feature Profiles test.
 message Metadata {
   // UUID of the test.
@@ -556,6 +555,9 @@ message Metadata {
     // default_route_policy_unsupported is set to true for devices that do not
     // support default route policy.
     bool default_route_policy_unsupported = 190;
+    // CISCO: b/339801843
+    bool slaac_prefix_length128 = 191;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
