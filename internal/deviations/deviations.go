@@ -1014,6 +1014,11 @@ func FlattenPolicyWithMultipleStatements(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFlattenPolicyWithMultipleStatements()
 }
 
+// SlaacPrefixLength128 for Slaac generated IPv6 link local address
+func SlaacPrefixLength128(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSlaacPrefixLength128()
+}
+
 // DefaultRoutePolicyUnsupported returns true if default route policy is not supported
 func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
