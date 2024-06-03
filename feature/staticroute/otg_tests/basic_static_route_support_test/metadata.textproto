@@ -25,4 +25,18 @@ platform_exceptions: {
     missing_static_route_drop_next_hop_telemetry: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_static_route_with_ipv6_nh_unsupported: true
+    ipv6_static_route_with_ipv4_nh_unsupported: true
+    static_route_with_drop_nh: true
+    unsupported_static_route_next_hop_recurse: true
+    static_route_with_explicit_metric: true
+    interface_ref_config_unsupported: true
+
+  }
+}
 tags: TAGS_DATACENTER_EDGE
