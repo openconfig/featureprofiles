@@ -196,7 +196,9 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 		if maskLen == maskLen128 {
 			mode = oc.PrefixSet_Mode_IPV6
 		}
-		pset.SetMode(mode)
+		if !deviations.SkipPrefixSetMode(dut) {
+			pset.SetMode(mode)
+		}
 	}
 
 	pdef := rp.GetOrCreatePolicyDefinition(prefixSet)
