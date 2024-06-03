@@ -525,7 +525,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string) {
 }
 
 func pushDecapEntries(t *testing.T, args *testArgs) []string {
-	decapIPBlocks := []string{"102.51.100.1/22", "102.51.105.1/24", "102.51.110.1/26", "102.51.115.1/28"}
+	decapIPBlocks := []string{"102.51.100.1/22", "107.51.105.1/24", "112.51.110.1/26", "117.51.115.1/28"}
 	nhIndex := uint64(lastNhIndex)
 	nhgIndex := uint64(lastNhgIndex)
 	decapEntries := []string{}
@@ -606,7 +606,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	flow.TxRx().Device().SetTxNames([]string{"atePort1.IPv4"}).SetRxNames(rxNames)
 	flow.Size().SetFixed(512)
 	flow.Rate().SetPps(100)
-	flow.Duration().Continuous()
+	flow.Duration().FixedPackets().SetPackets(1000)
 	flow.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
 	// Outer IP header
 	outerIPHdr := flow.Packet().Add().Ipv4()
