@@ -25,3 +25,13 @@ Ensure my MAC entries installed on the DUT are honored and used for routing.
 ## Protocol/RPC Parameter Coverage
 
 N/A
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
