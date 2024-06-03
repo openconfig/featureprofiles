@@ -31,6 +31,7 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 *   /components/component/state/id
 *   /components/component/state/mfg-date
 *   /components/component/state/mfg-name
+*   /components/component/state/model-name
 *   /components/component/state/name
 *   /components/component/state/oper-status
 *   /components/component/state/parent
