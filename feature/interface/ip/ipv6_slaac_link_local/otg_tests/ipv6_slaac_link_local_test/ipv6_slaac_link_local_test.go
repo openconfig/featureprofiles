@@ -25,7 +25,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-
 func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) {
 	t.Helper()
 
