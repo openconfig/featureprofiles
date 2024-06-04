@@ -130,7 +130,7 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 	collector.results = nil
 	collector.flagOptions = flagOptions
 
-	t.Logf("Collector starting at %s", time.Now())
+	t.Logf("Collector starting at %s", time.Now().UTC().Format(time.RFC3339))
 
 	if collector.scale == nil {
 		cliClient := dut.RawAPIs().CLI(t)
@@ -182,7 +182,7 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 			Name:            component.GetName(),
 			Location:        component.GetLocation(),
 			SerialNo:        component.GetSerialNo(),
-			Timestamp:       time.Now().Format(time.RFC3339),
+			Timestamp:       time.Now().UTC().Format(time.RFC3339),
 		}
 
 		switch component.GetType() {
@@ -232,10 +232,10 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 }
 
 func StopCollector(t *testing.T) ([]PerformanceData, error) {
-	t.Logf("Signaling goroutines to stop at %s", time.Now())
+	t.Logf("Signaling goroutines to stop at %s", time.Now().UTC().Format(time.RFC3339))
 	close(collector.doneChan)
 	collector.wg.Wait()
-	t.Logf("All goroutines finished at %s", time.Now())
+	t.Logf("All goroutines finished at %s", time.Now().UTC().Format(time.RFC3339))
 
 	if collector.results == nil {
 		return nil, fmt.Errorf("no data collected")
@@ -265,7 +265,7 @@ func (c *Collector) collectAllData(t *testing.T, dut *ondatra.DUTDevice, perfDat
 			t.Logf("Received done signal")
 			return
 		case <-ticker.C:
-			timestamp := time.Now().Format(time.RFC3339)
+			timestamp := time.Now().UTC().Format(time.RFC3339)
 			t.Logf("Collecting data at %s", timestamp)
 			for _, dataCurrent := range perfData {
 				if dataCurrent.Type == "RP" && dataCurrent.Name == "standby" {
