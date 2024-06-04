@@ -562,6 +562,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.55"
+  description: "BGP session mode (active/passive)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.7"
   description: "Local BGP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/tests/local_bgp_test/README.md"
