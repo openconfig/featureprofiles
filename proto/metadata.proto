@@ -558,6 +558,7 @@ message Metadata {
     // CISCO: b/339801843
     bool slaac_prefix_length128 = 191;
 
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
