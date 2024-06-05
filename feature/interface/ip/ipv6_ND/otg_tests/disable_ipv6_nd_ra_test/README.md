@@ -40,3 +40,24 @@ None
 ## Minimum DUT Platform Requirement
 
 vRX
+
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+## Config paths
+   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/interval:
+   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/enable:
+   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/config/mode:
+  ##State paths
+   /interfaces/interface/subinterfaces/subinterface/ipv6/router-advertisement/state/interval:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
