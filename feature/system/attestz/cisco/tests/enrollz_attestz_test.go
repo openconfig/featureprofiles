@@ -152,7 +152,7 @@ func grpcConn(targetName string, target string, caCert string, username string, 
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(target, opts...)
+	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -805,6 +805,20 @@ func TestGetPCRIndices(t *testing.T) {
 					t.Fatalf(err.Error())
 				} else {
 					t.Logf("PCR values Verification Successfull")
+				}
+			})
+		}
+	}
+
+	pcrIndices = "0,1,2,3,4,0,1,2,3,4"
+	for _, cardType := range cardTypes {
+		for _, cType := range cardType {
+			t.Run(fmt.Sprintf("Test Invalid PCR Indices with  %s", cType), func(t *testing.T) {
+				resp, err := attestPcrs(conn, cType, "1234", pcrIndices)
+				if err != nil {
+					t.Logf("Error in Get PCR Indices with card type-%s which is expected: %v", cType, err)
+				} else {
+					t.Fatalf("Getting PCR Indices with card type-%s which is not expected: %v", cType, resp)
 				}
 			})
 		}
