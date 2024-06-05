@@ -40,6 +40,7 @@ type GoTest struct {
 	PreTests        []GoTest `yaml:"pre_tests"`
 	PostTests       []GoTest `yaml:"post_tests"`
 	Groups          []string
+	OTGVersion      map[string]string `yaml:"otg_version"`
 }
 
 // FirexTest represents a single firex test suite
@@ -220,6 +221,12 @@ var (
             test_timeout: {{ $.Test.Timeout }}
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
+            {{- end }}
+            {{- if $.Test.OTGVersion }}
+            otg_version:
+                controller: {{ index $.Test.OTGVersion "controller" }}
+                hw: {{ index $.Test.OTGVersion "hw" }}
+                gnmi: {{ index $.Test.OTGVersion "gnmi" }}
             {{- end }}
             smart_sanity_exclude: True
     {{- if gt (len $.Test.PostTests) 0 }}

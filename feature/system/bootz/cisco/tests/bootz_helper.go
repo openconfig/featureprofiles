@@ -463,7 +463,7 @@ func DialGRPC(addr string, ctx context.Context, overrideOpts ...grpc.DialOption)
 	}*/
 	opts = append(opts, grpc.WithTransportCredentials(tc))
 	opts = append(opts, overrideOpts...)
-	return grpc.DialContext(ctx, addr, opts...)
+	return grpc.NewClient(addr, opts...)
 }
 
 func generateVoucherClient(t *testing.T) (ovgs.OwnershipVoucherServiceClient, context.Context) {

@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1d0a79c7-7aa8-43a8-b83f-620d40fa1e1a"
+plan_id: "RT-2.12"
+description: "Static route to IS-IS redistribution"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+
