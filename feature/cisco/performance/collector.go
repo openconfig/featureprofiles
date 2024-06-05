@@ -5,13 +5,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
-	"github.com/openconfig/featureprofiles/feature/cisco/performance/flagUtils"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/testt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/crypto/ssh"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,11 +16,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/testt"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/ssh"
+
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var (
+	localRun = flag.Bool("local_run", false, "Used for local run")
+	firexRun = flag.Bool("firex_run", false, "Set env variables for firex run")
+	noDbRun = flag.Bool("no_db_run", true, "Don't upload to database")
 )
 
 type PerformanceData struct {
@@ -77,7 +84,6 @@ type Collector struct {
 	objectID      primitive.ObjectID
 	doneChan      chan struct{}
 	wg            sync.WaitGroup
-	flagOptions   flagUtils.FlagOptions
 	mu            sync.Mutex
 	cliClientLock sync.Mutex
 	clientPool    map[string]*binding.CLIClient
@@ -125,10 +131,9 @@ func (c *Collector) getClient(t *testing.T, dut *ondatra.DUTDevice, componentNam
 }
 
 // RunCollector starts the collector
-func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration, flagOptions flagUtils.FlagOptions) error {
+func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) error {
 	collector.doneChan = make(chan struct{})
 	collector.results = nil
-	collector.flagOptions = flagOptions
 
 	t.Logf("Collector starting at %s", time.Now().UTC().Format(time.RFC3339))
 
@@ -241,8 +246,8 @@ func StopCollector(t *testing.T) ([]PerformanceData, error) {
 		return nil, fmt.Errorf("no data collected")
 	}
 
-	if collector.flagOptions.NoDBRun {
-		t.Logf("Not pushing results to database as flagOptions.NoDBRun is set to %v", collector.flagOptions.NoDBRun)
+	if *noDbRun {
+		t.Logf("Not pushing results to database as flagOptions.NoDBRun is set to %v", *noDbRun)
 	} else {
 		err, dbBool := collector.pushToDB(t, collector.results)
 		if err != nil && dbBool != true {
@@ -429,7 +434,7 @@ func TopLineCardCpuMemoryUtilization(t testing.TB, dut *ondatra.DUTDevice, cliCl
 }
 
 // ConnectToMongo sources MongoDB environment variables from a remote machine via SSH
-func ConnectToMongo(t *testing.T, flagOptions flagUtils.FlagOptions) (*mongo.Collection, error) {
+func ConnectToMongo(t *testing.T) (*mongo.Collection, error) {
 
 	var mongoClient *mongo.Client
 	var databaseName string
@@ -478,7 +483,7 @@ func ConnectToMongo(t *testing.T, flagOptions flagUtils.FlagOptions) (*mongo.Col
 		t.Fatalf("Failed to detect remote shell: %v", err)
 	}
 
-	if flagOptions.LocalRun {
+	if *localRun {
 		// sourcing env files for local runs to connect to database
 		remoteShell := strings.TrimSpace(shellCheck.String())
 		t.Logf("Detected remote shell: %s\n", remoteShell)
@@ -547,7 +552,7 @@ func ConnectToMongo(t *testing.T, flagOptions flagUtils.FlagOptions) (*mongo.Col
 			return nil, fmt.Errorf("MONGO_COLLECTION not set in environment variables")
 		}
 
-	} else if flagOptions.FirexRun {
+	} else if *firexRun {
 
 		// TODO: figure out firex requirements
 
@@ -639,7 +644,7 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 	}
 
 	// Connect to MongoDB
-	collection, errDB := ConnectToMongo(t, c.flagOptions)
+	collection, errDB := ConnectToMongo(t)
 	if errDB != nil {
 		t.Logf("Failed to connect to MongoDB: %v", errDB)
 		return errDB, false
