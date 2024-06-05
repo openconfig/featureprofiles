@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package import_export_test covers RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
-package import_export_test
+package import_export_multi_test
 
 import (
 	"strconv"
@@ -116,7 +116,7 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -130,17 +130,19 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	policyV4.SetImportPolicy([]string{"routePolicy"})
 	policyV4.SetExportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
-
 }
 
 func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
 	rejectCommunities := []string{"10:1"}
 	acceptCommunities := []string{"20:1"}
-	regexCommunities := []string{"(^|\\s)30:[0-9]+($|\\s)"}
+	regexCommunities := []string{"^30:.*$"}
 	addCommunitiesRefs := []string{"40:1", "40:2"}
 	addCommunitiesSetRefsAction := []string{"add-communities"}
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
 	myCommunitySets := []string{"50:1"}
+	if deviations.BgpCommunityMemberIsAString(dut) {
+		regexCommunities = []string{"(^|\\s)30:[0-9]+($|\\s)"}
+	}
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -156,7 +158,7 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Fatalf("AppendNewStatement(%s) failed: %v", callPolicyStatement, err)
 	}
 
-	// Configure regex_community:["(^|\\s)30:[0-9]+($|\\s)"] to match_community_regex statement
+	// Configure regex_community:["^30:.*$"] to match_community_regex statement
 	communitySetRegex := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(regexCommunitySet)
 
 	pd2cs1 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
@@ -269,9 +271,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(bgpActionMethod)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(bgpSetCommunityOptionType)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(bgpActionMethod)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(bgpSetCommunityOptionType)
 	}
 
 	stmt3.GetOrCreateActions().SetPolicyResult(nextstatementResult)
@@ -324,9 +326,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		// TODO: Add bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 	}
 	// set-local-pref = 5
 	stmt4.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)

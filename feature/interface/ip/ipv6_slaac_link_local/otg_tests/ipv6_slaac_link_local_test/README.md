@@ -12,14 +12,19 @@ Enable IPv6 on interface level so ipv6 address of link-local scope is generated/
   * Configure DUT port 1 with IPv6 so that link local scope IP address is assigned by SLAAC
   * Validate config and state paths are auto-populated
 
-## Config Parameter Coverage
-```
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip
-```
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
-```
-/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip
+```yaml
+paths:
+    ## Config paths
+    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+    ## State paths
+    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
 ```
 
 ## Protocol/RPC Parameter Coverage
