@@ -479,7 +479,7 @@ func testBackupDecapWithVrfPolW(ctx context.Context, t *testing.T, args *testArg
 	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
 		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
 	}
-	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 	testBackupDecap(ctx, t, args)
 }
 
@@ -487,7 +487,7 @@ func testDecapEncapWithVrfPolW(ctx context.Context, t *testing.T, args *testArgs
 	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
 		t.Skip("Skipping test as PBF with decap encap vrf is not supported")
 	}
-	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 	testDecapEncap(ctx, t, args)
 }
 

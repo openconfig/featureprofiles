@@ -20,5 +20,6 @@ platform_exceptions: {
     bgp_community_set_refs_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
     skip_prefix_set_mode: true
+    bgp_community_member_is_a_string: true
   }
 }

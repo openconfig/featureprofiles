@@ -13,6 +13,9 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     prepolicy_received_routes: true
+    default_route_policy_unsupported: true
+    skip_checking_attribute_index: true
+    skip_setting_statement_for_policy: true
   }
 }
 platform_exceptions: {

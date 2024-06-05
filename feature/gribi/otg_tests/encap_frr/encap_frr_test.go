@@ -36,6 +36,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -44,6 +46,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -90,6 +93,7 @@ const (
 	niEncapTeVrfB          = "ENCAP_TE_VRF_B"
 	niTeVrf111             = "TE_VRF_111"
 	niTeVrf222             = "TE_VRF_222"
+	niDefault              = "DEFAULT"
 	tolerancePct           = 2
 	tolerance              = 0.2
 	encapFlow              = "encapFlow"
@@ -129,6 +133,14 @@ const (
 
 	checkEncap = true
 	wantLoss   = true
+
+	// Chassis reboot variables
+	oneSecondInNanoSecond = 1e9
+	rebootDelay           = 120
+	// Maximum reboot time is 900 seconds (15 minutes).
+	maxRebootTime = 900
+	// Maximum wait time for all components to be in responsive state
+	maxCompWaitTime = 600
 )
 
 var (
@@ -190,6 +202,75 @@ var (
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
+	dutPort2DummyIP = attrs.Attributes{
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.33",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort2DummyIP = attrs.Attributes{
+		Desc:    "otgPort2",
+		IPv4:    "192.0.2.34",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort3DummyIP = attrs.Attributes{
+		Desc:       "dutPort3",
+		IPv4Sec:    "192.0.2.37",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort3DummyIP = attrs.Attributes{
+		Desc:    "otgPort3",
+		IPv4:    "192.0.2.38",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort4DummyIP = attrs.Attributes{
+		Desc:       "dutPort4",
+		IPv4Sec:    "192.0.2.41",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort4DummyIP = attrs.Attributes{
+		Desc:    "otgPort4",
+		IPv4:    "192.0.2.42",
+		IPv4Len: plenIPv4,
+	}
+
+	dutPort5DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.45",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort5DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.46",
+		IPv4Len: plenIPv4,
+	}
+	dutPort6DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.49",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort6DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.50",
+		IPv4Len: plenIPv4,
+	}
+	dutPort7DummyIP = attrs.Attributes{
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.53",
+		IPv4LenSec: plenIPv4,
+	}
+
+	otgPort7DummyIP = attrs.Attributes{
+		Desc:    "otgPort5",
+		IPv4:    "192.0.2.54",
+		IPv4Len: plenIPv4,
+	}
 	loopbackIntfName string
 	atePortNamelist  []string
 )
@@ -211,18 +292,6 @@ type testArgs struct {
 	top        gosnappi.Config
 	electionID gribi.Uint128
 	otg        *otg.OTG
-}
-
-type policyFwRule struct {
-	SeqID           uint32
-	family          string
-	protocol        oc.UnionUint8
-	dscpSet         []uint8
-	sourceAddr      string
-	decapNi         string
-	postDecapNi     string
-	decapFallbackNi string
-	networkInstance string
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
@@ -268,7 +337,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -299,6 +368,29 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 	a6.PrefixLength = ygot.Uint8(plenIPv6)
 
 	return i
+}
+
+// staticARPWithSecondaryIP configures secondary IPs and static ARP.
+func staticARPWithSpecificIP(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+	p5 := dut.Port(t, "port5")
+	p6 := dut.Port(t, "port6")
+	p7 := dut.Port(t, "port7")
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), dutPort5DummyIP.NewOCInterface(p5.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), dutPort6DummyIP.NewOCInterface(p6.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), dutPort7DummyIP.NewOCInterface(p7.Name(), dut))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), configStaticArp(p6.Name(), otgPort6DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p7.Name()).Config(), configStaticArp(p7.Name(), otgPort7DummyIP.IPv4, magicMac))
 }
 
 // configureDUT configures all the interfaces on the DUT.
@@ -343,116 +435,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
-}
-
-func configureVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	d := &oc.Root{}
-	dutPolFwdPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-
-	pfRule1 := &policyFwRule{SeqID: 1, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule2 := &policyFwRule{SeqID: 2, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf222}
-	pfRule3 := &policyFwRule{SeqID: 3, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
-	pfRule4 := &policyFwRule{SeqID: 4, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapA1, dscpEncapA2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfA, decapFallbackNi: niTeVrf111}
-
-	pfRule5 := &policyFwRule{SeqID: 5, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule6 := &policyFwRule{SeqID: 6, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf222}
-	pfRule7 := &policyFwRule{SeqID: 7, family: "ipv4", protocol: 4, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
-	pfRule8 := &policyFwRule{SeqID: 8, family: "ipv4", protocol: 41, dscpSet: []uint8{dscpEncapB1, dscpEncapB2}, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
-
-	pfRule9 := &policyFwRule{SeqID: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
-	pfRule10 := &policyFwRule{SeqID: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
-	pfRule11 := &policyFwRule{SeqID: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
-	pfRule12 := &policyFwRule{SeqID: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111Addr + "/32",
-		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
-
-	pfRule13 := &policyFwRule{SeqID: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
-		networkInstance: niEncapTeVrfA}
-	pfRule14 := &policyFwRule{SeqID: 14, family: "ipv6", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
-		networkInstance: niEncapTeVrfA}
-	pfRule15 := &policyFwRule{SeqID: 15, family: "ipv4", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
-		networkInstance: niEncapTeVrfB}
-	pfRule16 := &policyFwRule{SeqID: 16, family: "ipv6", dscpSet: []uint8{dscpEncapB1, dscpEncapB2},
-		networkInstance: niEncapTeVrfB}
-	pfRule17 := &policyFwRule{SeqID: 17, networkInstance: deviations.DefaultNetworkInstance(dut)}
-
-	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
-		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12, pfRule13, pfRule14,
-		pfRule15, pfRule16, pfRule17}
-
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niP := ni.GetOrCreatePolicyForwarding()
-	niPf := niP.GetOrCreatePolicy(polName)
-	niPf.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	for _, pfRule := range pfRuleList {
-		pfR := niPf.GetOrCreateRule(pfRule.SeqID)
-
-		if pfRule.family == "ipv4" {
-			pfRProtoIP := pfR.GetOrCreateIpv4()
-			if pfRule.protocol != 0 {
-				pfRProtoIP.Protocol = oc.UnionUint8(pfRule.protocol)
-			}
-			if pfRule.sourceAddr != "" {
-				pfRProtoIP.SourceAddress = ygot.String(pfRule.sourceAddr)
-			}
-			if pfRule.dscpSet != nil {
-				pfRProtoIP.DscpSet = pfRule.dscpSet
-			}
-		} else if pfRule.family == "ipv6" {
-			pfRProtoIP := pfR.GetOrCreateIpv6()
-			if pfRule.dscpSet != nil {
-				pfRProtoIP.DscpSet = pfRule.dscpSet
-			}
-		}
-
-		pfRAction := pfR.GetOrCreateAction()
-		if pfRule.decapNi != "" {
-			pfRAction.DecapNetworkInstance = ygot.String(pfRule.decapNi)
-		}
-		if pfRule.postDecapNi != "" {
-			pfRAction.PostDecapNetworkInstance = ygot.String(pfRule.postDecapNi)
-		}
-		if pfRule.decapFallbackNi != "" {
-			pfRAction.DecapFallbackNetworkInstance = ygot.String(pfRule.decapFallbackNi)
-		}
-		if pfRule.networkInstance != "" {
-			pfRAction.NetworkInstance = ygot.String(pfRule.networkInstance)
-		}
-	}
-
-	p1 := dut.Port(t, "port1")
-	intf := niP.GetOrCreateInterface(p1.Name())
-	intf.ApplyVrfSelectionPolicy = ygot.String(polName)
-	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		intf.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, dutPolFwdPath.Config(), niP)
-}
-
-// configureNetworkInstance configures vrfs DECAP_TE_VRF,ENCAP_TE_VRF_A,ENCAP_TE_VRF_B,
-// TE_VRF_222, TE_VRF_111.
-func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	c := &oc.Root{}
-	vrfs := []string{"DECAP_TE_VRF", niEncapTeVrfA, niEncapTeVrfB, niTeVrf222, niTeVrf111}
-	for _, vrf := range vrfs {
-		ni := c.GetOrCreateNetworkInstance(vrf)
-		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		staticARPWithSpecificIP(t, dut)
 	}
 }
 
@@ -496,6 +480,53 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
+func programAftWithDummyIP(t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
+	args.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(11).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port2").Name()).
+			WithIPAddress(otgPort2DummyIP.IPv4),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(12).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port3").Name()).
+			WithIPAddress(otgPort3DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(11).AddNextHop(11, 1).AddNextHop(12, 3),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF1+"/"+maskLen32).WithNextHopGroup(11),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(13).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port4").Name()).
+			WithIPAddress(otgPort4DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(12).AddNextHop(13, 2),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF2+"/"+maskLen32).WithNextHopGroup(12),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(14).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port5").Name()).
+			WithIPAddress(otgPort5DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(13).AddNextHop(14, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF3+"/"+maskLen32).WithNextHopGroup(13),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(15).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port6").Name()).
+			WithIPAddress(otgPort6DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(14).AddNextHop(15, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF4+"/"+maskLen32).WithNextHopGroup(14),
+
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(16).WithMacAddress(magicMac).WithInterfaceRef(dut.Port(t, "port7").Name()).
+			WithIPAddress(otgPort7DummyIP.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(15).AddNextHop(16, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryDefVRF5+"/"+maskLen32).WithNextHopGroup(15),
+	)
+}
+
 func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, args *testArgs) {
 	t.Helper()
 
@@ -529,6 +560,8 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 				WithID(15).AddNextHop(16, 1),
 		)
+	} else if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		programAftWithDummyIP(t, dut, args)
 	} else {
 		args.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -699,7 +732,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1112).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(18),
+			WithID(101).AddNextHop(101, 1).AddNextHop(102, 3),
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryEncapVRF+"/"+maskLen24).WithNextHopGroup(101),
 	)
@@ -774,7 +807,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if dut.Vendor() == ondatra.CISCO {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -1160,10 +1197,169 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
+}
+
+func ChassisReboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	cases := []struct {
+		desc          string
+		rebootRequest *spb.RebootRequest
+	}{
+		{
+			desc: "Reboot chassis with delay",
+			rebootRequest: &spb.RebootRequest{
+				Method:  spb.RebootMethod_COLD,
+				Delay:   rebootDelay * oneSecondInNanoSecond,
+				Message: "Reboot chassis with delay",
+				Force:   true,
+			}},
+	}
+
+	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+	expectedVersion := FetchUniqueItems(t, versions)
+	sort.Strings(expectedVersion)
+	t.Logf("DUT software version: %v", expectedVersion)
+
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+
+	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	preCompMatrix := []string{}
+	for _, preComp := range preRebootCompDebug {
+		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+		}
+	}
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Logf("Starting reboot: %v", tc.desc)
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			if err != nil {
+				t.Fatalf("Error dialing gNOI: %v", err)
+			}
+			bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+			prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+			if err != nil {
+				t.Fatalf("Failed parsing current-datetime: %s", err)
+			}
+			start := time.Now()
+
+			t.Logf("Send reboot request: %v", tc.rebootRequest)
+			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+			if err != nil {
+				t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+			}
+
+			if tc.rebootRequest.GetDelay() > 1 {
+				t.Logf("Validating DUT remains reachable for at least %d seconds", rebootDelay)
+				for {
+					time.Sleep(10 * time.Second)
+					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
+					if time.Since(start).Seconds() > rebootDelay {
+						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
+						break
+					}
+					latestTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+					if err != nil {
+						t.Fatalf("Failed parsing current-datetime: %s", err)
+					}
+					if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
+						t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
+					}
+					prevTime = latestTime
+				}
+			}
+
+			startReboot := time.Now()
+			t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+			for {
+				var currentTime string
+				t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+				time.Sleep(30 * time.Second)
+				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+				}); errMsg != nil {
+					t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+				} else {
+					t.Logf("Device rebooted successfully with received time: %v", currentTime)
+					break
+				}
+
+				if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+					t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+				}
+			}
+			t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+
+			bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+			t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+			if bootTimeAfterReboot <= bootTimeBeforeReboot {
+				t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+			}
+
+			startComp := time.Now()
+			t.Logf("Wait for all the components on DUT to come up")
+
+			for {
+				postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+				postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+				postCompMatrix := []string{}
+				for _, postComp := range postRebootCompDebug {
+					if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+						postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+					}
+				}
+
+				if len(preRebootCompStatus) == len(postRebootCompStatus) {
+					t.Logf("All components on the DUT are in responsive state")
+					time.Sleep(10 * time.Second)
+					break
+				}
+
+				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
+					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+					if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+						t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
+					}
+					t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+				}
+				time.Sleep(10 * time.Second)
+			}
+
+			versions = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+			swVersion := FetchUniqueItems(t, versions)
+			sort.Strings(swVersion)
+			t.Logf("DUT software version after reboot: %v", swVersion)
+			if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
+				t.Errorf("Software version differed (-want +got):\n%v", diff)
+			}
+		})
+	}
+}
+
 // TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() == ondatra.CISCO {
+		ChassisReboot(t)
+	}
 
 	gribic := dut.RawAPIs().GRIBI(t)
 	ate := ondatra.ATE(t, "ate")
@@ -1173,9 +1369,6 @@ func TestEncapFrr(t *testing.T) {
 
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	t.Log("Configure Non-Default Network Instances")
-	configNonDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
@@ -1194,7 +1387,7 @@ func TestEncapFrr(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
-	configureVrfSelectionPolicy(t, dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		staticARPWithMagicUniversalIP(t, dut)
