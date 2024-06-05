@@ -312,6 +312,8 @@ func TestHardwareCards(t *testing.T) {
 				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
 			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
 				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Fan Tray" && *args.NumFanTrays == 0 {
+				t.Skip("Skip Fan Tray Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
