@@ -4,8 +4,13 @@
 
 The test verifies securing device control-plane access with an ingress access-control-list (ACL).
 
-## Setup
+## Testbed type
 
+*  [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
+
+## Procedure
+
+### Test environment setup
 
 *   DUT has an single ingress port with IPv4/IPv6 enabled.
 
@@ -25,7 +30,7 @@ The test verifies securing device control-plane access with an ingress access-co
 
 ## Test cases
 
-### SYS-2.1: Verify ingress control-plane ACL permit
+### SYS-2.1.1: Verify ingress control-plane ACL permit
 Generate ICMP traffic to device loopback from MGMT-SRC
 Generate SSH SYN packets to device loopback from MGMT-SRC
 
@@ -35,7 +40,7 @@ Verify:
 *  Device responds to ICMP permitted
 *  Device sends TCP-ACK for SSH session
 
-### SYS-2.2: Verify control-plane ACL deny
+### SYS-2.1.2: Verify control-plane ACL deny
 Generate ICMP traffic to device loopback from UNKNOWN-SRC
 Generate SSH SYN packets to device loopback from UNKNOWN-SRC
 
