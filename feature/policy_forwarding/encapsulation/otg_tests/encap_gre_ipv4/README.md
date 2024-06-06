@@ -42,7 +42,7 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
     - Match IPV6-SRC2 and encapsulate to 32 IPv4 GRE destinations.
 
 5.   Set GRE encap source to device's loopback interface.
-6.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations.
+6.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations based on vendor implementation.
 7.   Configure QoS classifier for incoming traffic on ATE Port1 for IPv4 and IPv6 traffic. 
      QoS classifier should remark egress packet to the matching ingress DSCP value (eg. match DSCP 32, set egress DSCP 32).
      Match and remark all values for 3 leftmost DSCP bits [0, 8, 16, 24, 32, 40, 48, 56].
@@ -120,7 +120,7 @@ paths:
     # encap action
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/id:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/source:
-    # either destination or identifying-prefix can be specified
+    # either destination or identifying-prefix can be specified based on specific vendor implementation.
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/targets/target/config/destination:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encapsulate-gre/config/identifying-prefix:
     # application to the interface
