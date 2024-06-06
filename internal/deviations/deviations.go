@@ -1033,3 +1033,9 @@ func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
 }
+
+// ModelNameUnsupported returns true if /components/components/state/model-name
+// is not supported for any component type.
+func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetModelNameUnsupported()
+}
