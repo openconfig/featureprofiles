@@ -59,7 +59,7 @@ func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStr
 
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	
+
 	var (
 		trs        = make(map[string]string)
 		ochs       = make(map[string]string)

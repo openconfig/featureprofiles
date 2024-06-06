@@ -121,8 +121,8 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, transceiverName string, otnIndex, ethIndex uint32) {
 	t.Helper()
 	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
-		Description: ygot.String("ETH Logical Channel"),
-		Index:       ygot.Uint32(ethIndex),
+		Description:        ygot.String("ETH Logical Channel"),
+		Index:              ygot.Uint32(ethIndex),
 		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress: &oc.TerminalDevice_Channel_Ingress{
