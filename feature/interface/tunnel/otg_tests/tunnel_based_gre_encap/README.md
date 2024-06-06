@@ -129,7 +129,7 @@ paths:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
     # PF nexthop action
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/next-hop:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop:
     # PF application to the interface
     /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
     # static route
