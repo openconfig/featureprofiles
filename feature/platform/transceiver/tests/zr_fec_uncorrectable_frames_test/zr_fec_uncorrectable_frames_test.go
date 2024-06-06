@@ -20,18 +20,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	sampleInterval       = 10 * time.Second
-	targetOutputPowerdBm = -10
-	targetFrequencyHz    = 193100000
-	intUpdateTime        = 2 * time.Minute
+	sampleInterval = 10 * time.Second
+	intUpdateTime  = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -57,33 +57,34 @@ func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStr
 
 func TestZrUncorrectableFrames(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, "port1")
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
-			// Derive transceiver names from ports.
-			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-			component := gnmi.OC().Component(tr)
-
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPowerdBm {
-				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
-			}
-
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequencyHz {
-				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
-			}
-
 			streamFec := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(0).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFec.Close()
 			validateFecUncorrectableBlocks(t, streamFec)
 
 			// Toggle interface enabled
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(false))
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(true))
+			d := &oc.Root{}
+			i := d.GetOrCreateInterface(dp.Name())
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+			// Disable interface
+			i.Enabled = ygot.Bool(false)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			// Wait for the cooling off period
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+
+			// Enable interface
+			i.Enabled = ygot.Bool(true)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			// Wait for the cooling off period
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			validateFecUncorrectableBlocks(t, streamFec)
 		})

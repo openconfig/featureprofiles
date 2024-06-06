@@ -18,6 +18,7 @@ package basic_encap_test
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -103,6 +104,7 @@ const (
 	// observing on IXIA OTG: Cannot start capture on more than one port belonging to the
 	// same resource group or on more than one port behind the same front panel port in the chassis
 	otgMutliPortCaptureSupported = false
+	seqIDBase                    = uint32(10)
 )
 
 var (
@@ -207,9 +209,9 @@ var (
 	}
 
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort2DummyIP = attrs.Attributes{
@@ -219,9 +221,9 @@ var (
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "192.0.2.25",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort3",
+		IPv4Sec:    "192.0.2.25",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort3DummyIP = attrs.Attributes{
@@ -231,9 +233,9 @@ var (
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
-		Desc:    "dutPort4",
-		IPv4:    "192.0.2.29",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort4",
+		IPv4Sec:    "192.0.2.29",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort4DummyIP = attrs.Attributes{
@@ -243,9 +245,9 @@ var (
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
-		Desc:    "dutPort5",
-		IPv4:    "192.0.2.33",
-		IPv4Len: ipv4PrefixLen,
+		Desc:       "dutPort5",
+		IPv4Sec:    "192.0.2.33",
+		IPv4LenSec: ipv4PrefixLen,
 	}
 
 	otgPort5DummyIP = attrs.Attributes{
@@ -587,6 +589,16 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 	return pbrRules
 }
 
+// seqIDOffset returns sequence ID offset added with seqIDBase (10), to avoid sequences
+// like 1, 10, 11, 12,..., 2, 21, 22, ... while being sent by Ondatra to the DUT.
+// It now generates sequences like 11, 12, 13, ..., 19, 20, 21,..., 99.
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
+}
+
 // configDefaultRoute configures a static route in DEFAULT network-instance.
 func configDefaultRoute(t *testing.T, dut *ondatra.DUTDevice, v4Prefix, v4NextHop, v6Prefix, v6NextHop string) {
 	t.Logf("Configuring static route in DEFAULT network-instance")
@@ -629,7 +641,7 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
 	for _, pRule := range getPbrRules(dut, clusterFacing) {
-		r := p.GetOrCreateRule(pRule.sequence)
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.sequence))
 		r4 := r.GetOrCreateIpv4()
 
 		if pRule.dscpSet != nil {
@@ -652,6 +664,11 @@ func getPbrPolicy(dut *ondatra.DUTDevice, name string, clusterFacing bool) *oc.N
 			ra.DecapNetworkInstance = ygot.String(pRule.decapVrfSet[0])
 			ra.PostDecapNetworkInstance = ygot.String(pRule.decapVrfSet[1])
 			ra.DecapFallbackNetworkInstance = ygot.String(pRule.decapVrfSet[2])
+		}
+		if deviations.PfRequireMatchDefaultRule(dut) {
+			if pRule.etherType != nil {
+				r.GetOrCreateL2().Ethertype = pRule.etherType
+			}
 		}
 
 		if pRule.encapVrf != "" {
@@ -774,7 +791,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if p.PMD() == ondatra.PMD100GBASEFR {
+		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
 			e := intf.GetOrCreateEthernet()
 			e.AutoNegotiate = ygot.Bool(false)
 			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -871,6 +888,15 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 	otg.PushConfig(t, topo)
 }
 
+func randRange(max int, count int) []uint32 {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	var result []uint32
+	for len(result) < count {
+		result = append(result, uint32(rand.Intn(max)))
+	}
+	return result
+}
+
 // getFlow returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp value passed in args.
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
@@ -886,9 +912,6 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v4.Dst().SetValue(fa.dst)
 		v4.TimeToLive().SetValue(ttl)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
-		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(50001).SetCount(1000)
-		udp.DstPort().Increment().SetStart(50001).SetCount(1000)
 
 		// add inner ipv4 headers
 		if flowType == "ipv4in4" {
@@ -909,10 +932,10 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v6.Dst().SetValue(fa.dst)
 		v6.HopLimit().SetValue(ttl)
 		v6.TrafficClass().SetValue(dscp << 2)
-		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(50001).SetCount(1000)
-		udp.DstPort().Increment().SetStart(50001).SetCount(1000)
 	}
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().SetValues(randRange(50001, 10000))
+	udp.DstPort().SetValues(randRange(50001, 10000))
 
 	return flow
 }
