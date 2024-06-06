@@ -563,6 +563,9 @@ message Metadata {
     // Devices does not multipath config at neighbor or afisafi level
     // Juniper: b/341130490
     bool multipath_unsupported_neighbor_or_afisafi = 193;
+    // Devices that do not support /components/component/state/model-name for
+    // any component types.
+    bool model_name_unsupported = 194;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
