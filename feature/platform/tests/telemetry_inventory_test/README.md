@@ -19,7 +19,7 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 *   TODO: /components/component/linecard/config
 
-## Telemetry Parameter coverage
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
