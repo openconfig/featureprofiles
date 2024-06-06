@@ -190,7 +190,7 @@ func TestHardwareCards(t *testing.T) {
 				fwVerValidation:       false,
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      false,
+				parentValidation:      true,
 				pType:                 componentType["Fan Tray"],
 			},
 		}, {
