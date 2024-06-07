@@ -21,12 +21,11 @@
 package metadata_go_proto
 
 import (
-	reflect "reflect"
-	sync "sync"
-
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -847,6 +846,9 @@ type Metadata_Deviations struct {
 	MultipathUnsupportedNeighborOrAfisafi bool `protobuf:"varint,193,opt,name=multipath_unsupported_neighbor_or_afisafi,json=multipathUnsupportedNeighborOrAfisafi,proto3" json:"multipath_unsupported_neighbor_or_afisafi,omitempty"`
 	// Devices that do not support /components/component/state/model-name for
 	// any component types.
+	// Note that for model name to be supported, the
+	// /components/component/state/model-name of the chassis component must be
+	// equal to the canonical hardware model name of its device.
 	ModelNameUnsupported bool `protobuf:"varint,194,opt,name=model_name_unsupported,json=modelNameUnsupported,proto3" json:"model_name_unsupported,omitempty"`
 }
 
