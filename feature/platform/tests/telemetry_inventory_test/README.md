@@ -70,4 +70,8 @@ paths:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
        platform_type: ["INTEGRATED_CIRCUIT"]
+
+rpcs:
+  gnmi:
+    gNMI.GetAll:
 ```
