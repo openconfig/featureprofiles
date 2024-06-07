@@ -1,4 +1,4 @@
-package mplsstaticlabel
+package static_lsp_test
 
 import (
 	"fmt"
