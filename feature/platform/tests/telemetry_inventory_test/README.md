@@ -74,5 +74,5 @@ paths:
 
 rpcs:
   gnmi:
-    gNMI.GetAll:
+    gNMI.Get:
 ```
