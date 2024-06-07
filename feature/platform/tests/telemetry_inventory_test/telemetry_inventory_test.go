@@ -56,7 +56,7 @@ type properties struct {
 	mfgNameValidation     bool
 	mfgDateValidation     bool
 	// If modelNameValidation is being used, the /components/component/state/model-name
-	// of the chassis component must be equal to the canonical hardware model name
+	// of the chassis component must be equal to the ondatra hardware_model name
 	// of its device.
 	modelNameValidation bool
 	swVerValidation     bool
