@@ -19,7 +19,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/testt"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/openconfig/ondatra"
@@ -32,7 +31,9 @@ import (
 var (
 	localRun = flag.Bool("local_run", false, "Used for local run")
 	firexRun = flag.Bool("firex_run", false, "Set env variables for firex run")
-	noDbRun = flag.Bool("no_db_run", true, "Don't upload to database")
+	noDbRun  = flag.Bool("no_db_run", true, "Don't upload to database")
+
+	cache = make(map[*ondatra.DUTDevice]metadata)
 )
 
 type PerformanceData struct {
@@ -79,110 +80,78 @@ type ScaleAttributes struct {
 	L2vpnXConnect        int `bson:"l2vpnXConnect,omitempty" json:"l2vpnXConnect"`
 }
 
-type Collector struct {
-	results       []PerformanceData
-	objectID      primitive.ObjectID
-	doneChan      chan struct{}
-	wg            sync.WaitGroup
-	mu            sync.Mutex
-	cliClientLock sync.Mutex
-	clientPool    map[string]*binding.CLIClient
-	sys           *oc.System
-	platform      []*oc.Component
-	scale         *ScaleAttributes
-	chassis       string
+type metadata struct {
+	sys      *oc.System
+	platform []*oc.Component
+	scale    *ScaleAttributes
+	chassis  string
 }
 
 type FinishCollection func() ([]PerformanceData, error)
 
-// package-level variable to store the collector instance
-var collector Collector
-
-func (c *Collector) getClient(t *testing.T, dut *ondatra.DUTDevice, componentName string) binding.CLIClient {
-	const maxRetries = 3
-	const retryDelay = 2 * time.Second
-
-	c.cliClientLock.Lock()
-	defer c.cliClientLock.Unlock()
-
-	if c.clientPool == nil {
-		c.clientPool = make(map[string]*binding.CLIClient)
+// Checks cache to see if dut already has had metadata gathered. If not then it will gather it.
+func getMetadata(t *testing.T, dut *ondatra.DUTDevice) (*metadata, error) {
+	var m metadata
+	m, ok := cache[dut]
+	if ok {
+		return &m, nil
 	}
 
-	if client, exists := c.clientPool[componentName]; exists {
-		t.Logf("Reusing existing CLI client for component: %s", componentName)
-		return *client
+	m = metadata{}
+
+	cliClient := dut.RawAPIs().CLI(t)
+	scale, err := CollectScaleAttributes(t, dut, cliClient)
+	if err != nil {
+		return nil, err
 	}
 
-	var client binding.CLIClient
-	for i := 0; i < maxRetries; i++ {
-		client = dut.RawAPIs().CLI(t)
-		if client != nil {
-			c.clientPool[componentName] = &client
-			t.Logf("Successfully created new CLI client for component: %s on attempt %d", componentName, i+1)
-			return client
-		}
-		t.Logf("Failed to create CLI client on attempt %d for component %s: %v", i+1, componentName, client)
-		time.Sleep(retryDelay)
+	m.scale = scale
+	m.sys = gnmi.Get(t, dut, gnmi.OC().System().State())
+	m.platform = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+
+	chassisCmdResult, err := cliClient.RunCommand(context.Background(), "show inventory chassis")
+	if err != nil {
+		return nil, fmt.Errorf("failed to run command: %v", err)
 	}
 
-	t.Fatalf("Failed to create CLI client for component %s after %d attempts", componentName, maxRetries)
-	return nil // This line will never be reached due to the t.Fatalf call
+	// Extract the output as a string
+	chassisStrOutput := chassisCmdResult.Output()
+	chassisPattern := regexp.MustCompile(`PID:\s+(\d+)`)
+	chassisMatch := chassisPattern.FindStringSubmatch(chassisStrOutput)
+	if len(chassisMatch) < 2 {
+		return nil, fmt.Errorf("failed to find chassis PID in the output")
+	}
+	m.chassis = chassisMatch[1]
+
+	cache[dut] = m
+
+	return &m, nil
+
 }
 
 // RunCollector starts the collector
-func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) error {
-	collector.doneChan = make(chan struct{})
-	collector.results = nil
-
+func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) (FinishCollection, error) {
 	t.Logf("Collector starting at %s", time.Now().UTC().Format(time.RFC3339))
 
-	if collector.scale == nil {
-		cliClient := dut.RawAPIs().CLI(t)
-		scale, err := CollectScaleAttributes(t, dut, cliClient)
-		if err != nil {
-			return err
-		}
-		collector.scale = scale
-	}
-
-	if collector.sys == nil || collector.platform == nil {
-		collector.sys = gnmi.Get(t, dut, gnmi.OC().System().State())
-		collector.platform = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
-	}
-
-	// Collect chassis information if it hasn't been collected yet
-	if collector.chassis == "" {
-		cliClient := dut.RawAPIs().CLI(t)
-		chassisCmdResult, err := cliClient.RunCommand(context.Background(), "show inventory chassis")
-		if err != nil {
-			t.Fatalf("Failed to run command: %v", err)
-		}
-
-		// Extract the output as a string
-		chassisStrOutput := chassisCmdResult.Output()
-		chassisPattern := regexp.MustCompile(`PID:\s+(\d+)`)
-		chassisMatch := chassisPattern.FindStringSubmatch(chassisStrOutput)
-		if len(chassisMatch) < 2 {
-			t.Fatalf("Failed to find chassis PID in the output")
-		}
-		collector.chassis = chassisMatch[1]
+	m, err := getMetadata(t, dut)
+	if err != nil {
+		return nil, err
 	}
 
 	var dataEntries []PerformanceData
 
-	imageStr := collector.sys.GetSoftwareVersion()
+	imageStr := m.sys.GetSoftwareVersion()
 	imagePattern := regexp.MustCompile(`^\d+\.\d+\.\d+`)
 	release := imagePattern.FindString(imageStr)
 
-	for _, component := range collector.platform {
+	for _, component := range m.platform {
 		data := PerformanceData{
 			SoftwareRelease: release,
 			SoftwareImage:   imageStr,
 			Feature:         featureName,
 			Trigger:         triggerName,
-			ScaleValues:     collector.scale,
-			Chassis:         collector.chassis, // Use the collected chassis information
+			ScaleValues:     m.scale,
+			Chassis:         m.chassis, // Use the collected chassis information
 			PartNo:          component.GetPartNo(),
 			Name:            component.GetName(),
 			Location:        component.GetLocation(),
@@ -230,92 +199,116 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 		fmt.Printf("data entry: %+v\n", entry)
 	}
 
-	collector.wg.Add(1)
-	go collector.collectAllData(t, dut, dataEntries, frequency)
+	completedChan := make(chan bool, 1)
 
-	return nil
-}
+	resultChan := collectAllData(t, dut, completedChan, dataEntries, frequency)
 
-func StopCollector(t *testing.T) ([]PerformanceData, error) {
-	t.Logf("Signaling goroutines to stop at %s", time.Now().UTC().Format(time.RFC3339))
-	close(collector.doneChan)
-	collector.wg.Wait()
-	t.Logf("All goroutines finished at %s", time.Now().UTC().Format(time.RFC3339))
+	var results []PerformanceData
 
-	if collector.results == nil {
-		return nil, fmt.Errorf("no data collected")
-	}
+	finish := func() ([]PerformanceData, error) {
+		t.Logf("Collector finished at %s", time.Now())
+		close(completedChan)
+		results = <-resultChan
 
-	if *noDbRun {
-		t.Logf("Not pushing results to database as flagOptions.NoDBRun is set to %v", *noDbRun)
-	} else {
-		err, dbBool := collector.pushToDB(t, collector.results)
-		if err != nil && dbBool != true {
-			return collector.results, err
+		if results == nil {
+			return nil, fmt.Errorf("no data collected")
 		}
-	}
 
-	return collector.results, nil
-}
-
-func (c *Collector) collectAllData(t *testing.T, dut *ondatra.DUTDevice, perfData []PerformanceData, frequency time.Duration) {
-	defer c.wg.Done()
-	mu := &sync.Mutex{}
-	ticker := time.NewTicker(frequency)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-c.doneChan:
-			t.Logf("Received done signal")
-			return
-		case <-ticker.C:
-			timestamp := time.Now().UTC().Format(time.RFC3339)
-			t.Logf("Collecting data at %s", timestamp)
-			for _, dataCurrent := range perfData {
-				if dataCurrent.Type == "RP" && dataCurrent.Name == "standby" {
-					t.Logf("Skipping standby RP component: %s", dataCurrent.Name)
-					continue
-				}
-				t.Logf("Starting collection for component: %s", dataCurrent.Name)
-				cliClient := c.getClient(t, dut, dataCurrent.Name)
-				t.Logf("Established client for component: %s", dataCurrent.Name)
-				errMsg := testt.CaptureFatal(t, func(tb testing.TB) {
-					var finalData *PerformanceData
-					var err error
-					switch dataCurrent.Type {
-					case "RP":
-						finalData, err = TopCpuMemoryUtilization(tb, dut, cliClient, dataCurrent)
-						if finalData != nil {
-							finalData.Timestamp = timestamp
-							t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
-						}
-					case "LC":
-						finalData, err = TopLineCardCpuMemoryUtilization(tb, dut, cliClient, dataCurrent)
-						if finalData != nil {
-							finalData.Timestamp = timestamp
-							t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
-						}
-					}
-
-					if err != nil {
-						t.Logf("Could not get response on component %s (%s), attempting to reestablish client", dataCurrent.Name, err)
-						cliClient = c.getClient(t, dut, dataCurrent.Name)
-					}
-
-					if finalData != nil {
-						mu.Lock()
-						c.results = append(c.results, *finalData)
-						mu.Unlock()
-					}
-				})
-				if errMsg != nil {
-					t.Logf("Error during collection for component %s: %s", dataCurrent.Name, *errMsg)
-					return
-				}
+		if *noDbRun {
+			t.Logf("Not pushing results to database as -noDBRun is set to %v", *noDbRun)
+		} else {
+			err, dbBool := pushToDB(t, results)
+			if err != nil && !dbBool {
+				return results, err
 			}
 		}
+
+		return results, nil
 	}
+
+	return finish, nil
+}
+
+func collectAllData(t *testing.T, dut *ondatra.DUTDevice, doneChan chan bool, perfData []PerformanceData, frequency time.Duration) chan []PerformanceData {
+	wg := &sync.WaitGroup{}
+	ticker := time.NewTicker(frequency)
+	defer ticker.Stop()
+	resultChan := make(chan []PerformanceData)
+	results := []PerformanceData{}
+	mu := &sync.Mutex{}
+	doneChannelsMultiplexed := []chan bool{}
+
+	for _, data := range perfData {
+		wg.Add(1)
+
+		doneChanCurrent := make(chan bool, 1)
+		doneChannelsMultiplexed = append(doneChannelsMultiplexed, doneChanCurrent)
+
+		go func(dataCurrent PerformanceData, doneChanCurrent chan bool) {
+			defer wg.Done()
+			t.Logf("Starting collection for component: %s", dataCurrent.Name)
+			cliClient := dut.RawAPIs().CLI(t)
+			t.Logf("Established client for component: %s", dataCurrent.Name)
+			ticker := time.NewTicker(frequency)
+			done := false
+
+			for !done {
+				select {
+				case <-doneChanCurrent:
+					done = true
+				case <-ticker.C:
+					if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+						var finalData *PerformanceData
+						var err error
+						switch dataCurrent.Type {
+						case "RP":
+							finalData, err = TopCpuMemoryUtilization(t, dut, cliClient, dataCurrent)
+							if finalData != nil {
+								t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
+							}
+						case "LC":
+							finalData, err = TopLineCardCpuMemoryUtilization(t, dut, cliClient, dataCurrent)
+							if finalData != nil {
+								t.Logf("component %s:, collected: %+v", dataCurrent.Name, finalData)
+							}
+						}
+
+						if err != nil {
+							t.Logf("Could not get response on component %s (%s), attempting to reestablish client", dataCurrent.Name, err)
+							cliClient = dut.RawAPIs().CLI(t)
+						}
+
+						if finalData != nil {
+							mu.Lock()
+							results = append(results, *finalData)
+							mu.Unlock()
+						}
+
+					}); errMsg != nil {
+						t.Logf(*errMsg)
+						continue
+					}
+				}
+			}
+		}(data, doneChanCurrent)
+	}
+
+	// forwards channel closure from parent thread to each thread spawned per component
+	go func() {
+		<-doneChan
+		for _, channel := range doneChannelsMultiplexed {
+			close(channel)
+		}
+	}()
+
+	// waits for results
+	go func() {
+		wg.Wait()
+		resultChan <- results
+	}()
+
+	return resultChan
+
 }
 
 // CollectCpuMemoryUtilization collects CPU and memory utilization data from the DUT.
@@ -627,7 +620,7 @@ func validateDbSchema(data PerformanceData) error {
 	return nil
 }
 
-func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bool) {
+func pushToDB(t *testing.T, results []PerformanceData) (error, bool) {
 	var uploadToDb bool
 	var schemaErr error
 
@@ -658,25 +651,15 @@ func (c *Collector) pushToDB(t *testing.T, results []PerformanceData) (error, bo
 	}
 
 	if uploadToDb {
-		if c.objectID.IsZero() {
-			// Create a new top-level document with the first timeseriesdata array
-			timeseriesData := []interface{}{wrappedData}
-			document := bson.M{"timeseriesdata": timeseriesData}
-			result, err := collection.InsertOne(context.Background(), document)
-			if err != nil {
-				t.Logf("Failed to insert document into MongoDB: %v", err)
-				return err, uploadToDb
-			}
-			c.objectID = result.InsertedID.(primitive.ObjectID)
-		} else {
-			filter := bson.M{"_id": c.objectID}
-			update := bson.M{"$push": bson.M{"timeseriesdata": wrappedData}}
-			_, err := collection.UpdateOne(context.Background(), filter, update)
-			if err != nil {
-				t.Logf("Failed to update document in MongoDB: %v", err)
-				return err, uploadToDb
-			}
+		// Create a new top-level document with the first timeseriesdata array
+		timeseriesData := []interface{}{wrappedData}
+		document := bson.M{"timeseriesdata": timeseriesData}
+		_, err := collection.InsertOne(context.Background(), document)
+		if err != nil {
+			t.Logf("Failed to insert document into MongoDB: %v", err)
+			return err, uploadToDb
 		}
+		// objectID = result.InsertedID.(primitive.ObjectID)
 	} else {
 		t.Logf("Could not upload to database as there are entry errors: %v", schemaErr)
 	}
