@@ -89,3 +89,54 @@ func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 		t.Fatalf("Frequency is not within expected tolerance, got: %v want: %v tolerance: %v", frequency, targetFrequencyMHz, targetFrequencyToleranceMHz)
 	}
 }
+
+// ConfigOTNChannel configures the OTN channel.
+func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
+	t.Helper()
+	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+		Description:        ygot.String("OTN Logical Channel"),
+		Index:              ygot.Uint32(otnIndex),
+		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
+		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+			0: {
+				Index:          ygot.Uint32(0),
+				OpticalChannel: ygot.String(och),
+				Description:    ygot.String("OTN to Optical Channel"),
+				Allocation:     ygot.Float64(400),
+				AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
+			},
+			1: {
+				Index:          ygot.Uint32(1),
+				LogicalChannel: ygot.Uint32(ethIndex),
+				Description:    ygot.String("OTN to ETH"),
+				Allocation:     ygot.Float64(400),
+				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+			},
+		},
+	})
+}
+
+// ConfigETHChannel configures the ETH channel.
+func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, transceiverName string, otnIndex, ethIndex uint32) {
+	t.Helper()
+	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
+		Description:        ygot.String("ETH Logical Channel"),
+		Index:              ygot.Uint32(ethIndex),
+		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		Ingress: &oc.TerminalDevice_Channel_Ingress{
+			Interface:   ygot.String(interfaceName),
+			Transceiver: ygot.String(transceiverName),
+		},
+		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+			0: {
+				Index:          ygot.Uint32(0),
+				LogicalChannel: ygot.Uint32(otnIndex),
+				Description:    ygot.String("ETH to OTN"),
+				Allocation:     ygot.Float64(400),
+				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+			},
+		},
+	})
+}
