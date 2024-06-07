@@ -26,6 +26,8 @@ paths:
     TODO: /components/component/storage
     TODO: /components/component/software-module
     TODO: /components/component/software-module/state/module-type
+    TODO: /components/component/state/mfg-date:
+    TODO: /components/component/state/software-version:
     /components/component/state/description:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
@@ -34,8 +36,6 @@ paths:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/id:
        patform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
-   /components/component/state/mfg-date:
-       patform_type: []
     /components/component/state/mfg-name:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/model-name:
@@ -50,8 +50,6 @@ paths:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
-    /components/component/state/software-version:
-       patform_type: []
     /components/component/state/type:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/temperature/alarm-status:
