@@ -55,14 +55,17 @@ type properties struct {
 	serialNoValidation    bool
 	mfgNameValidation     bool
 	mfgDateValidation     bool
-	modelNameValidation   bool
-	swVerValidation       bool
-	hwVerValidation       bool
-	fwVerValidation       bool
-	rrValidation          bool
-	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	parentValidation      bool
-	pType                 oc.Component_Type_Union
+	// If modelNameValidation is being used, the /components/component/state/model-name
+	// of the chassis component must be equal to the canonical hardware model name
+	// of its device.
+	modelNameValidation bool
+	swVerValidation     bool
+	hwVerValidation     bool
+	fwVerValidation     bool
+	rrValidation        bool
+	operStatus          oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	parentValidation    bool
+	pType               oc.Component_Type_Union
 }
 
 func TestMain(m *testing.M) {
