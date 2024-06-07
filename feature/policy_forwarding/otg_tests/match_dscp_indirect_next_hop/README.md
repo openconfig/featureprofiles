@@ -52,7 +52,7 @@ Verify:
 *  Verify PF packet counters matching traffic generated.
 
 ### PF-1.1.2: Verify PF no-match action
-Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `00`. Generate flows for every DSCP/TC values in the set [0, 8, 16, 24, 32, 40, 48, 56]. IPv6 flows should use TC 8-bit values [0, 32, 64, 96, 128, 160, 192, 224]
+Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks (IPV4-DST1/IPV6-DST1) with DSCP/TC rightmost 2 bits set to `00`. Generate flows for every DSCP/TC values in the set [0, 8, 16, 24, 32, 40, 48, 56]. IPv6 flows should use TC 8-bit values [0, 32, 64, 96, 128, 160, 192, 224]
 
 Verify:
 
@@ -60,7 +60,7 @@ Verify:
 *  No packet loss when forwarding.
 
 ### PF-1.1.3: Verify PF without NH present
-Withdraw next-hop prefixes (IPV-NH-V4/IPV-NH-V6) from BGP announcement. Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every IPv4 DSCP value in the set [3, 11, 19, 27, 35, 43, 51, 59] and IPv6 TC [0, 32, 64, 96, 128, 160, 192, 224].
+Withdraw next-hop prefixes (IPV-NH-V4/IPV-NH-V6) from BGP announcement. Generate traffic on ATE Port 1 to test IPv4 and IPv6 destination (IPV4-DST1/IPV6-DST1) networks with DSCP/TC rightmost 2 bits set to `11`. Generate flows for every IPv4 DSCP value in the set [3, 11, 19, 27, 35, 43, 51, 59] and IPv6 TC [0, 32, 64, 96, 128, 160, 192, 224].
 
 Verify:
 
