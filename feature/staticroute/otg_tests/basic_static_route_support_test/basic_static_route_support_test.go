@@ -300,8 +300,21 @@ func (td *testData) testRecursiveNextHopResolution(t *testing.T) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
+
+		_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*60, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+			val, present := v.Val()
+			return present && val.GetPrefix() == td.staticIPv4.cidr(t)
+		}).Await(t)
+		if !ok {
+			t.Errorf("IPv4 Static Route telemetry failed ")
+		}
+		_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*60, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+			val, present := v.Val()
+			return present && val.GetPrefix() == td.staticIPv6.cidr(t)
+		}).Await(t)
+		if !ok {
+			t.Errorf("IPv6 Static Route telemetry failed ")
+		}
 
 		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
 		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(td.advertisedIPv4.address); got != want {
@@ -343,21 +356,20 @@ func (td *testData) testRecursiveNextHopResolutionDisabled(t *testing.T) {
 
 	t.Run("Telemetry", func(t *testing.T) {
 
-		// Validate static route next-hop recursive lookup is disabled
-		_, v4RecurseSet := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+		_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*30, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
 			val, present := v.Val()
 			return !present || (present && !val.GetNextHop("0").GetRecurse())
 		}).Await(t)
-		if !v4RecurseSet {
-			t.Log("Unable to set recurse to false for v4 prefix")
+		if !ok {
+			t.Errorf("Unable to set recurse to false for v4 prefix")
 		}
 
-		_, v6RecurseSet := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+		_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*30, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
 			val, present := v.Val()
 			return !present || (present && !val.GetNextHop("0").GetRecurse())
 		}).Await(t)
-		if !v6RecurseSet {
-			t.Log("Unable to set recurse to false for v6 prefix")
+		if !ok {
+			t.Errorf("Unable to set recurse to false for v6 prefix")
 		}
 	})
 	t.Run("Traffic", func(t *testing.T) {
@@ -441,23 +453,44 @@ func (td *testData) testStaticRouteECMP(t *testing.T) {
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 120*time.Second, td.staticIPv6.cidr(t))
 
-		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
-		// correctly
-		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
-		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv4); got != want {
-			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
-		}
-		if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv4); got != want {
-			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
-		}
-		// Validate both the routes i.e. ipv6-route-[a|b] are configured and reported
-		// correctly
-		gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
-		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
-			t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
-		}
-		if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
-			t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+		if deviations.SkipStaticNexthopCheck(td.dut) {
+			nexthops := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().NextHop().State())
+			if len(nexthops) != 2 {
+				t.Errorf("IPv4 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
+			}
+			for _, nexthop := range nexthops {
+				if got, ok := nexthop.Val(); !ok || !(got != oc.UnionString(atePort1.IPv4) || got != oc.UnionString(atePort2.IPv4)) {
+					t.Errorf("IPv4 Static Route next hop:got %s,want %s or %s", got, oc.UnionString(atePort1.IPv4), oc.UnionString(atePort2.IPv4))
+				}
+			}
+			nexthops = gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHopAny().NextHop().State())
+			if len(nexthops) != 2 {
+				t.Errorf("IPv6 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
+			}
+			for _, nexthop := range nexthops {
+				if got, ok := nexthop.Val(); !ok || !(got != oc.UnionString(atePort1.IPv6) || got != oc.UnionString(atePort2.IPv6)) {
+					t.Errorf("IPv6 Static Route next hop: got %s,want %s or %s", got, oc.UnionString(atePort1.IPv6), oc.UnionString(atePort2.IPv6))
+				}
+			}
+		} else {
+			// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
+			// correctly
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv4); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv4); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			// Validate both the routes i.e. ipv6-route-[a|b] are configured and reported
+			// correctly
+			gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
+				t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
+				t.Errorf("IPv6 Static Route next hop: got: %s, want: %s", got, want)
+			}
 		}
 	})
 
@@ -660,11 +693,40 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate that the preference is set correctly
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-			t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
-		}
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-			t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+		if deviations.SkipStaticNexthopCheck(td.dut) {
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+			indexes := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().Index().State())
+			for _, index := range indexes {
+				if val, ok := index.Val(); ok {
+					if gotStatic.GetNextHop(val).GetNextHop() == oc.UnionString(atePort1.IPv4) {
+						if got, want := gotStatic.GetNextHop(val).GetPreference(), port1Preference; got != want {
+							t.Errorf("IPv4 Static Route preference for port1: got: %d, want: %d", got, want)
+						}
+					}
+				} else {
+					t.Errorf("Unable to fetch nexthop index")
+				}
+			}
+			gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
+			indexes = gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHopAny().Index().State())
+			for _, index := range indexes {
+				if val, ok := index.Val(); ok {
+					if gotStatic.GetNextHop(val).GetNextHop() == oc.UnionString(atePort1.IPv6) {
+						if got, want := gotStatic.GetNextHop(val).GetPreference(), port1Preference; got != want {
+							t.Errorf("IPv6 Static Route preference for port1: got: %d, want: %d", got, want)
+						}
+					}
+				} else {
+					t.Errorf("Unable to fetch nexthop index")
+				}
+			}
+		} else {
+			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
+				t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			}
+			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
+				t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			}
 		}
 	})
 
@@ -921,12 +983,25 @@ func (td *testData) testIPv4StaticRouteWithIPv6NextHop(t *testing.T) {
 	t.Run("Telemetry", func(t *testing.T) {
 		sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-		gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
-		if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
-			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
-		}
-		if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
-			t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+
+		if deviations.SkipStaticNexthopCheck(td.dut) {
+			nexthops := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().NextHop().State())
+			if len(nexthops) != 2 {
+				t.Errorf("IPv4 Static Route next hop: want %d nexthops,got %d nexthops", 2, len(nexthops))
+			}
+			for _, nexthop := range nexthops {
+				if got, ok := nexthop.Val(); !ok || !(got != oc.UnionString(atePort1.IPv6) || got != oc.UnionString(atePort2.IPv6)) {
+					t.Errorf("IPv4 Static Route next hop: got %s,want %s or %s", got, oc.UnionString(atePort1.IPv6), oc.UnionString(atePort2.IPv6))
+				}
+			}
+		} else {
+			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
+			if got, want := gotStatic.GetNextHop("0").GetNextHop(), oc.UnionString(atePort1.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
+			if got, want := gotStatic.GetNextHop("1").GetNextHop(), oc.UnionString(atePort2.IPv6); got != want {
+				t.Errorf("IPv4 Static Route next hop: got: %s, want: %s", got, want)
+			}
 		}
 	})
 
@@ -1082,6 +1157,10 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	v4FIp.Src().SetValue(srcV4.Address())
 	v4FIp.Dst().Increment().SetStart(v4TrafficStart).SetCount(254)
 
+	udp := v4F.Packet().Add().Udp()
+	udp.DstPort().Increment().SetStart(1).SetCount(500).SetStep(1)
+	udp.SrcPort().Increment().SetStart(1).SetCount(500).SetStep(1)
+
 	eth := v4F.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
 	ethTag.SetName("MACTrackingv4").SetOffset(36).SetLength(12)
@@ -1096,6 +1175,10 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	v6FIP := v6F.Packet().Add().Ipv6()
 	v6FIP.Src().SetValue(srcV6.Address())
 	v6FIP.Dst().Increment().SetStart(v6TrafficStart).SetCount(math.MaxInt32)
+
+	udp = v6F.Packet().Add().Udp()
+	udp.DstPort().Increment().SetStart(1).SetCount(500).SetStep(1)
+	udp.SrcPort().Increment().SetStart(1).SetCount(500).SetStep(1)
 
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
