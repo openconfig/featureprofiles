@@ -31,7 +31,7 @@ tests:
   args:
       - '-gribi_aft_check=false'
       - '-gribi_aft_chain_check=false'            
-name: PacketIO-TTL-IPv4
+- name: PacketIO-TTL-IPv4
   path: feature/experimental/p4rt/ate_tests/cisco
   args:
     - '-run_packetio_tests="true"'
