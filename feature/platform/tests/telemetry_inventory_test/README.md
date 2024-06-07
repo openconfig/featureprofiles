@@ -31,43 +31,43 @@ TODO:
 ```yaml
 paths:
     /components/component/state/description:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
-       patform_type: ["TRANSCEIVER"]
+       platform_type: ["TRANSCEIVER"]
     /components/component/state/hardware-version:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/id:
-       patform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
     /components/component/state/mfg-name:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/model-name:
-       patform_type: ["CHASSIS"]
+       platform_type: ["CHASSIS"]
     /components/component/state/name:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/oper-status:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/parent:
-       patform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/part-no:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/type:
-       patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/temperature/alarm-status:
-       patform_type: ["SENSOR"]
+       platform_type: ["SENSOR"]
     /components/component/state/temperature/instant:
-       patform_type: ["SENSOR"]
+       platform_type: ["SENSOR"]
     /components/component/state/temperature/max:
-       patform_type: ["SENSOR"]
+       platform_type: ["SENSOR"]
     /components/component/state/temperature/max-time:
-       patform_type: ["SENSOR"]
+       platform_type: ["SENSOR"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
-       patform_type: ["INTEGRATED_CIRCUIT"]
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
-       patform_type: ["INTEGRATED_CIRCUIT"]
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/total:
-       patform_type: ["INTEGRATED_CIRCUIT"]
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
-       patform_type: ["INTEGRATED_CIRCUIT"]
+       platform_type: ["INTEGRATED_CIRCUIT"]
 ```
