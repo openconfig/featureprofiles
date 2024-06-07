@@ -22,11 +22,12 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 ## OpenConfig Path and RPC Coverage
 
 TODO:
-   /components/component/storage
-   /components/component/software-module
-   /components/component/software-module/state/module-type
-   /components/component/state/mfg-date
-   /components/component/state/software-version
+
+     /components/component/storage
+     /components/component/software-module
+     /components/component/software-module/state/module-type
+     /components/component/state/mfg-date
+     /components/component/state/software-version
 
 ```yaml
 paths:
