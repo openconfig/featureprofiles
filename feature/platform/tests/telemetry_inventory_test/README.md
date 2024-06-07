@@ -23,11 +23,12 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 ```yaml
 paths:
-    TODO: /components/component/storage
-    TODO: /components/component/software-module
-    TODO: /components/component/software-module/state/module-type
-    TODO: /components/component/state/mfg-date
-    TODO: /components/component/state/software-version
+    TODO:
+      /components/component/storage
+      /components/component/software-module
+      /components/component/software-module/state/module-type
+      /components/component/state/mfg-date
+      /components/component/state/software-version
     /components/component/state/description:
        patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
