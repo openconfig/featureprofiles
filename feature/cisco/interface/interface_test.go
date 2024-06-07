@@ -1696,7 +1696,7 @@ var (
 		Desc:    "Management",
 		IPv6:    "fe80::3",
 		IPv6Len: 128,
-		IPv4:    "5.78.26.10",
+		IPv4:    "6.1.2.41", //"5.78.26.10",
 		IPv4Len: 16,
 	}
 	beInt1 = attrs.Attributes{
@@ -1746,6 +1746,7 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 		if interfaces.attr.Desc == "Management" {
 			subInt.GetOrCreateIpv4().GetOrCreateAddress(interfaces.attr.IPv4).SetPrefixLength(interfaces.attr.IPv4Len)
+			connectgribi(t, dut)
 			time.Sleep(20 * time.Second)
 		}
 		subInt.GetOrCreateIpv6().GetOrCreateAddress(interfaces.attr.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
@@ -1976,6 +1977,35 @@ func testInterfacetypeanyOnChange(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func connectgribi(t *testing.T, dut *ondatra.DUTDevice) {
+	ctx := context.Background()
+	client := gribi.Client{
+		DUT:                   dut,
+		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+		Persistence:           true,
+		InitialElectionIDLow:  1,
+		InitialElectionIDHigh: 0,
+	}
+	defer client.Close(t)
+	if err := client.Start(t); err != nil {
+		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		if err = client.Start(t); err != nil {
+			t.Fatalf("gRIBI Connection could not be established: %v", err)
+		}
+	}
+	config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
+	time.Sleep(time.Second * 10)
+	for {
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+		} else {
+			t.Logf("gRIBI Connection established")
+			break
+		}
+		time.Sleep(2 * time.Minute)
+	}
+
+}
 func TestIPv6LinkLocal(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -2114,32 +2144,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
 		})
 
-		ctx := context.Background()
-		client := gribi.Client{
-			DUT:                   dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		defer client.Close(t)
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
-		time.Sleep(time.Second * 10)
-		for {
-			if err := client.Start(t); err != nil {
-				t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			} else {
-				t.Logf("gRIBI Connection established")
-				break
-			}
-			time.Sleep(2 * time.Minute)
-		}
+		connectgribi(t, dut)
 
 		t.Run("Interface Telemetry check after Process restart", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
