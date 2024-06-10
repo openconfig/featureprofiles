@@ -103,7 +103,7 @@ paths:
   # Defined Sets
   - /routing-policy/defined-sets/prefix-sets/prefix-set:
   - /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
-  - /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range/exact:
+  - /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
   # Policy-Definition
   - /routing-policy/policy-definitions/policy-definition/config/name:
   - /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
