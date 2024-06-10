@@ -20,13 +20,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/components"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
+	"google3/third_party/openconfig/featureprofiles/internal/args/args"
+	"google3/third_party/openconfig/featureprofiles/internal/components/components"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -34,6 +34,9 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Fabric":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC,
 	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
+	"Fan tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
+	"FRU":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU,
+	"Port":        oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
@@ -43,18 +46,51 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Storage":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_STORAGE,
 }
 
+// validInstallComponentTypes indicates for each component type, which types of
+// install-component it can have.
+var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Type_Union]bool{
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS:  true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+		// Sometimes the parent is the power tray, which has type FRU.
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU: true,
+	},
+}
+
 // use this map to cache related components used in subtests to run the test faster.
 var componentsByType map[string][]*oc.Component
 
 // Define a superset of the checklist for each component
 type properties struct {
-	descriptionValidation bool
-	idValidation          bool
-	nameValidation        bool
-	partNoValidation      bool
-	serialNoValidation    bool
-	mfgNameValidation     bool
-	mfgDateValidation     bool
+	descriptionValidation                 bool
+	idValidation                          bool
+	installPositionAndComponentValidation bool
+	nameValidation                        bool
+	partNoValidation                      bool
+	serialNoValidation                    bool
+	mfgNameValidation                     bool
+	mfgDateValidation                     bool
 	// If modelNameValidation is being used, the /components/component/state/model-name
 	// of the chassis component must be equal to the ondatra hardware_model name
 	// of its device.
@@ -149,88 +185,147 @@ func TestHardwareCards(t *testing.T) {
 		}, {
 			desc: "Fabric",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["Fabric"],
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Fabric"],
 			},
 		}, {
 			desc: "Fan",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          false,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     false,
-				mfgDateValidation:     false,
-				hwVerValidation:       false,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      false,
-				pType:                 componentType["Fan"],
+				descriptionValidation:                 true,
+				idValidation:                          false,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     false,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       false,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      false,
+				pType:                                 componentType["Fan"],
+			},
+		}, {
+			desc: "Fan Tray",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          false,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     false,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       false,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Fan Tray"],
+			},
+		}, {
+			desc: "FRU",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          false,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        false,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     false,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       false,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["FRU"],
 			},
 		}, {
 			desc: "Linecard",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 			},
 		}, {
 			desc: "PowerSupply",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["PowerSupply"],
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["PowerSupply"],
+			},
+		}, {
+			desc: "Port",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     false,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       false,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Port"],
 			},
 		}, {
 			desc: "Supervisor",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				swVerValidation:       false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          true,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["Supervisor"],
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				swVerValidation:                       false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          true,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Supervisor"],
 			},
 		}, {
 			desc: "Transceiver",
@@ -588,6 +683,17 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				}
 			}
 
+			if p.installPositionAndComponentValidation && !deviations.InstallPositionAndInstallComponentUnsupported(dut) {
+				isPort := card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
+				l := card.GetLocation()
+				r := card.GetRemovable()
+				// If the component is a port or it has a location and is removable,
+				// then it needs to have install-component and install-position.
+				if isPort || (l != "" && r == true) {
+					testInstallComponentAndInstallPosition(t, card, validCards)
+				}
+			}
+
 			if p.nameValidation {
 				name := card.GetName()
 				t.Logf("Component %s Name: %s", cName, name)
@@ -784,6 +890,38 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 	}
 }
 
+func testInstallComponentAndInstallPosition(t *testing.T, c *oc.Component, components []*oc.Component) {
+	icName := c.GetInstallComponent()
+	ip := c.GetInstallPosition()
+	hasInstallComponentAndPosition(t, c, icName, ip)
+	validateInstallComponent(t, icName, components, c)
+}
+
+func validateInstallComponent(t *testing.T, icName string, components []*oc.Component, c *oc.Component) {
+	compMap := compNameMap(t, ondatra.DUT(t, "dut"))
+	ic, ok := compMap[icName]
+	if !ok {
+		t.Errorf("Component %s's install-component %s is not in component tree", icName, c.GetName())
+		return
+	}
+	parentTypes := validInstallComponentTypes[c.GetType()]
+	icType := ic.GetType()
+	if !parentTypes[icType] {
+		t.Errorf("Component %s's install-component %s is not a supported parent type (%s)", c.GetName(), icName, icType)
+	}
+}
+
+func hasInstallComponentAndPosition(t *testing.T, c *oc.Component, icName string, ip string) {
+	if icName == "" {
+		t.Errorf("Component %s is missing install-component", c.GetName())
+		return
+	}
+	if ip == "" {
+		t.Errorf("Component %s is missing install-position", c.GetName())
+		return
+	}
+}
+
 func TestStorage(t *testing.T) {
 	// TODO: Add Storage test case here once supported.
 	t.Skipf("Telemetry path /components/component/storage is not supported.")
@@ -818,14 +956,19 @@ func TestHeatsinkTempSensor(t *testing.T) {
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
 }
 
-func TestInterfaceComponentHierarchy(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// Map of component Name to corresponding Component OC object.
+// Creates a map of component Name to corresponding Component OC object.
+func compNameMap(t *testing.T, dut *ondatra.DUTDevice) map[string]*oc.Component {
 	compMap := make(map[string]*oc.Component)
 	for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
 		compMap[c.GetName()] = c
 	}
+	return compMap
+}
+
+func TestInterfaceComponentHierarchy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	compMap := compNameMap(t, dut)
 
 	// Map of populated Transceivers to a random integer.
 	transceivers := make(map[string]int)
