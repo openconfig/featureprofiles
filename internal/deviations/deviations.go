@@ -1041,3 +1041,9 @@ func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetModelNameUnsupported()
 }
+
+// FanTrayTypeUnsupported returns true if the device does not support the
+// OPENCONFIG_HARDWARE_COMPONENT type of "FAN_TRAY".
+func FanTrayTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFanTrayTypeUnsupported()
+}

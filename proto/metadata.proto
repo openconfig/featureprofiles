@@ -569,7 +569,10 @@ message Metadata {
     // /components/component/state/model-name of the chassis component must be
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
-    
+    // Devices that do not yet use the OPENCONFIG_HARDWARE_COMPONENT type of
+    // "FAN_TRAY".
+    bool fan_tray_type_unsupported = 195;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
@@ -598,4 +601,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
