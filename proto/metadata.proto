@@ -569,6 +569,9 @@ message Metadata {
     // /components/component/state/model-name of the chassis component must be
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
+    // Devices that do not support components/component/state/install-component
+    // and components/component/state/install-position.
+    bool install_position_and_install_component_unsupported = 195;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
