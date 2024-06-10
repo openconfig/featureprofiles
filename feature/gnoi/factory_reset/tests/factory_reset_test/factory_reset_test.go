@@ -35,7 +35,12 @@ type encryptionCommands struct {
 	DevicePaths          []string
 }
 
+type defaultCommands struct {
+	DevicePaths []string
+}
+
 var enCiscoCommands encryptionCommands
+var facDefaultCommands defaultCommands
 
 // creating files before factory reset
 func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
@@ -126,44 +131,45 @@ func TestFactoryReset(t *testing.T) {
 	case ondatra.CISCO:
 		enCiscoCommands = encryptionCommands{EncryptionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}
 		t.Logf("Cisco commands for disk encryption %v ", enCiscoCommands)
+
+		showDiskEncryptionStatus := dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
+		t.Logf("Disk encryption status %v", showDiskEncryptionStatus)
+
+		if strings.Contains(showDiskEncryptionStatus, "Not Encrypted") {
+			t.Log("Performing Factory reset without Encryption\n")
+			factoryReset(t, dut, enCiscoCommands.DevicePaths)
+			t.Log("Stablise after factory reset\n")
+			time.Sleep(5 * time.Minute)
+			t.Log("Activate Encryption\n")
+			encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionActivate)
+			t.Logf("Sleep for 5 mins after disk-encryption activate")
+			time.Sleep(5 * time.Minute)
+			t.Logf("Device encryption acrivare: %v", encrypt)
+			deviceBootStatus(t, dut)
+			encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
+			t.Logf("Show device encryption status: %v", encrypt)
+			t.Log("Wait for the system to stabilize\n")
+			time.Sleep(5 * time.Minute)
+			factoryReset(t, dut, enCiscoCommands.DevicePaths)
+		} else {
+			t.Log("Performing Factory reset with Encryption\n")
+			factoryReset(t, dut, enCiscoCommands.DevicePaths)
+			t.Log("Stablise after factory reset\n")
+			time.Sleep(5 * time.Minute)
+			t.Log("Deactivate Encryption\n")
+			encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionDeactivate)
+			t.Logf("Device encrytion deactivate: %v", encrypt)
+			t.Logf("Sleep for 5 mins after disk-encryption deactivate")
+			time.Sleep(5 * time.Minute)
+			deviceBootStatus(t, dut)
+			encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
+			t.Logf("Show device encrytion status: %v", encrypt)
+			t.Logf("Wait for the system to stabilize\n")
+			time.Sleep(5 * time.Minute)
+			factoryReset(t, dut, enCiscoCommands.DevicePaths)
+		}
 	default:
-		t.Fatalf("Disk Encryption commands is missing for %v ", dut.Vendor().String())
-	}
-
-	showDiskEncryptionStatus := dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-	t.Logf("Disk encryption status %v", showDiskEncryptionStatus)
-
-	if strings.Contains(showDiskEncryptionStatus, "Not Encrypted") {
 		t.Log("Performing Factory reset without Encryption\n")
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-		t.Log("Stablise after factory reset\n")
-		time.Sleep(5 * time.Minute)
-		t.Log("Activate Encryption\n")
-		encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionActivate)
-		t.Logf("Sleep for 5 mins after disk-encryption activate")
-		time.Sleep(5 * time.Minute)
-		t.Logf("Device encryption acrivare: %v", encrypt)
-		deviceBootStatus(t, dut)
-		encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-		t.Logf("Show device encryption status: %v", encrypt)
-		t.Log("Wait for the system to stabilize\n")
-		time.Sleep(5 * time.Minute)
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-	} else {
-		t.Log("Performing Factory reset with Encryption\n")
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-		t.Log("Stablise after factory reset\n")
-		time.Sleep(5 * time.Minute)
-		t.Log("Deactivate Encryption\n")
-		encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionDeactivate)
-		t.Logf("Device encrytion deactivate: %v", encrypt)
-		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
-		time.Sleep(5 * time.Minute)
-		deviceBootStatus(t, dut)
-		encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-		t.Logf("Show device encrytion status: %v", encrypt)
-		t.Logf("Wait for the system to stabilize\n")
-		time.Sleep(5 * time.Minute)
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
+		factoryReset(t, dut, facDefaultCommands.DevicePaths)
 	}
 }
