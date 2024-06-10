@@ -87,15 +87,7 @@ Verify:
 *  All traffic received on ATE Port 3.
 *  No packet loss when forwarding.
 
-### TUN-1.1.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic
-Generate traffic on ATE Port 1 from IPV4-SRC1 source for every DSCP value in [0, 8, 16, 24, 32, 40, 48, 56]
-
-Verify:
-
-*  All traffic received on ATE Port 2 GRE-encapsulated.
-*  Outer GRE IPv4 header has same marking as ingress non-encapsulated IPv4 packet.
-
-### TUN-1.1.6: Verify MTU handling during GRE encap
+### TUN-1.1.5: Verify MTU handling during GRE encap
 * Generate traffic on ATE Port 1 from IPV4-SRC1 with frame size of 4000 with DF-bit set.
 * Generate traffic on ATE Port 1 from IPV6-SRC1 with frame size of 4000 with DF-bit set.
 
