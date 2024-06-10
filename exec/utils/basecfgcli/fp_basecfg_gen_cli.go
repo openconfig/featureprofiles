@@ -65,9 +65,8 @@ func init() {
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpt)),
 		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpt)),
 	)
-	ctx := context.Background()
 	var err error
-	grpcStub, err = grpc.DialContext(ctx, *addr, dialOpts...)
+	grpcStub, err = grpc.NewClient(*addr, dialOpts...)
 	if err != nil {
 		fmt.Printf("Could not dial gRPC: %v", err)
 		os.Exit(2)
