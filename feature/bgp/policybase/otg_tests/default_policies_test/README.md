@@ -96,8 +96,10 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * DUT:Port2 wouldn't export routes to IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3 since they are missing from the DUT's forwarding table.
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
    
-### Config Parameter Coverage
 
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
   * Defined Sets
     * /routing-policy/defined-sets/prefix-sets/prefix-set/
     * /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
@@ -124,7 +126,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * afi-safis/afi-safi/apply-policy/config/default-export-policy/REJECT-ALL
 
 
-### Telemetry Parameter Coverage
+  # Telemetry Parameter Coverage
 
   * Path to Neighbor or Peer-Group level:
     * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
@@ -137,3 +139,9 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * afi-safis/afi-safi/state/prefixes/received
     * afi-safis/afi-safi/state/prefixes/received-pre-policy
     * afi-safis/afi-safi/state/prefixes/sent
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
