@@ -109,16 +109,12 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
-  # Path to Neighbor or Peer-Group level
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group:  
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:  
   # Apply Policy at Neighbor or Peer-Group level
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
-  # Telemetry Parameter Coverage
   # Path to Neighbor or Peer-Group level
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group:
