@@ -110,9 +110,9 @@ paths:
     /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/name:
     /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/description:
     /defined-sets/ipv4-prefix-sets/ipv4-prefix-set/config/prefix:
-    /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/name:
-    /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/description:
-    /defined-sets/ipv4-prefix-sets/ipv6-prefix-set/config/prefix:
+    /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/name:
+    /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/description:
+    /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
     # PF match condition
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address-prefix-set:
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address-prefix-set:
