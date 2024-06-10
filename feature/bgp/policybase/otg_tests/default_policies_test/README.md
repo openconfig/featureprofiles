@@ -119,10 +119,10 @@ paths:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
   # Telemetry Parameter Coverage
-  # Path to Neighbor or Peer-Group level:
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
-  - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group
-  # Paths under Neighbor and Peer-Group level:
+  # Path to Neighbor or Peer-Group level
+  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
+  - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group:
+  # Paths under Neighbor and Peer-Group level
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
   - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
