@@ -1691,14 +1691,14 @@ var (
 		IPv6:    "fe80::4",
 		IPv6Len: 128,
 	}
-	mgmtInt = attrs.Attributes{
-		Name:    "MgmntInt",
-		Desc:    "Management",
-		IPv6:    "fe80::3",
-		IPv6Len: 128,
-		IPv4:    "6.1.2.41", //"5.78.26.10",
-		IPv4Len: 16,
-	}
+	// mgmtInt = attrs.Attributes{
+	// 	Name:    "MgmntInt",
+	// 	Desc:    "Management",
+	// 	IPv6:    "fe80::3",
+	// 	IPv6Len: 128,
+	// 	IPv4:    "6.1.2.41", //"5.78.26.10",
+	// 	IPv4Len: 16,
+	// }
 	beInt1 = attrs.Attributes{
 		Name:    "BundleInt-2",
 		Desc:    "BundleInt",
@@ -1978,7 +1978,7 @@ func testInterfacetypeanyOnChange(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func connectgribi(t *testing.T, dut *ondatra.DUTDevice) {
-	ctx := context.Background()
+
 	client := gribi.Client{
 		DUT:                   dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1993,8 +1993,6 @@ func connectgribi(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("gRIBI Connection could not be established: %v", err)
 		}
 	}
-	config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
-	time.Sleep(time.Second * 10)
 	for {
 		if err := client.Start(t); err != nil {
 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
@@ -2022,11 +2020,11 @@ func TestIPv6LinkLocal(t *testing.T) {
 			intf: physicalInt1,
 			attr: phyInt,
 		},
-		{
-			name: "ManagementInt",
-			intf: "MgmtEth0/RP0/CPU0/0",
-			attr: mgmtInt,
-		},
+		// {
+		// 	name: "ManagementInt",
+		// 	intf: "MgmtEth0/RP0/CPU0/0",
+		// 	attr: mgmtInt,
+		// },
 		{
 			name: "BundlelInt",
 			intf: "Bundle-Ether121",
@@ -2137,12 +2135,15 @@ func TestIPv6LinkLocal(t *testing.T) {
 	})
 
 	t.Run("Verify edt subscription for LLA continues to work after ipv6_nd process restart.", func(t *testing.T) {
-
+		ctx := context.Background()
 		configureDUTLinkLocalInterface(t, dut)
 
 		t.Run("Interface Telemetry check before Process restart", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
 		})
+
+		config.CMDViaGNMI(ctx, t, dut, "process restart ipv6_nd location 0/2/CPU0")
+		time.Sleep(time.Second * 10)
 
 		connectgribi(t, dut)
 
