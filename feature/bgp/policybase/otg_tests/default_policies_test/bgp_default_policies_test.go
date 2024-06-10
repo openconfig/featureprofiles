@@ -15,8 +15,6 @@
 package bgp_default_policies_test
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -26,7 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -195,6 +192,13 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	for _, pref := range ipPrefixSet {
 		pset.GetOrCreatePrefix(pref+"/"+maskLen, prefixSubnetRange)
+		mode := oc.PrefixSet_Mode_IPV4
+		if maskLen == maskLen128 {
+			mode = oc.PrefixSet_Mode_IPV6
+		}
+		if !deviations.SkipPrefixSetMode(dut) {
+			pset.SetMode(mode)
+		}
 	}
 
 	pdef := rp.GetOrCreatePolicyDefinition(prefixSet)
@@ -584,54 +588,23 @@ func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList
 }
 
 func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, action string, replace bool) {
-
-	var routingPolicyDefaultAction = []any{
-		map[string]any{
-			"default-action": map[string]any{
-				"policy-result": action,
-			},
-		},
-	}
-	defaultAction, err := json.Marshal(routingPolicyDefaultAction)
-	if err != nil {
-		t.Fatalf("Error with json Marshal: %v", err)
-	}
-
-	var updates []*gpb.Update
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
 	for _, policy := range []string{ebgpExportIPv4, ebgpExportIPv6, ibgpExportIPv4, ibgpExportIPv6, ebgpImportIPv4, ebgpImportIPv6, ibgpImportIPv4, ibgpImportIPv6} {
-		update := gpb.Update{
-			Path: &gpb.Path{
-				Elem: []*gpb.PathElem{
-					{Name: "routing-policy"},
-					{Name: "policy", Key: map[string]string{"name": policy}},
-				},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_JsonIetfVal{
-					JsonIetfVal: defaultAction,
-				},
-			},
+		pdef := rp.GetOrCreatePolicyDefinition(policy)
+		stmt, err := pdef.AppendNewStatement("50")
+		if err != nil {
+			t.Fatal(err)
 		}
-		updates = append(updates, &update)
-	}
-	gpbSetRequest := &gpb.SetRequest{
-		Prefix: &gpb.Path{
-			Origin: "native",
-		},
-		Update: updates,
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		if action == "reject" {
+			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+		}
 	}
 	if replace {
-		gpbSetRequest = &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: updates,
-		}
-	}
-
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Unexpected error updating SRL routing-policy default-action: %v", err)
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 	time.Sleep(5 * time.Second)
 }
