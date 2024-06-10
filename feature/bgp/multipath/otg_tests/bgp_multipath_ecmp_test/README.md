@@ -84,13 +84,11 @@ Validate BGP in multipath scenario
 
 ## OpenConfig Path and RPC Coverage
 
-
 ```yaml
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
-
 ```
 
 ## Required DUT platform

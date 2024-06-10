@@ -16,6 +16,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_max_multipath_paths_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {
