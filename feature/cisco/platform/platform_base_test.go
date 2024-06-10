@@ -71,6 +71,7 @@ func qsfptype(t *testing.T, dut *ondatra.DUTDevice, intf string) string {
 	}
 	return qsfpType
 }
+
 func checkHundredGigE(t *testing.T, dut *ondatra.DUTDevice) {
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	for _, intf := range intfs {
@@ -84,6 +85,7 @@ func checkHundredGigE(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 }
+
 func checklc(t *testing.T, dut *ondatra.DUTDevice) bool {
 	lcs := components.FindComponentsByType(t, dut, linecardType)
 	if got := len(lcs); got == 0 {
@@ -126,15 +128,13 @@ func verifyBreakout(index uint8, numBreakoutsWant uint8, numBreakoutsGot uint8, 
 		t.Errorf("Breakout speed configured : got %v, want %v", breakoutSpeedGot, breakoutSpeedWant)
 	}
 }
+
 func verifyDelete(t *testing.T, dut *ondatra.DUTDevice, compname string) {
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-		gnmi.Get(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(1).Index().Config()) //catch the error  as it is expected and absorb the panic.
+		gnmi.LookupConfig(t, dut, gnmi.OC().Component(compname).Port().BreakoutMode().Group(1).Index().Config()) //catch the error as it is expected and absorb the panic.
 	}); errMsg != nil {
 		t.Log("Expected failure ")
 	} else {
-		t.Errorf("This get on empty config should have failed : %s", *errMsg)
+		t.Errorf("This Get on empty config should have failed")
 	}
-}
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
 }
