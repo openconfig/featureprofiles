@@ -69,7 +69,8 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 		routeAddress.SetPrefix(prefixP4Len)
 		routeAddress.SetCount(prefixesCount)
 		bgp4PeerRoute.AddPath().SetPathId(pathID)
-		bgp4PeerRoute.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
+		bgpExtCom := bgp4PeerRoute.ExtendedCommunities().Add()
+		bgpExtCom.NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
 	}
 
 	configureFlow(bs)
@@ -79,7 +80,7 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
-	for i := 1; i < len(bs.ATEPorts); i++ {
+	for i := 2; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
@@ -94,8 +95,8 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	v4.Dst().SetValue(prefixesStart)
+	v4.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(bs.ATEPorts[0].IPv4)
+	v4.Dst().Increment().SetCount(3).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
@@ -115,8 +116,8 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
 	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	expectedPerLinkFmsP3 := (linkBw[0] / (linkBw[0] + linkBw[1])) * int(framesTx)
-	expectedPerLinkFmsP4 := (linkBw[1] / (linkBw[0] + linkBw[1])) * int(framesTx)
+	expectedPerLinkFmsP3 := int(float32(linkBw[0]) / (float32(linkBw[0] + linkBw[1])) * float32(framesTx))
+	expectedPerLinkFmsP4 := int(float32(linkBw[1]) / (float32(linkBw[0] + linkBw[1])) * float32(framesTx))
 	t.Logf("Total packets %d flow through the %d links and expected per link packets: %d, %d", framesTx, expectedLinks, expectedPerLinkFmsP3, expectedPerLinkFmsP4)
 
 	p3Min := expectedPerLinkFmsP3 - (expectedPerLinkFmsP3 * lbToleranceFms / 100)
@@ -145,6 +146,10 @@ func TestBGPSetup(t *testing.T) {
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, false)
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+	}
 	gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 

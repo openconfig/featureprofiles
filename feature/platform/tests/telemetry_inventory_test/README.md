@@ -19,53 +19,60 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 *   TODO: /components/component/linecard/config
 
-## Telemetry Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant
-*   /components/component/storage
-*   TODO: /components/component/software-module
-*   TODO: /components/component/software-module/state/module-type
-*   /components/component/state/description
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
-*   /components/component/state/firmware-version
-    *  patform_type: ["TRANSCEIVER"]
-*   /components/component/state/hardware-version
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
-*   /components/component/state/id
-    *  patform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
-*   /components/component/state/mfg-date
-    *  patform_type: []
-*   /components/component/state/mfg-name
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
-*   /components/component/state/model-name
-    *  patform_type: ["CHASSIS"]
-*   /components/component/state/name
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
-*   /components/component/state/oper-status
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
-*   /components/component/state/parent
-    *  patform_type: ["CONTROLLER_CARD", "FABRIC", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
-*   /components/component/state/part-no
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
-*   /components/component/state/serial-no
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
-*   /components/component/state/software-version
-    *  patform_type: []
-*   /components/component/state/type
-    *  patform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
-*   /components/component/state/temperature/alarm-status
-    *  patform_type: ["SENSOR"]
-*   /components/component/state/temperature/instant
-    *  patform_type: ["SENSOR"]
-*   /components/component/state/temperature/max
-    *  patform_type: ["SENSOR"]
-*   /components/component/state/temperature/max-time
-    *  patform_type: ["SENSOR"]
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
-    *  patform_type: ["INTEGRATED_CIRCUIT"]
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
-    *  patform_type: ["INTEGRATED_CIRCUIT"]
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total
-    *  patform_type: ["INTEGRATED_CIRCUIT"]
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
-    *  patform_type: ["INTEGRATED_CIRCUIT"]
+TODO:
+
+     /components/component/storage
+     /components/component/software-module
+     /components/component/software-module/state/module-type
+     /components/component/state/mfg-date
+     /components/component/state/software-version
+
+```yaml
+paths:
+    /components/component/state/description:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
+    /components/component/state/firmware-version:
+       platform_type: ["TRANSCEIVER"]
+    /components/component/state/hardware-version:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/id:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
+    /components/component/state/mfg-name:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/model-name:
+       platform_type: ["CHASSIS"]
+    /components/component/state/name:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/oper-status:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/parent:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
+    /components/component/state/part-no:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/serial-no:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/type:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/temperature/alarm-status:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/instant:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/max:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/max-time:
+       platform_type: ["SENSOR"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+
+rpcs:
+  gnmi:
+    gNMI.Get:
+```
