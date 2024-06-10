@@ -42,18 +42,15 @@ The test verifies traffic encapsulation using a IPv4 tunnel GRE interface using 
 
 6.  2 IPv4 and 2 IPv6 source prefixes will be used to generate tests traffic 
 (SRC1-SRC2). Apply policy-forwarding with 4 rules to DUT Port 1:
-    - Match IPV4-SRC1 and accept/foward.
-    - Match IPV6-SRC1 and accept/foward.
+    - Define prefix-sets for IPV4-SRC1,IPV6-SRC1,IPV4-SRC2,IPV6-SRC2
+    - Match /22 IPV4-SRC1 and accept/foward.
+    - Match /48 IPV6-SRC1 and accept/foward.
     - Match IPV4-SRC2 and set next-hop to IPV4-ENCAP-NH.
     - Match IPV6-SRC2 and set next-hop to IPV4-ENCAP-NH.
-
-7.  Configure QoS classifier for incoming traffic on ATE Port1 for IPv4 and IPv6 traffic. 
-     QoS classifier should remark egress packet to the matching ingress DSCP value (eg. match DSCP 32, set egress DSCP 32).
-     Match and remark all values for 3 leftmost DSCP bits [0, 8, 16, 24, 32, 40, 48, 56].
     
 
 ### TUN-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic
-Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST at linerate.
+Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST.
 Use 512 bytes frame size.
 
 Verify:
@@ -64,7 +61,7 @@ Verify:
 *  Verify PF packet counters matching traffic generated.
 
 ### TUN-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic
-Generate traffic on ATE Port 1 from IPV6-SRC2 from a random combination of 1000 source addresses to IPV6-DST at linerate.
+Generate traffic on ATE Port 1 from IPV6-SRC2 from a random combination of 1000 source addresses to IPV6-DST.
 Use 512 bytes frame size.
 
 Verify:
@@ -98,15 +95,7 @@ Verify:
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  Outer GRE IPv4 header has same marking as ingress non-encapsulated IPv4 packet.
 
-### TUN-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic
-Generate traffic on ATE Port 1 from IPV6-SRC1 for every IPv6 TC 8-bit value [0, 32, 64, 96, 128, 160, 192, 224]
-
-Verify:
-
-*  All traffic received on ATE Port 2 GRE-encapsulated.
-*  Outer GRE IPv4 header has DSCP match to ingress IPv6 TC packet.
-
-### TUN-1.1.7: Verify MTU handling during GRE encap
+### TUN-1.1.6: Verify MTU handling during GRE encap
 * Generate traffic on ATE Port 1 from IPV4-SRC1 with frame size of 4000 with DF-bit set.
 * Generate traffic on ATE Port 1 from IPV6-SRC1 with frame size of 4000 with DF-bit set.
 
@@ -123,11 +112,14 @@ paths:
     /interfaces/interface/tunnel/config/dst:
     /interfaces/interface/tunnel/ipv4/config/mtu:
     /interfaces/interface/tunnel/ipv6/config/mtu:
-    /access-points/access-point/interfaces/interface/tunnel/ipv6/unnumbered/config/enabled:
-    /access-points/access-point/interfaces/interface/tunnel/ipv6/unnumbered/interface-ref/config/interface:
+    /access-points/access-point/interfaces/interface/tunnel/ipv4/unnumbered/config/enabled:
+    /access-points/access-point/interfaces/interface/tunnel/ipv4/unnumbered/interface-ref/config/interface:
+    # define prefix-set
+    /defined-sets/ipv4-prefix-sets/ipv4-prefix-set:
+    /defined-sets/ipv4-prefix-sets/ipv6-prefix-set:
     # PF match condition
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address-prefix-set:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address-prefix-set:
     # PF nexthop action
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop:
     # PF application to the interface
@@ -151,5 +143,4 @@ rpcs:
 
 ## Required DUT platform
 
-* MFF
 * FFF
