@@ -1649,8 +1649,8 @@ github.com/openconfig/gnoi v0.4.0 h1:jbYXRMNmmvA8ZFv2FBLrYoxA1MFSui4tEui+8LAWyVc
 github.com/openconfig/gnoi v0.4.0/go.mod h1:0d3/bgooXM/je6jI+fb7+9Iky8R8k6zSFG19xRYTRso=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c h1:egPgBUBDn0XEtbz0CvE+Bh/I/3iTzwzMq5/rmtPJdQs=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c/go.mod h1:Se/HklUcFVcCGB66khgYouiesLRPoa4UL1ovvmE/68k=
-github.com/openconfig/gnsi v1.4.0 h1:E/OnAZh7jr3xpTdyawYXloVUg0cQbU3WQLtDGib/7L4=
-github.com/openconfig/gnsi v1.4.0/go.mod h1:jzPF4rVWPHhIG0F3t910Hh2VqqTbSfv18shbgE4AXhw=
+github.com/openconfig/gnsi v1.4.5 h1:ZkUVN+HDg0GFe3wIYocWjPqjOHZP3vVEB+NIctaYV6c=
+github.com/openconfig/gnsi v1.4.5/go.mod h1:i4guw9Vn3Mn/aUKB/2z84Moe2P811H3SV3g0Cu0X4h8=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b h1:NSYuxdlOWLldNpid1dThR6Dci96juXioUguMho6aliI=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b/go.mod h1:uhC/ybmPapgeyAL2b9ZrUQ+DZE+DB+J+/7377PX+lek=
 github.com/openconfig/goyang v0.0.0-20200115183954-d0a48929f0ea/go.mod h1:dhXaV0JgHJzdrHi2l+w0fZrwArtXL7jEFoiqLEdmkvU=
