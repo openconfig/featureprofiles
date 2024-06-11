@@ -19,30 +19,60 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 *   TODO: /components/component/linecard/config
 
-## Telemetry Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant
-*   /components/component/storage
-*   TODO: /components/component/software-module
-*   TODO: /components/component/software-module/state/module-type
-*   /components/component/state/description
-*   /components/component/state/firmware-version
-*   /components/component/state/hardware-version
-*   /components/component/state/id
-*   /components/component/state/mfg-date
-*   /components/component/state/mfg-name
-*   /components/component/state/name
-*   /components/component/state/oper-status
-*   /components/component/state/parent
-*   /components/component/state/part-no
-*   /components/component/state/serial-no
-*   /components/component/state/software-version
-*   /components/component/state/type
-*   /components/component/state/temperature/alarm-status
-*   /components/component/state/temperature/instant
-*   /components/component/state/temperature/max
-*   /components/component/state/temperature/max-time
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+TODO:
+
+     /components/component/storage
+     /components/component/software-module
+     /components/component/software-module/state/module-type
+     /components/component/state/mfg-date
+     /components/component/state/software-version
+
+```yaml
+paths:
+    /components/component/state/description:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
+    /components/component/state/firmware-version:
+       platform_type: ["TRANSCEIVER"]
+    /components/component/state/hardware-version:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/id:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
+    /components/component/state/mfg-name:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/model-name:
+       platform_type: ["CHASSIS"]
+    /components/component/state/name:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/oper-status:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/parent:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY"]
+    /components/component/state/part-no:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/serial-no:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/type:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/temperature/alarm-status:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/instant:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/max:
+       platform_type: ["SENSOR"]
+    /components/component/state/temperature/max-time:
+       platform_type: ["SENSOR"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+
+rpcs:
+  gnmi:
+    gNMI.Get:
+```
