@@ -1024,12 +1024,20 @@ func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
 }
 
-// Devices does not support bgp max multipaths.
+// BgpMaxMultipathPathsUnsupported returns true if the device does not support
+// bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
 
-// Devices does not support multipath under neighbor or afisafi
+// MultipathUnsupportedNeighborOrAfisafi returns true if the device does not
+// support multipath under neighbor or afisafi.
 func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+}
+
+// ModelNameUnsupported returns true if /components/components/state/model-name
+// is not supported for any component type.
+func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetModelNameUnsupported()
 }
