@@ -158,7 +158,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 		time.Sleep(30 * time.Second)
 		t.Logf("Start Traffic flow configuraturation in OTG")
 		configureTrafficFlowsToEncasulation(t, top, ateport1, ateport2, ateport3, &otgIntf1, dutIntf1.MAC)
-		t.Logf(top.ToJson())
+		t.Logf(top.Marshal().ToJson())
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 		time.Sleep(30 * time.Second)
@@ -253,7 +253,7 @@ func configureOtgPorts(top gosnappi.Config, port *ondatra.Port, name string, mac
 	//port1
 	iDutDev := top.Devices().Add().SetName(name)
 	iDutEth := iDutDev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
-	iDutEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port.ID()) //port.Name()
+	iDutEth.Connection().SetPortName(port.ID())
 	iDutIpv4 := iDutEth.Ipv4Addresses().Add().SetName(name + ".IPv4")
 	iDutIpv4.SetAddress(ipv4Address).SetGateway(ipv4Gateway).SetPrefix(uint32(ipv4Mask))
 
@@ -268,7 +268,7 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// Flow settings.
 	flow1ipv4.Size().SetFixed(512)
 	flow1ipv4.Rate().SetPps(trafficRatePps)
-	flow1ipv4.Duration().SetChoice("continuous")
+	flow1ipv4.Duration().Continuous()
 	// Ethernet header
 	f1e1 := flow1ipv4.Packet().Add().Ethernet()
 	f1e1.Src().SetValue(peer.MAC)
@@ -276,7 +276,7 @@ func configureTrafficFlowsToEncasulation(t *testing.T, top gosnappi.Config, port
 	// IP header
 	f1v4 := flow1ipv4.Packet().Add().Ipv4()
 	// V4 protocol
-	f1v4.Protocol().SetChoice("value").SetValue(6)
+	f1v4.Protocol().SetValue(6)
 	// V4 source
 	f1v4.Src().Increment().SetStart(peer.IPv4).SetCount(200)
 	// V4 destination
