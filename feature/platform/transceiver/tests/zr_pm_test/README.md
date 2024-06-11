@@ -75,8 +75,8 @@ module CMIS VDM(Versatile Diagnostics Monitor):
 paths:
     # Config Parameter coverage
     /interfaces/interface/config/enabled:
-    /components/component/optical-channel/config/enabled:
-    /terminal-device/logical-channels/channel/config/:
+    /components/component/transceiver/config/enabled:
+        platform_type: ["OPTICAL_CHANNEL"]
     # Telemetry Parameter coverage
     /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
     /terminal-device/logical-channels/channel/otn/state/esnr/instant:
