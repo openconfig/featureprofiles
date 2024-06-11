@@ -34,8 +34,6 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Fabric":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC,
 	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
-	"Fan tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
-	"FRU":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
