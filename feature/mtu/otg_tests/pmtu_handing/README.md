@@ -56,8 +56,8 @@ paths:
     # tunnel interfaces
     /interfaces/interface/config/mtu:
     # telemetry
-    /components/component[type=INTEGRATED_CIRCUIT]/integrated-circuit/pipeline-counters/drop/state/packet-processing-aggregate:
-    /components/component[type=INTEGRATED_CIRCUIT]/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
+    /components/component/integrated-circuit/pipeline-counters/drop/state/packet-processing-aggregate:
+    /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
 
 
 rpcs:
