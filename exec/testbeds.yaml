@@ -197,10 +197,6 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
-  8201-1DUT-1ATE-OTG:
-    sim: true
-    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo_otg.yaml
-    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
   8201-1DUT-1ATE-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
@@ -212,10 +208,6 @@ testbeds:
   8808-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
-  8808-1DUT-1ATE-OTG:
-    sim: true
-    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo_otg.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
   8808-1DUT-1ATE-vrf-mgmt:
     sim: true

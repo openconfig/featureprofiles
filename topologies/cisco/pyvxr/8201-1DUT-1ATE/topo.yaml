@@ -2,8 +2,9 @@ simulation:
   pyvxr_flags: 
     port_file_timeout: 10000
     spitfire_cvac_override: true
-  sim_flags: 
-    - "-k ConfigEnableNgdp=true"
+  vxr_sim_config:
+    default:
+       ConfigEnableNgdp: 'true'
   slurm_flags: 
     hours: 72
     pending_timeout: 30
@@ -17,7 +18,7 @@ devices:
     ixia_images: 
       chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
       load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
-      windows: /auto/vxr/images/ixia/IxNetworkWeb_KVM_9.30.2309.34.qcow2
+      windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
     platform: ixia
   dut: 
     cvac: $BASE_CONF_PATH

@@ -14,7 +14,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
-from helper import CommandFailed, remote_exec
+from helper import CommandFailed, remote_exec, scp_to_remote
 from getpass import getuser
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -232,6 +232,30 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
         if "xr_mgmt_ip" in entry:
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
+
+def _sim_get_port_redir(testbed_logs_dir):
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    
+    devices = {}
+    for d, e in vxr_ports.items():
+        devices[d] = {
+            'host': vxr_ports[d]['HostAgent'],
+            'ports': {}
+        }
+        for k, v in e.items():
+            try:
+                if k.startswith('redir'):
+                    devices[d]['ports'][int(k[5:])] = v
+                elif k.startswith('xr_redir'):
+                    devices[d]['ports'][int(k[8:])] = v
+            except: continue
+    return devices
 
 def _sim_get_data_ports(testbed_logs_dir):
     vxr_conf_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-config.yaml")
@@ -589,7 +613,9 @@ def b4_chain_provider(ws, testsuite_id,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
+    if 'otg' in test_path:
+        if reserved_testbed.get('sim', False):
+            chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -605,7 +631,7 @@ def b4_chain_provider(ws, testsuite_id,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path and not reserved_testbed.get('sim', False):
+    if 'otg' in test_path:
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
 
@@ -799,7 +825,9 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         return
 
     otg_info = reserved_testbed['otg']
-
+    controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
+    gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
+    
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
@@ -821,20 +849,19 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
             parts = p['name'].split('/')
             p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
 
-        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
         ate['options'] = {
             'username': 'admin',
             'password': 'admin'
         }
-
         ate['otg'] = {
-            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
             'insecure': True,
             'timeout': 200
         }
 
         ate['gnmi'] = {
-            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
             'skip_verify': True,
             'timeout': 60
         }
@@ -874,8 +901,22 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
         check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
+        sim_port_redir = _sim_get_port_redir(testbed_logs_dir)
+        if 'ate_gui' in sim_port_redir:
+            e = sim_port_redir['ate_gui']
+            reserved_testbed['otg'] = {
+                'host': e['host'],
+                'port': e['ports'][22],
+                'username': 'admin',
+                'password': 'admin',
+                'controller_port': 3389,
+                'controller_port_redir': e['ports'][3389],
+                'gnmi_port': 11009,
+                'gnmi_port_redir': e['ports'][11009]
+            }
+        
+        data_ports = _sim_get_data_ports(testbed_logs_dir)            
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
-        data_ports = _sim_get_data_ports(testbed_logs_dir)
         
         if not type(reserved_testbed['baseconf']) is dict:
             reserved_testbed['baseconf'] = {
@@ -886,7 +927,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         reserved_testbed['ondatra_baseconf_path'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
             reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
         
@@ -932,12 +973,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         if type(reserved_testbed['baseconf']) is dict:
             for dut, conf in reserved_testbed['baseconf'].items():
                 baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-                ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+                ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
                 shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
                 check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
         else:
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
+            ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}.conf')
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)    
             check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
@@ -1264,6 +1305,19 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
+def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
+    repo = git.Repo(test_repo_dir)
+    remote = repo.remote()
+    if not internal_test:
+        try:
+            remote = repo.remote("b4test")
+        except:
+            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
+            remote.fetch()
+    remote.repo.git.checkout(f'{remote.name}/otg_sim_opt', 'internal/otgutils/arp.go')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
 def GoTidy(self, ws, repo):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
@@ -1325,18 +1379,35 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_v
     # TODO: delete this line
     logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
-    
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
     reserved_testbed['otg_docker_compose_file'] = docker_file
     _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
 
+    conn_args = {}
+    if 'username' in reserved_testbed['otg']:
+        conn_args['username'] = reserved_testbed['otg']['username']
+        conn_args['password'] = reserved_testbed['otg']['password']
+    if 'port' in reserved_testbed['otg']:
+        conn_args['port'] = reserved_testbed['otg']['port']
+    
+    # sim has no access to /auto/
+    if reserved_testbed.get('sim', False):
+        docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+        scp_to_remote(reserved_testbed['otg']['host'], docker_file, docker_file_on_remote, **conn_args)
+        docker_file = docker_file_on_remote
+
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def CollectIxiaLogs(self, reserved_testbed, out_dir):
     logger.print("Collecting OTG logs...")
+    # sim has no access to /auto/
+    if reserved_testbed.get('sim', False):
+        logger.print("Not supported on sim...skipping")
+        return
+    
     try:
         otg_log_collector_bin = "/auto/tftpboot-ottawa/b4/bin/otg_log_collector"
         pname = reserved_testbed["id"].lower()
@@ -1348,11 +1419,27 @@ def CollectIxiaLogs(self, reserved_testbed, out_dir):
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def TeardownIxiaController(self, reserved_testbed):
+    pname = reserved_testbed["id"].lower()
+    docker_file = reserved_testbed["otg_docker_compose_file"]
+
+    conn_args = {}
+    if 'username' in reserved_testbed['otg']:
+        conn_args['username'] = reserved_testbed['otg']['username']
+        conn_args['password'] = reserved_testbed['otg']['password']
+    if 'port' in reserved_testbed['otg']:
+        conn_args['port'] = reserved_testbed['otg']['port']
+
     if 'otg_docker_compose_file' in reserved_testbed:
         pname = reserved_testbed["id"].lower()
         docker_file = reserved_testbed["otg_docker_compose_file"]
+
+        # sim has no access to /auto/
+        if reserved_testbed.get('sim', False):
+            docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+            docker_file = docker_file_on_remote
+
         cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
-        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
         del reserved_testbed["otg_docker_compose_file"]
 
 @register_testbed_file_generator('b4')
