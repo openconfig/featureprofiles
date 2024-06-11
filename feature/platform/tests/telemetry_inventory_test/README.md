@@ -31,33 +31,33 @@ TODO:
 ```yaml
 paths:
     /components/component/state/description:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FRU", "LINECARD", "PORT", "POWER_SUPPLY"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
        platform_type: ["TRANSCEIVER"]
     /components/component/state/hardware-version:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/id:
-       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "PORT", "POWER_SUPPLY", "SENSOR"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
     /components/component/state/install-component:
-       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "PORT"]
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/install-position:
-       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "PORT"]
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/location:
-       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "PORT"]
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/mfg-name:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/model-name:
        platform_type: ["CHASSIS"]
     /components/component/state/name:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "PORT", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/oper-status:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/parent:
        platform_type: ["CONTROLLER_CARD", "FABRIC", "FRU", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/part-no:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "PORT", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "PORT", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/type:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/temperature/alarm-status:

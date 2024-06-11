@@ -36,7 +36,6 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
 	"Fan tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
 	"FRU":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU,
-	"Port":        oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
@@ -47,7 +46,7 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 }
 
 // validInstallComponentTypes indicates for each component type, which types of
-// install-component it can have.
+// install-component it can have (i.e., what types of components can it be installed into).
 var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Type_Union]bool{
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
@@ -68,13 +67,14 @@ var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Ty
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
 	},
-	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT: {
-		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: true,
-	},
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
 		// Sometimes the parent is the power tray, which has type FRU.
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS:  true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: true,
 	},
 }
 
@@ -219,42 +219,6 @@ func TestHardwareCards(t *testing.T) {
 				pType:                                 componentType["Fan"],
 			},
 		}, {
-			desc: "Fan Tray",
-			cardFields: properties{
-				descriptionValidation:                 true,
-				idValidation:                          false,
-				installPositionAndComponentValidation: true,
-				nameValidation:                        true,
-				partNoValidation:                      true,
-				serialNoValidation:                    true,
-				mfgNameValidation:                     false,
-				mfgDateValidation:                     false,
-				hwVerValidation:                       false,
-				fwVerValidation:                       false,
-				rrValidation:                          false,
-				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:                      true,
-				pType:                                 componentType["Fan Tray"],
-			},
-		}, {
-			desc: "FRU",
-			cardFields: properties{
-				descriptionValidation:                 true,
-				idValidation:                          false,
-				installPositionAndComponentValidation: true,
-				nameValidation:                        false,
-				partNoValidation:                      true,
-				serialNoValidation:                    true,
-				mfgNameValidation:                     false,
-				mfgDateValidation:                     false,
-				hwVerValidation:                       false,
-				fwVerValidation:                       false,
-				rrValidation:                          false,
-				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:                      true,
-				pType:                                 componentType["FRU"],
-			},
-		}, {
 			desc: "Linecard",
 			cardFields: properties{
 				descriptionValidation:                 true,
@@ -291,24 +255,6 @@ func TestHardwareCards(t *testing.T) {
 				pType:                                 componentType["PowerSupply"],
 			},
 		}, {
-			desc: "Port",
-			cardFields: properties{
-				descriptionValidation:                 true,
-				idValidation:                          true,
-				installPositionAndComponentValidation: true,
-				nameValidation:                        true,
-				partNoValidation:                      true,
-				serialNoValidation:                    true,
-				mfgNameValidation:                     false,
-				mfgDateValidation:                     false,
-				hwVerValidation:                       false,
-				fwVerValidation:                       false,
-				rrValidation:                          false,
-				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:                      true,
-				pType:                                 componentType["Port"],
-			},
-		}, {
 			desc: "Supervisor",
 			cardFields: properties{
 				descriptionValidation:                 true,
@@ -330,20 +276,21 @@ func TestHardwareCards(t *testing.T) {
 		}, {
 			desc: "Transceiver",
 			cardFields: properties{
-				descriptionValidation: false,
-				idValidation:          false,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				swVerValidation:       false,
-				hwVerValidation:       true,
-				fwVerValidation:       true,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
-				parentValidation:      false,
-				pType:                 componentType["Transceiver"],
+				descriptionValidation:                 false,
+				idValidation:                          false,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				swVerValidation:                       false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       true,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				parentValidation:                      false,
+				pType:                                 componentType["Transceiver"],
 			},
 		}, {
 			desc: "Cpu",
@@ -684,12 +631,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			}
 
 			if p.installPositionAndComponentValidation && !deviations.InstallPositionAndInstallComponentUnsupported(dut) {
-				isPort := card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT
-				l := card.GetLocation()
-				r := card.GetRemovable()
-				// If the component is a port or it has a location and is removable,
-				// then it needs to have install-component and install-position.
-				if isPort || (l != "" && r == true) {
+				// If the component has a location and is removable, then it needs to have install-component
+				// and install-position.
+				if card.GetLocation() != "" && card.GetRemovable() {
 					testInstallComponentAndInstallPosition(t, card, validCards)
 				}
 			}
