@@ -42,7 +42,7 @@ var (
 	DefaultVRFIPv4Count           = flag.Int("arg_default_vrf_ipv4_count", 1064, "In gRIBI scaling tests, the number of IPv4 entries to install in default network instance for recursive lookup")
 	DefaultVRFIPv4NHSize          = flag.Int("arg_default_vrf_ipv4_nh_size", 8, "In gRIBI scaling tests, the number of next-hops in each next-hop-group installed in default network instance")
 	DefaultVRFIPv4NHGWeightSum    = flag.Int("arg_default_vrf_ipv4_nhg_weight_sum", 64, "In gRIBI scaling tests, the sum of weights to assign to next-hops within a next-hop-group in the default network instance")
-	DefaultVRFIPv4NHCount         = flag.Int("arg_default_vrf_ipv4_nh_count", 128, "In gRIBI scaling tests, the number of next-hops to install in default network instance")
+	DefaultVRFIPv4NHCount         = flag.Int("arg_default_vrf_ipv4_nh_count", 16, "In gRIBI scaling tests, the number of next-hops to install in default network instance")
 	NonDefaultVRFIPv4Count        = flag.Int("arg_non_default_vrf_ipv4_count", 32000, "In gRIBI scaling tests, the number of IPv4 entries to install in non-default VRF")
 	NonDefaultVRFIPv4NHGCount     = flag.Int("arg_non_default_vrf_ipv4_nhg_count", 1000, "In gRIBI scaling tests, the number of next-hop-groups to install to be referenced from IPv4 entries in non-default VRFs")
 	NonDefaultVRFIPv4NHSize       = flag.Int("arg_non_default_vrf_ipv4_nh_size", 8, "In gRIBI scaling tests, the number of next-hops in each next-hop-group referenced from IPv4 entries in non-default VRFs")
