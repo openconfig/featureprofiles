@@ -1,4 +1,5 @@
 import subprocess
+import platform
 import tempfile
 import argparse
 import shutil
@@ -106,14 +107,18 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed):
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
 
-def _replace_binding_placeholders(fp_repo_dir, baseconf_file, ate_binding_file):
+def _replace_binding_placeholders(fp_repo_dir, baseconf_file, binding_file):
     tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
     key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
     cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
-    check_output(f"sed -i 's|$BASE_CONF_PATH|{baseconf_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$TRUST_BUNDLE_FILE|{tb_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$CERT_FILE|{cert_file}|g' {ate_binding_file}")
-    check_output(f"sed -i 's|$KEY_FILE|{key_file}|g' {ate_binding_file}")
+    with open(binding_file, 'r') as fp:
+        data = fp.read()
+    data.replace('$BASE_CONF_PATH', baseconf_file)
+    data.replace('$TRUST_BUNDLE_FILE', tb_file)
+    data.replace('$CERT_FILE', cert_file)
+    data.replace('$KEY_FILE', key_file)
+    with open(binding_file, 'w') as fp:
+        fp.write(data)
     
 def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_file, otg_binding_file):
     otg_info = reserved_testbed['otg']
