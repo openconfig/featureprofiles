@@ -846,11 +846,12 @@ func validateInstallComponent(t *testing.T, icName string, components []*oc.Comp
 		t.Errorf("Component %s's install-component %s is not in component tree", icName, c.GetName())
 		return
 	}
-	parentTypes := validInstallComponentTypes[c.GetType()]
+	validTypes := validInstallComponentTypes[c.GetType()]
 	icType := ic.GetType()
-	if !parentTypes[icType] {
+	if !validTypes[icType] {
 		t.Errorf("Component %s's install-component %s is not a supported parent type (%s)", c.GetName(), icName, icType)
 	}
+	return
 }
 
 func hasInstallComponentAndPosition(t *testing.T, c *oc.Component, icName string, ip string) {
