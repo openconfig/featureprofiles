@@ -113,10 +113,10 @@ def _replace_binding_placeholders(fp_repo_dir, baseconf_file, binding_file):
     cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
     with open(binding_file, 'r') as fp:
         data = fp.read()
-    data.replace('$BASE_CONF_PATH', baseconf_file)
-    data.replace('$TRUST_BUNDLE_FILE', tb_file)
-    data.replace('$CERT_FILE', cert_file)
-    data.replace('$KEY_FILE', key_file)
+    data = data.replace('$BASE_CONF_PATH', baseconf_file)
+    data = data.replace('$TRUST_BUNDLE_FILE', tb_file)
+    data = data.replace('$CERT_FILE', cert_file)
+    data = data.replace('$KEY_FILE', key_file)
     with open(binding_file, 'w') as fp:
         fp.write(data)
     
