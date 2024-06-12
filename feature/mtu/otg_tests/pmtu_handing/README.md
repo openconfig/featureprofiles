@@ -36,6 +36,8 @@ Run traffic flows to IPV4-DST with the sizes at 50% linerate for 30 seconds:
 Verify:
 * Ensure that ATE Port-1 receives ICMP type-3, code-4 for packet of every flow sent.
 * DUT pipeline counters report fragment packet discards.
+* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
+  traffic is permitted.
 * Verify low CPU (<20%) utilization on control plane.
 
 ### MTU-1.5.2 IPv6 Path MTU 
@@ -47,6 +49,8 @@ Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
 
 * Ensure that ATE Port-1 receives ICMPv6 type-2 code-0 for packet of every flow sent.
 * Verify that DUT pipeline counters report fragment packet discards.
+* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
+  traffic is permitted.
 * Verify low CPU (<20%) utilization on control plane.
 
 ## OpenConfig Path and RPC Coverage
@@ -60,6 +64,10 @@ paths:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
+    /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/state/queued-aggregate:
+      platform_type: [ "CONTROL_PLANE" ]
+    /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor/state/dropped-aggregate:
+      platform_type: [ "CONTROL_PLANE" ]
 
 
 rpcs:
