@@ -4,35 +4,31 @@
 
 This test aims to validate the functionality of ingress traffic classification and subsequent packet remarking (rewrite) on a Device Under Test (DUT). The DUT's configuration will be evaluated against the OpenConfig QOS model, and traffic flows will be analyzed to ensure proper classification, marking, and forwarding.
 
-## Topology
+## Testbed type
 
-* ATE:port1 <-> port1:DUT:port2 <-> ATE:port2
+*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
 ## Procedure
 
-* DUT Configuration:
-    * Configure the DUT's ingress and egress interfaces.
-    * Apply QoS classifiers using the OpenConfig QOS model, matching packets based on DSCP/TC/EXP values as per the classification table.
-    * Configure packet remarking rules based on the marking table.
-    * Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific label (ie. 20-100).
-    * Configure Static MPLS LSP MPLS swap/forward actions for a specific label (ie. 101-200).
+### Test environment setup
 
-* Traffic Generation:
-    * Use the traffic generator to send:
-        * IPv4 packets with various DSCP values
-        * IPv6 packets with various TC values
-        * MPLS traffic with swap action.
-        * IPv4-over-MPLS traffic with pop action.
-        * IPv6-over-MPLS traffic with pop action.
+*   DUT has an ingress port and 1 egress port.
 
-* Verification:
-    * Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
-    * Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
-    * Analyze traffic flows to confirm that no packets are dropped on the DUT.
+    ```
+                             |         |
+        [ ATE Port 1 ] ----  |   DUT   | ---- [ ATE Port 2 ]
+                             |         |
+    ```
 
+* Configure the DUT's ingress and egress interfaces.
+
+### Configuration
+
+*   Apply QoS classifiers using the OpenConfig QOS model, matching packets based on DSCP/TC/EXP values as per the classification table.
+*   Configure packet remarking rules based on the marking table.
 *   QoS Classification and Marking table
 
-    *  Classification table
+    *   Classification table
 
     IPv4 TOS      |       IPv6 TC           |         MPLS EXP        |    Forwarding Group
     ------------- | ----------------------- | ----------------------- | ---------------------
@@ -52,7 +48,74 @@ This test aims to validate the functionality of ingress traffic classification a
              af2         |   2          |      16                 |          2              
              af3         |   3          |      24                 |          3              
              af4         |   4          |      32                 |          4              
-             nc1         |   6          |      48                 |          6              
+             nc1         |   6          |      48                 |          6   
+
+### DP-1.16.1 Ingress Classification and rewrite of IPv4 packets with various DSCP values
+
+*   Traffic:
+    *   Generate IPv4 traffic from ATE Port 1 with various DSCP values 
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.2 Ingress Classification and rewrite of IPv6 packets with various TC values
+
+*   Traffic:
+    *   Generate IPv6 traffic from ATE Port 1 with various TC values
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action
+
+*   Configuration:
+    *   Configure Static MPLS LSP MPLS swap/forward actions for a specific labels range (100101-100200).
+*   Traffic:
+    *   Generate MPLS traffic from ATE Port 1 with labels between 1000101 and 1000200
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+*   Traffic:
+    *   Generate MPLS traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.5 Ingress Classification and rewrite of IPv6-over-MPLS traffic with pop action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS pop and IPv4/IPv6 forward actions for a specific labels range (100020-100100).
+*   Traffic:
+    *   Generate MPLS traffic from ATE Port 1 with labels between 100020 and 1000100
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.6 Ingress Classification and rewrite of IPv4 packets traffic with label push action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS label (=100201) push action to a IPv4 subnet destination DST1.
+*   Traffic:
+    *   Generate IPv4 traffic from ATE Port 1 with destinations matching DST1. 
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
+### DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action
+
+*   Configuration:
+    *   Configure Static MPLS LSP with MPLS label (=100202) push action to a IPv6 subnet destination DST2.
+*   Traffic:
+    *   Generate IPv6 traffic from ATE Port 1 with destinations matching DST2. 
+*   Verfication:
+    *   Monitor telemetry on the DUT to verify that packets are being matched to the correct classifier terms.
+    *   Capture packets on the ATE's ingress interface to verify packet marking according to the marking table.
+    *   Analyze traffic flows to confirm that no packets are dropped on the DUT.
 
 ## OpenConfig Path and RPC Coverage
 
