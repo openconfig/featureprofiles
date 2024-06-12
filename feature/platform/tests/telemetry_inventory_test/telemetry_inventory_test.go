@@ -59,9 +59,6 @@ var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Ty
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
 	},
-	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU: {
-		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
-	},
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
 	},
