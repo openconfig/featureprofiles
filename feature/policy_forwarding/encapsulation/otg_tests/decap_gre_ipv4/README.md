@@ -14,7 +14,7 @@ The test also confirms the correct forwarding of traffic not matching the decaps
 
 ### Test environment setup
 
-*   DUT has an ingress port and 2 egress ports.
+*   DUT has an ingress port and an egress port.
 
     ```
                              |         |
@@ -25,7 +25,7 @@ The test also confirms the correct forwarding of traffic not matching the decaps
 *  ATE Port 1: Generates GRE-encapsulated traffic with various inner (original) destinations.
 *  ATE Port 2: Receives decapsulated traffic whose inner destination matches the policy.
 
-### Configuration
+### DUT Configuration
 
 1.  Interfaces: Configure all DUT ports as singleton IP interfaces.
  
@@ -36,14 +36,21 @@ The test also confirms the correct forwarding of traffic not matching the decaps
     *  Configure static routes for destination IPV4-DST2 and IPV6-DST2 towards ATE Port 2.
 
 3.  Policy-Based Forwarding: 
-    *  Rule 1: Match GRE traffic with destination DECAP-DST and decapsulate.
+    *  Rule 1: Match GRE traffic with destination DECAP-DST using destination-address-prefix-set and decapsulate.
     *  Rule 2: Match all other traffic and forward (no decapsulation).
-    *  Apply a policy with the following rules to the ingress interface. 
+    *  Apply the defined policy with to the ingress ATE Port 1 interface. 
     
-    **TODO:** OC model does not have provision to apply decap policy to network-instance level does not exist. Needs clarification and/or definition by vendors.
+    **TODO:** OC model does not have a provision to apply decap policy at the network-instance level for traffic destined to device loopback interface (see Cisco CLI config exepmt below). Needs clarification and/or augmentation by vendors if required.
+
+    ```
+    vrf-policy
+      vrf default address-family ipv4 policy type pbr input DECAP-POLICY
+    ```
 
     
 ### PF-1.3.1: GRE Decapsulation of IPv4 traffic
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate GRE-encapsulated traffic from ATE Port 1 with destinations matching DECAP-DST. 
 -  Inner IPv4 destination should match IPV4-DST1.
@@ -56,6 +63,8 @@ Verification:
 -  PF counters reflect decapsulated packets.
 
 ### PF-1.3.2: GRE Decapsulation of IPv6 traffic
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate IPv6 GRE-encapsulated traffic from ATE Port 1 with destinations matching DECAP-DST. 
 -  Inner IPv6 destination should match IPV6-DST1.
@@ -69,6 +78,8 @@ Verification:
 
 
 ### PF-1.3.3: GRE Decapsulation of IPv4-over-MPLS traffic
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate GRE-encapsulated IPv4-over-MPLS traffic from ATE Port 1 with destinations matching DECAP-DST. 
 -  Encapsulated MPLS top label should match LBL1.
@@ -83,6 +94,8 @@ Verification:
 
 
 ### PF-1.3.4: GRE Decapsulation of IPv6-over-MPLS traffic
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate GRE-encapsulated IPv4-over-MPLS traffic from ATE Port 1 with destinations matching DECAP-DST. 
 -  Encapsulated MPLS top label should match LBL1.
@@ -98,6 +111,8 @@ Verification:
 
 
 ### PF-1.3.5: GRE Decapsulation of multi-label MPLS traffic
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate GRE-encapsulated MPLS traffic from ATE Port 1 with destinations matching DECAP-DST. 
 -  MPLS packets will have 2 labels. 
@@ -114,6 +129,8 @@ Verification:
 
 
 ### PF-1.3.6: GRE Pass-through (Negative)
+-  Push DUT configuration.
+
 Traffic: 
 -  Generate GRE-encapsulated traffic from ATE Port 1 with destinations that match IPV4-DST1/IPV6-DST2.
 
@@ -126,12 +143,12 @@ Verification:
 ```yaml
 paths:
     # match condition
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address-prefix-set:
     # decap action
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre:
     # application to the interface
     /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
-    # TODO: provision apply decap to network-instance level does not exist. Needs clarification and definition by vendors.
+    # TODO: provision apply decap to network-instance level does not exist. Needs clarification and/or augmentation by vendors.
 
     # telemetry
     /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
