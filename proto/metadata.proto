@@ -548,11 +548,32 @@ message Metadata {
     // wildcards has to be used.
     // CISCO: b/338523730
     bool skip_checking_attribute_index = 188;
-
+    // Devices does not suppport policy-chaining, so needs to flatten policies
+    // with multiple statements.
+    // CISCO: b/338526243
+    bool flatten_policy_with_multiple_statements = 189;
+    // default_route_policy_unsupported is set to true for devices that do not
+    // support default route policy.
+    bool default_route_policy_unsupported = 190;
+    // CISCO: b/339801843
+    bool slaac_prefix_length128 = 191;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 192;
+    // Devices does not multipath config at neighbor or afisafi level
+    // Juniper: b/341130490
+    bool multipath_unsupported_neighbor_or_afisafi = 193;
+    // Devices that do not support /components/component/state/model-name for
+    // any component types.
+    // Note that for model name to be supported, the
+    // /components/component/state/model-name of the chassis component must be
+    // equal to the canonical hardware model name of its device.
+    bool model_name_unsupported = 194;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
-    message PlatformExceptions {
+  message PlatformExceptions {
     Platform platform = 1;
     Deviations deviations = 2;
   }
