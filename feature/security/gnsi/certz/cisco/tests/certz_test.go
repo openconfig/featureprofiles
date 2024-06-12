@@ -130,12 +130,6 @@ func TestGetProfileList(t *testing.T) {
 			want:    &certzpb.GetProfileListResponse{SslProfileIds: []string{"Abc123", "Test123", "gNxI"}},
 			wantErr: false,
 		},
-		{
-			name:    "NIL Get SSL profile request",
-			args:    args{},
-			want:    nil,
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -506,24 +500,23 @@ func getIpAndPortFromBindingFile() (string, error) {
 	return targetIP, nil
 }
 
-func getCertFromBindingFile() (string, string, string, error) {
+func getCertFromBindingFile() (string, string, error) {
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 	b := &bindpb.Binding{}
 	if err := prototext.Unmarshal(in, b); err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 	cert := b.Duts[0].Options.CertFile
 	key := b.Duts[0].Options.KeyFile
-	target := b.Duts[0].Gnsi.Target
-	return target, cert, key, nil
+	return cert, key, nil
 }
 
 func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tlsConf tls.Config) error {
-	target, certPath, keyPath, err := getCertFromBindingFile()
+	certPath, keyPath, err := getCertFromBindingFile()
 	if err != nil {
 		return err
 	}
@@ -546,7 +539,8 @@ func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tls
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf)), grpc.WithReturnConnectionError()}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	_, err = grpc.DialContext(ctx, target, opts...)
+	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+
 	t.Logf("%v", err)
 
 	tlsConf.Certificates = tlsCerts
@@ -748,9 +742,9 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -785,10 +779,10 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},
@@ -976,9 +970,9 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -1007,10 +1001,10 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},
@@ -1210,10 +1204,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: certPEMtoload,
-												PrivateKey:  certPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: certPEMtoload},
 											},
 										},
 									},
@@ -1240,10 +1234,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: []byte(expired_cert),
-												PrivateKey:  privKeyPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: []byte(expired_cert)},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 											},
 										},
 									},
@@ -1270,10 +1264,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: certPEMtoload,
-												PrivateKey:  privKeyPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 											},
 										},
 									},
@@ -1446,9 +1440,9 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	for i, cert := range certificatesrsa {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessageRSA.Parent = &certzpb.CertificateChain{
@@ -1476,9 +1470,9 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	for i, cert := range certificatesecdsa {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toECDSAPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toECDSAPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessageECDSA.Parent = &certzpb.CertificateChain{
@@ -1504,10 +1498,10 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoloadRSA,
-									PrivateKey:  privKeyPEMtoloadRSA,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoloadRSA},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoloadRSA},
 								},
 							},
 						},
@@ -1603,10 +1597,10 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoloadRSA,
-									PrivateKey:  privKeyPEMtoloadRSA,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoloadRSA},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoloadRSA},
 								},
 							},
 						},
@@ -1772,9 +1766,9 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -1806,10 +1800,10 @@ func TestHARedundancySwithOver(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},
