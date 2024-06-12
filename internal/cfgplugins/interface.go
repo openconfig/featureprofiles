@@ -90,6 +90,24 @@ func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.P
 	}
 }
 
+// ToggleInterface toggles the interface.
+func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnabled bool) {
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(intf)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Enabled = ygot.Bool(isEnabled)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(intf).Config(), i)
+}
+
+// ConfigOpticalChannel configures the optical channel.
+func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+		OperationalMode:   ygot.Uint16(operationalMode),
+		Frequency:         ygot.Uint64(frequency),
+		TargetOutputPower: ygot.Float64(targetOpticalPower),
+	})
+}
+
 // ConfigOTNChannel configures the OTN channel.
 func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
 	t.Helper()
