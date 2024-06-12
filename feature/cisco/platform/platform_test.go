@@ -972,18 +972,18 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				if !ok {
 					t.Errorf("Failed to get port details value")
 				}
-				index := portDetails.BreakoutMode.GetGroup(0).GetIndex()
-				numBreakouts := portDetails.BreakoutMode.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.BreakoutMode.GetGroup(0).GetBreakoutSpeed()
+				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
 				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
 			})
 			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
 				state := gnmi.OC().Component(componentName).Port()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				portDetails := gnmi.Get(t, dut, state.State())
-				index := portDetails.BreakoutMode.GetGroup(0).GetIndex()
-				numBreakouts := portDetails.BreakoutMode.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.BreakoutMode.GetGroup(0).GetBreakoutSpeed()
+				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
 				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
 			})
 			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
@@ -999,18 +999,18 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				if !ok {
 					t.Errorf("Failed to get port details value")
 				}
-				index := portDetails.BreakoutMode.GetGroup(0).GetIndex()
-				numBreakouts := portDetails.BreakoutMode.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.BreakoutMode.GetGroup(0).GetBreakoutSpeed()
+				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
 				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
 			})
 			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
 				state := gnmi.OC().Component(componentName).Port()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				portDetails := gnmi.Get(t, dut, state.State())
-				index := portDetails.BreakoutMode.GetGroup(0).GetIndex()
-				numBreakouts := portDetails.BreakoutMode.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.BreakoutMode.GetGroup(0).GetBreakoutSpeed()
+				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
 				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
 			})
 
@@ -1035,9 +1035,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				if !ok {
 					t.Errorf("Failed to get component details value")
 				}
-				index := componentDetails.Port.BreakoutMode.GetGroup(0).GetIndex()
-				numBreakouts := componentDetails.Port.BreakoutMode.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := componentDetails.Port.BreakoutMode.GetGroup(0).GetBreakoutSpeed()
+				index := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetIndex()
+				numBreakouts := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+				breakoutSpeed := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
 				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
 
 			})
