@@ -190,7 +190,6 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 }
 
 type testArgs struct {
-	ctx        context.Context
 	client     *fluent.GRIBIClient
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
