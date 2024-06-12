@@ -1028,6 +1028,7 @@ func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func CommunityMatchWithRedistributionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCommunityMatchWithRedistributionUnsupported()
 }
+
 // BgpMaxMultipathPathsUnsupported returns true if the device does not support
 // bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
