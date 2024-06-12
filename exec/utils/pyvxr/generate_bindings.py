@@ -293,10 +293,11 @@ for name, entry in vxr_conf.get('connections', {}).get('hubs', {}).items():
     connections.append(Connection(parse_connection_end(devices, entry[0]), 
                                     parse_connection_end(devices, entry[1])))
 
-for name, entry in vxr_conf.get('devices', {}).items():
-    for p in entry.get('data_ports', []):
-        if not devices[name].has_data_port(p):
-            devices[name].add_data_port(p)
+if len(connections) == 0:
+    for name, entry in vxr_conf.get('devices', {}).items():
+        for p in entry.get('data_ports', []):
+            if not devices[name].has_data_port(p):
+                devices[name].add_data_port(p)
         
 testbed = {
     'duts': [d.to_testbed_entry() for d in devices.values() if isinstance(d, DUT)],
