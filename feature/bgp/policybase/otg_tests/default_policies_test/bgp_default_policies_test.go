@@ -39,54 +39,54 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	peerGrpName1       = "BGP-PEER-GROUP1"
-	peerGrpName2       = "BGP-PEER-GROUP2"
-	peerGrpName3       = "BGP-PEER-GROUP3"
-	peerGrpName4       = "BGP-PEER-GROUP4"
-	dutAS              = 65501
-	ateAS              = 65502
-	plenIPv4           = 30
-	plenIPv6           = 126
-	dutAreaAddress     = "49.0001"
-	dutSysID           = "1920.0000.2001"
-	otgSysID2          = "640000000001"
-	isisInstance       = "DEFAULT"
-	otgIsisPort2LoopV4 = "203.0.113.10"
-	otgIsisPort2LoopV6 = "2001:db8::203:0:113:10"
-	v4Prefixes         = true
-	rejectAll          = "REJECT-ALL"
-	rejectRoute        = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
-	acceptRoute        = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
-	ebgpImportIPv4     = "EBGP-IMPORT-IPV4"
-	ebgpImportIPv6     = "EBGP-IMPORT-IPV6"
-	ebgpExportIPv4     = "EBGP-EXPORT-IPV4"
-	ebgpExportIPv6     = "EBGP-EXPORT-IPV6"
-	ibgpImportIPv4     = "IBGP-IMPORT-IPV4"
-	ibgpImportIPv6     = "IBGP-IMPORT-IPV6"
-	ibgpExportIPv4     = "IBGP-EXPORT-IPV4"
-	ibgpExportIPv6     = "IBGP-EXPORT-IPV6"
-	maskLengthRange32  = "32..32"
-	maskLengthRange128 = "128..128"
-	maskLen32          = "32"
-	maskLen128         = "128"
-	ipv4Prefix1        = "198.51.100.1"
-	ipv4Prefix2        = "198.51.100.2"
-	ipv4Prefix3        = "198.51.100.3"
-	ipv4Prefix4        = "198.51.100.4"
-	ipv4Prefix5        = "198.51.100.5"
-	ipv4Prefix6        = "198.51.100.6"
-	ipv4Prefix7        = "198.51.100.7"
-	ipv4Prefix8        = "198.51.100.8"
-	ipv6Prefix1        = "2001:DB8:2::1"
-	ipv6Prefix2        = "2001:DB8:2::2"
-	ipv6Prefix3        = "2001:DB8:2::3"
-	ipv6Prefix4        = "2001:DB8:2::4"
-	ipv6Prefix5        = "2001:DB8:2::5"
-	ipv6Prefix6        = "2001:DB8:2::6"
-	ipv6Prefix7        = "2001:DB8:2::7"
-	ipv6Prefix8        = "2001:DB8:2::8"
-	maskLenExact       = "exact"
-	defaultStatementOnly      = true
+	peerGrpName1         = "BGP-PEER-GROUP1"
+	peerGrpName2         = "BGP-PEER-GROUP2"
+	peerGrpName3         = "BGP-PEER-GROUP3"
+	peerGrpName4         = "BGP-PEER-GROUP4"
+	dutAS                = 65501
+	ateAS                = 65502
+	plenIPv4             = 30
+	plenIPv6             = 126
+	dutAreaAddress       = "49.0001"
+	dutSysID             = "1920.0000.2001"
+	otgSysID2            = "640000000001"
+	isisInstance         = "DEFAULT"
+	otgIsisPort2LoopV4   = "203.0.113.10"
+	otgIsisPort2LoopV6   = "2001:db8::203:0:113:10"
+	v4Prefixes           = true
+	rejectAll            = "REJECT-ALL"
+	rejectRoute          = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
+	acceptRoute          = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	ebgpImportIPv4       = "EBGP-IMPORT-IPV4"
+	ebgpImportIPv6       = "EBGP-IMPORT-IPV6"
+	ebgpExportIPv4       = "EBGP-EXPORT-IPV4"
+	ebgpExportIPv6       = "EBGP-EXPORT-IPV6"
+	ibgpImportIPv4       = "IBGP-IMPORT-IPV4"
+	ibgpImportIPv6       = "IBGP-IMPORT-IPV6"
+	ibgpExportIPv4       = "IBGP-EXPORT-IPV4"
+	ibgpExportIPv6       = "IBGP-EXPORT-IPV6"
+	maskLengthRange32    = "32..32"
+	maskLengthRange128   = "128..128"
+	maskLen32            = "32"
+	maskLen128           = "128"
+	ipv4Prefix1          = "198.51.100.1"
+	ipv4Prefix2          = "198.51.100.2"
+	ipv4Prefix3          = "198.51.100.3"
+	ipv4Prefix4          = "198.51.100.4"
+	ipv4Prefix5          = "198.51.100.5"
+	ipv4Prefix6          = "198.51.100.6"
+	ipv4Prefix7          = "198.51.100.7"
+	ipv4Prefix8          = "198.51.100.8"
+	ipv6Prefix1          = "2001:DB8:2::1"
+	ipv6Prefix2          = "2001:DB8:2::2"
+	ipv6Prefix3          = "2001:DB8:2::3"
+	ipv6Prefix4          = "2001:DB8:2::4"
+	ipv6Prefix5          = "2001:DB8:2::5"
+	ipv6Prefix6          = "2001:DB8:2::6"
+	ipv6Prefix7          = "2001:DB8:2::7"
+	ipv6Prefix8          = "2001:DB8:2::8"
+	maskLenExact         = "exact"
+	defaultStatementOnly = true
 )
 
 var (
@@ -635,7 +635,7 @@ func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, a
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	t.Logf("Delete prefix set policies")
-	deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6}) 
+	deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
 	gnmi.BatchDelete(batchConfig, gnmi.OC().RoutingPolicy().Config())
 	batchConfig.Set(t, dut)
 	time.Sleep(20 * time.Second)
