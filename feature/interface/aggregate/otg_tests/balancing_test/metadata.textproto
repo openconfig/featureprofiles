@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {

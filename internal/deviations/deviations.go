@@ -1041,3 +1041,9 @@ func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetModelNameUnsupported()
 }
+
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}

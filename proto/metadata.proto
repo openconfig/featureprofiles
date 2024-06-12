@@ -569,7 +569,9 @@ message Metadata {
     // /components/component/state/model-name of the chassis component must be
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
-    
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 195;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
