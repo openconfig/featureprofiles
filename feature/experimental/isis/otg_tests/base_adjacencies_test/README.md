@@ -104,7 +104,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode:
-  /network-instances/network-instance/protocols/protocol/isis/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-password:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-type:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
@@ -123,54 +123,55 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safis/afi-safi/state/metric:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/cnsp/dropped:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/cnsp/processed:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/cnsp/received:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/cnsp/sent:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/dropped:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/processed:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/received:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/retransmit:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/sent:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/dropped:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/processed:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/received:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/retransmit:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/sent:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/dropped:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/processed:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/received:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/retransmit:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/sent:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/adj-changes:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/adj-number:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/auth-fails:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/auth-type-fails:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/id-field-len-mismatches:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/lan-dis-changes:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/max-area-address-mismatch:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/circuit-counters/state/rejected-adj:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/area-address:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/dis-system-id:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/local-extended-system-id:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/multi-topology:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-circuit-type:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-extended-system-id:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/neighbor-snpa:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/nlpid:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/priority:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/remaining-hold-time:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-status:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-support:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interfaces/levels/level/adjacencies/adjacency/state/restart-suppress:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/dropped:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/processed:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/csnp/state/received:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/cnsnp/state/sent:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/dropped:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/processed:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/received:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/retransmit:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/iih/state/sent:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/dropped:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/processed:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/received:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/retransmit:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/lsp/state/sent:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/dropped:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/processed:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/received:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/retransmit:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/packet-counters/psnp/state/sent:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-number:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/auth-fails:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/auth-type-fails:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/id-field-len-mismatches:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/lan-dis-changes:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/max-area-address-mismatch:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/rejected-adj:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/area-address:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/dis-system-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/local-extended-system-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/multi-topology:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-extended-system-id:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-snpa:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/nlpid:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/priority:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/remaining-hold-time:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-status:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-support:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/restart-suppress:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/state/auth-password:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/database-overloads:
-  /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceeded-max-seq-nums:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/exceed-max-seq-nums:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/id-len-mismatch:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/lsp-errors:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/max-area-address-mismatches:
