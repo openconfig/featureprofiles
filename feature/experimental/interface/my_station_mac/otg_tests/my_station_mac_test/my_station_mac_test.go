@@ -173,6 +173,9 @@ func testTraffic(
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
