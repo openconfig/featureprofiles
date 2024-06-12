@@ -1008,3 +1008,36 @@ func SkipSettingStatementForPolicy(dut *ondatra.DUTDevice) bool {
 func SkipCheckingAttributeIndex(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipCheckingAttributeIndex()
 }
+
+// FlattenPolicyWithMultipleStatements return true if devices does not support policy-chaining
+func FlattenPolicyWithMultipleStatements(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFlattenPolicyWithMultipleStatements()
+}
+
+// SlaacPrefixLength128 for Slaac generated IPv6 link local address
+func SlaacPrefixLength128(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSlaacPrefixLength128()
+}
+
+// DefaultRoutePolicyUnsupported returns true if default route policy is not supported
+func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
+}
+
+// BgpMaxMultipathPathsUnsupported returns true if the device does not support
+// bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
+}
+
+// MultipathUnsupportedNeighborOrAfisafi returns true if the device does not
+// support multipath under neighbor or afisafi.
+func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+}
+
+// ModelNameUnsupported returns true if /components/components/state/model-name
+// is not supported for any component type.
+func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetModelNameUnsupported()
+}
