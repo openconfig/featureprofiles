@@ -98,7 +98,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/authentication/config/auth-type:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/interface-id:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
