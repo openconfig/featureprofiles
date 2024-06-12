@@ -751,7 +751,7 @@ tests:
     path: feature/staticroute/otg_tests/basic_static_route_support_test
     owners:
       - mananpat
-    mustpass: false
+    mustpass: true
   - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
     path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
     owners:
@@ -807,3 +807,39 @@ tests:
     skip: false
     mustpass: true
     priority: 3
+  - name: RT-1.28 (BGP to IS-IS redistribution)
+    path: feature/bgp/bgp_isis_redistribution/otg_tests/bgp_isis_redistribution_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 3041
+  - name: RT-1.33 (BGP Policy with prefix-set matching)
+    path: feature/bgp/policybase/otg_tests/prefix_set_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true    
+  - name: RT-1.51 (BGP multipath ECMP)
+    path: feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true  
+    testbeds:
+      - 8201-32FH_FLM254206E7   
+  - name: RT-7.2 (BGP Policy Community Set)
+    path: feature/bgp/policybase/otg_tests/community_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+  - name: RT-7.3 (BGP Policy AS Path Set)
+    path: feature/bgp/policybase/otg_tests/aspath_test
+    priority: 2
+    owners:
+      - arvbaska
+    mustpass: true
+    timeout: 4200
+    
+
