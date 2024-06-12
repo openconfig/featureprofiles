@@ -4,20 +4,22 @@
 
 This test validates the proper functionality of an egress strict priority scheduler on a network device. By configuring multiple priority queues with specific traffic classes and generating traffic loads that exceed interface capacity, we will verify that the scheduler adheres to the strict priority scheme, prioritizing higher-priority traffic even under congestion.
 
-## QoS traffic test setup:
+## Testbed type
 
-*   Topology:
+*  [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-    *   2 input interfaces and 1 output interface with the same port speed. The
-        interface can be a physical interface or LACP bundle interface with the
-        same aggregated speed.
+## Procedure
+
+### Test environment setup
+
+*   DUT has 2 ingress ports and 1 egress port with the same port speed. The
+    interface can be a physical interface or LACP bundle interface with the
+    same aggregated speed.
 
     ```
-      ATE port 1
-          |
-         DUT--------ATE port 3
-          |
-      ATE port 2
+                                |         | ---- | ATE Port 1 |
+        [ ATE Port 3 ] ----  |   DUT   |      |            |
+                                |         | ---- | ATE Port 2 |
     ```
 
 *   Traffic classes:
@@ -53,11 +55,10 @@ This test validates the proper functionality of an egress strict priority schedu
 
     *   Should be < 100000ns
 
-## Procedure
+#### Configuration
 
-* DUT Configuration:
-    * Forwarding Classes: Configure six forwarding classes (be1, af1, af2, af3, af4, nc1) based on the classification table provided.
-    * Egress Scheduler: Apply a multi-level strict-priority scheduling policy on the desired egress interface. Assign priorities to each forwarding class according to the strict priority test traffic table (be1 - priority 6, af1 - priority 5, ..., nc1 - priority 1).
+*   Forwarding Classes: Configure six forwarding classes (be1, af1, af2, af3, af4, nc1) based on the classification table provided.
+*   Egress Scheduler: Apply a multi-level strict-priority scheduling policy on the desired egress interface. Assign priorities to each forwarding class according to the strict priority test traffic tables (be1 - priority 6, af1 - priority 5, ..., nc1 - priority 1).
 
 * Classification table
 
@@ -70,10 +71,12 @@ This test validates the proper functionality of an egress strict priority schedu
     4,5           |      32-47              |          4,5            |         af4
     6,7           |      48-63              |          6,7            |         nc1
 
-* Traffic Generation:
-    * Traffic Profiles: Define traffic profiles for each forwarding class using the ATE, adhering to the linerates (%) specified in the strict priority test traffic tables.
+### DP-1.15.1: Egress Strict Priority scheduler for IPv4 Traffic
 
-        * Strict Priority Test traffic table for ATE Port 1
+*   Traffic Generation:
+    *   Traffic Profiles: Define traffic profiles for each forwarding class using the ATE, adhering to the linerates (%) specified in the strict priority test traffic tables.
+
+        *   Strict Priority Test traffic table for ATE Port 1
 
         Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
         ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
@@ -84,7 +87,71 @@ This test validates the proper functionality of an egress strict priority schedu
         af4               |      2               |          30                 |      512               |         0
         nc1               |      1               |          1                  |      512               |         0
 
-        * Strict Priority Test traffic table for ATE Port 2
+        *   Strict Priority Test traffic table for ATE Port 2
+
+        Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
+        ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
+        be1               |      6               |          12                 |      512               |         100
+        af1               |      5               |          12                 |      512               |         100
+        af2               |      4               |          10                 |      512               |         50
+        af3               |      3               |          12                 |      512               |         0
+        af4               |      2               |          30                 |      512               |         0
+        nc1               |      1               |          1                  |      512               |         0
+
+
+* Verification:
+    * Loss Rate: Capture packet loss for every generated flow and verify that loss for each flow does not exceed expected loss specified in the tables above.
+    * Telemetry: Utilize OpenConfig telemetry parameters to validate that per queue dropped packets statistics corresponds (with error margin) to the packet loss reported for every flow matching that particular queue.
+
+### DP-1.15.2: Egress Strict Priority scheduler for IPv6 Traffic
+
+*   Traffic Generation:
+    *   Traffic Profiles: Define traffic profiles for each forwarding class using the ATE, adhering to the linerates (%) specified in the strict priority test traffic tables.
+
+        *   Strict Priority Test traffic table for ATE Port 1
+
+        Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
+        ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
+        be1               |      6               |          12                 |      512               |         100
+        af1               |      5               |          12                 |      512               |         100
+        af2               |      4               |          10                 |      512               |         50
+        af3               |      3               |          12                 |      512               |         0
+        af4               |      2               |          30                 |      512               |         0
+        nc1               |      1               |          1                  |      512               |         0
+
+        *   Strict Priority Test traffic table for ATE Port 2
+
+        Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
+        ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
+        be1               |      6               |          12                 |      512               |         100
+        af1               |      5               |          12                 |      512               |         100
+        af2               |      4               |          10                 |      512               |         50
+        af3               |      3               |          12                 |      512               |         0
+        af4               |      2               |          30                 |      512               |         0
+        nc1               |      1               |          1                  |      512               |         0
+
+
+* Verification:
+    * Loss Rate: Capture packet loss for every generated flow and verify that loss for each flow does not exceed expected loss specified in the tables above.
+    * Telemetry: Utilize OpenConfig telemetry parameters to validate that per queue dropped packets statistics corresponds (with error margin) to the packet loss reported for every flow matching that particular queue.
+
+### DP-1.15.3: Egress Strict Priority scheduler for MPLS Traffic
+
+*   Traffic Generation:
+    *   Traffic Profiles: Define traffic profiles for each forwarding class using the ATE, adhering to the linerates (%) specified in the strict priority test traffic tables.
+
+        *   Strict Priority Test traffic table for ATE Port 1
+
+        Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
+        ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
+        be1               |      6               |          12                 |      512               |         100
+        af1               |      5               |          12                 |      512               |         100
+        af2               |      4               |          10                 |      512               |         50
+        af3               |      3               |          12                 |      512               |         0
+        af4               |      2               |          30                 |      512               |         0
+        nc1               |      1               |          1                  |      512               |         0
+
+        *   Strict Priority Test traffic table for ATE Port 2
 
         Forwarding class  |      Priority        |     Traffic linerate  (%)   |      Frame size        |    Expected Loss %
         ----------------- |--------------------- | --------------------------- |---------------------   | -----------------------------------
