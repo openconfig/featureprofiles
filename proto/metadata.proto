@@ -557,8 +557,20 @@ message Metadata {
     bool default_route_policy_unsupported = 190;
     // CISCO: b/339801843
     bool slaac_prefix_length128 = 191;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 192;
+    // Devices does not multipath config at neighbor or afisafi level
+    // Juniper: b/341130490
+    bool multipath_unsupported_neighbor_or_afisafi = 193;
+    // Devices that do not support /components/component/state/model-name for
+    // any component types.
+    // Note that for model name to be supported, the
+    // /components/component/state/model-name of the chassis component must be
+    // equal to the canonical hardware model name of its device.
+    bool model_name_unsupported = 194;
     // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
-    bool community_match_with_redistribution_unsupported = 192;  
+    bool community_match_with_redistribution_unsupported = 195;  
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;

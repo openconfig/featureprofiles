@@ -55,13 +55,17 @@ type properties struct {
 	serialNoValidation    bool
 	mfgNameValidation     bool
 	mfgDateValidation     bool
-	swVerValidation       bool
-	hwVerValidation       bool
-	fwVerValidation       bool
-	rrValidation          bool
-	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	parentValidation      bool
-	pType                 oc.Component_Type_Union
+	// If modelNameValidation is being used, the /components/component/state/model-name
+	// of the chassis component must be equal to the ondatra hardware_model name
+	// of its device.
+	modelNameValidation bool
+	swVerValidation     bool
+	hwVerValidation     bool
+	fwVerValidation     bool
+	rrValidation        bool
+	operStatus          oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	parentValidation    bool
+	pType               oc.Component_Type_Union
 }
 
 func TestMain(m *testing.M) {
@@ -93,6 +97,7 @@ func TestMain(m *testing.M) {
 //   - Validate telemetry /components/component/storage exists.
 //   - TempSensor
 //   - Validate telemetry /components/component/state/temperature/instant exists.
+//	 - Validate telemetry /components/component/state/model-name for Chassis.
 //
 // Topology:
 //
@@ -133,6 +138,7 @@ func TestHardwareCards(t *testing.T) {
 				serialNoValidation:    true,
 				mfgNameValidation:     true,
 				mfgDateValidation:     false,
+				modelNameValidation:   true,
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
@@ -756,6 +762,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						break
 					}
 					cur = parent
+				}
+			}
+
+			if p.modelNameValidation {
+				if deviations.ModelNameUnsupported(dut) {
+					t.Logf("Telemetry path /components/component/state/model-name is not supported due to deviation ModelNameUnsupported. Skipping model name validation.")
+				} else if card.GetModelName() != dut.Model() {
+					t.Errorf("Component %s ModelName: got %s, want %s (dut's hardware model)", cName, card.GetModelName(), dut.Model())
 				}
 			}
 
