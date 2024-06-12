@@ -826,6 +826,8 @@ tests:
     owners:
       - arvbaska
     mustpass: true  
+    testbeds:
+      - 8201-32FH_FLM254206E7   
   - name: RT-7.2 (BGP Policy Community Set)
     path: feature/bgp/policybase/otg_tests/community_test
     priority: 2
@@ -838,5 +840,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true
+    timeout: 4200
     
 
