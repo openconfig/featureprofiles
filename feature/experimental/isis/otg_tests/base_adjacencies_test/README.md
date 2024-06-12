@@ -52,7 +52,7 @@ Base ISIS functionality and adjacency establishment.
     *   Confirm in each case that that adjacency forms and the correct values
         are reported back by the device.
 
-### RT-2.1.5 ISIS circuit-type point-to-point
+### RT-2.1.4 ISIS circuit-type point-to-point
 
 *   Configuration:
     *   Configure ISIS for ATE port-1 and DUT port-1.
@@ -61,7 +61,7 @@ Base ISIS functionality and adjacency establishment.
     *   Verify that ISIS adjacency is coming up.
     *   Verify the output of streaming telemetry path displaying the interface circuit-type as point-to-point.
 
-### RT-2.1.4 Routing test
+### RT-2.1.5 Routing test
 
 *   Configuration:
     *   Configure ISIS between DUT:port1 and ATE:port1 and between DUT:port2 and ATE:port2
