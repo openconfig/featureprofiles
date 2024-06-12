@@ -2127,6 +2127,11 @@ func (x *Metadata_Deviations) GetMultipathUnsupportedNeighborOrAfisafi() bool {
 
 func (x *Metadata_Deviations) GetModelNameUnsupported() bool {
 	if x != nil {
+		return x.ModelNameUnsupported
+	}
+
+	return false
+}
 
 func (x *Metadata_Deviations) GetCommunityMatchWithRedistributionUnsupported() bool {
 	if x != nil {
