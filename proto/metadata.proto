@@ -571,7 +571,7 @@ message Metadata {
     bool model_name_unsupported = 194;
     // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
     bool community_match_with_redistribution_unsupported = 195;  
-
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
