@@ -7,11 +7,28 @@ description: "Telemetry: Inventory"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    model_name_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    model_name_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: JUNIPER
   }
   deviations: {
     switch_chip_id_unsupported: true
     backplane_facing_capacity_unsupported: true
+    model_name_unsupported: true
     storage_component_unsupported: true
   }
 }
@@ -21,6 +38,7 @@ platform_exceptions: {
   }
   deviations: {
     backplane_facing_capacity_unsupported: true
+    model_name_unsupported: true
   }
 }
 
