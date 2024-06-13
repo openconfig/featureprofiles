@@ -20,8 +20,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/ogier/pflag v0.0.1
-	github.com/open-traffic-generator/snappi/gosnappi v1.3.0
-	github.com/openconfig/bootz v0.1.1
+	github.com/open-traffic-generator/snappi/gosnappi v1.1.0
+	github.com/openconfig/bootz v0.2.0
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.11.0
 	github.com/openconfig/gnoi v0.4.0

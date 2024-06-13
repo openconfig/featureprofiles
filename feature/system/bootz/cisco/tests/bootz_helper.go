@@ -15,6 +15,7 @@
 package bootz
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -33,6 +34,7 @@ import (
 	"io"
 	"log"
 	"math/big"
+	randnum "math/rand"
 	"net"
 	"net/netip"
 	"os"
@@ -426,13 +428,13 @@ var (
 	serialNumber     = "FOC2248NEF1"
 	modelName        = "N540-24Z8Q2C-M"
 	username         = "kgadwal@cisco.com"
-	kgadwalToken     = "Bearer " + `gAAAAABlVvi8UJPwqQxkQos4fpenhpZYQngd2Id_zRttWv8JN7m4UUTT1cSvtQdoUoIOft8Pux9VVSX_3X_sNQEUvEjBf-_oyJTgxTHb33dLDp0rzZjrmSrtYdA9N8IBEiN3pFSWFHMdROzptf7zMkLpRiw4tZhSOynkVMh7eYUDPHVrTj7Tg2_KBhwTlSsuVfjP_1RodbHmIvZ_RoD0Wet_kW9DnXhT-A==`
+	kgadwalToken     = "Bearer " + `gAAAAABmPRbctG-1r0eDgqmjV7GfXmw4fdc4Kyo3ha7pMkwVhsjAaO3rxkcRMon31Vgkn5KbZS5h-mWBaI1kRDEyPIu7WJdvFJM8xbHzKxh0A4_y4TgWvko-7Yrbr8Cj477ymWC38vDFhlcqujNynxpG-fMtyWA-QvttYMPAFS2ePL2Q3ze0zKxEIicK7h-6nh2BoT4tQK4sBEDFDHi4XsmH75HlQtDcEA==`
 	pdcFile          = "testdata/pdc.cert.pem"
 	voucherGenerated = "testdata/testvoucher.vcj"
 )
 
 var (
-	token    = flag.String("token", "gAAAAABlSbRzxrmJPvqZ-Rn0n_bfKi3EFUKmgCrwBhmc0UAzT_4rKhFFlRVL94O9OQi_GSv0MqhBTZl7xmZvsTB-uHAfhn485JbJqP6xWfuFA9Iayn4CLMKMrSB5JpA9oF6VOTo0xihJ7gjS2nIuS6U6xvTzct1rrg2xjM16A7jkG9URb_6jUEsqiyraLaUfHXKF8EVW4YzMMKFbzy2YfdeyjDDGy9U99Q==", "Token to login to masa-grpc.cisco.com")
+	token    = flag.String("token", "gAAAAABmPRbctG-1r0eDgqmjV7GfXmw4fdc4Kyo3ha7pMkwVhsjAaO3rxkcRMon31Vgkn5KbZS5h-mWBaI1kRDEyPIu7WJdvFJM8xbHzKxh0A4_y4TgWvko-7Yrbr8Cj477ymWC38vDFhlcqujNynxpG-fMtyWA-QvttYMPAFS2ePL2Q3ze0zKxEIicK7h-6nh2BoT4tQK4sBEDFDHi4XsmH75HlQtDcEA==", "Token to login to masa-grpc.cisco.com")
 	groupID  = flag.String("groupID", "627eb6a03d6a047295eff74a", "Specify the group ID that user belongs to")
 	groupDes = flag.String("groupDes", "Dev Test", "Specify the Group Description that user belongs to")
 	orgID    = flag.String("orgID", "org-Dev Test", "Specify the Org ID that user belongs to")
@@ -477,8 +479,8 @@ func generateVoucherClient(t *testing.T) (ovgs.OwnershipVoucherServiceClient, co
 	return ovsC, ctx
 
 }
-func readPDCreturnParsed(pdcFile string) []byte {
 
+func readPDCreturnParsed(pdcFile string) []byte {
 	caCertBytes, err := os.ReadFile(pdcFile)
 	if err != nil {
 		fmt.Printf("Could not open the cert file %v \n", err)
@@ -510,7 +512,7 @@ func generateOV(t *testing.T, serial string) string {
 	t.Logf("Add Serial Number response %v", addResp.String())
 
 	//Create Domain Cert
-	expiryDate := timestamppb.New(time.Date(2024, 12, 1, 1, 1, 1, 1, time.UTC))
+	expiryDate := timestamppb.New(time.Now().AddDate(0, 0, 365).UTC())
 	domainCertReq := &ovgs.CreateDomainCertRequest{
 		GroupId:        *groupID,
 		CertificateDer: readPDCreturnParsed("testdata/pdc.cert.pem"),
@@ -532,7 +534,7 @@ func generateOV(t *testing.T, serial string) string {
 	reqOV := &ovgs.GetOwnershipVoucherRequest{
 		Component: &ovgs.Component{SerialNumber: serial},
 		CertId:    domainCertresp.CertId,
-		Lifetime:  timestamppb.New(time.Date(2024, 12, 1, 1, 1, 1, 1, time.UTC)),
+		Lifetime:  timestamppb.New(time.Now().AddDate(0, 0, 365).UTC()),
 	}
 	t.Logf("Getting OV serial number request: %v", prettyPrint(reqOV))
 	voucherGot, err := ovsC.GetOwnershipVoucher(ctx, reqOV)
@@ -546,5 +548,104 @@ func generateOV(t *testing.T, serial string) string {
 		t.Errorf("Err while writing voucher to the file %v", err)
 	}
 	return fmt.Sprintf("testdata/%v.ov", serial)
+}
 
+// Takes a list of serial nums to generate vouchers for and returns a byte slice of the resulting tar archive
+func GenerateOwnershipVoucherBundle(t *testing.T, serialNums []string) []byte {
+	ovsC, ctx := generateVoucherClient(t)
+
+	type archiveEntry struct {
+		Name string
+		Body []byte
+	}
+
+	var files []archiveEntry
+
+	for _, serial := range serialNums {
+		//Add Serial Number
+		serialNumberReq := &ovgs.AddSerialRequest{Component: &ovgs.Component{SerialNumber: serial}, GroupId: *groupID}
+		t.Logf("Adding  serial number request: %v", prettyPrint(serialNumberReq))
+		addResp, err := ovsC.AddSerial(ctx, serialNumberReq)
+		if (err != nil) && (!strings.Contains(err.Error(), "This serial number has already been added to this organization")) {
+			t.Logf("Error while adding Serial Number %v ", err)
+			return nil
+		}
+		t.Logf("Add Serial Number response %v", addResp.String())
+
+		//Create Domain Cert
+		expiryDate := timestamppb.New(time.Now().AddDate(0, 0, 365).UTC())
+		domainCertReq := &ovgs.CreateDomainCertRequest{
+			GroupId:        *groupID,
+			CertificateDer: readPDCreturnParsed("testdata/pdc.cert.pem"),
+			ExpiryTime:     expiryDate,
+		}
+		t.Logf("Creating Domain Cert : %s\n", prettyPrint(domainCertReq.GetCertificateDer()))
+
+		domainCertresp, err := ovsC.CreateDomainCert(ctx, domainCertReq)
+		if err != nil {
+			t.Fatalf("Create Domain Cert failed: %v \n", err)
+		}
+		//Get Domain Cert
+		domainCertGetReq := &ovgs.GetDomainCertRequest{CertId: domainCertresp.GetCertId()}
+		domainCertGetRes, err := ovsC.GetDomainCert(ctx, domainCertGetReq)
+		if err != nil {
+			t.Errorf("Getting Domain Cert failed: %v \n", err)
+		}
+		t.Logf("Domain Cert response %v", domainCertGetRes)
+		reqOV := &ovgs.GetOwnershipVoucherRequest{
+			Component: &ovgs.Component{SerialNumber: serial},
+			CertId:    domainCertresp.CertId,
+			Lifetime:  timestamppb.New(time.Now().AddDate(0, 0, 365).UTC()),
+		}
+		t.Logf("Getting OV serial number request: %v", prettyPrint(reqOV))
+		voucherGot, err := ovsC.GetOwnershipVoucher(ctx, reqOV)
+		if err != nil {
+			fmt.Printf("Getting Voucher is failed %v \n", err)
+		}
+
+		t.Logf("Voucher in CMS format %v", string(voucherGot.GetVoucherCms()))
+
+		files = append(files, archiveEntry{
+			Name: fmt.Sprintf("%s.vcj", serial),
+			Body: voucherGot.GetVoucherCms(),
+		})
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	for _, file := range files {
+		hdr := &tar.Header{
+			Name: file.Name,
+			Mode: 0600,
+			Size: int64(len(file.Body)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			log.Fatal(err)
+		}
+		if _, err := tw.Write(file.Body); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if err := tw.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	// return archiveName
+	return buf.Bytes()
+
+}
+
+// generates a corrupt ownership voucher bundle
+func generateCorruptOwnershipVoucherBundle(t *testing.T, serialNums []string) []byte {
+	bytes := GenerateOwnershipVoucherBundle(t, serialNums)
+	for i := range bytes {
+		random := randnum.Intn(3)
+		// 1/4 chance for a byte to become corrupted with a random byte
+		if random == 0 {
+			bytes[i] = byte(randnum.Intn(255))
+		}
+	}
+	return bytes
 }
