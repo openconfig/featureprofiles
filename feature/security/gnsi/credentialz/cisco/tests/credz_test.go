@@ -827,9 +827,8 @@ func TestCredentialz_2(t *testing.T) {
 	log.Infof("Aollowed Authentication request type Password, PubKey and KBDInteractive")
 	rotateHostParametersRequest(t, hostParamStream, aareq)
 	finalizeHostRequest(t, hostParamStream)
-	hostParamStream.CloseSend()
 	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	var akreq credz.AuthorizedKeysRequest
 
 	credentialsData := createAccountCredentials(filePath, accountName)
@@ -868,6 +867,7 @@ func TestCredentialz_2(t *testing.T) {
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
 		time.Sleep(2 * time.Second)
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err != nil {
 			t.Fatalf("Error in establishing SSH connection with password: %v", err.Error())
@@ -896,6 +896,9 @@ func TestCredentialz_2(t *testing.T) {
 
 	})
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+
 	t.Run("set Pubkey as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePubkey []credz.AuthenticationType
 		authTypePubkey = append(authTypePubkey, credz.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY)
@@ -907,7 +910,7 @@ func TestCredentialz_2(t *testing.T) {
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
 		time.Sleep(2 * time.Second)
-
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err == nil {
 			t.Fatalf("Establishing SSH connection with password which is not expected")
@@ -939,6 +942,8 @@ func TestCredentialz_2(t *testing.T) {
 	aareq = credz.AllowedAuthenticationRequest{
 		AuthenticationTypes: authTypes,
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 	log.Infof("Aollowed Authentication request type Password, PubKey and KBDInteractive")
 	rotateHostParametersRequest(t, hostParamStream, aareq)
 	finalizeHostRequest(t, hostParamStream)
@@ -999,6 +1004,8 @@ func TestCredentialz_3(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1031,9 +1038,13 @@ func TestCredentialz_3(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	t.Run("Client Based Authentication", func(t *testing.T) {
 		errCount := 0
@@ -1150,7 +1161,7 @@ func TestCredentialz_4(t *testing.T) {
 	roatateAccountCredentialsRequest(t, stream, akreq)
 
 	finalizeAccountRequest(t, stream)
-
+	stream.CloseSend()
 	t.Run("PublicKey Based Authentication", func(t *testing.T) {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1178,6 +1189,9 @@ func TestCredentialz_4(t *testing.T) {
 		Version:   "1.1",
 		CreatedOn: 123}
 	akreqForNeg.Credentials = append(akreqForNeg.Credentials, &credentials)
+
+	stream, err = gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+	defer stream.CloseSend()
 
 	log.Infof("Removing all authorized keys from user")
 	roatateAccountCredentialsRequest(t, stream, akreqForNeg)
@@ -1310,7 +1324,7 @@ func TestCredentialz_5(t *testing.T) {
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	caPubkey, err := os.ReadFile(fmt.Sprintf("%s/ca.pub", filePath))
 	if err != nil {
 		t.Fatalf("Error in reading ca Pubkey file: %v", err.Error())
@@ -1320,9 +1334,12 @@ func TestCredentialz_5(t *testing.T) {
 		Version:         "1.1",
 		CreatedOn:       123}
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
-
+	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 	err = createGrantFileWithClientName(hibaGenPath, grantsFile, idKeyPairs)
 	if err != nil {
 		t.Fatalf("Error creating grants file with client name: %v", err.Error())
@@ -1345,10 +1362,12 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq := credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(1),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	out, err := createSSHClientWithCmd(tartgetIP, tartgetPort, fmt.Sprintf("%s/%s-cert.pub", usersFilePath, accountName),
 		fmt.Sprintf("%s/%s", usersFilePath, accountName), accountName)
 	if err != nil {
@@ -1363,8 +1382,12 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq = credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(0),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
+	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 }
 
 func TestPubkeyWithHA(t *testing.T) {
@@ -1496,6 +1519,7 @@ func TestExpiredHostCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1527,6 +1551,9 @@ func TestExpiredHostCert(t *testing.T) {
 		authArtifacts = append(authArtifacts, auArtifacts)
 	}
 	skreq.AuthArtifacts = authArtifacts
+
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 
 	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
@@ -1595,6 +1622,8 @@ func TestExpiredClientCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1626,6 +1655,9 @@ func TestExpiredClientCert(t *testing.T) {
 		authArtifacts = append(authArtifacts, auArtifacts)
 	}
 	skreq.AuthArtifacts = authArtifacts
+
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
 
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
@@ -1718,6 +1750,8 @@ func TestClientCertWithHA(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1750,10 +1784,13 @@ func TestClientCertWithHA(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	sshVerification := func() {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
