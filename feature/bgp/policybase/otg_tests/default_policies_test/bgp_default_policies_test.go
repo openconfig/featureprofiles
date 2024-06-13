@@ -15,8 +15,6 @@
 package bgp_default_policies_test
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -26,7 +24,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -42,54 +39,54 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	peerGrpName1       = "BGP-PEER-GROUP1"
-	peerGrpName2       = "BGP-PEER-GROUP2"
-	peerGrpName3       = "BGP-PEER-GROUP3"
-	peerGrpName4       = "BGP-PEER-GROUP4"
-	dutAS              = 65501
-	ateAS              = 65502
-	plenIPv4           = 30
-	plenIPv6           = 126
-	dutAreaAddress     = "49.0001"
-	dutSysID           = "1920.0000.2001"
-	otgSysID2          = "640000000001"
-	isisInstance       = "DEFAULT"
-	otgIsisPort2LoopV4 = "203.0.113.10"
-	otgIsisPort2LoopV6 = "2001:db8::203:0:113:10"
-	v4Prefixes         = true
-	rejectAll          = "REJECT-ALL"
-	rejectRoute        = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
-	acceptRoute        = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
-	ebgpImportIPv4     = "EBGP-IMPORT-IPV4"
-	ebgpImportIPv6     = "EBGP-IMPORT-IPV6"
-	ebgpExportIPv4     = "EBGP-EXPORT-IPV4"
-	ebgpExportIPv6     = "EBGP-EXPORT-IPV6"
-	ibgpImportIPv4     = "IBGP-IMPORT-IPV4"
-	ibgpImportIPv6     = "IBGP-IMPORT-IPV6"
-	ibgpExportIPv4     = "IBGP-EXPORT-IPV4"
-	ibgpExportIPv6     = "IBGP-EXPORT-IPV6"
-	maskLengthRange32  = "32..32"
-	maskLengthRange128 = "128..128"
-	maskLen32          = "32"
-	maskLen128         = "128"
-	ipv4Prefix1        = "198.51.100.1"
-	ipv4Prefix2        = "198.51.100.2"
-	ipv4Prefix3        = "198.51.100.3"
-	ipv4Prefix4        = "198.51.100.4"
-	ipv4Prefix5        = "198.51.100.5"
-	ipv4Prefix6        = "198.51.100.6"
-	ipv4Prefix7        = "198.51.100.7"
-	ipv4Prefix8        = "198.51.100.8"
-	ipv6Prefix1        = "2001:DB8:2::1"
-	ipv6Prefix2        = "2001:DB8:2::2"
-	ipv6Prefix3        = "2001:DB8:2::3"
-	ipv6Prefix4        = "2001:DB8:2::4"
-	ipv6Prefix5        = "2001:DB8:2::5"
-	ipv6Prefix6        = "2001:DB8:2::6"
-	ipv6Prefix7        = "2001:DB8:2::7"
-	ipv6Prefix8        = "2001:DB8:2::8"
-	maskLenExact       = "exact"
-	replacePolicy      = true
+	peerGrpName1         = "BGP-PEER-GROUP1"
+	peerGrpName2         = "BGP-PEER-GROUP2"
+	peerGrpName3         = "BGP-PEER-GROUP3"
+	peerGrpName4         = "BGP-PEER-GROUP4"
+	dutAS                = 65501
+	ateAS                = 65502
+	plenIPv4             = 30
+	plenIPv6             = 126
+	dutAreaAddress       = "49.0001"
+	dutSysID             = "1920.0000.2001"
+	otgSysID2            = "640000000001"
+	isisInstance         = "DEFAULT"
+	otgIsisPort2LoopV4   = "203.0.113.10"
+	otgIsisPort2LoopV6   = "2001:db8::203:0:113:10"
+	v4Prefixes           = true
+	rejectAll            = "REJECT-ALL"
+	rejectRoute          = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
+	acceptRoute          = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	ebgpImportIPv4       = "EBGP-IMPORT-IPV4"
+	ebgpImportIPv6       = "EBGP-IMPORT-IPV6"
+	ebgpExportIPv4       = "EBGP-EXPORT-IPV4"
+	ebgpExportIPv6       = "EBGP-EXPORT-IPV6"
+	ibgpImportIPv4       = "IBGP-IMPORT-IPV4"
+	ibgpImportIPv6       = "IBGP-IMPORT-IPV6"
+	ibgpExportIPv4       = "IBGP-EXPORT-IPV4"
+	ibgpExportIPv6       = "IBGP-EXPORT-IPV6"
+	maskLengthRange32    = "32..32"
+	maskLengthRange128   = "128..128"
+	maskLen32            = "32"
+	maskLen128           = "128"
+	ipv4Prefix1          = "198.51.100.1"
+	ipv4Prefix2          = "198.51.100.2"
+	ipv4Prefix3          = "198.51.100.3"
+	ipv4Prefix4          = "198.51.100.4"
+	ipv4Prefix5          = "198.51.100.5"
+	ipv4Prefix6          = "198.51.100.6"
+	ipv4Prefix7          = "198.51.100.7"
+	ipv4Prefix8          = "198.51.100.8"
+	ipv6Prefix1          = "2001:DB8:2::1"
+	ipv6Prefix2          = "2001:DB8:2::2"
+	ipv6Prefix3          = "2001:DB8:2::3"
+	ipv6Prefix4          = "2001:DB8:2::4"
+	ipv6Prefix5          = "2001:DB8:2::5"
+	ipv6Prefix6          = "2001:DB8:2::6"
+	ipv6Prefix7          = "2001:DB8:2::7"
+	ipv6Prefix8          = "2001:DB8:2::8"
+	maskLenExact         = "exact"
+	defaultStatementOnly = true
 )
 
 var (
@@ -195,6 +192,13 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	for _, pref := range ipPrefixSet {
 		pset.GetOrCreatePrefix(pref+"/"+maskLen, prefixSubnetRange)
+		mode := oc.PrefixSet_Mode_IPV4
+		if maskLen == maskLen128 {
+			mode = oc.PrefixSet_Mode_IPV6
+		}
+		if !deviations.SkipPrefixSetMode(dut) {
+			pset.SetMode(mode)
+		}
 	}
 
 	pdef := rp.GetOrCreatePolicyDefinition(prefixSet)
@@ -422,9 +426,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
+	time.Sleep(40 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(40 * time.Second)
 }
 
 func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
@@ -523,11 +527,15 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 		isisIntfLevelAfi.Metric = ygot.Uint32(200)
 		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		isisIntfLevelAfi6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		isisIntfLevelAfi6.Metric = ygot.Uint32(200)
+		isisIntfLevelAfi6.Enabled = ygot.Bool(true)
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntf.Af = nil
 		}
 		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 			isisIntfLevelAfi.Enabled = nil
+			isisIntfLevelAfi6.Enabled = nil
 		}
 	}
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
@@ -583,57 +591,77 @@ func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList
 	}
 }
 
-func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, action string, replace bool) {
-
-	var routingPolicyDefaultAction = []any{
-		map[string]any{
-			"default-action": map[string]any{
-				"policy-result": action,
-			},
-		},
+func configurePrefixMatchAndDefaultStatement(t *testing.T, dut *ondatra.DUTDevice, prefixSet, prefixSubnetRange, maskLen string, ipPrefixSet []string, action string, defaultStatementOnly bool) *oc.RoutingPolicy {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	if !defaultStatementOnly {
+		pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
+		for _, pref := range ipPrefixSet {
+			pset.GetOrCreatePrefix(pref+"/"+maskLen, prefixSubnetRange)
+			mode := oc.PrefixSet_Mode_IPV4
+			if maskLen == maskLen128 {
+				mode = oc.PrefixSet_Mode_IPV6
+			}
+			if !deviations.SkipPrefixSetMode(dut) {
+				pset.SetMode(mode)
+			}
+		}
 	}
-	defaultAction, err := json.Marshal(routingPolicyDefaultAction)
+
+	pdef := rp.GetOrCreatePolicyDefinition(prefixSet)
+	if !defaultStatementOnly {
+		stmt1, err := pdef.AppendNewStatement("10")
+		if err != nil {
+			t.Fatal(err)
+		}
+		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().PrefixSet = ygot.String(prefixSet)
+		stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	}
+	stmt2, err := pdef.AppendNewStatement("50")
 	if err != nil {
-		t.Fatalf("Error with json Marshal: %v", err)
+		t.Fatal(err)
+	}
+	stmt2.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	if action == "reject" {
+		stmt2.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 	}
 
-	var updates []*gpb.Update
-	for _, policy := range []string{ebgpExportIPv4, ebgpExportIPv6, ibgpExportIPv4, ibgpExportIPv6, ebgpImportIPv4, ebgpImportIPv6, ibgpImportIPv4, ibgpImportIPv6} {
-		update := gpb.Update{
-			Path: &gpb.Path{
-				Elem: []*gpb.PathElem{
-					{Name: "routing-policy"},
-					{Name: "policy", Key: map[string]string{"name": policy}},
-				},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_JsonIetfVal{
-					JsonIetfVal: defaultAction,
-				},
-			},
-		}
-		updates = append(updates, &update)
-	}
-	gpbSetRequest := &gpb.SetRequest{
-		Prefix: &gpb.Path{
-			Origin: "native",
-		},
-		Update: updates,
-	}
-	if replace {
-		gpbSetRequest = &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: updates,
-		}
-	}
+	return rp
+}
 
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Unexpected error updating SRL routing-policy default-action: %v", err)
-	}
-	time.Sleep(5 * time.Second)
+func configureRoutingPolicyDefaultAction(t *testing.T, dut *ondatra.DUTDevice, action string, defaultStatementOnly bool) {
+	t.Helper()
+	batchConfig := &gnmi.SetBatch{}
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	t.Logf("Delete prefix set policies")
+	deleteBGPPolicy(t, dut, []*bgpNbrList{ebgpNbrV4, ebgpNbrV6, ibgpNbrV4, ibgpNbrV6})
+	gnmi.BatchDelete(batchConfig, gnmi.OC().RoutingPolicy().Config())
+	batchConfig.Set(t, dut)
+	time.Sleep(20 * time.Second)
+
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix1, ipv4Prefix2}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpImportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix1, ipv6Prefix2}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpExportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix4}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ebgpExportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix4}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ibgpImportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix4, ipv4Prefix5}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ibgpImportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix4, ipv6Prefix5}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ibgpExportIPv4, maskLenExact, maskLen32, []string{ipv4Prefix1}, action, defaultStatementOnly))
+	gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchAndDefaultStatement(t, dut, ibgpExportIPv6, maskLenExact, maskLen128, []string{ipv6Prefix1}, action, defaultStatementOnly))
+
+	// Apply the above policies to the respective peering at the respective AFI-SAFI levels
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgpNbrV4.nbrAddr).AfiSafi(ebgpNbrV4.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{ebgpImportIPv4})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgpNbrV4.nbrAddr).AfiSafi(ebgpNbrV4.afiSafi).ApplyPolicy().ExportPolicy().Config(), []string{ebgpExportIPv4})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgpNbrV6.nbrAddr).AfiSafi(ebgpNbrV6.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{ebgpImportIPv6})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ebgpNbrV6.nbrAddr).AfiSafi(ebgpNbrV6.afiSafi).ApplyPolicy().ExportPolicy().Config(), []string{ebgpExportIPv6})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ibgpNbrV4.nbrAddr).AfiSafi(ibgpNbrV4.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{ibgpImportIPv4})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ibgpNbrV4.nbrAddr).AfiSafi(ibgpNbrV4.afiSafi).ApplyPolicy().ExportPolicy().Config(), []string{ibgpExportIPv4})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ibgpNbrV6.nbrAddr).AfiSafi(ibgpNbrV6.afiSafi).ApplyPolicy().ImportPolicy().Config(), []string{ibgpImportIPv6})
+	gnmi.BatchReplace(batchConfig, bgpPath.Neighbor(ibgpNbrV6.nbrAddr).AfiSafi(ibgpNbrV6.afiSafi).ApplyPolicy().ExportPolicy().Config(), []string{ibgpExportIPv6})
+
+	batchConfig.Set(t, dut)
+
+	time.Sleep(20 * time.Second)
 }
 
 func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
@@ -641,7 +669,7 @@ func testDefaultPolicyRejectRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Run("Create and apply default-policy REJECT-ALL with action as REJECT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			configureRoutingPolicyDefaultAction(t, dut, "reject", !replacePolicy)
+			configureRoutingPolicyDefaultAction(t, dut, "reject", !defaultStatementOnly)
 		} else {
 			configureBGPDefaultPolicy(t, dut, rejectRoute)
 		}
@@ -665,7 +693,7 @@ func testDefaultPolicyAcceptRouteAction(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Run("Create and apply default-policy ACCEPT-ALL with action as ACCEPT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			configureRoutingPolicyDefaultAction(t, dut, "accept", !replacePolicy)
+			configureRoutingPolicyDefaultAction(t, dut, "accept", !defaultStatementOnly)
 		} else {
 			configureBGPDefaultPolicy(t, dut, acceptRoute)
 		}
@@ -690,7 +718,7 @@ func testDefaultPolicyAcceptRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 
 	t.Run("Create and apply default-policy ACCEPT-ALL with action as ACCEPT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			configureRoutingPolicyDefaultAction(t, dut, "accept", replacePolicy)
+			configureRoutingPolicyDefaultAction(t, dut, "accept", defaultStatementOnly)
 		} else {
 			configureBGPDefaultPolicy(t, dut, acceptRoute)
 			t.Run("Delete prefix set policies", func(t *testing.T) {
@@ -730,7 +758,7 @@ func testDefaultPolicyRejectRouteActionOnly(t *testing.T, dut *ondatra.DUTDevice
 
 	t.Run("Create and apply default-policy REJECT-ALL with action as REJECT_ROUTE", func(t *testing.T) {
 		if deviations.BgpDefaultPolicyUnsupported(dut) {
-			configureRoutingPolicyDefaultAction(t, dut, "reject", replacePolicy)
+			configureRoutingPolicyDefaultAction(t, dut, "reject", defaultStatementOnly)
 		} else {
 			configureBGPDefaultPolicy(t, dut, rejectRoute)
 		}
@@ -829,14 +857,14 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRxPrePol, ok := val.Val()
 			return ok && gotRxPrePol == nbr.wantRxPrePolicy
 		}).Await(t); !ok {
 			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePolicy)
 		}
 	}
-	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 10*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 20*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, ok := val.Val()
 		return ok && gotRx == nbr.wantRx
 	}).Await(t); !ok {
