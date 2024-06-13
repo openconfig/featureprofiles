@@ -851,7 +851,9 @@ func TestCredentialz_2(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("Set Password as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePwd []credz.AuthenticationType
 		authTypePwd = append(authTypePwd, credz.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD)
@@ -898,7 +900,9 @@ func TestCredentialz_2(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("set Pubkey as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePubkey []credz.AuthenticationType
 		authTypePubkey = append(authTypePubkey, credz.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY)
@@ -944,6 +948,9 @@ func TestCredentialz_2(t *testing.T) {
 	}
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	log.Infof("Aollowed Authentication request type Password, PubKey and KBDInteractive")
 	rotateHostParametersRequest(t, hostParamStream, aareq)
 	finalizeHostRequest(t, hostParamStream)
@@ -1039,6 +1046,9 @@ func TestCredentialz_3(t *testing.T) {
 	skreq.AuthArtifacts = authArtifacts
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	defer hostParamStream.CloseSend()
 
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
@@ -1192,6 +1202,9 @@ func TestCredentialz_4(t *testing.T) {
 
 	stream, err = gnsiC.Credentialz().RotateAccountCredentials(context.Background())
 	defer stream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 
 	log.Infof("Removing all authorized keys from user")
 	roatateAccountCredentialsRequest(t, stream, akreqForNeg)
@@ -1336,6 +1349,9 @@ func TestCredentialz_5(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
@@ -1364,6 +1380,9 @@ func TestCredentialz_5(t *testing.T) {
 	}
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
@@ -1384,6 +1403,9 @@ func TestCredentialz_5(t *testing.T) {
 	}
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
@@ -1554,7 +1576,9 @@ func TestExpiredHostCert(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
 		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
@@ -1658,7 +1682,9 @@ func TestExpiredClientCert(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	hostParamStream.CloseSend()
@@ -1786,7 +1812,9 @@ func TestClientCertWithHA(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	time.Sleep(2 * time.Second)
