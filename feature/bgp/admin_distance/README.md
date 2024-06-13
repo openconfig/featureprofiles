@@ -59,7 +59,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
 *   Validate that the traffic is received on port-1 of the ATE
 
-### RT-1.34.3 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
+### RT-1.34.4 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
 #### Validate traffic with modified iBGP Route-Distance of 250
 *   Configure Route-Distance of iBGP session on port-1 to 250
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
