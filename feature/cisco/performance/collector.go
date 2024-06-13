@@ -32,8 +32,6 @@ var (
 	localRun = flag.Bool("local_run", false, "Used for local run")
 	firexRun = flag.Bool("firex_run", false, "Set env variables for firex run")
 	noDbRun  = flag.Bool("no_db_run", true, "Don't upload to database")
-
-	cache = make(map[*ondatra.DUTDevice]metadata)
 )
 
 type PerformanceData struct {
@@ -87,17 +85,14 @@ type metadata struct {
 	chassis  string
 }
 
-type FinishCollection func() ([]PerformanceData, error)
+type Collector struct {
+	metadata
+	EndCollector func()([]PerformanceData, error)
+	pauseWg *sync.WaitGroup
+}
 
 // Checks cache to see if dut already has had metadata gathered. If not then it will gather it.
-func getMetadata(t *testing.T, dut *ondatra.DUTDevice) (*metadata, error) {
-	var m metadata
-	m, ok := cache[dut]
-	if ok {
-		return &m, nil
-	}
-
-	m = metadata{}
+func (c *Collector) getMetadata(t *testing.T, dut *ondatra.DUTDevice) (*metadata, error) {
 
 	cliClient := dut.RawAPIs().CLI(t)
 	scale, err := CollectScaleAttributes(t, dut, cliClient)
@@ -105,9 +100,9 @@ func getMetadata(t *testing.T, dut *ondatra.DUTDevice) (*metadata, error) {
 		return nil, err
 	}
 
-	m.scale = scale
-	m.sys = gnmi.Get(t, dut, gnmi.OC().System().State())
-	m.platform = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	c.scale = scale
+	c.sys = gnmi.Get(t, dut, gnmi.OC().System().State())
+	c.platform = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
 
 	chassisCmdResult, err := cliClient.RunCommand(context.Background(), "show inventory chassis")
 	if err != nil {
@@ -121,21 +116,30 @@ func getMetadata(t *testing.T, dut *ondatra.DUTDevice) (*metadata, error) {
 	if len(chassisMatch) < 2 {
 		return nil, fmt.Errorf("failed to find chassis PID in the output")
 	}
-	m.chassis = chassisMatch[1]
+	c.chassis = chassisMatch[1]
 
-	cache[dut] = m
-
-	return &m, nil
+	return &c.metadata, nil
 
 }
 
+func (c *Collector) PauseCollector() {
+	c.pauseWg.Add(1)
+}
+
+func (c *Collector) ResumeCollector() {
+	c.pauseWg.Done()
+}
+
 // RunCollector starts the collector
-func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) (FinishCollection, error) {
+func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, triggerName string, frequency time.Duration) (*Collector, error) {
 	t.Logf("Collector starting at %s", time.Now().UTC().Format(time.RFC3339))
 
-	m, err := getMetadata(t, dut)
+	c := &Collector{}
+	c.pauseWg = &sync.WaitGroup{}
+
+	m, err := c.getMetadata(t, dut)
 	if err != nil {
-		return nil, err
+		return c, err
 	}
 
 	var dataEntries []PerformanceData
@@ -201,11 +205,11 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 
 	completedChan := make(chan bool, 1)
 
-	resultChan := collectAllData(t, dut, completedChan, dataEntries, frequency)
+	resultChan := c.collectAllData(t, dut, completedChan, dataEntries, frequency)
 
 	var results []PerformanceData
 
-	finish := func() ([]PerformanceData, error) {
+	c.EndCollector = func() ([]PerformanceData, error) {
 		t.Logf("Collector finished at %s", time.Now())
 		close(completedChan)
 		results = <-resultChan
@@ -226,10 +230,10 @@ func RunCollector(t *testing.T, dut *ondatra.DUTDevice, featureName string, trig
 		return results, nil
 	}
 
-	return finish, nil
+	return c, nil
 }
 
-func collectAllData(t *testing.T, dut *ondatra.DUTDevice, doneChan chan bool, perfData []PerformanceData, frequency time.Duration) chan []PerformanceData {
+func (c *Collector) collectAllData(t *testing.T, dut *ondatra.DUTDevice, doneChan chan bool, perfData []PerformanceData, frequency time.Duration) chan []PerformanceData {
 	wg := &sync.WaitGroup{}
 	ticker := time.NewTicker(frequency)
 	defer ticker.Stop()
@@ -253,6 +257,7 @@ func collectAllData(t *testing.T, dut *ondatra.DUTDevice, doneChan chan bool, pe
 			done := false
 
 			for !done {
+				c.pauseWg.Wait()
 				select {
 				case <-doneChanCurrent:
 					done = true
