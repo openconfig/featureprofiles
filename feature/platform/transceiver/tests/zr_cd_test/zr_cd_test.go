@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -68,13 +69,13 @@ func verifyCDValue(t *testing.T, dut1 *ondatra.DUTDevice, pStream *samplestream.
 			t.Fatalf("The inactive CD is %v, expected %v", CDVal, inActiveCDValue)
 		}
 	case status == enabled:
-		if CDVal < minCDValue && CDVal > maxCDValue {
+		if CDVal < minCDValue || CDVal > maxCDValue {
 			t.Fatalf("The variable CD is %v, expected range (%v, %v)", CDVal, minCDValue, maxCDValue)
 		}
 	default:
 		t.Fatalf("Invalid status %v", status)
 	}
-	t.Logf("Device %v CD %s value : %v", dut1.Name(), sensorName, CDVal)
+	t.Logf("Device %v CD %s value at status %v: %v", dut1.Name(), sensorName, status, CDVal)
 	return CDVal
 }
 
@@ -105,9 +106,8 @@ func TestCDValue(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut1)
 
 	// Derive transceiver names from ports.
-	tr1 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	tr2 := gnmi.Get(t, dut1, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	component1 := gnmi.OC().Component(tr1)
+	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp1)
+	component1 := gnmi.OC().Component(OCcomponent)
 
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
@@ -118,11 +118,20 @@ func TestCDValue(t *testing.T) {
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
 			p1StreamInstant := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Instant().State(), samplingInterval)
-			p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Avg().State(), samplingInterval)
 			p1StreamMin := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Min().State(), samplingInterval)
 			p1StreamMax := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Max().State(), samplingInterval)
+			p1StreamAvg := samplestream.New(t, dut1, component1.OpticalChannel().ChromaticDispersion().Avg().State(), samplingInterval)
 
-			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
+			defer p1StreamInstant.Close()
+			defer p1StreamMin.Close()
+			defer p1StreamMax.Close()
+			defer p1StreamAvg.Close()
+
+			if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+				verifyCDValue(t, dut1, p1StreamInstant, "Instant", enabled)
+			} else {
+				verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
+			}
 
 			// Disable or shut down the interface on the DUT.
 			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
@@ -131,22 +140,25 @@ func TestCDValue(t *testing.T) {
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 
-			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, disabled)
+			if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+				verifyCDValue(t, dut1, p1StreamInstant, "Instant", disabled)
+			} else {
+				verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, disabled)
+			}
 			time.Sleep(flapInterval)
 
 			// Re-enable interfaces.
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-			gnmi.Replace(t, dut1, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+			gnmi.Replace(t, dut1, gnmi.OC().Interface(dp2.Name()).Enabled().Config(), true)
 			// Wait for channels to be up.
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut1, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-			verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
-
-			p1StreamMin.Close()
-			p1StreamMax.Close()
-			p1StreamAvg.Close()
-			p1StreamInstant.Close()
+			if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+				verifyCDValue(t, dut1, p1StreamInstant, "Instant", enabled)
+			} else {
+				verifyAllCDValues(t, dut1, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
+			}
 		}
 	}
 }
