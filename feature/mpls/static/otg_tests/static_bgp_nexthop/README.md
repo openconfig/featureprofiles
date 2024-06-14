@@ -21,7 +21,7 @@ Validate static LSP functionality with BGP resolved next-hop.
     ```
 
 2)  Configure eBGP peer on ATE Port 2 interface and advertise BGP-NH-V4 and BGP-NH-V6
-3)  Configure discard static routes for BGP-NH-V4 and BGP-NH-V6 to Null0
+3)  Configure discard static routes for BGP-NH-V4 and BGP-NH-V6 to Null0 via administrative distance of 254.
 4)  Enable MPLS forwarding.
 5)  Create egress static LSP for IPv4 traffic to pop the label and resolve the next-hop BGP-NH
     *  Match incoming label (1000004)
@@ -69,8 +69,6 @@ paths:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
 
-  ## Telemetry for drop counter.
-  /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/no-route:
 
 rpcs:
   gnmi:
