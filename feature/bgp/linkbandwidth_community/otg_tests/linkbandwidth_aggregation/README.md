@@ -26,7 +26,8 @@ This test verifies Link-bandwidth (LBW) extended community aggregation feature b
 * Enable BGP LBW receive for peering group UPSTREAM.
 * Enable BGP LBW send for peering group DOWNSTREAM. Enable Link Bandwidth aggregation feature.
 
-**TODO:** Link Bandwidth aggregation feature is not currently modeled in OC.
+**TODO:** [Cumulative Link Bandwidth feature](https://datatracker.ietf.org/doc/draft-ietf-bess-ebgp-dmz/) is not currently modeled in OC. Cisco config example: `ebgp-send-extcommunity-dmz cumulative`
+
 
 2. Advertise the same test prefix from ATE from all UPSTREAM peers with LBW community:
   * 32 peers - 10Mbps
@@ -40,7 +41,7 @@ This test verifies Link-bandwidth (LBW) extended community aggregation feature b
 Using RT-7.6.1 set up conduct following changes:
 
 1) Disable 32 peers advertising 10Mpbs bandwidth community.
-2) Verify that DUT advertises the test route to Upstream peer with aggregated bandwidth community of 800Mbps.
+2) Verify that DUT advertises the test route to Upstream peer with aggregated bandwidth community of 1280Mbps.
 3) Re-enable 32 peers advertising 10Mpbs bandwidth community.
 4) Verify that DUT advertises the test route to Upstream peer with aggregated bandwidth community of 1600Mbps.
 
@@ -65,9 +66,9 @@ Using RT-7.6.1 set up conduct following changes:
 
 ```yaml
 paths:
-    # tunnel interfaces
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ibgp/link-bandwidth-ext-community/config/enabled:
+    # TODO: Add Cumulative LBW path.
 
 rpcs:
   gnmi:
