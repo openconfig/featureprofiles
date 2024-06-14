@@ -1046,3 +1046,9 @@ func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetModelNameUnsupported()
 }
+
+// InstallPositionAndInstallComponentUnsupported returns true if install
+// position and install component are not supported.
+func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
+}
