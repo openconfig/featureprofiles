@@ -22,8 +22,9 @@ import (
 
 var (
 	remoteFilePath = map[ondatra.Vendor]string{
-		ondatra.CISCO: "/misc/disk1/",
-		ondatra.NOKIA: "/tmp/",
+		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.NOKIA:   "/tmp/",
+		ondatra.JUNIPER: "/var/tmp/",
 	}
 	afterReset = false
 	fileName   = "devrandom.log"
