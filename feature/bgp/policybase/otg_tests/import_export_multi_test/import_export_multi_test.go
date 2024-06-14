@@ -13,9 +13,10 @@
 // limitations under the License.
 
 // Package import_export_test covers RT-7.11: BGP Policy - Import/Export Policy Action Using Multiple Criteria
-package import_export_test
+package import_export_multi_test
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -101,12 +103,41 @@ var communityMembers = [][][]int{
 	},
 }
 
+type bgpNbrList struct {
+	nbrAddr string
+	afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE
+}
+
 // TestMain triggers the test run
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func deleteBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbrList []*bgpNbrList) {
+	t.Helper()
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbr := range nbrList {
+		nbrAfiSafiPath := bgpPath.Neighbor(nbr.nbrAddr).AfiSafi(nbr.afiSafi)
+		b := &gnmi.SetBatch{}
+		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ImportPolicy().Config())
+		gnmi.BatchDelete(b, nbrAfiSafiPath.ApplyPolicy().ExportPolicy().Config())
+		b.Set(t, dut)
+	}
+}
+
 func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
+	// Delete PERMIT-ALL policy applied to neighbor
+	deleteBGPPolicy(t, dut, []*bgpNbrList{
+		{
+			nbrAddr: ipv4,
+			afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
+		},
+		{
+			nbrAddr: ipv6,
+			afiSafi: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
+		},
+	})
+
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition("routePolicy")
@@ -116,7 +147,7 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -130,17 +161,19 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	policyV4.SetImportPolicy([]string{"routePolicy"})
 	policyV4.SetExportPolicy([]string{"routePolicy"})
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
-
 }
 
 func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
 	rejectCommunities := []string{"10:1"}
 	acceptCommunities := []string{"20:1"}
-	regexCommunities := []string{"(^|\\s)30:[0-9]+($|\\s)"}
+	regexCommunities := []string{"^30:.*$"}
 	addCommunitiesRefs := []string{"40:1", "40:2"}
 	addCommunitiesSetRefsAction := []string{"add-communities"}
 	setCommunitySetRefs := []string{"add_comm_60", "add_comm_70"}
 	myCommunitySets := []string{"50:1"}
+	if deviations.BgpCommunityMemberIsAString(dut) {
+		regexCommunities = []string{"(^|\\s)30:[0-9]+($|\\s)"}
+	}
 
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -156,17 +189,30 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Fatalf("AppendNewStatement(%s) failed: %v", callPolicyStatement, err)
 	}
 
-	// Configure regex_community:["(^|\\s)30:[0-9]+($|\\s)"] to match_community_regex statement
-	communitySetRegex := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(regexCommunitySet)
+	// Configure regex_community:["^30:.*$"] to match_community_regex statement
+	if !(deviations.CommunityMemberRegexUnsupported(dut)) {
+		communitySetRegex := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(regexCommunitySet)
 
-	pd2cs1 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatchPd2Cs1 := range regexCommunities {
-		if commMatchPd2Cs1 != "" {
-			pd2cs1 = append(pd2cs1, oc.UnionString(commMatchPd2Cs1))
+		pd2cs1 := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+		for _, commMatchPd2Cs1 := range regexCommunities {
+			if commMatchPd2Cs1 != "" {
+				pd2cs1 = append(pd2cs1, oc.UnionString(commMatchPd2Cs1))
+			}
 		}
+		communitySetRegex.SetCommunityMember(pd2cs1)
+		communitySetRegex.SetMatchSetOptions(matchAny)
 	}
-	communitySetRegex.SetCommunityMember(pd2cs1)
-	communitySetRegex.SetMatchSetOptions(matchAny)
+
+	var communitySetCLIConfig string
+	if deviations.CommunityMemberRegexUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '(%v)'\n end-set", regexCommunitySet, regexCommunities[0])
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(regexCommunitySet)
@@ -174,7 +220,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(regexCommunitySet)
 	}
 
-	pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	}
 
 	// Configure the parent policy multi_policy.
 
@@ -269,12 +317,14 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	if deviations.BgpCommunitySetRefsUnsupported(dut) {
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(bgpActionMethod)
-		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(bgpSetCommunityOptionType)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(addCommunitiesSetRefsAction)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(bgpActionMethod)
+		stmt3.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(bgpSetCommunityOptionType)
 	}
 
-	stmt3.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt3.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	}
 
 	// Configure multi_policy:STATEMENT4: match_comm_and_prefix_add_2_community_sets statement
 
@@ -324,14 +374,16 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		t.Logf("TODO: community-set-refs not supported b/316833803")
 	} else {
 		// TODO: Add bgp-actions: community-set-refs to match_comm_and_prefix_add_2_community_sets statement
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
-		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
+		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 	}
 	// set-local-pref = 5
 	stmt4.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
-	stmt4.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt4.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+	}
 
 	// Configure multi_policy:STATEMENT5: match_aspath_set_med statement
 	stmt5, err := pdef1.AppendNewStatement(matchAspathSetMedStatement)
@@ -345,7 +397,11 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	if deviations.CommunityMemberRegexUnsupported(dut) {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	}
 
 	// Configure the parent BGP import and export policy.
 	dni := deviations.DefaultNetworkInstance(dut)
@@ -353,16 +409,20 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	policyV6 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policyV6.SetImportPolicy([]string{parentPolicy})
 	policyV6.SetExportPolicy([]string{parentPolicy})
-	policyV6.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policyV6.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		policyV6.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV6.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	}
 	gnmi.Replace(t, dut, pathV6.Config(), policyV6)
 
 	pathV4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policyV4 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policyV4.SetImportPolicy([]string{parentPolicy})
 	policyV4.SetExportPolicy([]string{parentPolicy})
-	policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policyV4.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV4.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	}
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 }
 
