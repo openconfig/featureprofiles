@@ -1057,3 +1057,4 @@ func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool 
 // OPENCONFIG_HARDWARE_COMPONENT type of "FAN_TRAY".
 func FanTrayTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFanTrayTypeUnsupported()
+}
