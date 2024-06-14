@@ -92,9 +92,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/auth-password:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/neighbor-address:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group/peer-group-name:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
     /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
 
@@ -104,7 +102,6 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group-name:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
