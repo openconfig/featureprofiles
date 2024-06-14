@@ -51,10 +51,10 @@ var prefixesV4 = [][]string{
 
 var prefixesV6 = [][]string{
 	{"2048:db1:64:64::0", "2048:db1:64:64::4"},
-	{"2048:db1:64:64::8", "2048:db1:64:64::12"},
-	{"2048:db1:64:64::16", "2048:db1:64:64::20"},
-	{"2048:db1:64:64::24", "2048:db1:64:64::28"},
-	{"2048:db1:64:64::32", "2048:db1:64:64::40"},
+	{"2048:db1:64:64::8", "2048:db1:64:64::c"},
+	{"2048:db1:64:64::10", "2048:db1:64:64::14"},
+	{"2048:db1:64:64::18", "2048:db1:64:64::1c"},
+	{"2048:db1:64:64::20", "2048:db1:64:64::24"},
 }
 
 func TestMain(m *testing.M) {
@@ -65,7 +65,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition(ImpPolicy)
-	stmt1, err := pdef1.AppendNewStatement("match_as")
+	stmt1, err := pdef1.AppendNewStatement("match_as_and_community")
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", "any_my_aspath", err)
 	}
@@ -85,12 +85,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-	stmt2, err := pdef1.AppendNewStatement("match_comms")
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
-	}
+	// stmt2, err := pdef1.AppendNewStatement("match_comms")
+	// if err != nil {
+	// 	t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
+	// }
 	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 
 	if !(deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms") {
@@ -107,7 +107,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1'\n end-set", communitySetName)
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '(10[0-9]:1)'\n end-set", communitySetName)
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
 		}
@@ -115,9 +115,9 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
-		stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {
@@ -159,7 +159,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 			{200, 1},
 		},
 		{
-			{300, 1},
+			{100, 1},
 		},
 	}
 
@@ -167,7 +167,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string
 		{100, 200, 300},
 		{100, 400, 300},
 		{109},
-		{400},
+		{200},
 		{300},
 	}
 
@@ -283,8 +283,8 @@ func TestCommunitySet(t *testing.T) {
 
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
-	aspathMatch := []string{"(10[0-9]]|200)"}
-	communityMatch := "10[0-9]:1"
+	aspathMatch := []string{"(10[0-9]|200)"}
+	communityMatch := "(10[0-9]:1)"
 	communitySetName := "any_my_3_comms"
 	aspathSetName := "any_my_aspath"
 	commMatchSetOptions := oc.BgpPolicy_MatchSetOptionsType_ANY

@@ -15,8 +15,8 @@ BGP policy configuration for AS Paths and Community Sets
     * prefix-set-1 with as path `[100, 200, 300]` and communities `[100:1, 200:2, 300:3]`
     * prefix-set-2 with as path `[100, 400, 300]` and communities `[101:1]`
     * prefix-set-3 with as path `[109]` and communities `[109:1]`
-    * prefix-set-4 with as path `[400]` and communities `[200:1]`
-    * prefix-set-5 with as path `[300]` and communities `[300:1]`
+    * prefix-set-4 with as path `[200]` and communities `[200:1]`
+    * prefix-set-5 with as path `[300]` and communities `[100:1]`
 
   * Establish eBGP sessions between ATE port-1 and DUT port-1
   * Generate traffic from ATE port-2 to all prefixes
