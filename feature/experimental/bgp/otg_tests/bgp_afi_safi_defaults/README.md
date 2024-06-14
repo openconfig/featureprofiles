@@ -104,11 +104,10 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group:
 
 rpcs:
     gnmi:
