@@ -115,3 +115,40 @@ power.
 *   /components/component/transceiver/physical-channel/channel/state/input-power/min
 *   /components/component/transceiver/physical-channel/channel/state/input-power/max
 *   /components/component/transceiver/physical-channel/channel/state/input-power/avg
+
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+    # Configure parameter
+    /components/component/transceiver/config/enabled:
+    # Telemetry Parameter coverage
+    /components/component/optical-channel/state/input-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/transceiver/physical-channel/channel/state/input-power/instant:
+        platform_type: ["TRANSCEIVER"]
+    /components/component/transceiver/physical-channel/channel/state/input-power/min:
+        platform_type: ["TRANSCEIVER"]
+    /components/component/transceiver/physical-channel/channel/state/input-power/max:
+        platform_type: ["TRANSCEIVER"]
+    /components/component/transceiver/physical-channel/channel/state/input-power/avg:
+        platform_type: ["TRANSCEIVER"]
+rpcs:
+    gnmi:
+        gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
+```
