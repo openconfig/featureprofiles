@@ -484,6 +484,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	args.ate.OTG().PushConfig(t, args.top)
 	time.Sleep(30 * time.Second)
 	args.ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, args.ate.OTG(), args.top, "IPv4")
 
 	t.Logf("Starting traffic")
