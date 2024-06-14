@@ -848,7 +848,6 @@ func validateInstallComponent(t *testing.T, icName string, components []*oc.Comp
 	if !validTypes[icType] {
 		t.Errorf("Component %s's install-component %s is not a supported parent type (%s)", c.GetName(), icName, icType)
 	}
-	return
 }
 
 func hasInstallComponentAndPosition(t *testing.T, c *oc.Component, icName string, ip string) {
