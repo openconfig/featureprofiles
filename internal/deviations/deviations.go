@@ -1047,8 +1047,13 @@ func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetModelNameUnsupported()
 }
 
+// InstallPositionAndInstallComponentUnsupported returns true if install
+// position and install component are not supported.
+func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
+}
+
 // FanTrayTypeUnsupported returns true if the device does not support the
 // OPENCONFIG_HARDWARE_COMPONENT type of "FAN_TRAY".
 func FanTrayTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFanTrayTypeUnsupported()
-}

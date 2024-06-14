@@ -22,12 +22,11 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 ## OpenConfig Path and RPC Coverage
 
 TODO:
-
-     /components/component/storage
-     /components/component/software-module
-     /components/component/software-module/state/module-type
-     /components/component/state/mfg-date
-     /components/component/state/software-version
+   /components/component/storage
+   /components/component/software-module
+   /components/component/software-module/state/module-type
+   /components/component/state/mfg-date
+   /components/component/state/software-version
 
 ```yaml
 paths:
@@ -39,6 +38,12 @@ paths:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/id:
        platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
+    /components/component/state/install-component:
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/install-position:
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/location:
+       platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/mfg-name:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/model-name:
@@ -48,7 +53,7 @@ paths:
     /components/component/state/oper-status:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/parent:
-       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/part-no:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
