@@ -87,8 +87,8 @@ type metadata struct {
 
 type Collector struct {
 	metadata
-	EndCollector func()([]PerformanceData, error)
-	pauseWg *sync.WaitGroup
+	EndCollector func() ([]PerformanceData, error)
+	pauseWg      *sync.WaitGroup
 }
 
 // Checks cache to see if dut already has had metadata gathered. If not then it will gather it.

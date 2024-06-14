@@ -23,7 +23,7 @@ func TestCollector(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer collector.EndCollector()
-	
+
 	time.Sleep(time.Second * 10)
 }
 
