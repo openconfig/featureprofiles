@@ -812,11 +812,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					if p.pType == componentType["Cpu"] && deviations.CPUMissingAncestor(dut) {
 						break
 					}
-					if p.pType == componentType["Fan"] {
-						fanParent(t, dut, cName, cur)
+					val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
+					parent, ok := val.Val()
+					if !ok {
+						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
 						break
 					}
-					parent, parentType, present := findParent(t, dut, cName, cur)
+					pLoookup := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).Type().State())
+					parentType, present := pLoookup.Val()
 					if present && parentType == componentType["Chassis"] {
 						t.Logf("Component %s Parent: Found chassis component in the hierarchy tree of component", cName)
 						break
@@ -847,31 +850,6 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		})
 	}
 }
-
-
-func findParent(t *testing.T, dut *ondatra.DUTDevice, cName string, cur string) (parent string, parentType oc.Component_Type_Union, present bool) {
-	val := gnmi.Lookup(t, dut, gnmi.OC().Component(cur).Parent().State())
-	parent, ok := val.Val()
-	if !ok {
-		t.Errorf("Component %s Parent component NOT found in the hierarchy tree of component", cName)
-	}
-	pLoookup := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).Type().State())
-	parentType, present = pLoookup.Val()
-	return parent, parentType, present
-}
-
-func fanParent(t *testing.T, dut *ondatra.DUTDevice, cName string, cur string) {
-	_, parentType, present := findParent(t, dut, cName, cur)
-	if !present {
-		t.Errorf("Component %s Parent: Parent component NOT found in the hierarchy tree of fan component", cName)
-	}
-	switch parentType {
-	case componentType["Chassis"]:
-		t.Logf("Component %s Parent: Found Chassis component in the hierarchy tree of fan component", cName)
-	case componentType["Fan Tray"]:
-		t.Logf("Component %s Parent: Found Fan Tray component in the hierarchy tree of fan component", cName)
-	default:
-		t.Errorf("Component %s Parent: Found unexpected parent component type in the hierarchy tree of fan component", cName)
 
 func testInstallComponentAndInstallPosition(t *testing.T, c *oc.Component, components []*oc.Component) {
 	icName := c.GetInstallComponent()
