@@ -87,7 +87,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
     /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/   neighbor-address:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
@@ -101,10 +101,10 @@ paths:
     ## Telemetry Parameter coverage
 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/            supported-capabilities: 
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/       supported-capabilities:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
     /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
