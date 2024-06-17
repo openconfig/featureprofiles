@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package base contains utility functions for encap frr using repair VRF.
-package base
+// Package encapfrr contains utility functions for encap frr using repair VRF.
+package encapfrr
 
 import (
 	"context"
