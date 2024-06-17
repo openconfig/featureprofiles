@@ -1,9 +1,9 @@
-# SEC-2.1: AAA and TACACS+ Configuration Verification Test Suite
+# SYS-3.1: AAA and TACACS+ Configuration Verification Test Suite
 
 
 ## Summary
 
-This test suite aims to thoroughly validate the correct implementation and functionality of the AAA (Authentication, Authorization, and Accounting) framework with TACACS+ and local authentication on a device. 
+This test suite aims to thoroughly validate the correct implementation  of the AAA (Authentication, Authorization, and Accounting) framework with TACACS+ and local authentication on a device. 
 
 ## Testbed type
 
@@ -17,7 +17,7 @@ This test suite aims to thoroughly validate the correct implementation and funct
 
 *   Configure the loopback interface with IPv4 and IPv6 address and netmasks of /32, /64 respectively
 
-### SEC-2.1.1 User Configuration Test
+### SYS-3.1.1 User Configuration Test
 
 *   Create a user on the DUT with the following parameters:
     *   username: testuser
@@ -28,7 +28,7 @@ This test suite aims to thoroughly validate the correct implementation and funct
     *   Confirm the successful creation of the "testuser" account with the specified parameters.
     *   Validate that the password is encrypted using MD5.
 
-### SEC-2.1.2 TACACS+ Server Configuration Test
+### SYS-3.1.2 TACACS+ Server Configuration Test
 
 *   Configuration:   
     *   Configure a TACACS server on the DUT as below:
@@ -40,14 +40,14 @@ This test suite aims to thoroughly validate the correct implementation and funct
 *   Verification:
     *   Confirm the successful creation of the Tacacs server with the specified parameters.
 
-### SEC-2.1.3 AAA Authentication Configuration Test
+### SYS-3.1.3 AAA Authentication Configuration Test
 
 *   Configuration:
     *   Configure the DUT to use TACACS+ as the primary authentication method and local authentication as a fallback option.
 *   Verification:
     *   Validate that the authentication settings are implemented as intended.
 
-### SEC-2.1.4 AAA Authorization Configuration Test
+### SYS-3.1.4 AAA Authorization Configuration Test
 
 *   Configuration:
     *   Configure command authorization to exclusively utilize the TACACS+ server.
@@ -55,7 +55,7 @@ This test suite aims to thoroughly validate the correct implementation and funct
 *   Verification:
     *   Validate that the authorization settings are implemented and working as intended.
 
-### SEC-2.1.5 AAA Accounting Configuration Test
+### SYS-3.1.5 AAA Accounting Configuration Test
 
 *   Configuration:
     *   Activate accounting for command line interface (CLI) commands on the device under test (DUT).
@@ -109,5 +109,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
-* FFF - fixed form factor
+* VRX
