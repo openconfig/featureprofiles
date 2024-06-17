@@ -168,7 +168,7 @@ testbeds:
     testbed: topologies/cisco/hw/8800-FOC2330PAZK/testbed
     binding: topologies/cisco/hw/8800-FOC2330PAZK/binding
     baseconf: topologies/cisco/hw/8800-FOC2330PAZK/base_config.proto
-  
+
   8608-FOX2543PNNM:
     hw: 8608-FOX2543PNNM
     owner: anidamod
@@ -176,7 +176,7 @@ testbeds:
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
-#SIM
+  #SIM
   8201-1DUT:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
@@ -254,7 +254,7 @@ testbeds:
     topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
 
-# OTG
+  # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
     owner: mananpat
