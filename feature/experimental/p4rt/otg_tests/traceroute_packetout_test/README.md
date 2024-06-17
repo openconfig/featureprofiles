@@ -63,7 +63,6 @@ paths:
   # state paths 
   /interfaces/interface/state/id:
   /components/component/integrated-circuit/state/node-id:
-  platform_type: ["INTEGRATED_CIRCUIT"]
 
 rpcs:
   gnmi:
