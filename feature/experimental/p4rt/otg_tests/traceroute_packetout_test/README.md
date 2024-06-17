@@ -59,10 +59,11 @@ paths:
   # config paths
   /interfaces/interface/config/id:
   /components/component/integrated-circuit/config/node-id:
+    platform_type: ["INTEGRATED_CIRCUIT"]
   # state paths 
   /interfaces/interface/state/id:
   /components/component/integrated-circuit/state/node-id:
-  platform_type: ["INTEGRATED_CIRCUIT"]
+    platform_type: ["INTEGRATED_CIRCUIT"]
 
 rpcs:
   gnmi:
