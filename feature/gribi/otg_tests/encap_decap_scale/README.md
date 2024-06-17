@@ -431,11 +431,18 @@ network-instances {
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
-## Protocol/RPC Parameter Coverage
-
-*   gRIBI:
-    *   Modify
-        *   ModifyRequest
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Required DUT platform
 
