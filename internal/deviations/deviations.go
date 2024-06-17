@@ -1053,6 +1053,11 @@ func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool 
 	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
 }
 
+// EncapTunnelShutBackupNhgZeroTraffic returns true when encap tunnel is shut then zero traffic flows to backup NHG
+func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
+}
+
 // FanTrayTypeUnsupported returns true if the device does not support the
 // OPENCONFIG_HARDWARE_COMPONENT type of "FAN_TRAY".
 func FanTrayTypeUnsupported(dut *ondatra.DUTDevice) bool {
