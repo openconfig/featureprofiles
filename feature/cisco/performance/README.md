@@ -10,13 +10,17 @@ The `collector.go` file defines the following key components and functions:
 
 - **PerformanceData**: Struct that holds the collected performance data such as memory usage, CPU usage, scale attributes, and other metadata.
 
-- **Collector**: Struct that manages the collection process, including maintaining state, managing CLI clients, and storing results.
+- **Collector**: Reference object that manages the collection process.
 
 - **getClient**: Function to get or create a CLI client for a given component, with retry logic.
 
 - **RunCollector**: Function to start the collector, initialize necessary data, and spawn a goroutine to collect data periodically.
 
-- **StopCollector**: Function to stop the collector, signal all goroutines to finish, and optionally push the collected data to a database.
+- **EndCollector**: Function to stop the collector, signal all goroutines to finish, and optionally push the collected data to a database.
+
+- **PauseCollector: Function to temporarily halt collection until ResumeCollector is run.
+
+- **ResumeCollector: Function to resume collection after it has been paused by PauseCollector.
 
 - **collectAllData**: Goroutine function to periodically collect data from the DUT and store it in the collector's results.
 
@@ -45,47 +49,56 @@ To use the collector in your feature script, you need to initialize and start it
         "testing"
         "time"
         "github.com/openconfig/featureprofiles/feature/cisco/performance"
-        "github.com/openconfig/featureprofiles/feature/cisco/performance/flagUtils"
     )
     ```
 
-2. **Initialize the flag options**:
-
+2. **Simple usage of the collector**:
+    
     ```go
-    flagOptions := flagUtils.ParseFlags()
-    ```
-
-3. **Start the collector**:
-
-    ```go
-    t.Run("Start Collector", func(t *testing.T) {
-        err := performance.RunCollector(t, dut, "Feature-Name", "Trigger-Name", time.Second*30, flagOptions)
+    t.Run("Example Collection to Database", func(t *testing.T) {
+        collector, err := performance.RunCollector(t, dut, "Feature-Name", "Trigger-Name", time.Second*30)
         if err != nil {
             t.Fatalf("Failed to start collector: %v", err)
         }
-        t.Log("Starting sleep for baseline collection")
-        time.Sleep(time.Minute * 5)
+        
+        defer collector.EndCollector()
+        
+        // Collect for two minutes.
+        time.Sleep(time.Minute * 2)
     })
     ```
 
-4. **Stop the collector and handle the results**:
+2. **Fine-grained control of collector: (Start/End and Pause/Resume)**:
 
     ```go
-    t.Run("Stop Collector", func(t *testing.T) {
-        results, err := performance.StopCollector(t)
+    t.Run("Example Collection", func(t *testing.T) {
+        collector, err := performance.RunCollector(t, dut, "Feature-Name", "Trigger-Name", time.Second*30)
         if err != nil {
-            t.Fatalf("Failed to stop collector: %v", err)
+            t.Fatalf("Failed to start collector: %v", err)
         }
-        t.Logf("Collected results: %+v", results)
+        // Collect for two minutes.
+        time.Sleep(time.Minute * 2)
+        
+        // Pause for 10 seconds.
+        collector.PauseCollector()
+        time.Sleep(time.Second * 10)
+
+        // Resume collection.
+        collector.ResumeCollector()
+
+        // Access results in a variable if necessary
+        performanceData, err := collector.EndCollector()
+        
     })
     ```
 
-### flags.go
+### Run flags
 
-The `flags.go` file manages the command-line flags for configuring the collector. The available flags are:
+The available flags are:
 
-- `local_run`: Used for local runs.
-- `firex_run`: Set environment variables for Firex runs.
-- `no_db_run`: Don't upload to the database if set to true.
+- `local_run`: Used for local runs. (Default: false)
+- `firex_run`: Set environment variables for Firex runs. (Default: false)
+- `no_db_run`: Don't upload to the database if set to true. (Default: true)
 
-To define and parse these flags, simply import the `flagUtils` package and call the `ParseFlags` function as shown in the usage example above.
+Overriding the defaults can be done by passing these arguments on the command line with the `go test` command.
+e.g. `go test -run TestCollector -local_run=true -binding=<binding_file> -testbed=<testbed_file>`
