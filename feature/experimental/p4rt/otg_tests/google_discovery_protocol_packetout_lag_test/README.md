@@ -28,20 +28,20 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
     ## Config parameter coverage
-    *   /interfaces/interface/ethernet/config/port-speed
-    *   /interfaces/interface/ethernet/config/duplex-mode
-    *   /interfaces/interface/ethernet/config/aggregate-id
-    *   /interfaces/interface/aggregation/config/lag-type
-    *   /openconfig-ate-flow/flows/flow/state/vlan-id
+    /interfaces/interface/ethernet/config/port-speed
+    /interfaces/interface/ethernet/config/duplex-mode
+    /interfaces/interface/ethernet/config/aggregate-id
+    /interfaces/interface/aggregation/config/lag-type
+    /openconfig-ate-flow/flows/flow/state/vlan-id
 
     ## Telemetry parameter coverage
-    *  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts
-    *  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
-    *  /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
-    *  /lacp/interfaces/interface/name
-    *  /lacp/interfaces/interface/state/name
-    *  /lacp/interfaces/interface/members/member/interface
-    *  /lacp/interfaces/interface/members/member/state/interface
+    /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts
+    /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
+    /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+    /lacp/interfaces/interface/name
+    /lacp/interfaces/interface/state/name
+    /lacp/interfaces/interface/members/member/interface
+    /lacp/interfaces/interface/members/member/state/interface
 
 
     ## Protocol/RPC Parameter Coverage
