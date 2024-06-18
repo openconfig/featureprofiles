@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package google_discovery_protocol_packetout_test
+package google_discovery_protocol_packetout_lag_test
 
 import (
 	"context"
