@@ -1052,3 +1052,8 @@ func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
 }
+
+// EncapTunnelShutBackupNhgZeroTraffic returns true when encap tunnel is shut then zero traffic flows to backup NHG
+func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
+}

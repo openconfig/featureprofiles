@@ -574,10 +574,13 @@ message Metadata {
     // Devices that do not support components/component/state/install-component
     // and components/component/state/install-position.
     bool install_position_and_install_component_unsupported = 196;
-    
+    // Encap tunnel is shut then zero traffic will flow to backup NHG
+    bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
   }
+
   message PlatformExceptions {
     Platform platform = 1;
     Deviations deviations = 2;
