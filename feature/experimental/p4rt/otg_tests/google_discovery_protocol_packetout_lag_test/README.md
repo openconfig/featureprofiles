@@ -28,7 +28,6 @@ The below yaml defines the OC paths intended to be covered by this test.
 ```yaml
 paths:
     ## Config parameter coverage
-    *   /ports/port/state/counters/in-frames
     *   /interfaces/interface/ethernet/config/port-speed
     *   /interfaces/interface/ethernet/config/duplex-mode
     *   /interfaces/interface/ethernet/config/aggregate-id
