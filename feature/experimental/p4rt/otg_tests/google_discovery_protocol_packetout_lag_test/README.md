@@ -32,7 +32,7 @@ paths:
     /interfaces/interface/ethernet/config/duplex-mode:
     /interfaces/interface/ethernet/config/aggregate-id:
     /interfaces/interface/aggregation/config/lag-type:
-    /openconfig-ate-flow/flows/flow/state/vlan-id:
+    /network-instances/network-instance/vlans/vlan/state/vlan-id:
 
     ## Telemetry parameter coverage
     /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
