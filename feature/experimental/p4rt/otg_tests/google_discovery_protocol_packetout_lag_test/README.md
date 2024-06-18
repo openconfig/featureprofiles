@@ -4,6 +4,10 @@
 
 Verify that GDP packets can be sent by the controller.
 
+## Testbed Type
+
+* https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
+
 ## Procedure
 
 * Configure two lag bundles between ATE and DUT with one member port in each of the LAG.
@@ -17,16 +21,37 @@ Verify that GDP packets can be sent by the controller.
 *	Repeat sending the packet in the same way but from the secondary connection.
 *	Verify that the packet is not received on the ATE.
 
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+    ## Config parameter coverage
+    *   /ports/port/state/counters/in-frames
+    *   /interfaces/interface/ethernet/config/port-speed
+    *   /interfaces/interface/ethernet/config/duplex-mode
+    *   /interfaces/interface/ethernet/config/aggregate-id
+    *   /interfaces/interface/aggregation/config/lag-type
+    *   /openconfig-ate-flow/flows/flow/state/vlan-id
+
+    ## Telemetry parameter coverage
+    *  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts
+    *  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts
+    *  /lacp/interfaces/interface/members/member/state/counters/lacp-rx-errors
+    *  /lacp/interfaces/interface/name
+    *  /lacp/interfaces/interface/state/name
+    *  /lacp/interfaces/interface/members/member/interface
+    *  /lacp/interfaces/interface/members/member/state/interface
 
 
-## Config Parameter coverage
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
-No new configuration covered.
+## Required DUT platform
 
-## Telemetry Parameter coverage
-
-No new telemetry covered.
-
-## Minimum DUT platform requirement
-
-vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+* FFF
