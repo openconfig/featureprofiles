@@ -1,8 +1,8 @@
 # proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "35e47706-04ec-44b2-a184-d1f274fb3182"
-plan_id: "P4RT-3.2"
+uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
+plan_id: "P4RT-3.21"
 description: "Google Discovery Protocol: PacketOut"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
