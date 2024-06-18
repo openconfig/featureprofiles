@@ -540,7 +540,7 @@ NH#1001 -> {
 3.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
-#### Test-8, no match in TE_VRF_111
+#### Test-9, no match in TE_VRF_111
 
 Tests that if the primary encaps point to tunnels that do not exist, then the
 traffic should be routed to the `DEFAULT` VRF for further lookup.
@@ -606,11 +606,18 @@ NH#102 -> {
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
-## Protocol/RPC Parameter Coverage
-
-*   gRIBI:
-    *   Modify
-        *   ModifyRequest
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Required DUT platform
 
