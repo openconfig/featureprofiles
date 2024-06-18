@@ -121,6 +121,7 @@ power.
 paths:
     # Configure parameter
     /components/component/transceiver/config/enabled:
+        platform_type: ["TRANSCEIVER"]
     # Telemetry Parameter coverage
     /components/component/optical-channel/state/input-power/instant:
         platform_type: ["OPTICAL_CHANNEL"]
@@ -138,14 +139,6 @@ paths:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/max:
         platform_type: ["OPTICAL_CHANNEL"]
-    /components/component/transceiver/physical-channel/channel/state/input-power/instant:
-        platform_type: ["TRANSCEIVER"]
-    /components/component/transceiver/physical-channel/channel/state/input-power/min:
-        platform_type: ["TRANSCEIVER"]
-    /components/component/transceiver/physical-channel/channel/state/input-power/max:
-        platform_type: ["TRANSCEIVER"]
-    /components/component/transceiver/physical-channel/channel/state/input-power/avg:
-        platform_type: ["TRANSCEIVER"]
 rpcs:
     gnmi:
         gNMI.Get:
