@@ -41,21 +41,20 @@ Unless otherwise specified, all the tests below should use traffic with
 
 Tests that traceroute with TTL=1 matched the VRF selection policy for encap.
 
-*   Send packets to DUT port-1 with TTL=1. The outer v4 header has the destination
+*   Send packets to DUT port-1 with outer packet header TTL=1. The outer v4 header has the destination
     addresses 138.0.11.8. verify that packets with TTL=1 are received by the client.
 
-*   Verify that the packets have both ingress_singleton_port and egress_singleton_port metadata set.
-egress_singletone_port should have port 2 with weight 1, port 3 weight 3, and port 4 with weight 6.
-
+*   Verify that the punted packets have both ingress_port and target_egress_port metadata set.
+The distribution of packets should have target_egress_port set with port 2 10% of the time, port 3 30%, port 4 60%.
 
 ### Test-2
 
 Tests that traceroute with TTL=1 matched the VRF selection policy for default.
 
-*   Send packets to DUT port-1 with TTL=1. The outer v4 header has the destination
+*   Send packets to DUT port-1 with outer packet TTL=1. The outer v4 header has the destination
     address 1.2.3.4.  Verify that packets with TTL=1 are received by the client.
-*   Verify that the packets have both ingress_singleton_port and egress_singleton_port metadata set.
-egress_singleton_port should be dut port 8.
+*   Verify that the packets have both ingress_port and target_egress_port metadata set.
+target_egress_port should be dut port 8.
 
 
 ### Test-3 (TDB from here)
