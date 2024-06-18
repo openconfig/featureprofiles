@@ -17,12 +17,12 @@ package google_discovery_protocol_packetout_test
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
 	"time"
-	"flag"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/cisco-open/go-p4/utils"
@@ -31,12 +31,12 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 	p4v1pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
