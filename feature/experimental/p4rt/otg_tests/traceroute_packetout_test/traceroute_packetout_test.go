@@ -32,8 +32,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -239,7 +239,7 @@ func TestPacketOut(t *testing.T) {
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-        otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	otg.StartProtocols(t)
 
 	configureDeviceID(ctx, t, dut)
