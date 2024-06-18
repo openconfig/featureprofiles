@@ -35,12 +35,14 @@ import (
 // non-empty will be set when configuring an interface.
 type Attributes struct {
 	IPv4         string
+	IPv4Sec      string // Secondary IPv4 address
 	IPv6         string
 	MAC          string
 	Name         string // Interface name, only applied to ATE ports.
 	Desc         string // Description, only applied to DUT interfaces.
 	Subinterface uint32 //Subinterface
 	IPv4Len      uint8  // Prefix length for IPv4.
+	IPv4LenSec   uint8  // Prefix length for Secondary IPv4 address.
 	IPv6Len      uint8  // Prefix length for IPv6.
 	MTU          uint16
 	ID           uint32 // /interfaces/interface/state/id p4rt interface id
