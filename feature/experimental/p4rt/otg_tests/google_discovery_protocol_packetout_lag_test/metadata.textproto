@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
-plan_id: "P4RT-3.2"
+plan_id: "P4RT-3.21"
 description: "Google Discovery Protocol: PacketOut"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
