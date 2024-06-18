@@ -129,8 +129,6 @@ func programmTableEntry(ctx context.Context, t *testing.T, client *p4rt_client.P
 // sendPackets sends out packets via PacketOut message in StreamChannel.
 func sendPackets(t *testing.T, client *p4rt_client.P4RTClient, packets []*p4v1pb.PacketOut, packetCount int) {
 	count := packetCount / len(packets)
-	t.Logf("Packet count: %v", count)
-	t.Logf("len(packets): %v", len(packets))
 	for _, packet := range packets {
 		for i := 0; i < count; i++ {
 			if err := client.StreamChannelSendMsg(
@@ -176,15 +174,12 @@ func testPacketOut(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Run(test.desc, func(t *testing.T) {
 			// Check initial packet counters
 			port1 := sortPorts(args.ate.Ports())[0].ID()
-			t.Logf("Port1: %s", port1)
 			counter0 := gnmi.Get(t, args.ate.OTG(), gnmi.OTG().Port(port1).Counters().InFrames().State())
 			packets := args.packetIO.GetPacketOut(portID)
-			t.Logf("Packets: %v", packets)
-			t.Logf("portID: %v", fmt.Sprint(portID))
 			sendPackets(t, test.client, packets, packetCount)
 
 			// Wait for ate stats to be populated
-			time.Sleep(2 * time.Minute)
+			time.Sleep(4 * time.Minute)
 			otgutils.LogFlowMetrics(t, args.ate.OTG(), args.top)
 			otgutils.LogPortMetrics(t, args.ate.OTG(), args.top)
 			// Check packet counters after packet out
@@ -222,13 +217,41 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
+/*
+// configInterfaceDUT configures the interface with the Addrs.
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice, hasVlan bool) *oc.Interface {
+	i.Description = ygot.String(a.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4a := s4.GetOrCreateAddress(a.IPv4)
+	s4a.PrefixLength = ygot.Uint8(ipv4PLen)
+
+	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+		s1 := i.GetOrCreateSubinterface(1)
+		s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+			i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+		}
+	}
+
+	return i
+}*/
+
 // configureDUT configures agg1 and agg2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	var aggIDs []string
 	for aggIdx, a := range []*aggPortData{agg1, agg2} {
-		increment := uint32(0)
 		b := &gnmi.SetBatch{}
 		d := &oc.Root{}
 
@@ -257,9 +280,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		// p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
 		for _, port := range []*ondatra.Port{p1} {
 			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-			t.Logf("Port: %s", port.Name())
-			t.Logf("Port ID: %v", a.aggPortID)
 			i := d.GetOrCreateInterface(port.Name())
+			// i := &oc.Interface{Name: ygot.String(p1.Name()), Id: ygot.Uint32(a.aggPortID)}
+			// i := d.Interface{Name: ygot.String(port.Name()), Id: ygot.Uint32(a.aggPortID)}
 			i.Id = ygot.Uint32(a.aggPortID)
 			i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", port.Name()))
 			e := i.GetOrCreateEthernet()
@@ -277,8 +300,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 				i.Enabled = ygot.Bool(true)
 			}
 			gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Config(), i)
-			increment++
-			t.Logf("Increment: %v", increment)
 		}
 
 		b.Set(t, dut)
@@ -494,7 +515,7 @@ func ipPacketToATEPort1(dstMAC net.HardwareAddr) []byte {
 	eth := &layers.Ethernet{
 		SrcMAC: net.HardwareAddr{0x00, 0xAA, 0x00, 0xAA, 0x00, 0xAA},
 		// GDP MAC is 00:0A:DA:F0:F0:F0
-		DstMAC:       dstMAC, // Try changing this to agg1.atePort1MAC
+		DstMAC:       dstMAC,
 		EthernetType: layers.EthernetTypeIPv4,
 	}
 	ip := &layers.IPv4{
