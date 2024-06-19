@@ -16,14 +16,25 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestGNMIUpdateScale(t *testing.T) {
+func TestCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	beforeTime := time.Now()
-	stop, err := perf.RunCollector(t, dut, "GNMI", "GNMIUpdateScale", time.Second)
+	collector, err := perf.RunCollector(t, dut, "GNMI", "GNMIUpdateScale", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer collector.EndCollector()
+
+	time.Sleep(time.Second * 10)
+}
+
+func TestGNMIUpdateScale(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	beforeTime := time.Now()
+	collector, err := perf.RunCollector(t, dut, "GNMI", "GNMIUpdateScale", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer collector.EndCollector()
 	for i := 0; i <= 100; i++ {
 		gnmi.Update(t, dut, gnmi.OC().System().Hostname().Config(), "test"+strconv.Itoa(i))
 	}
@@ -37,11 +48,11 @@ func TestGNMIBigSetRequest(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	// Perform a gNMI Set Request with 13 MB of Data
-	stop, err := perf.RunCollector(t, dut, "GNMI", "GNMIBigSetRequest", time.Second)
+	collector, err := perf.RunCollector(t, dut, "GNMI", "GNMIBigSetRequest", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer collector.EndCollector()
 	set := perf.CreateInterfaceSetFromOCRoot(util.LoadJsonFileToOC(t, "../big_set.json"), true)
 	err = perf.GNMIBigSetRequest(t, dut, set, 400000)
 
@@ -55,11 +66,11 @@ func TestEmsdRestart(t *testing.T) {
 
 	t.Logf("Restarting emsd at %s", time.Now())
 	// perf.RestartEmsd(t, dut)
-	stop, err := perf.RunCollector(t, dut, "General", "EmsdRestart", time.Second)
+	collector, err := perf.RunCollector(t, dut, "General", "EmsdRestart", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer collector.EndCollector()
 
 	err = perf.RestartProcess(t, dut, "emsd")
 	if err != nil {
@@ -71,11 +82,11 @@ func TestReloadLineCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
 
-	stop, err := perf.RunCollector(t, dut, "General", "ReloadLineCards", time.Second)
+	collector, err := perf.RunCollector(t, dut, "General", "ReloadLineCards", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer collector.EndCollector()
 	err = perf.ReloadLineCards(t, dut)
 	if err != nil {
 		t.Fatal(err)
@@ -86,11 +97,11 @@ func TestReloadRouter(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Starting CPU data collection at %s", time.Now())
 
-	stop, err := perf.RunCollector(t, dut, "General", "ReloadRouter", time.Second)
+	collector, err := perf.RunCollector(t, dut, "General", "ReloadRouter", time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer collector.EndCollector()
 
 	err = perf.ReloadRouter(t, dut)
 	if err != nil {
