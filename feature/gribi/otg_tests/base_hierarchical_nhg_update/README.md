@@ -76,27 +76,25 @@ Parameters:
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-  ipv4-unicast/ipv4-entry/state
-  ipv4-unicast/ipv4-entry/state/next-hop-group
-  ipv4-unicast/ipv4-entry/state/origin-protocol
-  ipv4-unicast/ipv4-entry/state/prefix
-  next-hop-groups/next-hop-group/id
-  next-hop-groups/next-hop-group/next-hops
-  next-hop-groups/next-hop-group/next-hops/next-hop
-  next-hop-groups/next-hop-group/next-hops/next-hop/index
-  next-hop-groups/next-hop-group/next-hops/next-hop/state
-  next-hop-groups/next-hop-group/next-hops/next-hop/state/index
-  next-hop-groups/next-hop-group/state
-  next-hop-groups/next-hop-group/state/id
-  next-hops/next-hop/index
-  next-hops/next-hop/interface-ref
-  next-hops/next-hop/interface-ref/state
-  next-hops/next-hop/interface-ref/state/interface
-  next-hops/next-hop/interface-ref/state/subinterface
-  next-hops/next-hop/state
-  next-hops/next-hop/state/index
-  next-hops/next-hop/state/ip-address
-  next-hops/next-hop/state/mac-address
+  ipv4-unicast/ipv4-entry/state:
+  ipv4-unicast/ipv4-entry/state/next-hop-group:
+  ipv4-unicast/ipv4-entry/state/origin-protocol:
+  ipv4-unicast/ipv4-entry/state/prefix:
+  next-hop-groups/next-hop-group/id:
+  next-hop-groups/next-hop-group/next-hops/next-hop/index:
+  next-hop-groups/next-hop-group/next-hops/next-hop/state:
+  next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  next-hop-groups/next-hop-group/state:
+  next-hop-groups/next-hop-group/state/id:
+  next-hops/next-hop/index:
+  next-hops/next-hop/interface-ref:
+  next-hops/next-hop/interface-ref/state:
+  next-hops/next-hop/interface-ref/state/interface:
+  next-hops/next-hop/interface-ref/state/subinterface:
+  next-hops/next-hop/state:
+  next-hops/next-hop/state/index:
+  next-hops/next-hop/state/ip-address:
+  next-hops/next-hop/state/mac-address:
 
 rpcs:
   gnmi:
