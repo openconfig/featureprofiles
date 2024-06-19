@@ -93,7 +93,7 @@ paths:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
     /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
-    /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface":
+    /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface:
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/subinterface:
     /network-instances/network-instance/afts/next-hops/next-hop/state/index:
