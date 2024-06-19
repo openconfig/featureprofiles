@@ -1,4 +1,4 @@
-# P4RT-3.21: Google Discovery Protocol: PacketOut
+# P4RT-3.21: Google Discovery Protocol: PacketOut with LAG
 
 ## Summary
 
