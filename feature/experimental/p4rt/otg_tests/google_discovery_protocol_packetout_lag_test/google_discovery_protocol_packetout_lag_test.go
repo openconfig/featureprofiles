@@ -67,11 +67,6 @@ type aggPortData struct {
 	hasVlan    bool
 }
 
-type ipAddr struct {
-	ip     string
-	prefix uint32
-}
-
 var (
 	agg1 = &aggPortData{
 		dutIPv4:    "192.0.2.1",
