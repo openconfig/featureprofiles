@@ -187,8 +187,6 @@ func TestBGPSetup(t *testing.T) {
 	t.Logf("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
-	t.Logf("Verify Configuration on DUT")
-	time.Sleep(time.Second * 120)
 	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 	prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
 	ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
