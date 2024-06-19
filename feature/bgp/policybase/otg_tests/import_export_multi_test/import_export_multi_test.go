@@ -30,6 +30,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -37,9 +40,12 @@ const (
 	prefixV6Len                      = 126
 	trafficPps                       = 100
 	totalPackets                     = 1200
-	bgpName                          = "BGP"
-	medValue                         = 100
 	localPref                        = 5
+	medValue                         = 100
+	bgpName                          = "BGP"
+	otglocalPref                     = "local-pref"
+	otgMED                           = "med"
+	otgASPath                        = "as-path"
 	parentPolicy                     = "multiPolicy"
 	callPolicy                       = "match_community_regex"
 	rejectStatement                  = "reject_route_community"
@@ -163,7 +169,7 @@ func configureImportExportAcceptAllBGPPolicy(t *testing.T, dut *ondatra.DUTDevic
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 }
 
-func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string) {
+func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, ipv41 string, ipv61 string) {
 	rejectCommunities := []string{"10:1"}
 	acceptCommunities := []string{"20:1"}
 	regexCommunities := []string{"^30:.*$"}
@@ -424,6 +430,24 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		policyV4.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
+
+	pathV61 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv61).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	policyV61 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv61).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+	policyV61.SetExportPolicy([]string{parentPolicy})
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		policyV6.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV6.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	}
+	gnmi.Update(t, dut, pathV61.Config(), policyV61)
+
+	pathV41 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv41).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	policyV41 := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(ipv41).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policyV41.SetExportPolicy([]string{parentPolicy})
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		policyV4.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policyV4.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	}
+	gnmi.Update(t, dut, pathV41.Config(), policyV41)
 }
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string, communityMembers [][][]int) {
@@ -560,8 +584,118 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	}
 }
 
+func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric []uint32) {
+	// t.Helper()
+	_, ok := gnmi.WatchAll(t,
+		otg,
+		gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+	var foundPrefix = false
+	if ok {
+		bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
+				foundPrefix = true
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
+				switch pathAttr {
+				case otgMED:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
+				case otgASPath:
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != len(metric) {
+						t.Logf("AS number: %v", bgpPrefix.AsPath[0].GetAsNumbers())
+						t.Logf("Metric: %v", metric)
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), len(metric))
+					} else {
+						for index, asPath := range bgpPrefix.AsPath[0].GetAsNumbers() {
+							if asPath == metric[index] {
+								t.Logf("Comparing if got AS Path %v, want AS Path %v, are equal", bgpPrefix.AsPath[0].GetAsNumbers()[index], metric[index])
+							} else {
+								t.Errorf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+							}
+						}
+						t.Logf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+					}
+				default:
+					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
+				}
+				break
+			}
+		}
+	}
+	if !foundPrefix {
+		t.Errorf("Prefix %v not received on OTG", ipAddr)
+	}
+}
+
+// validateOTGBgpPrefixV4AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
+func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric []uint32) {
+	// t.Helper()
+	_, ok := gnmi.WatchAll(t,
+		otg,
+		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+	var foundPrefix = false
+	if ok {
+		bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, otg, gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
+				foundPrefix = true
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.Address, ipAddr)
+				switch pathAttr {
+				case otgMED:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
+				case otgASPath:
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != len(metric) {
+						t.Logf("AS number: %v", bgpPrefix.AsPath[0].GetAsNumbers())
+						t.Logf("Metric: %v", metric)
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), len(metric))
+					} else {
+						for index, asPath := range bgpPrefix.AsPath[0].GetAsNumbers() {
+							if asPath == metric[index] {
+								t.Logf("Comparing if got AS Path %v, want AS Path %v, are equal", bgpPrefix.AsPath[0].GetAsNumbers()[index], metric[index])
+							} else {
+								t.Errorf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+							}
+						}
+						t.Logf("For Prefix %v, got AS Path %d want AS Path %d are equal", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+					}
+				default:
+					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
+				}
+				break
+			}
+		}
+	}
+	if !foundPrefix {
+		t.Errorf("Prefix %v not received on OTG", ipAddr)
+	}
+}
+
 // TestImportExportMultifacetMatchActionsBGPPolicy covers RT-7.11
 func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	var otgConfig gosnappi.Config
+
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{
 		"port1", "port2"}, true, false)
@@ -577,6 +711,9 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
+	ipv41 := bs.ATETop.Devices().Items()[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
+	ipv61 := bs.ATETop.Devices().Items()[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
+
 	t.Logf("Verify Import Export Accept all bgp policy")
 	configureImportExportAcceptAllBGPPolicy(t, bs.DUT, ipv4, ipv6)
 
@@ -588,7 +725,29 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	testResults := [6]bool{true, true, true, true, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults)
 
-	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6)
+	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
+	time.Sleep(time.Second * 120)
+
+	testMedResults := [6]bool{false, true, false, false, true, true}
+	testASPathResults := [6]bool{false, true, false, false, true, true}
+
+	medValue := []uint32{100}
+	asPathValue := []uint32{65501, 65512}
+
+	for index, prefix := range prefixesV4 {
+		if testMedResults[index] {
+			for idx, pref := range prefix {
+				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otgMED, medValue)
+				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgMED, medValue)
+			}
+		}
+		if testASPathResults[index] {
+			for idx, pref := range prefix {
+				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otgASPath, asPathValue)
+				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgASPath, asPathValue)
+			}
+		}
+	}
 
 	testResults1 := [6]bool{false, true, false, false, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults1)
