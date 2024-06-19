@@ -211,35 +211,6 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-/*
-// configInterfaceDUT configures the interface with the Addrs.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice, hasVlan bool) *oc.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	s4a := s4.GetOrCreateAddress(a.IPv4)
-	s4a.PrefixLength = ygot.Uint8(ipv4PLen)
-
-	if hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-		s1 := i.GetOrCreateSubinterface(1)
-		s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
-		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
-			i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
-		}
-	}
-
-	return i
-}*/
-
 // configureDUT configures agg1 and agg2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
@@ -297,6 +268,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		}
 
 		b.Set(t, dut)
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) { 
+		for _, aggID := range aggIDs { 
+			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0) 
+		} 
 	}
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
