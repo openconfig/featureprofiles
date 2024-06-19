@@ -18,7 +18,6 @@ package import_export_multi_test
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
