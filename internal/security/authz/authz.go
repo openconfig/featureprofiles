@@ -166,21 +166,31 @@ func Get(t testing.TB, dut *ondatra.DUTDevice) (*authzpb.GetResponse, *Authoriza
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
 	resp, err := gnsiC.Authz().Get(context.Background(), &authzpb.GetRequest{})
+	nopolicyexist := 0
 	if err != nil {
-		t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)
-	}
-
-	t.Logf("Authz.Get response is %s", prettyPrint(resp))
-	if resp.GetVersion() == "" {
-		t.Errorf("Version is not set in Authz.Get response")
-	}
-	if resp.GetCreatedOn() > uint64(time.Now().UnixMicro()) {
-		t.Errorf("CreatedOn value can not be larger than current time")
+		statusError, _ := status.FromError(err)
+		if statusError.Code() == codes.FailedPrecondition {
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+			nopolicyexist = 1
+		} else {
+			t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)
+		}
 	}
 	p := &AuthorizationPolicy{}
-	err = p.Unmarshal(resp.Policy)
-	if err != nil {
-		t.Fatalf("Authz.Get response contains invalid policy %s", resp.GetPolicy())
+	if nopolicyexist != 1 {
+		t.Logf("Authz.Get response is %s", prettyPrint(resp))
+		if resp.GetVersion() == "" {
+			t.Errorf("Version is not set in Authz.Get response")
+		}
+		if resp.GetCreatedOn() > uint64(time.Now().UnixMicro()) {
+			t.Errorf("CreatedOn value can not be larger than current time")
+		}
+		p := &AuthorizationPolicy{}
+		err = p.Unmarshal(resp.Policy)
+		if err != nil {
+			t.Fatalf("Authz.Get response contains invalid policy %s", resp.GetPolicy())
+		}
+		return resp, p
 	}
 	return resp, p
 }

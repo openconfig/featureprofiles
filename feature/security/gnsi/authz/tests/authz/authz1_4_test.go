@@ -46,7 +46,7 @@ const (
 type UsersMap map[string]authz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
+	testInfraID = flag.String("test_infra_id", "spiffe://test-abc.foo.bar/xyz/cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
 	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
 	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	policyMap   map[string]authz.AuthorizationPolicy
@@ -204,9 +204,14 @@ func TestAuthz1(t *testing.T) {
 	certAdminSpiffe := getSpiffe(t, dut, "cert_user_admin")
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
-		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		statusmsg, policyBefore := authz.Get(t, dut)
+		t.Logf("Message for first authz get %s", msg)
+		if statusmsg == nil {
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+		} else {
+			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		}
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
 		newpolicy, ok := policyMap["policy-everyone-can-gnmi-not-gribi"]
@@ -285,9 +290,14 @@ func TestAuthz1(t *testing.T) {
 
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
-		_, policyBefore := authz.Get(t, dut)
-		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
-		defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		statusmsg, policyBefore := authz.Get(t, dut)
+		t.Logf("Message for first authz get %s", msg)
+		if statusmsg == nil {
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+		} else {
+			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		}
 
 		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
 		newpolicy, ok := policyMap["policy-normal-1"]
@@ -715,5 +725,6 @@ func TestAuthz4(t *testing.T) {
 		t.Errorf("Created On has Changed to %v from Expected Created On %v after Reboot Trigger", resp.GetCreatedOn(), expCreatedOn)
 	}
 	// Verify all results match per the above table for policy policy-normal-1
+	setUpBaseline(t, dut)
 	verifyAuthTable(t, dut, authTable)
 }
