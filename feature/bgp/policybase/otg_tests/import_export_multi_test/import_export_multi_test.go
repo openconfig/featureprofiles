@@ -31,9 +31,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg/otg"
-	otg "github.com/openconfig/ondatra/otg/otg"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -585,7 +585,6 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	}
 }
 
-// validateOTGBgpPrefixV6AndASLocalPrefMED verifies that the IPv6 prefix is received on OTG.
 func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric []uint32) {
 	// t.Helper()
 	_, ok := gnmi.WatchAll(t,
@@ -611,8 +610,23 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					} else {
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
+				case otgASPath:
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != len(metric) {
+						t.Logf("AS number: %v", bgpPrefix.AsPath[0].GetAsNumbers())
+						t.Logf("Metric: %v", metric)
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), len(metric))
+					} else {
+						for index, asPath := range bgpPrefix.AsPath[0].GetAsNumbers() {
+							if asPath == metric[index] {
+								t.Logf("Comparing if got AS Path %v, want AS Path %v, are equal", bgpPrefix.AsPath[0].GetAsNumbers()[index], metric[index])
+							} else {
+								t.Errorf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+							}
+						}
+						t.Logf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+					}
 				default:
-					t.Errorf("Incorrect BGP Path Attribute. Expected MED!!!!")
+					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
 				break
 			}
@@ -649,8 +663,23 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					} else {
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
+				case otgASPath:
+					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != len(metric) {
+						t.Logf("AS number: %v", bgpPrefix.AsPath[0].GetAsNumbers())
+						t.Logf("Metric: %v", metric)
+						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), len(metric))
+					} else {
+						for index, asPath := range bgpPrefix.AsPath[0].GetAsNumbers() {
+							if asPath == metric[index] {
+								t.Logf("Comparing if got AS Path %v, want AS Path %v, are equal", bgpPrefix.AsPath[0].GetAsNumbers()[index], metric[index])
+							} else {
+								t.Errorf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+							}
+						}
+						t.Logf("For Prefix %v, got AS Path %d want AS Path %d are equal", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
+					}
 				default:
-					t.Errorf("Incorrect BGP Path Attribute. Expected MED!!!!")
+					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
 				break
 			}
@@ -700,13 +729,10 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
 	time.Sleep(time.Second * 120)
 
-	// ondatra.Debug().Breakpoint(t)
 	testMedResults := [6]bool{false, true, false, false, true, true}
-	testLocalPrefResults := [6]bool{false, false, false, false, true, false}
 	testASPathResults := [6]bool{false, true, false, false, true, true}
 
 	medValue := []uint32{100}
-	localPrefValue := []uint32{5}
 	asPathValue := []uint32{65501, 65512}
 
 	for index, prefix := range prefixesV4 {
@@ -716,7 +742,14 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgMED, medValue)
 			}
 		}
+		if testASPathResults[index] {
+			for idx, pref := range prefix {
+				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otgASPath, asPathValue)
+				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgASPath, asPathValue)
+			}
+		}
 	}
+
 	testResults1 := [6]bool{false, true, false, false, true, true}
 	verifyTrafficV4AndV6(t, bs, testResults1)
 }
