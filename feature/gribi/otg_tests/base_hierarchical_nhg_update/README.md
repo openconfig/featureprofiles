@@ -86,15 +86,12 @@ and it should not change the expected test result.
 paths:
     ## Config parameter coverage
     /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
     /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
     /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
     /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
     /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface":
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
