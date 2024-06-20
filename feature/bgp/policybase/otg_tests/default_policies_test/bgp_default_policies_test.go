@@ -164,10 +164,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), deviations.DefaultNetworkInstance(dut), 0)
