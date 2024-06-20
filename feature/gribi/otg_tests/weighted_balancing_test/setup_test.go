@@ -203,11 +203,6 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		for _, dp := range dut.Ports() {
-			fptest.SetPortSpeed(t, dp)
-		}
-	}
 }
 
 // configureATE configures the topology of the ATE.
