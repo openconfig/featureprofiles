@@ -438,12 +438,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(p4.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
-	}
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 

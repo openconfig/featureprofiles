@@ -31,7 +31,6 @@ platform_exceptions: {
   }
   deviations: {
     explicit_gribi_under_network_instance: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
     interface_enabled: true
