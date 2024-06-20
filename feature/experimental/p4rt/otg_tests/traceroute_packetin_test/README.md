@@ -19,7 +19,7 @@ DUT port-8 <------> port-8 ATE
 
 *   Setup equivalent to [TE-17.1 vrf_policy_driven_te](https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md), including GRibi programming.
 
-*   Install a BGP route resolved by ISIS in default VRF to route traffic out of DUT port-8 for 1.2.3.4.
+*   Install a BGP route resolved by ISIS in default VRF to route traffic out of DUT port-8 for 203.0.113.0.
 
 *   Enable the P4RT server on the device.
 
@@ -37,9 +37,11 @@ At the start of each of the following scenarios, ensure:
 Unless otherwise specified, all the tests below should use traffic with
 `dscp_encap_a_1` referenced int he VRF selection policy.
 
-### Test-1
+### TODO: Test-1
 
-Tests that traceroute with TTL=1 matched the VRF selection policy for encap.
+Tests that traceroute with TTL=1 for a packet that would match the VRF
+selection policy for encap has target_egress_port set based on the
+encap VRF.
 
 *   Send packets to DUT port-1 with outer packet header TTL=1. The outer v4 header has the destination
     addresses 138.0.11.8. verify that packets with TTL=1 are received by the client.
@@ -47,12 +49,14 @@ Tests that traceroute with TTL=1 matched the VRF selection policy for encap.
 *   Verify that the punted packets have both ingress_port and target_egress_port metadata set.
 The distribution of packets should have target_egress_port set with port 2 10% of the time, port 3 30%, port 4 60%.
 
-### Test-2
+### TODO: Test-2
 
-Tests that traceroute with TTL=1 matched the VRF selection policy for default.
+Tests that traceroute with TTL=1 for a packet that would match the VRF
+selection policy for default has target_egress_port set based on the
+default VRF.
 
-*   Send packets to DUT port-1 with outer packet TTL=1. The outer v4 header has the destination
-    address 1.2.3.4.  Verify that packets with TTL=1 are received by the client.
+*   Send packets to DUT port-1 with packet TTL=1. The v4 header has the destination
+    address 203.0.113.0.  Verify that packets with TTL=1 are received by the client.
 *   Verify that the packets have both ingress_port and target_egress_port metadata set.
 target_egress_port should be dut port 8.
 
@@ -120,5 +124,6 @@ Decap-And-Reencap cases (TBD)
 *   gRIBI:
     *   Modify
         *   ModifyRequest
+   
 
 
