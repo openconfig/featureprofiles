@@ -1,5 +1,77 @@
 # CNTR-1: Basic container lifecycle via `gnoi.Containerz`.
 
+## Summary
+
+Verify the correct behaviour of gNOI.Containerz when operating containers.
+
+## Prerequisites for CNTR tests
+
+### Start Containerz locally
+
+This step only applies if the reference implementation of containerz is being
+tested.
+
+Start by pulling the reference implementation:
+
+```shell
+$ git clone git@github.com:openconfig/containerz.git
+```
+
+Then `cd` into the containerz directory and build containerz:
+
+```shell
+$ cd containerz
+$ go build .
+```
+
+Finally start containerz:
+
+```shell
+$ ./containerz start
+```
+
+You should see the following output:
+
+```shell
+$ ./containerz start
+I0620 12:02:57.408496 3615908 janitor.go:33] janitor-starting
+I0620 12:02:57.408547 3615908 janitor.go:36] janitor-started
+I0620 12:02:57.408583 3615908 server.go:167] server-start
+I0620 12:02:57.408595 3615908 server.go:170] Starting up on Containerz server, listening on: [::]:19999
+I0620 12:02:57.408608 3615908 server.go:171] server-ready
+```
+
+### Build Test Container
+
+The test container is available in the feature profile repository under
+`internal/cntrsrv`.
+
+Start by entering in that directory and running the following commands:
+
+```shell
+$ cd internal/cntrsrv
+$ go mod vendor
+$ CGO_ENABLED=0 go build .
+$ docker build -f build/Dockerfile.local -t cntrsrv:latest .
+```
+
+At this point you will have a container image build for the test container.
+
+```shell
+$ docker images
+REPOSITORY  TAG            IMAGE ID       CREATED         SIZE
+cntrsrv     latest         8d786a6eebc8   3 minutes ago   21.4MB
+```
+
+Now export the container to a tarball.
+
+```shell
+$ docker save -o /tmp/cntrsrv.tar cntrsrv:latest
+$ docker rmi cntrsrv:latest
+```
+
+This is the tarball that ill be used during tests.
+
 ## CNTR-1.1: Deploy and Start a Container
 
 Using the
