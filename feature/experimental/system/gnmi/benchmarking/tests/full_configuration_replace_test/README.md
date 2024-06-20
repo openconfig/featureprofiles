@@ -20,6 +20,19 @@ This test does not measure the time to an entirely converged state, only to comp
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+
+  Config Parameter coverage:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/as-number:
+    /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
+    /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
+
+  Telemetry Parameter coverage:
+    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state:
+    /afi-safis/afi-safi/state/prefixes/sent:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
+
 rpcs:
   gnmi:
     gNMI.Get:
