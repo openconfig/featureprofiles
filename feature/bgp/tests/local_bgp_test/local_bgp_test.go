@@ -145,10 +145,6 @@ func TestEstablish(t *testing.T) {
 	// Configure Network instance type, it has to be configured explicitly by user.
 	configureNIType(t)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dutPortName, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, ate, atePortName, deviations.DefaultNetworkInstance(dut), 0)
