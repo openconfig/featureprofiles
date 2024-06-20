@@ -33,8 +33,6 @@ paths:
     /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
     /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
 
-  ##Telemetry Parameter coverage:
-    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state:
 ```
 
 ## Minimum DUT Required
