@@ -291,11 +291,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 			fptest.AssignToNetworkInstance(t, dut, dp.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		for _, dp := range dut.Ports() {
-			fptest.SetPortSpeed(t, dp)
-		}
-	}
 
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
