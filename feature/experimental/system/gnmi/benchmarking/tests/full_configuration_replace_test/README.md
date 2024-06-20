@@ -35,9 +35,7 @@ paths:
     /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
 
   ##Telemetry Parameter coverage:
-    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state:
-    /afi-safis/afi-safi/state/prefixes/sent:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
+    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state/afi-safis/afi-safi/state/prefixes/sent:
 ```
 
 ## Minimum DUT Required
