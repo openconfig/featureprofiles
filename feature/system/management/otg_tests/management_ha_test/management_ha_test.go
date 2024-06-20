@@ -64,7 +64,7 @@ var (
 		ondatra.NOKIA:   1,
 	}
 	loopbackSubIntf = map[ondatra.Vendor]int32{
-		ondatra.JUNIPER: 100,
+		ondatra.JUNIPER: 0,
 		ondatra.ARISTA:  0,
 		ondatra.CISCO:   0,
 		ondatra.NOKIA:   0,
