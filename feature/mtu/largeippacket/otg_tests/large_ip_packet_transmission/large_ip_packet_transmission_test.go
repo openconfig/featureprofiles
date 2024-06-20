@@ -259,10 +259,6 @@ func configureDUTPort(
 		portAttrs.NewOCInterface(port.Name(), dut),
 	)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, port)
-	}
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), subInterfaceIndex)
 	}
@@ -397,9 +393,6 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 				intf.Enabled = ygot.Bool(true)
 			}
 
-			if deviations.ExplicitPortSpeed(dut) {
-				intf.Ethernet.SetPortSpeed(fptest.GetIfSpeed(t, port))
-			}
 		}
 
 		gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
@@ -459,10 +452,6 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 
 		if deviations.InterfaceEnabled(dut) {
 			intf.Enabled = ygot.Bool(true)
-		}
-
-		if deviations.ExplicitPortSpeed(dut) {
-			fptest.SetPortSpeed(t, port)
 		}
 
 		intfPath := gnmi.OC().Interface(port.Name())
