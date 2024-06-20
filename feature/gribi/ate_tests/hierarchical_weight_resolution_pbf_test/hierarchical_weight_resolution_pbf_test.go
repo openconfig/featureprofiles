@@ -277,10 +277,6 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 		i = a.NewOCInterface(p.Name(), d)
 	}
 
-	if deviations.ExplicitPortSpeed(d) {
-		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, p)
-	}
-
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Replace(t, d, intfPath.Config(), i)
