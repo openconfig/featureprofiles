@@ -30,12 +30,11 @@ paths:
   ## Config Parameter coverage
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
-    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/as-number:
     /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
     /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
 
   ##Telemetry Parameter coverage:
-    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state/afi-safis/afi-safi/state/prefixes/sent:
+    /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state:
 ```
 
 ## Minimum DUT Required
