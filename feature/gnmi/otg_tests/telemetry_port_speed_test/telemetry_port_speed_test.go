@@ -216,9 +216,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		iPath := d.Interface(iName)
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
-		if deviations.ExplicitPortSpeed(tc.dut) {
-			fptest.SetPortSpeed(t, port)
-		}
 	}
 
 	if tc.lagType == lagTypeLACP {
