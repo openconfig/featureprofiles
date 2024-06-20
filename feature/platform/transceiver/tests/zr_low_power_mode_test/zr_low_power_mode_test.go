@@ -16,23 +16,22 @@ package zr_low_power_mode_test
 
 import (
 	"fmt"
-	"math"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	samplingInterval              = 10 * time.Second
-	targetOutputPowerdBm          = -10
-	targetOutputPowerTolerancedBm = 1
-	targetFrequencyHz             = 193100000
-	targetFrequencyToleranceHz    = 100000
+	samplingInterval = 10 * time.Second
+	intUpdateTime    = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -81,16 +80,16 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 
 func TestLowPowerMode(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
-
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(false))
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
-
 			// Stream all inventory information.
 			streamSerialNo := samplestream.New(t, dut, gnmi.OC().Component(tr).SerialNo().State(), samplingInterval)
 			defer streamSerialNo.Close()
@@ -118,6 +117,17 @@ func TestLowPowerMode(t *testing.T) {
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+			validateStreamOutput(t, allStream)
+
+			d := &oc.Root{}
+			i := d.GetOrCreateInterface(dp.Name())
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			// Disable interface
+			i.Enabled = ygot.Bool(false)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			// Wait for interface to go down.
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+
 			validateStreamOutput(t, allStream)
 
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
@@ -152,7 +162,10 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			gnmi.Update(t, dut, gnmi.OC().Interface(dp.Name()).Enabled().Config(), bool(true))
+			// Enable interface
+			i.Enabled = ygot.Bool(true)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			powerStreamMap := map[string]*samplestream.SampleStream[float64]{
 				"inst": opInst,
@@ -162,19 +175,7 @@ func TestLowPowerMode(t *testing.T) {
 			}
 
 			validateOutputPower(t, powerStreamMap)
-
-			// Derive transceiver names from ports.
-			component := gnmi.OC().Component(tr)
-
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if math.Abs(float64(outputPower)-float64(targetOutputPowerdBm)) > targetOutputPowerTolerancedBm {
-				t.Fatalf("Output power is not within expected tolerance, got: %v want: %v tolerance: %v", outputPower, targetOutputPowerdBm, targetOutputPowerTolerancedBm)
-			}
-
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if math.Abs(float64(frequency)-float64(targetFrequencyHz)) > targetFrequencyToleranceHz {
-				t.Fatalf("Frequency is not within expected tolerance, got: %v want: %v tolerance: %v", frequency, targetFrequencyHz, targetFrequencyToleranceHz)
-			}
+			cfgplugins.ValidateInterfaceConfig(t, dut, dp)
 		})
 	}
 }
