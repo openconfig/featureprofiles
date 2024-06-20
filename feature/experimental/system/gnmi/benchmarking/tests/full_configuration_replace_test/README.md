@@ -17,9 +17,14 @@ Measure time for Set to complete.
 Notes:
 This test does not measure the time to an entirely converged state, only to completion of the gNMI update.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
 
-## Telemetry Parameter Coverage
+```
 
 
