@@ -18,8 +18,9 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
         *   Two primary next-hops:
             *   IP of ATE port-2
             *   IP of ATE port-3
-    *   An IPv4Entry VRF-B for IP-1, pointing to a NextHopGroup (in DEFAULT
-        VRF) containing a primary next-hop that decaps-and-reencaps traffic to IP-2
+    *   An IPv4Entry VRF-B for IP-1, pointing to a NextHopGroup (in
+        DEFAULT VRF) containing a primary next-hop that
+        decaps-and-reencaps traffic to IP-2 and redirects to VRF-C.
     *   An IPv4Entry for IP-2 in VRF-C, pointing to a NextHopGroup (in DEFAULT VRF)
         containing:
         *   One primary next-hop pointing to IP of ATE port-4
