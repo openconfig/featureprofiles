@@ -498,11 +498,6 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dp1)
-		fptest.SetPortSpeed(t, dp2)
-	}
-
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
