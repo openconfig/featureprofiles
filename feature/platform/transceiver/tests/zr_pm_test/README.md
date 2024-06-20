@@ -69,22 +69,32 @@ module CMIS VDM(Versatile Diagnostics Monitor):
     *   Verify the ZR optics pre FEC PM is updated to the value in the normal
         range again. 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component/transceiver/config/enabled
+```yaml
+paths:
+    # Config Parameter coverage
+    /interfaces/interface/config/enabled:
+    /components/component/transceiver/config/enabled:
+        platform_type: ["OPTICAL_CHANNEL"]
+    # Telemetry Parameter coverage
+    /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
+    /terminal-device/logical-channels/channel/otn/state/esnr/instant:
+    /terminal-device/logical-channels/channel/otn/state/esnr/avg:
+    /terminal-device/logical-channels/channel/otn/state/esnr/min:
+    /terminal-device/logical-channels/channel/otn/state/esnr/max:
+    /terminal-device/logical-channels/channel/otn/state/q-value/instant:
+    /terminal-device/logical-channels/channel/otn/state/q-value/avg:
+    /terminal-device/logical-channels/channel/otn/state/q-value/min:
+    /terminal-device/logical-channels/channel/otn/state/q-value/max:
+    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant:
+    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg:
+    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min:
+    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max:
 
-## Telemetry Parameter coverage
-
-    *   /terminal-device/logical-channels/channel/otn/state/esnr/instant
-    *   /terminal-device/logical-channels/channel/otn/state/esnr/avg
-    *   /terminal-device/logical-channels/channel/otn/state/esnr/min
-    *   /terminal-device/logical-channels/channel/otn/state/esnr/max
-    *   /terminal-device/logical-channels/channel/otn/state/q-value/instant
-    *   /terminal-device/logical-channels/channel/otn/state/q-value/avg
-    *   /terminal-device/logical-channels/channel/otn/state/q-value/min
-    *   /terminal-device/logical-channels/channel/otn/state/q-value/max
-    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant
-    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg
-    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min
-    *   /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max
-FFF - Fixed form factor
+rpcs:
+    gnmi:
+        gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
+```
