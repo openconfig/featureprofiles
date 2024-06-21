@@ -287,11 +287,6 @@ func (bs *BGPSession) PushDUT(t testing.TB) error {
 			fptest.AssignToNetworkInstance(t, bs.DUT, bs.OndatraDUTPorts[i].Name(), bs.networkInstance, 0)
 		}
 	}
-	if deviations.ExplicitPortSpeed(bs.DUT) {
-		for i := 0; i < len(bs.DUTPorts); i++ {
-			fptest.SetPortSpeed(t, bs.OndatraDUTPorts[i])
-		}
-	}
 	return nil
 }
 

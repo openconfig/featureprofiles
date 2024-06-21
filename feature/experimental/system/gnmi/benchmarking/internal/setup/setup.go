@@ -209,10 +209,6 @@ func BuildBenchmarkingConfig(t *testing.T) *oc.Root {
 		a4 := s4.GetOrCreateAddress(DUTIPList[dp.ID()].String())
 		a4.PrefixLength = ygot.Uint8(plenIPv4)
 
-		if deviations.ExplicitPortSpeed(dut) {
-			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dp)
-		}
-
 		// BGP neighbor configs.
 		nv4 := bgp.GetOrCreateNeighbor(ATEIPList[dp.ID()].String())
 		nv4.PeerGroup = ygot.String(PeerGrpName)

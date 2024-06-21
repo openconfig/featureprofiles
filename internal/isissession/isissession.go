@@ -273,10 +273,6 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort1.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
 		fptest.AssignToNetworkInstance(t, s.DUT, s.DUTPort2.Name(), deviations.DefaultNetworkInstance(s.DUT), 0)
 	}
-	if deviations.ExplicitPortSpeed(s.DUT) {
-		fptest.SetPortSpeed(t, s.DUTPort1)
-		fptest.SetPortSpeed(t, s.DUTPort2)
-	}
 
 	// Push the ISIS protocol
 	if _, err := ygnmi.Update(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Config(), &oc.NetworkInstance{
