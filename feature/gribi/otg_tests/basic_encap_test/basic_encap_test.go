@@ -791,7 +791,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
+		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
 			e := intf.GetOrCreateEthernet()
 			e.AutoNegotiate = ygot.Bool(false)
 			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
