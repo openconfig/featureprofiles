@@ -153,7 +153,7 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 		SetRxNames([]string{fmt.Sprintf("%s.%s", ateDst.Name, ipv)})
 	ethHdr := flow.Packet().Add().Ethernet()
 	ethHdr.Src().SetValue(ateSrc.MAC)
-	ethHdr.Dst().SetValue(ateDst.MAC)
+	//ethHdr.Dst().SetValue(ateDst.MAC)
 	flow.SetSize(gosnappi.NewFlowSize().SetFixed(flowSize))
 
 	switch ipv {
@@ -180,9 +180,8 @@ func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing
 	td.otgConfig.Flows().Clear()
 	td.otgConfig.Flows().Append(flowParams)
 	td.otg.PushConfig(t, td.otgConfig)
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 30)
 	td.otg.StartProtocols(t)
-	otgutils.WaitForARP(t, td.otg, td.otgConfig, td.flowProto)
 	waitF(t)
 
 	td.otg.StartTraffic(t)

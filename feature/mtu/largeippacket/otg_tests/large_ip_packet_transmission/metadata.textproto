@@ -27,4 +27,12 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    omit_l2_mtu: true
+    aggregate_atomic_update: true
+  }
+}
