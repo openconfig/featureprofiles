@@ -777,11 +777,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// t.Logf("Wait for 2minutes for the OTG config to be created, now check in the DUT")
 	// time.Sleep(2 * time.Minute)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-	}
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {

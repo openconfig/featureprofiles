@@ -193,9 +193,6 @@ func configurePort3(t *testing.T, ts *isissession.TestSession) {
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		fptest.AssignToNetworkInstance(t, ts.DUT, dp3.Name(), deviations.DefaultNetworkInstance(ts.DUT), 0)
 	}
-	if deviations.ExplicitPortSpeed(ts.DUT) {
-		fptest.SetPortSpeed(t, dp3)
-	}
 	ap3 := ts.ATE.Port(t, "port3")
 	atePort3.AddToOTG(ts.ATETop, ap3, dutPort3)
 }
