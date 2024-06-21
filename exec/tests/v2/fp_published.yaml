@@ -681,6 +681,7 @@ tests:
     mustpass: true
     timeout: 21000
     priority: 65
+    pr: 1190
     owners:
       - harikri4
     testbeds_exclude:
