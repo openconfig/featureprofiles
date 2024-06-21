@@ -61,33 +61,148 @@ default VRF.
 target_egress_port should be dut port 8.
 
 
-### Test-3 (TDB from here)
+### Test-3
 
-Tests that traceroute for a packet that should hit a transit VRF does so.
+Tests that a packet punted due to TTL=1 for a packet that would
+otherwise hit a transit VRF has target_egress_port set based on that
+transit VRF.
 
-### Test-4
+*   Send 4in4 (IP protocol 4) and 6in4 (IP protocol 41) packets to DUT port-1 where
+    *   The outer v4 header has the destination address 203.0.113.1.
+    *   The outer v4 header has the source address ipv4_outer_src_111.
+    *   The outer v4 header has DSCP value has `dscp_encap_no_match` and `dscp_encap_match`
+	*   The outer v4 header has TTL=1
+*  Verify that the punted packets have both ingress_port and
+   target_egress_port metadata set.  target_egress_port should be set
+   to on DUT port-2, port-3, and port-4 per the heirarchical weight.
+
+### Test-4 (TBD)
 
 Tests that traceroute respects transit FRR.
 
-### Test-5
+### Test-5 (TBD)
 
 Tests that traceroute respects transit FRR when the backup is also unviable.
 
 ### Test-6
 
-Tests that traceroute respects decap.
+1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
-### Test-7
+    ```
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
+        {NH#1001, DEFAULT VRF, weight:1}
+    }
+    NH#1001 -> {
+        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    }
+    
+    ```
+
+2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
+
+3.  Send the following 6in4 and 4in4 flows to DUT port-1:
+
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outer_src: `ipv4_outer_src_111`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_no_match`
+    * proto: `4`
+	* outer TTL: `1`  
+
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_no_match`
+    * outer_src: `ipv4_outer_src_111`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_no_match`
+    * proto: `41`
+	* outer TTL: `1`  
+    ```
+
+4.  Verify that all punted packets:
+    *   Have ingress_port and target_egress_port metadata set
+    *   target_egress_port is set to DUT port-8 per the hierarchical weight.
+
+6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are punted correctly.
+
+
+### Test-7 (TBD)
 
 Encap failure cases (TBD on confirmation)
 
-### Test-8
+### Test-8 (TBD)
 
 Tests that traceroute for a packet with no route reports a miss.
 
-### Test-9
+### Test-9, decap the encap
 
-Decap-And-Reencap cases (TBD)
+1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
+
+    ```
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
+        {NH#1001, DEFAULT VRF, weight:1}
+    }
+    NH#1001 -> {
+        decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+    }
+    ```
+
+2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
+
+3.  Send the following packets to DUT port-1:
+
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_a_1`
+    * outer_src: `ipv4_outer_src_222`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `4`
+    * outer TTL: '1'
+    ```
+
+    ```
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_a_1`
+    * outer_src: `ipv4_outer_src_111`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_a_1`
+    * proto: `41`
+	* outer TTL: `1`
+    ```
+
+4.  We should expect that all punted packets:
+    *   Have ingress_port and target_egress_port metadata set
+    *   target_egress_port is set to DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
+
+5.  Send the following packets to DUT port -1
+
+    ```
+    * inner_src: `ipv4_inner_src`
+    * inner_dst: `ipv4_inner_encap_match`
+    * dscp: `dscp_encap_b_1`
+    * outer_src: `ipv4_outer_src_111`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_b_1`
+    * proto: `4`
+
+    * inner_src: `ipv6_inner_src`
+    * inner_dst: `ipv6_inner_encap_match`
+    * dscp: `dscp_encap_b_1`
+    * outer_src: `ipv4_outer_src_222`
+    * outer_dst: `ipv4_outer_decap_match`
+    * dscp: `dscp_encap_b_1`
+    * proto: `41`
+    ```
+
+6.  Verify that all punted packets:
+    *   Have ingress_port and target_egress_port metadata set
+    *   target_egress_port is set to DUT port-2, port-3, port-4 and port-6 per the hierarchical weight.
 
 ## Config Parameter Coverage
 
