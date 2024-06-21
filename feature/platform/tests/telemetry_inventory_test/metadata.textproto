@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     backplane_facing_capacity_unsupported: true
+    install_position_and_install_component_unsupported: true
+    model_name_unsupported: true
   }
 }
-

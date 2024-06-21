@@ -5,3 +5,13 @@ uuid:  "92fbb383-47b3-40e6-ab33-77be99e450b3"
 plan_id:  "TRANSCEIVER-13"
 description:  "Configuration: 400ZR Transceiver Low Power Mode Setting."
 testbed:  TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

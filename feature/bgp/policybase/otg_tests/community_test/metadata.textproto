@@ -21,3 +21,12 @@ platform_exceptions: {
     bgp_conditions_match_community_set_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    bgp_conditions_match_community_set_unsupported: true
+    community_member_regex_unsupported: true
+  }
+}

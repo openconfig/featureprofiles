@@ -18,3 +18,13 @@ platform_exceptions: {
   }
 }
 
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_setting_statement_for_policy: true
+    skip_checking_attribute_index: true
+  }
+}
+
