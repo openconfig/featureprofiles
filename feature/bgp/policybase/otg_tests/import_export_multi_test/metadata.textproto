@@ -33,5 +33,6 @@ platform_exceptions: {
     community_member_regex_unsupported: true
     skip_setting_statement_for_policy: true
     default_route_policy_unsupported: true
+    skip_checking_attribute_index: true
   }
 }
