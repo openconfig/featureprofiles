@@ -1024,6 +1024,11 @@ func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
 }
 
+// CommunityMatchWithRedistributionUnsupported is set to true for devices that do not support matching community at the redistribution attach point.
+func CommunityMatchWithRedistributionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMatchWithRedistributionUnsupported()
+}
+
 // BgpMaxMultipathPathsUnsupported returns true if the device does not support
 // bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
@@ -1040,4 +1045,15 @@ func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 // is not supported for any component type.
 func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetModelNameUnsupported()
+}
+
+// InstallPositionAndInstallComponentUnsupported returns true if install
+// position and install component are not supported.
+func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
+}
+
+// EncapTunnelShutBackupNhgZeroTraffic returns true when encap tunnel is shut then zero traffic flows to backup NHG
+func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
 }
