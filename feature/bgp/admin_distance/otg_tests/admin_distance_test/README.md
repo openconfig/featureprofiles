@@ -20,53 +20,53 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Configure IPv4/IPv6 addresses on the ports
 *   Create an IPv4 network i.e. ```ipv4-network-1 = 192.168.10.0/24``` attached to ATE port-1 and port-2
 *   Create an IPv6 network i.e. ```ipv6-network-1 = 2024:db8:64:64::/64``` attached to ATE port-1 and port-2
-*   Configure IPv4 and IPv6 IS-IS between DUT Port-2 and ATE Port-2
+*   Configure IPv4 and IPv6 IS-IS between DUT Port-1 and ATE Port-1
     *   /network-instances/network-instance/protocols/protocol/isis/global/config
-    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 IS-IS session on port-2
+    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 IS-IS session on port-1
 
 ### RT-1.34.1 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
 #### Validate traffic with modified eBGP Route-Distance of 5
-*   Configure IPv4 and IPv6 eBGP between DUT Port-1 and ATE Port-1
+*   Configure IPv4 and IPv6 eBGP between DUT Port-2 and ATE Port-2
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-1
-*   Configure Route-Distance of eBGP session on port-1 to 5
+    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 eBGP session on port-2
+*   Configure Route-Distance of eBGP session on port-2 to 5
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/external-route-distance 
 *   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 5 is reported:
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/external-route-distance
-*   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
-*   Verify that the traffic is received on port-1 of the ATE
-
-### RT-1.34.2 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
-#### Validate traffic with modified eBGP Route-Distance of 250
-*   Configure Route-Distance of eBGP session on port-1 to 250
-    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/external-route-distance 
-*   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 250 is reported:
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/external-route-distance
 *   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
 *   Verify that the traffic is received on port-2 of the ATE
 
+### RT-1.34.2 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
+#### Validate traffic with modified eBGP Route-Distance of 250
+*   Configure Route-Distance of eBGP session on port-2 to 250
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/external-route-distance 
+*   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 250 is reported:
+    *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/external-route-distance
+*   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
+*   Verify that the traffic is received on port-1 of the ATE
+
 ### RT-1.34.3 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
 #### Validate traffic with modified iBGP Route-Distance of 5
-*   Replace IPv4 and IPv6 eBGP with IPv4 and IPv6 iBGP between DUT Port-1 and ATE Port-1
+*   Replace IPv4 and IPv6 eBGP with IPv4 and IPv6 iBGP between DUT Port-2 and ATE Port-2
     *   /network-instances/network-instance/protocols/protocol/bgp/global/config
     *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 iBGP session on port-1
-*   Configure Route-Distance of iBGP session on port-1 to 5
+    *   Advertise ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64``` from ATE to DUT over the IPv4 and IPv6 iBGP session on port-2
+*   Configure Route-Distance of iBGP session on port-2 to 5
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
 *   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 5 is reported:
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/internal-route-distance
 *   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
-*   Validate that the traffic is received on port-1 of the ATE
+*   Validate that the traffic is received on port-2 of the ATE
 
 ### RT-1.34.4 [TODO:https://github.com/openconfig/featureprofiles/issues/3050]
 #### Validate traffic with modified iBGP Route-Distance of 250
-*   Configure Route-Distance of iBGP session on port-1 to 250
+*   Configure Route-Distance of iBGP session on port-2 to 250
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/config/internal-route-distance
 *   Validate using gNMI Subscribe with mode 'ONCE' that the correct Route-Distance value of 250 is reported:
     *   /network-instances/network-instance/protocols/protocol/bgp/global/default-route-distance/state/internal-route-distance
 *   Generate traffic from ATE port-3 towards ```ipv4-network-1 = 192.168.10.0/24``` and ```ipv6-network-1 = 2024:db8:64:64::/64```
-*   Validate that the traffic is received on port-2 of the ATE
+*   Validate that the traffic is received on port-1 of the ATE
 
 ## OpenConfig Path and RPC Coverage
 
