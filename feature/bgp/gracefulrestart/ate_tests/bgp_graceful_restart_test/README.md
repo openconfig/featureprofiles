@@ -104,21 +104,22 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
 ## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test. OC paths used for test environment setup are not required to be listed here.
+
 ```yaml
 paths:
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only:
   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time:
   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group:
   /routing-policy/policy-definitions/policy-definition/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
   
