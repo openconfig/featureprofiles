@@ -18,6 +18,7 @@ package import_export_multi_test
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,7 +103,7 @@ var communityMembers = [][][]int{
 		{20, 2}, {30, 3},
 	},
 	{
-		{40, 1}, {41, 1},
+		{40, 1}, {50, 1},
 	},
 	{
 		{50, 1}, {51, 1},
@@ -584,6 +585,82 @@ func verifyTrafficV4AndV6(t *testing.T, bs *cfgplugins.BGPSession, testResults [
 	}
 }
 
+func validateLocalPreferenceV4(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
+	found := false
+	for k, lr := range locRib.Route {
+		prefixAddr := strings.Split(lr.GetPrefix(), "/")
+		if prefixAddr[0] == prefix {
+			found = true
+			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
+			if !deviations.SkipCheckingAttributeIndex(dut) {
+				attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+				if attrSet == nil || attrSet.GetLocalPref() != metricValue {
+					t.Errorf("No local pref found for prefix %s", prefix)
+				}
+				break
+			} else {
+				attrSetList := gnmi.GetAll[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSetAny().State())
+				foundLP := false
+				for _, attrSet := range attrSetList {
+					if attrSet.GetLocalPref() == metricValue {
+						foundLP = true
+						t.Logf("Found local pref %d for prefix %s", attrSet.GetLocalPref(), prefix)
+						break
+					}
+				}
+				if !foundLP {
+					t.Errorf("No local pref found for prefix %s", prefix)
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("No Route found for prefix %s", prefix)
+	}
+}
+
+func validateLocalPreferenceV6(t *testing.T, dut *ondatra.DUTDevice, prefix string, metricValue uint32) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
+	found := false
+	for k, lr := range locRib.Route {
+		prefixAddr := strings.Split(lr.GetPrefix(), "/")
+		if prefixAddr[0] == prefix {
+			found = true
+			t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
+			if !deviations.SkipCheckingAttributeIndex(dut) {
+				attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+				if attrSet == nil || attrSet.GetLocalPref() != metricValue {
+					t.Errorf("No local pref found for prefix %s", prefix)
+				}
+				break
+			} else {
+				attrSetList := gnmi.GetAll[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSetAny().State())
+				foundLP := false
+				for _, attrSet := range attrSetList {
+					if attrSet.GetLocalPref() == metricValue {
+						foundLP = true
+						t.Logf("Found local pref %d for prefix %s", attrSet.GetLocalPref(), prefix)
+						break
+					}
+				}
+				if !foundLP {
+					t.Errorf("No local pref found for prefix %s", prefix)
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("No Route found for prefix %s", prefix)
+	}
+}
+
 func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric []uint32) {
 	// t.Helper()
 	_, ok := gnmi.WatchAll(t,
@@ -624,6 +701,8 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						}
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
+				case otglocalPref:
+					validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
 				default:
 					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
@@ -677,6 +756,8 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						}
 						t.Logf("For Prefix %v, got AS Path %d want AS Path %d are equal", bgpPrefix.GetAddress(), bgpPrefix.AsPath[0].GetAsNumbers(), metric)
 					}
+				case otglocalPref:
+					validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
 				default:
 					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
@@ -730,15 +811,23 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 
 	testMedResults := [6]bool{false, true, false, false, true, true}
 	testASPathResults := [6]bool{false, true, false, false, true, true}
+	testLocalPrefResults := [6]bool{false, false, false, false, true, false}
 
-	medValue := []uint32{100}
-	asPathValue := []uint32{65501, 65512}
+	medValue := []uint32{medValue}
+	asPathValue := []uint32{cfgplugins.DutAS, cfgplugins.AteAS2}
+	localPrefValue := []uint32{localPref}
 
 	for index, prefix := range prefixesV4 {
 		if testMedResults[index] {
 			for idx, pref := range prefix {
 				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otgMED, medValue)
 				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgMED, medValue)
+			}
+		}
+		if testLocalPrefResults[index] {
+			for idx, pref := range prefix {
+				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otglocalPref, localPrefValue)
+				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otglocalPref, localPrefValue)
 			}
 		}
 		if testASPathResults[index] {
