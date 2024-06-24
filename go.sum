@@ -1649,6 +1649,8 @@ github.com/openconfig/gnoi v0.4.0 h1:jbYXRMNmmvA8ZFv2FBLrYoxA1MFSui4tEui+8LAWyVc
 github.com/openconfig/gnoi v0.4.0/go.mod h1:0d3/bgooXM/je6jI+fb7+9Iky8R8k6zSFG19xRYTRso=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c h1:egPgBUBDn0XEtbz0CvE+Bh/I/3iTzwzMq5/rmtPJdQs=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c/go.mod h1:Se/HklUcFVcCGB66khgYouiesLRPoa4UL1ovvmE/68k=
+github.com/openconfig/gnpsi v0.3.2 h1:+bl1bXMOTrWOcGydWB+8wGgvxlgvL8Y6joAiWFU5sog=
+github.com/openconfig/gnpsi v0.3.2/go.mod h1:+Qj2PwadJ/jvGkH6H/A3XO9ZRKQRVtl3A30ubwz0M18=
 github.com/openconfig/gnsi v1.4.5 h1:ZkUVN+HDg0GFe3wIYocWjPqjOHZP3vVEB+NIctaYV6c=
 github.com/openconfig/gnsi v1.4.5/go.mod h1:i4guw9Vn3Mn/aUKB/2z84Moe2P811H3SV3g0Cu0X4h8=
 github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b h1:NSYuxdlOWLldNpid1dThR6Dci96juXioUguMho6aliI=
@@ -1673,8 +1675,8 @@ github.com/openconfig/lemming/operator v0.2.0 h1:dovZnR6lQkOHXcODli1NDOr/GVYrBY0
 github.com/openconfig/lemming/operator v0.2.0/go.mod h1:LKgEXSR5VK2CAeh2uKijKAXFj42uQuwakrCHVPF0iII=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa/SXYcNpJFjjZvenxO/xnTwuUCgCEinhNLfU=
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
-github.com/openconfig/ondatra v0.5.8 h1:hTkewcIRtOC6FOpcGThFZPS38EgCbfqh+uwlppMotiA=
-github.com/openconfig/ondatra v0.5.8/go.mod h1:6vT2uWz1neH/hDa4ZX8H8pT6sYZHvIftrUugQyG9RrA=
+github.com/openconfig/ondatra v0.6.0 h1:wKedHwumAjJTFrbtEdWu71S4S6fO2IEXWgI6mQPtHho=
+github.com/openconfig/ondatra v0.6.0/go.mod h1:8w9H5yGPctJrdeORW/WCK1sos+goQCqIx8ABTLNPR68=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=

@@ -44,3 +44,13 @@ platform_exceptions:  {
     skip_prefix_set_mode: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    missing_isis_interface_afi_safi_enable: true
+    bgp_default_policy_unsupported: true
+    prepolicy_received_routes: true
+  }
+}
