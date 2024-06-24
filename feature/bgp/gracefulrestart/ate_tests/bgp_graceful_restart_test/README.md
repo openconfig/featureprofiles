@@ -114,7 +114,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only:
   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time:
   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group:
   /routing-policy/policy-definitions/policy-definition/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
