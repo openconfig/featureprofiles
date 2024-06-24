@@ -103,40 +103,37 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
-## Config Parameter Coverage
-
-For prefixes:
-
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
-*   gNOI.killProcessRequest_Signal_Term [To gracefully kill BGP process]
-
-Parameters:
-
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only
-*   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time
-*   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time
-
-BGP conifguration:
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
   
-* Policy-Definition
-    * /routing-policy/policy-definitions/policy-definition/config/name
-    * /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-    * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-    * /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-    * /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
-      
-* Apply Policy at Peer-Group level
-    * afi-safis/afi-safi/apply-policy/config/import-policy
-    * afi-safis/afi-safi/apply-policy/config/export-policy
+  ## State paths
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time:
 
-## Telemetry Parameter Coverage
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/afi-safi-name
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received
-*   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time
-*   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+  gnoi:
+    system.System.KillProcess:
+```
