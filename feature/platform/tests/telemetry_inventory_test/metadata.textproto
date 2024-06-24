@@ -10,6 +10,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    install_position_and_install_component_unsupported: true
     model_name_unsupported: true
   }
 }
@@ -18,6 +19,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
+    install_position_and_install_component_unsupported: true
     model_name_unsupported: true
   }
 }
@@ -28,6 +30,7 @@ platform_exceptions: {
   deviations: {
     switch_chip_id_unsupported: true
     backplane_facing_capacity_unsupported: true
+    install_position_and_install_component_unsupported: true
     model_name_unsupported: true
     storage_component_unsupported: true
   }
@@ -38,7 +41,7 @@ platform_exceptions: {
   }
   deviations: {
     backplane_facing_capacity_unsupported: true
+    install_position_and_install_component_unsupported: true
     model_name_unsupported: true
   }
 }
-
