@@ -2,8 +2,6 @@
 
 ## Summary
 
-Test Change 3
-
 Tests that ports an be successfully configured in a basic topology.
 
 ## Procedure
