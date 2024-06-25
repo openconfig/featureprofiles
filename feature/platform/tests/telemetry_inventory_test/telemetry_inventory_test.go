@@ -582,16 +582,18 @@ func TestControllerCardEmpty(t *testing.T) {
 // If the component has a leafref for a subcomponent, that leaf must exist in the list of
 // components.
 func verifySubcomponentNameExists(c *oc.Component, components []*oc.Component, t *testing.T) {
-	// Note that this will get the subcomponent regardless of whether it is stored in
+	// Note that this will get the subcomponents regardless of whether they are stored in
 	// subcomponent/name or subcomponent/state/name.
-	subcomponentName := c.GetSubcomponent(c.GetName()).GetName()
-	if subcomponentName != "" {
-		for _, component := range components {
-			if component.GetName() == subcomponentName {
-				return
+	for _, subcomponent := range c.GetOrCreateSubcomponentMap() {
+		sName := subcomponent.GetName()
+		if sName != "" {
+			for _, component := range components {
+				if component.GetName() == sName {
+					continue
+				}
 			}
+			t.Errorf("Subcomponent %s not found in list of components", sName)
 		}
-		t.Errorf("Subcomponent %s not found in list of components", subcomponentName)
 	}
 }
 
