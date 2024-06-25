@@ -593,6 +593,8 @@ func verifySubcomponentNameExists(c *oc.Component, components []*oc.Component, t
 				}
 			}
 			t.Errorf("Subcomponent %s not found in list of components", sName)
+		} else {
+			t.Errorf("Component %s has empty subcomponent name", c.GetName())
 		}
 	}
 }
