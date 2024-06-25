@@ -47,6 +47,7 @@ const (
 	otglocalPref                     = "local-pref"
 	otgMED                           = "med"
 	otgASPath                        = "as-path"
+	otgCommunity                     = "community"
 	parentPolicy                     = "multiPolicy"
 	callPolicy                       = "match_community_regex"
 	rejectStatement                  = "reject_route_community"
@@ -109,6 +110,8 @@ var communityMembers = [][][]int{
 		{50, 1}, {51, 1},
 	},
 }
+
+var communityReceived [][][]int
 
 type bgpNbrList struct {
 	nbrAddr string
@@ -703,6 +706,11 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					}
 				case otglocalPref:
 					validateLocalPreferenceV6(t, dut, ipAddr, metric[0])
+				case otgCommunity:
+					t.Logf("Community received on OTG: %v", bgpPrefix.Community)
+					for _, gotCommunity := range bgpPrefix.Community {
+						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+					}
 				default:
 					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
@@ -758,6 +766,11 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					}
 				case otglocalPref:
 					validateLocalPreferenceV4(t, dut, ipAddr, metric[0])
+				case otgCommunity:
+					t.Logf("Community received on OTG: %v", bgpPrefix.Community)
+					for _, gotCommunity := range bgpPrefix.Community {
+						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+					}
 				default:
 					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
 				}
@@ -809,13 +822,31 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 	configureImportExportMultifacetMatchActionsBGPPolicy(t, bs.DUT, ipv4, ipv6, ipv41, ipv61)
 	time.Sleep(time.Second * 120)
 
+	testResults1 := [6]bool{false, true, false, false, true, true}
+	verifyTrafficV4AndV6(t, bs, testResults1)
+
 	testMedResults := [6]bool{false, true, false, false, true, true}
 	testASPathResults := [6]bool{false, true, false, false, true, true}
 	testLocalPrefResults := [6]bool{false, false, false, false, true, false}
+	testCommunityResults := [6]bool{false, true, false, false, true, true}
 
 	medValue := []uint32{medValue}
 	asPathValue := []uint32{cfgplugins.DutAS, cfgplugins.AteAS2}
 	localPrefValue := []uint32{localPref}
+	communityResultValue := []uint32{}
+
+	if deviations.BgpCommunitySetRefsUnsupported(dut) {
+		for index, cm := range communityMembers {
+			if testCommunityResults[index] {
+				communityReceived = append(communityReceived, cm)
+			}
+		}
+	} else {
+		communityReceived = [][][]int{
+			append(communityMembers[1], []int{40, 1}, []int{40, 2}),
+			append(communityMembers[4], []int{40, 2}, []int{60, 1}, []int{70, 1}),
+			append(communityMembers[5], []int{40, 1}, []int{40, 2})}
+	}
 
 	for index, prefix := range prefixesV4 {
 		if testMedResults[index] {
@@ -836,8 +867,11 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgASPath, asPathValue)
 			}
 		}
+		if testCommunityResults[index] {
+			for idx, pref := range prefix {
+				validateOTGBgpPrefixV4AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP4.peer", pref, prefixV4Len, otgCommunity, communityResultValue)
+				validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, bs.ATEPorts[0].Name+".BGP6.peer", prefixesV6[index][idx], prefixV6Len, otgCommunity, communityResultValue)
+			}
+		}
 	}
-
-	testResults1 := [6]bool{false, true, false, false, true, true}
-	verifyTrafficV4AndV6(t, bs, testResults1)
 }
