@@ -146,8 +146,6 @@ message Metadata {
     bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
     // Device does not report P4RT node names in the component hierarchy.
     bool explicit_p4rt_node_component = 35;
-    // Configure ACLs using vendor native model specifically for RT-1.4.
-    bool use_vendor_native_acl_config = 36;
     // Device does not support reporting software version according to the
     // requirements in gNMI-1.10.
     bool sw_version_unsupported = 37;
@@ -578,7 +576,7 @@ message Metadata {
     bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
 
   message PlatformExceptions {
