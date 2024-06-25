@@ -76,7 +76,7 @@ BGP Long-Lived Graceful Restart
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received 
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised 
 
-## Protocol/RPC Parameter coverage
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 rpcs:
