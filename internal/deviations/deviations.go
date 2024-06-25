@@ -1052,3 +1052,8 @@ func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool 
 func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
 }
+
+// MaxEcmpPaths supported for isis max ecmp path
+func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
+}
