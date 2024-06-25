@@ -579,9 +579,9 @@ func TestControllerCardEmpty(t *testing.T) {
 	}
 }
 
-// If the component has a leafref for a subcomponent, that leaf must exist in the list of
-// components.
-func verifySubcomponentNameExists(c *oc.Component, components []*oc.Component, t *testing.T) {
+// validateSubcomponentsExistAsComponents checks that if the given component has subcomponents, that
+// those subcomponents exist as components on the device (i.e. the leafref is valid).
+func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T) {
 	// Note that this will get the subcomponents regardless of whether they are stored in
 	// subcomponent/name or subcomponent/state/name.
 	for _, s := range c.Subcomponent {
@@ -623,7 +623,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		}
 		cName := card.GetName()
 		t.Run(cName, func(t *testing.T) {
-			verifySubcomponentNameExists(card, validCards, t)
+			validateSubcomponentsExistAsComponents(card, validCards, t)
 			if p.descriptionValidation {
 				t.Logf("Component %s Description: %s", cName, card.GetDescription())
 				if card.GetDescription() == "" {
