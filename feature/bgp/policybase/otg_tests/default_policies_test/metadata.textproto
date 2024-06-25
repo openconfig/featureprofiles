@@ -26,6 +26,7 @@ platform_exceptions:  {
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
     default_import_export_policy: true
+    bgp_default_policy_unsupported: true
   }
 }
 platform_exceptions:  {
@@ -40,5 +41,16 @@ platform_exceptions:  {
     skip_non_bgp_route_export_check:  true
     missing_isis_interface_afi_safi_enable: true
     bgp_default_policy_unsupported: true
+    skip_prefix_set_mode: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    missing_isis_interface_afi_safi_enable: true
+    bgp_default_policy_unsupported: true
+    prepolicy_received_routes: true
   }
 }
