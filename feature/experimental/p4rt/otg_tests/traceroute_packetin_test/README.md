@@ -95,7 +95,7 @@ Tests that traceroute respects transit FRR when the backup is also unviable.
     NH#1001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
-    
+
     ```
 
 2.  Apply vrf selection policy `vrf_selection_policy_w` to DUT port-1.
@@ -110,7 +110,7 @@ Tests that traceroute respects transit FRR when the backup is also unviable.
     * outer_dst: `ipv4_outer_decap_match`
     * dscp: `dscp_encap_no_match`
     * proto: `4`
-	* outer TTL: `1`  
+	* outer TTL: `1`
 
     * inner_src: `ipv6_inner_src`
     * inner_dst: `ipv6_inner_encap_match`
@@ -119,7 +119,7 @@ Tests that traceroute respects transit FRR when the backup is also unviable.
     * outer_dst: `ipv4_outer_decap_match`
     * dscp: `dscp_encap_no_match`
     * proto: `41`
-	* outer TTL: `1`  
+	* outer TTL: `1`
     ```
 
 4.  Verify that all punted packets:
@@ -135,7 +135,7 @@ Encap failure cases (TBD on confirmation)
 
 ### Test-8 (TBD)
 
-Tests that traceroute for a packet with no route reports a miss.
+Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.
 
 ### Test-9, decap the encap
 
@@ -239,6 +239,3 @@ Tests that traceroute for a packet with no route reports a miss.
 *   gRIBI:
     *   Modify
         *   ModifyRequest
-   
-
-
