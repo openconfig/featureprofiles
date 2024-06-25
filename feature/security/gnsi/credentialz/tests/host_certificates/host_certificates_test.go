@@ -49,8 +49,8 @@ func prepareCaAndHostKeys(t *testing.T, dir string) {
 	caCmd := exec.Command(
 		"ssh-keygen",
 		"-t", "ed25519",
-		"-f", "dut",
-		"-C", "dut",
+		"-f", "ca",
+		"-C", "ca",
 		"-q", "-N", "", // quiet, empty passphrase
 	)
 	caCmd.Dir = dir
@@ -63,8 +63,8 @@ func prepareCaAndHostKeys(t *testing.T, dir string) {
 	dutCmd := exec.Command(
 		"ssh-keygen",
 		"-t", "ed25519",
-		"-f", "ca",
-		"-C", "ca",
+		"-f", "dut",
+		"-C", "dut",
 		"-q", "-N", "",
 	)
 	dutCmd.Dir = dir
