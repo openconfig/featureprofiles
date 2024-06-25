@@ -123,6 +123,8 @@ func TestMain(m *testing.M) {
 //   - integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 //   - integrated-circuit/backplane-facing-capacity/state/total
 //   - integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+//   - components/component/subcomponents/subcomponent/name
+//   - components/component/subcomponents/subcomponent/state/name
 //   - Transceiver
 //   - Storage
 //   - Validate telemetry /components/component/storage exists.
@@ -577,6 +579,22 @@ func TestControllerCardEmpty(t *testing.T) {
 	}
 }
 
+// If the component has a leafref for a subcomponent, that leaf must exist in the list of
+// components.
+func verifySubcomponentNameExists(c *oc.Component, components []*oc.Component, t *testing.T) {
+	// Note that this will get the subcomponent regardless of whether it is stored in
+	// subcomponent/name or subcomponent/state/name.
+	subcomponentName := c.GetSubcomponent(c.GetName()).GetName()
+	if subcomponentName != "" {
+		for _, component := range components {
+			if component.GetName() == subcomponentName {
+				return
+			}
+		}
+		t.Errorf("Subcomponent %s not found in list of components", subcomponentName)
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -601,6 +619,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		}
 		cName := card.GetName()
 		t.Run(cName, func(t *testing.T) {
+			verifySubcomponentNameExists(card, validCards, t)
 			if p.descriptionValidation {
 				t.Logf("Component %s Description: %s", cName, card.GetDescription())
 				if card.GetDescription() == "" {
