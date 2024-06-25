@@ -102,7 +102,7 @@ nodes: {
 nodes: {
     name: "dut2"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"
