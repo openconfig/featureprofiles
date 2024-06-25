@@ -584,7 +584,7 @@ func TestControllerCardEmpty(t *testing.T) {
 func verifySubcomponentNameExists(c *oc.Component, components []*oc.Component, t *testing.T) {
 	// Note that this will get the subcomponents regardless of whether they are stored in
 	// subcomponent/name or subcomponent/state/name.
-	for _, s := range c.GetOrCreateSubcomponentMap() {
+	for _, s := range c.Subcomponent {
 		sName := s.GetName()
 		if sName != "" {
 			for _, component := range components {
