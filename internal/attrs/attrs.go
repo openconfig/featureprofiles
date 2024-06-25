@@ -41,7 +41,6 @@ type Attributes struct {
 	Name       string // Interface name, only applied to ATE ports.
 	Desc       string // Description, only applied to DUT interfaces.
 	IPv4Len    uint8  // Prefix length for IPv4.
-	IPv4LenSec uint8  // Prefix length for Secondary IPv4.
 	IPv4LenSec uint8  // Prefix length for Secondary IPv4 address.
 	IPv6Len    uint8  // Prefix length for IPv6.
 	MTU        uint16
