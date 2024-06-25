@@ -78,7 +78,13 @@ BGP Long-Lived Graceful Restart
 
 ## Protocol/RPC Parameter coverage
 
-N/A
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
 
 ## Minimum DUT platform requirement
 
