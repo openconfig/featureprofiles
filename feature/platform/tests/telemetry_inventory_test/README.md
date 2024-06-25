@@ -68,6 +68,10 @@ paths:
        platform_type: ["SENSOR"]
     /components/component/state/temperature/max-time:
        platform_type: ["SENSOR"]
+    /components/component/subcomponents/subcomponent/name:
+       platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/subcomponents/subcomponent/state/name:
+       platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
