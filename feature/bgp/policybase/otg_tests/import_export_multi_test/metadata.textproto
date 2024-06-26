@@ -21,6 +21,7 @@ platform_exceptions: {
     bgp_conditions_match_community_set_unsupported: true
     skip_prefix_set_mode: true
     bgp_community_member_is_a_string: true
+    skip_bgp_send_community_type: true
   }
 }
 platform_exceptions: {
@@ -34,5 +35,6 @@ platform_exceptions: {
     skip_setting_statement_for_policy: true
     default_route_policy_unsupported: true
     skip_checking_attribute_index: true
+    skip_bgp_send_community_type: true
   }
 }
