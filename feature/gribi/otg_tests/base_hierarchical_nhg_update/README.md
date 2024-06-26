@@ -6,6 +6,8 @@ Validate NHG update in hierarchical resolution scenario
 
 ## Procedure
 
+### Validate NHG update in hierarchical resolution scenario
+
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
     DUT port-3.
 *   Create a non-default VRF (VRF-1) that includes DUT port-1.
@@ -43,60 +45,8 @@ and it should not change the expected test result.
 *   Replace the existing VRF selection policy with `vrf_selection_policy_w` as
     in <https://github.com/openconfig/featureprofiles/pull/2217>
 
-## Telemetry Parameter coverage
 
-For prefix:
-
-*   /network-instances/network-instance/afts/
-
-Parameters:
-
-*   ipv4-unicast/ipv4-entry/state
-*   ipv4-unicast/ipv4-entry/state/next-hop-group
-*   ipv4-unicast/ipv4-entry/state/origin-protocol
-*   ipv4-unicast/ipv4-entry/state/prefix
-*   next-hop-groups/next-hop-group/id
-*   next-hop-groups/next-hop-group/next-hops
-*   next-hop-groups/next-hop-group/next-hops/next-hop
-*   next-hop-groups/next-hop-group/next-hops/next-hop/index
-*   next-hop-groups/next-hop-group/next-hops/next-hop/state
-*   next-hop-groups/next-hop-group/next-hops/next-hop/state/index
-*   next-hop-groups/next-hop-group/state
-*   next-hop-groups/next-hop-group/state/id
-*   next-hops/next-hop/index
-*   next-hops/next-hop/interface-ref
-*   next-hops/next-hop/interface-ref/state
-*   next-hops/next-hop/interface-ref/state/interface
-*   next-hops/next-hop/interface-ref/state/subinterface
-*   next-hops/next-hop/state
-*   next-hops/next-hop/state/index
-*   next-hops/next-hop/state/ip-address
-*   next-hops/next-hop/state/mac-address
-
-## OpenConfig Path and RPC Coverage
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-  gribi:
-    gRIBI.Get:
-    gRIBI.Modify:
-    gRIBI.Flush:
-```
-
-## Minimum DUT platform requirement
-
-vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
-
-# TE-3.7: Drain Implementation Test.
-
-## Summary
-
-Validate NHG update in Drain Implementation Test.
-
-## Procedure
+### Validate NHG update in Drain Implementation Test.
 
 *   Steps:
 *   Topology
@@ -130,3 +80,51 @@ Validate NHG update in Drain Implementation Test.
 *   Expect FIB ACKs and validate that the traffic is moved back to trunk-2 and
     trunk-3 with less than <xx> ms traffic loss.
 
+
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+    ## Config parameter coverage
+    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
+    /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group:
+    /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+    /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
+    /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/subinterface:
+    /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface:
+    /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/subinterface:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/index:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address:
+
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
+
+## Required DUT platform
+
+* vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
