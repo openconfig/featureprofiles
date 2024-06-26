@@ -32,7 +32,9 @@ func GenerateIPs(ipBlock string, n int) []string {
 	firstIP := binary.BigEndian.Uint32(netCIDR.IP)
 	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
 
-	for i := firstIP; i <= lastIP && n > 0; i++ {
+	// Generate IPs in the range [first usable IP address (network address + 1),
+	// last usable IP address (broadcast address - 1)]
+	for i := firstIP + 1; i < lastIP && n > 0; i++ {
 		ip := make(net.IP, 4)
 		binary.BigEndian.PutUint32(ip, i)
 		entries = append(entries, fmt.Sprint(ip))
