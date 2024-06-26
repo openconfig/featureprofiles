@@ -269,10 +269,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 		b.Set(t, dut)
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) { 
-		for _, aggID := range aggIDs { 
-			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0) 
-		} 
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		for _, aggID := range aggIDs {
+			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
