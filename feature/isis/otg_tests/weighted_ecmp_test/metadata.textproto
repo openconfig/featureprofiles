@@ -22,3 +22,11 @@ platform_exceptions: {
     rib_wecmp: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}

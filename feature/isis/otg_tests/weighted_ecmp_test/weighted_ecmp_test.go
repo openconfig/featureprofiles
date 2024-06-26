@@ -9,7 +9,6 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -17,6 +16,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -101,8 +101,8 @@ var (
 	agg4 = &aggPortData{
 		dutIPv4:       "192.0.2.13",
 		ateIPv4:       "192.0.2.14",
-		dutIPv6:       "2001:db8::14",
-		ateIPv6:       "2001:db8::15",
+		dutIPv6:       "2001:db8::15",
+		ateIPv6:       "2001:db8::16",
 		ateAggName:    "lag4",
 		ateAggMAC:     "02:00:01:01:01:10",
 		atePort1MAC:   "02:00:01:01:01:11",
@@ -159,10 +159,49 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	flows := configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+
+	// Checking ISIS adjacency
+	for _, aggID := range aggIDs {
+		awaitAdjacency(t, dut, aggID)
+	}
 	for _, agg := range []*aggPortData{agg1, agg2} {
 		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	}
+
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	t.Log("Waiting for BGP v4 prefix to be installed")
+	got, found := gnmi.Watch(t, dut, statePath.Neighbor(agg1.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		prefixCount, ok := val.Val()
+		return ok && prefixCount == 1
+	}).Await(t)
+	if !found {
+		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, 1)
+	}
+	got2, found2 := gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		prefixCount, ok := val.Val()
+		return ok && prefixCount == 1
+	}).Await(t)
+	if !found2 {
+		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got2, 1)
+	}
+
+	t.Log("Waiting for BGP v6 prefix to be installed")
+	got, found = gnmi.Watch(t, dut, statePath.Neighbor(agg1.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		prefixCount, ok := val.Val()
+		return ok && prefixCount == 1
+	}).Await(t)
+	if !found {
+		t.Errorf("Installed prefixes v6 mismatch: got %v, want %v", got, 1)
+	}
+	got2, found2 = gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		prefixCount, ok := val.Val()
+		return ok && prefixCount == 1
+	}).Await(t)
+	if !found2 {
+		t.Errorf("Installed prefixes v6 mismatch: got %v, want %v", got2, 1)
 	}
 
 	startTraffic(t, ate, top)
@@ -200,7 +239,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 	p3 := dut.Port(t, "port3")
 	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_DOWN)
-	top.Flows().Clear()
 
 	startTraffic(t, ate, top)
 
@@ -276,8 +314,8 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
-	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
-	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
+	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 10000))
+	udp.DstPort().SetValues(randRange(t, 49152, 65535, 10000))
 
 	fV6 := top.Flows().Add().SetName("flowV6")
 	fV6.Metrics().SetEnable(true)
@@ -293,8 +331,8 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
-	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
-	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
+	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 10000))
+	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 10000))
 	return []gosnappi.Flow{fV4, fV6}
 }
 
@@ -386,6 +424,9 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetMetric(10)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
+
+	dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".v4Loop").SetLinkMetric(10).Addresses().Add().SetAddress(agg.ateLoopbackV4).SetPrefix(32)
+	dev.Isis().V6Routes().Add().SetName(agg.ateAggName + ".v6Loop").SetLinkMetric(10).Addresses().Add().SetAddress(agg.ateLoopbackV6).SetPrefix(128)
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
@@ -455,7 +496,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
-	configureStaticRouteToATELoopbacks(t, dut)
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
 	configureDUTBGP(t, dut)
@@ -502,50 +542,6 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureStaticRouteToATELoopbacks(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-
-	sr4ATE1 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          agg1.ateLoopbackV4 + "/32",
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(agg1.ateIPv4),
-		},
-	}
-	sr6ATE1 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          agg1.ateLoopbackV6 + "/128",
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(agg1.ateIPv6),
-		},
-	}
-	sr4ATE2 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          agg2.ateLoopbackV4 + "/32",
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(agg2.ateIPv4),
-			"1": oc.UnionString(agg3.ateIPv4),
-			"2": oc.UnionString(agg4.ateIPv4),
-		},
-	}
-	sr6ATE2 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          agg2.ateLoopbackV6 + "/128",
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(agg2.ateIPv6),
-			"1": oc.UnionString(agg3.ateIPv6),
-			"2": oc.UnionString(agg4.ateIPv6),
-		},
-	}
-	b := &gnmi.SetBatch{}
-	for _, cfg := range []*cfgplugins.StaticRouteCfg{sr4ATE1, sr6ATE1, sr4ATE2, sr6ATE2} {
-		if _, err := cfgplugins.NewStaticRouteCfg(b, cfg, dut); err != nil {
-			t.Fatalf("Failed to configure static route to ATE Loopback: %v", err)
-		}
-	}
-	b.Set(t, dut)
-}
-
 func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	t.Helper()
 	d := &oc.Root{}
@@ -568,6 +564,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
@@ -660,4 +659,20 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
+}
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
+	t.Helper()
+
+	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	intf := isisPath.Interface(intfName)
+
+	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
+	_, ok := gnmi.WatchAll(t, dut, query, 2*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+		v, ok := val.Val()
+		return v == oc.Isis_IsisInterfaceAdjState_UP && ok
+	}).Await(t)
+
+	if !ok {
+		t.Fatalf("IS-IS adjacency was not formed on interface %v", intfName)
+	}
 }
