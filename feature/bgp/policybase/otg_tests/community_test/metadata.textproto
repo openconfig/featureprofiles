@@ -30,3 +30,13 @@ platform_exceptions: {
     community_member_regex_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf:  true
+    interface_enabled: true
+    bgp_conditions_match_community_set_unsupported: true
+  }
+}
