@@ -22,3 +22,13 @@ platform_exceptions: {
     rib_wecmp: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_ref_config_unsupported:true
+    rib_wecmp: true
+    wecmp_auto_unsupported: true
+  }
+}
