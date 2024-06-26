@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    use_vendor_native_acl_config: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
