@@ -477,7 +477,32 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 	if importPolicy != "" {
 		tc.SetImportPolicy([]string{importPolicy})
 	}
-	tc.SetDisableMetricPropagation(!mPropagation)
+	if !deviations.SkipSettingDisableMetricPropagation(dut) {
+		tc.SetDisableMetricPropagation(!mPropagation)
+	}
+
+	if deviations.SamePolicyAttachedToAllAfis(dut) {
+		if addressFamily == oc.Types_ADDRESS_FAMILY_IPV4 {
+			addressFamily = oc.Types_ADDRESS_FAMILY_IPV6
+		} else {
+			addressFamily = oc.Types_ADDRESS_FAMILY_IPV4
+		}
+
+		tc1 := networkInstance.GetOrCreateTableConnection(
+			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+			oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+			addressFamily,
+		)
+
+		tc1.SetDefaultImportPolicy(defaultImport)
+		if importPolicy != "" {
+			tc1.SetImportPolicy([]string{importPolicy})
+		}
+		if !deviations.SkipSettingDisableMetricPropagation(dut) {
+			tc1.SetDisableMetricPropagation(!mPropagation)
+		}
+	}
+
 	gnmi.Update(t, dut, niPath.Config(), networkInstance)
 }
 
