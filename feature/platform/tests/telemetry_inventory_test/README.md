@@ -6,7 +6,7 @@ Validate Telemetry for each FRU within chassis.
 
 ## Procedure
 
-For each of the following component types (linecard, chassis, fan, controller
+For each of the following component types (linecard, chassis, fan, fan_tray, controller
 card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 
 *   Presence of component within gNMI telemetry.
@@ -31,13 +31,13 @@ TODO:
 ```yaml
 paths:
     /components/component/state/description:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/firmware-version:
        platform_type: ["TRANSCEIVER"]
     /components/component/state/hardware-version:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/id:
-       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR"]
     /components/component/state/install-component:
        platform_type: ["FABRIC", "FAN", "FAN_TRAY", "FRU", "CONTROLLER_CARD", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/install-position:
@@ -49,17 +49,17 @@ paths:
     /components/component/state/model-name:
        platform_type: ["CHASSIS"]
     /components/component/state/name:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/oper-status:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/parent:
-       platform_type: ["CONTROLLER_CARD", "FABRIC", "FRU", "LINECARD", "POWER_SUPPLY"]
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/part-no:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FRU", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/type:
-       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
     /components/component/state/temperature/alarm-status:
        platform_type: ["SENSOR"]
     /components/component/state/temperature/instant:
