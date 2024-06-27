@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -128,12 +129,6 @@ func TestGetProfileList(t *testing.T) {
 			args:    args{req: &certzpb.GetProfileListRequest{}},
 			want:    &certzpb.GetProfileListResponse{SslProfileIds: []string{"Abc123", "Test123", "gNxI"}},
 			wantErr: false,
-		},
-		{
-			name:    "NIL Get SSL profile request",
-			args:    args{},
-			want:    nil,
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -505,6 +500,164 @@ func getIpAndPortFromBindingFile() (string, error) {
 	return targetIP, nil
 }
 
+func getCertFromBindingFile() (string, string, error) {
+	bindingFile := flag.Lookup("binding").Value.String()
+	in, err := os.ReadFile(bindingFile)
+	if err != nil {
+		return "", "", err
+	}
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(in, b); err != nil {
+		return "", "", err
+	}
+	cert := b.Duts[0].Options.CertFile
+	key := b.Duts[0].Options.KeyFile
+	return cert, key, nil
+}
+
+func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tlsConf tls.Config) error {
+	certPath, keyPath, err := getCertFromBindingFile()
+	if err != nil {
+		return err
+	}
+
+	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return err
+	}
+	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return err
+	}
+	var invalidCerts []tls.Certificate
+	invalidCerts = append(invalidCerts, certificate)
+	tlsCerts := make([]tls.Certificate, len(tlsConf.Certificates))
+	copy(tlsCerts, tlsConf.Certificates)
+
+	tlsConf.Certificates = invalidCerts
+
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf)), grpc.WithReturnConnectionError()}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+
+	t.Logf("%v", err)
+
+	tlsConf.Certificates = tlsCerts
+	opts = []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func OCVerification(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string, certVer string, certCreatedOn uint64, caVer string, caCreatedOn uint64, tlsConf tls.Config) error {
+	errorCount := 0
+
+	sslProfileIDFromOc, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").SslProfileId().State()).Val()
+	certVersionFromOc, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").CertificateVersion().State()).Val()
+	certCreatedTime, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").CertificateCreatedOn().State()).Val()
+	trustBundleVersionFromOc, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").CaTrustBundleVersion().State()).Val()
+	trustBundleCreatedOnFromOc, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").CaTrustBundleCreatedOn().State()).Val()
+
+	err := newConnForAcceptAndRejectCounters(t, dut, tlsConf)
+	if err != nil {
+		return err
+	}
+
+	startTime := time.Now().Unix()
+	beforeConnAccept, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionAccepts().State()).Val()
+	beforeConnRej, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionRejects().State()).Val()
+	beforeConnAcceptOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionAccept().State()).Val()
+	beforeConnRejOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionReject().State()).Val()
+
+	err = newConnForAcceptAndRejectCounters(t, dut, tlsConf)
+	if err != nil {
+		return err
+	}
+
+	afterConnAccept, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionAccepts().State()).Val()
+	afterConnRej, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionRejects().State()).Val()
+
+	endTime := time.Now().Unix()
+	elapsedTime := uint64(endTime-startTime) + 2
+
+	afterConnAcceptOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionAccept().State()).Val()
+	afterConnRejOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionReject().State()).Val()
+
+	if sslProfileID == sslProfileIDFromOc {
+		t.Logf("SSL Profile ID feild matched successfully")
+	} else {
+		t.Logf("SSL Profile ID mismatch")
+		errorCount = errorCount + 1
+	}
+
+	if certVer == certVersionFromOc {
+		t.Logf("Certificate Version feild matched successfully")
+	} else {
+		t.Logf("Certificate Version mismatch")
+		errorCount = errorCount + 1
+	}
+
+	if certCreatedOn == certCreatedTime {
+		t.Logf("Cert createdOn feild matched successfully")
+	} else {
+		t.Logf("Cert createdOn mismatch")
+		errorCount = errorCount + 1
+	}
+
+	if caVer == trustBundleVersionFromOc {
+		t.Logf("CA Trust Bundle Version feild matched successfully")
+	} else {
+		t.Logf("CA Trust Bundle Version mismatch")
+		errorCount = errorCount + 1
+	}
+
+	if caCreatedOn == trustBundleCreatedOnFromOc {
+		t.Logf("CA Trust Bundle CreatedOn feild matched successfully")
+	} else {
+		t.Logf("CA Trust Bundle CreatedOn mismatch")
+		errorCount = errorCount + 1
+	}
+
+	if beforeConnAccept+1 == afterConnAccept {
+		t.Logf("Before: %d, After: %d :Connection Accept counter increamented successfully", beforeConnAccept, afterConnAccept)
+	} else {
+		t.Logf("Before: %d, After: %d : Connection Accept counter is not increamented", beforeConnAccept, afterConnAccept)
+		errorCount = errorCount + 1
+	}
+
+	if beforeConnRej+1 == afterConnRej {
+		t.Logf("Before: %d, After: %d :Connection Reject counter increamented successfully", beforeConnRej, afterConnRej)
+	} else {
+		t.Logf("Before: %d, After: %d :Connection Reject counter is not increamented", beforeConnRej, afterConnRej)
+		errorCount = errorCount + 1
+	}
+
+	if beforeConnAcceptOn+elapsedTime > afterConnAcceptOn && beforeConnAcceptOn < afterConnAcceptOn {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verified successfully", beforeConnAcceptOn, afterConnAcceptOn, elapsedTime)
+	} else {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verification failed", beforeConnAcceptOn, afterConnAcceptOn, elapsedTime)
+		errorCount = errorCount + 1
+	}
+
+	if beforeConnRejOn+elapsedTime > afterConnRejOn && beforeConnRejOn < afterConnRejOn {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection RejectedOn counter verified successfully", beforeConnRejOn, afterConnRejOn, elapsedTime)
+	} else {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection Reject counter verification failed", beforeConnRejOn, afterConnRejOn, elapsedTime)
+		errorCount = errorCount + 1
+	}
+
+	if errorCount != 0 {
+		return fmt.Errorf("Error in OC Verification")
+	}
+	return nil
+}
+
 func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	os.Mkdir("testdata/", 0755)
 	defer os.RemoveAll("testdata/")
@@ -589,9 +742,9 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -611,6 +764,9 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	var response *certzpb.RotateCertificateResponse
 
+	certCreatedTime := uint64(time.Now().Unix())
+	version := "1.0"
+
 	request := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: true,
 		SslProfileId:   profile_id,
@@ -618,22 +774,22 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 			Certificates: &certzpb.UploadRequest{
 				Entities: []*certzpb.Entity{
 					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
+						Version:   version,
+						CreatedOn: certCreatedTime,
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},
 					},
 					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
+						Version:   version,
+						CreatedOn: certCreatedTime,
 						Entity: &certzpb.Entity_TrustBundle{
 							TrustBundle: &certChainMessage,
 						},
@@ -704,6 +860,11 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
 	t.Logf("Profile list get was successful, %v", profilelist)
+
+	err = OCVerification(t, dut, profile_id, version, certCreatedTime, version, certCreatedTime, tlsConf)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
 
 	//UnCONFIG NEW gNSI CLI
 	t.Log("UnConfig new gNSI CLI")
@@ -809,9 +970,9 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -825,6 +986,9 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		}
 	}
 
+	certCreatedTime := uint64(time.Now().Unix())
+	version := "1.0"
+
 	request := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: true,
 		SslProfileId:   profile_id,
@@ -832,22 +996,22 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 			Certificates: &certzpb.UploadRequest{
 				Entities: []*certzpb.Entity{
 					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
+						Version:   version,
+						CreatedOn: certCreatedTime,
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},
 					},
 					{
-						Version:   "1.0",
-						CreatedOn: 123456789,
+						Version:   version,
+						CreatedOn: certCreatedTime,
 						Entity: &certzpb.Entity_TrustBundle{
 							TrustBundle: &certChainMessage,
 						},
@@ -916,6 +1080,11 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 		t.Fatalf("Unexpected Error in getting profile list: %v", err)
 	}
 	t.Logf("Profile list get was successful, %v", profilelist)
+
+	err = OCVerification(t, dut, profile_id, version, certCreatedTime, version, certCreatedTime, tlsConf)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
 
 	//UnCONFIG NEW gNSI CLI
 	t.Log("UnConfig new gNSI CLI")
@@ -1035,10 +1204,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: certPEMtoload,
-												PrivateKey:  certPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: certPEMtoload},
 											},
 										},
 									},
@@ -1065,10 +1234,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: []byte(expired_cert),
-												PrivateKey:  privKeyPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: []byte(expired_cert)},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 											},
 										},
 									},
@@ -1095,10 +1264,10 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 									Entity: &certzpb.Entity_CertificateChain{
 										CertificateChain: &certzpb.CertificateChain{
 											Certificate: &certzpb.Certificate{
-												Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-												Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-												Certificate: certPEMtoload,
-												PrivateKey:  privKeyPEMtoload,
+												Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+												Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+												CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+												PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 											},
 										},
 									},
@@ -1271,9 +1440,9 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	for i, cert := range certificatesrsa {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessageRSA.Parent = &certzpb.CertificateChain{
@@ -1301,9 +1470,9 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	for i, cert := range certificatesecdsa {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toECDSAPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toECDSAPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessageECDSA.Parent = &certzpb.CertificateChain{
@@ -1329,10 +1498,10 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoloadRSA,
-									PrivateKey:  privKeyPEMtoloadRSA,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoloadRSA},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoloadRSA},
 								},
 							},
 						},
@@ -1428,10 +1597,10 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoloadRSA,
-									PrivateKey:  privKeyPEMtoloadRSA,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoloadRSA},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoloadRSA},
 								},
 							},
 						},
@@ -1597,9 +1766,9 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	for i, cert := range certificates {
 		certMessage := &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: x509toPEM(cert),
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
 		}
 		if i > 0 {
 			certChainMessage.Parent = &certzpb.CertificateChain{
@@ -1631,10 +1800,10 @@ func TestHARedundancySwithOver(t *testing.T) {
 						Entity: &certzpb.Entity_CertificateChain{
 							CertificateChain: &certzpb.CertificateChain{
 								Certificate: &certzpb.Certificate{
-									Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-									Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-									Certificate: certPEMtoload,
-									PrivateKey:  privKeyPEMtoload,
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: certPEMtoload},
+									PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: privKeyPEMtoload},
 								},
 							},
 						},

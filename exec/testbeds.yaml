@@ -38,7 +38,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40058
       gnmi_port: 50058
-      
+
   8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
     hw: 8808-36FH_FOX2504P3CE
     owner: mananpat
@@ -77,7 +77,7 @@ testbeds:
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto 
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
     otg:
       host: ott-ucs-b4
       controller_port: 40056
@@ -108,8 +108,8 @@ testbeds:
     <<: *8808_FOX2643Q39J_DEFAULTS
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/single_testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/single_binding_gnsi
-    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt_gnsi.proto  
-     
+    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt_gnsi.proto
+
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
     owner: suredhar
@@ -130,7 +130,7 @@ testbeds:
     otg:
       host: ott-ucs-b4
       controller_port: 48818
-      gnmi_port: 58818      
+      gnmi_port: 58818
 
   2DUT-TB1:
     hw:
@@ -139,9 +139,9 @@ testbeds:
     owner: arvbaska
     testbed: topologies/cisco/hw/2DUT-TB1/testbed
     binding: topologies/cisco/hw/2DUT-TB1/binding
-    baseconf: 
+    baseconf:
       dut1: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
-      dut2: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto  
+      dut2: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
     otg:
       host: kne2-lnx
       controller_port: 40058
@@ -154,7 +154,7 @@ testbeds:
     owner: arvbaska
     testbed: topologies/cisco/hw/2DUT-TB2/testbed
     binding: topologies/cisco/hw/2DUT-TB2/binding
-    baseconf: 
+    baseconf:
       dut1: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
       dut2: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
     otg:
@@ -168,7 +168,7 @@ testbeds:
     testbed: topologies/cisco/hw/8800-FOC2330PAZK/testbed
     binding: topologies/cisco/hw/8800-FOC2330PAZK/binding
     baseconf: topologies/cisco/hw/8800-FOC2330PAZK/base_config.proto
-  
+
   8608-FOX2543PNNM:
     hw: 8608-FOX2543PNNM
     owner: anidamod
@@ -176,7 +176,7 @@ testbeds:
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
-#SIM
+  #SIM
   8201-1DUT:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
@@ -197,10 +197,6 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
-  8201-1DUT-1ATE-OTG:
-    sim: true
-    topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo_otg.yaml
-    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE/basefp.conf
   8201-1DUT-1ATE-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
@@ -208,14 +204,10 @@ testbeds:
   8202-1DUT-1ATE-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8202-1DUT-1ATE/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8202-1DUT-1ATE/basefp-mgmt-vrf.conf    
+    baseconf: topologies/cisco/pyvxr/8202-1DUT-1ATE/basefp-mgmt-vrf.conf
   8808-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
-  8808-1DUT-1ATE-OTG:
-    sim: true
-    topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo_otg.yaml
     baseconf: topologies/cisco/pyvxr/8808-1DUT-1ATE/basefp.conf
   8808-1DUT-1ATE-vrf-mgmt:
     sim: true
@@ -232,16 +224,16 @@ testbeds:
   8808-2DUT:
     sim: true
     topology: topologies/cisco/pyvxr/8808-2DUT/topo.yaml
-    baseconf: 
+    baseconf:
       dut1: topologies/cisco/pyvxr/8808-2DUT/basefp.conf
       dut2: topologies/cisco/pyvxr/8808-2DUT/basefp_peer.conf
   8808-OC:
     sim: true
     topology: topologies/cisco/pyvxr/8808-OC/topo.yaml
-    baseconf: 
+    baseconf:
       dut: topologies/cisco/pyvxr/8808-OC/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC/basefp-peer.conf
-  8808-BIT: 
+  8808-BIT:
     sim: true
     topology: topologies/cisco/pyvxr/8808-BIT/topo.yaml
     baseconf:
@@ -250,15 +242,19 @@ testbeds:
   8808-OC-FURY:
     sim: true
     topology: topologies/cisco/pyvxr/8808-OC-FURY/topo.yaml
-    baseconf: 
+    baseconf:
       dut: topologies/cisco/pyvxr/8808-OC-FURY/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC-FURY/basefp-peer.conf
   8201-1DUT-1ATE-9PORTS:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf 
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf
+  8808-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
 
-# OTG
+  # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
     owner: mananpat

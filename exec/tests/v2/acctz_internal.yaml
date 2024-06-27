@@ -1,0 +1,13 @@
+name:
+owners:
+  - haribal
+testbeds:
+  - 8201-FOC2224PHLH
+
+tests:
+- name: TestAcctzInternal1
+  path: feature/security/gnsi/acctz/tests
+  mustpass: true
+  timeout: 21000
+  internal: true
+  branch: haribal-patch-1
