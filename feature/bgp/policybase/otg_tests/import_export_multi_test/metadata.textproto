@@ -6,7 +6,7 @@ description: "BGP Policy - Import/Export Policy Action Using Multiple Criteria"
 uuid: "520f6013-0188-45a3-b5be-ce13c55ce7cd"
 
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
+tags: [TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: ARISTA
