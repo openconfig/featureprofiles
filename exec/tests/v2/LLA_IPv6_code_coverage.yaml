@@ -10,27 +10,18 @@ tests:
   mustpass: true
   internal: true
   branch: master
-  args:
-      - '-gribi_aft_check=false'
-      - '-gribi_aft_chain_check=false'
 - name: LLA-IPv6-public
   path: feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test
   timeout: 7200
   mustpass: true
   internal: true
   branch: master
-  args:
-      - '-gribi_aft_check=false'
-      - '-gribi_aft_chain_check=false'  
 - name: AggregateTest
   path: feature/interface/aggregate/otg_tests/aggregate_test/
   timeout: 7200
   mustpass: true
   internal: true
-  branch: master
-  args:
-      - '-gribi_aft_check=false'
-      - '-gribi_aft_chain_check=false'            
+  branch: master          
 - name: PacketIO-TTL-IPv4
   path: feature/experimental/p4rt/ate_tests/cisco
   args:
