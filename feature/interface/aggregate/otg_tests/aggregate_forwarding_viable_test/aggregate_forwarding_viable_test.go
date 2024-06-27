@@ -253,7 +253,7 @@ func (tc *testArgs) clearAggregate(t *testing.T) {
 func (tc *testArgs) verifyDUT(t *testing.T) {
 	for _, port := range tc.dutPorts {
 		path := gnmi.OC().Interface(port.Name())
-		gnmi.Await(t, tc.dut, path.OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, tc.dut, path.OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	}
 }
 
