@@ -1130,7 +1130,9 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
 
             r = re.compile(r'core\b', re.IGNORECASE)        
             for dut in duts:
-                arr = os.listdir(os.path.join(out_dir, dut))
+                dutDir = os.path.join(out_dir, dut)
+                if not os.path.exists(dutDir): continue
+                arr = os.listdir(dutDir)
                 dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
                 core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
         return core_files
