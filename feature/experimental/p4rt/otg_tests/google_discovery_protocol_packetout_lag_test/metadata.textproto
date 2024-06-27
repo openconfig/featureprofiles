@@ -1,20 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "bf5df0ee-79b7-460b-8146-3a1351fd56d7"
-plan_id: "TE-3.31"
-description: "Hierarchical weight resolution with PBF"
+uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
+plan_id: "P4RT-3.21"
+description: "Google Discovery Protocol: PacketOut with LAG"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
-    hierarchical_weight_resolution_tolerance: 1.5
     ipv4_missing_enabled: true
-    interface_ref_interface_id_format: true
-    pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true 
   }
 }
 platform_exceptions: {
@@ -22,8 +18,8 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    hierarchical_weight_resolution_tolerance: 0.4
-    explicit_interface_ref_definition: true
+    p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
   }
 }
 platform_exceptions: {
@@ -31,7 +27,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -42,9 +37,8 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
   }
 }
-tags: TAGS_DATACENTER_EDGE
+

@@ -1057,3 +1057,8 @@ func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
 }
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
