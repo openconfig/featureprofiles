@@ -144,6 +144,12 @@ var (
 		"port2": dutPort2,
 		"port3": dutPort3,
 	}
+
+	atePorts = map[string]*attrs.Attributes{
+		"port1": atePort1,
+		"port2": atePort2,
+		"port3": atePort3,
+	}
 )
 
 func configureDUTPort(
@@ -170,10 +176,7 @@ func configureDUTPort(
 	}
 }
 
-func configureDUTStatic(
-	t *testing.T,
-	dut *ondatra.DUTDevice,
-) {
+func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	staticPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
@@ -211,10 +214,7 @@ func configureDUTStatic(
 	gnmi.Replace(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
 }
 
-func configureDUTRoutingPolicy(
-	t *testing.T,
-	dut *ondatra.DUTDevice,
-) {
+func configureDUTRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition("import-dut-port2-connected-subnet")
@@ -258,10 +258,7 @@ func configureDUTRoutingPolicy(
 	gnmi.Replace(t, dut, policyPath.Config(), connectedPolicyDefinition)
 }
 
-func configureDUTBGP(
-	t *testing.T,
-	dut *ondatra.DUTDevice,
-) {
+func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -269,6 +266,7 @@ func configureDUTBGP(
 	dutOcRoot := &oc.Root{}
 	networkInstance := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	networkInstanceProtocolBgp.SetEnabled(true)
 	bgp := networkInstanceProtocolBgp.GetOrCreateBgp()
 
 	bgpGlobal := bgp.GetOrCreateGlobal()
@@ -305,6 +303,7 @@ func configureDUTBGP(
 	ateEBGPNeighborTwo.PeerGroup = ygot.String(peerGroupName)
 	ateEBGPNeighborTwo.PeerAs = ygot.Uint32(atePeer1Asn)
 	ateEBGPNeighborTwo.Enabled = ygot.Bool(true)
+
 	ateEBGPNeighborIPv6AF := ateEBGPNeighborTwo.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	ateEBGPNeighborIPv6AF.SetEnabled(true)
 	ateEBGPNeighborIPv6AFPolicy := ateEBGPNeighborIPv6AF.GetOrCreateApplyPolicy()
@@ -320,16 +319,10 @@ func configureDUTBGP(
 	ateIBGPNeighborThreeIPv4AF := ateIBGPNeighborThree.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	ateIBGPNeighborThreeIPv4AF.SetEnabled(true)
 
-	ateIBGPNeighborThreeIPv6AF := ateIBGPNeighborThree.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	ateIBGPNeighborThreeIPv6AF.SetEnabled(true)
-
 	ateIBGPNeighborFour := bgp.GetOrCreateNeighbor(atePort3.IPv6)
 	ateIBGPNeighborFour.PeerGroup = ygot.String(peerGroupName)
 	ateIBGPNeighborFour.PeerAs = ygot.Uint32(atePeer2Asn)
 	ateIBGPNeighborFour.Enabled = ygot.Bool(true)
-
-	ateIBGPNeighborFourIPv4AF := ateIBGPNeighborFour.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	ateIBGPNeighborFourIPv4AF.SetEnabled(true)
 
 	ateIBGPNeighborFourIPv6AF := ateIBGPNeighborFour.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	ateIBGPNeighborFourIPv6AF.SetEnabled(true)
@@ -342,6 +335,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		port := dut.Port(t, portName)
 		configureDUTPort(t, dut, port, portAttrs)
 	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	configureDUTRoutingPolicy(t, dut)
 	configureDUTStatic(t, dut)
@@ -358,64 +352,42 @@ func awaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, neighbors []strin
 	}
 }
 
-func configureOTG(t *testing.T) gosnappi.Config {
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 
 	otgConfig := gosnappi.NewConfig()
 
-	port1 := otgConfig.Ports().Add().SetName("port1")
-	port2 := otgConfig.Ports().Add().SetName("port2")
-	port3 := otgConfig.Ports().Add().SetName("port3")
+	for portName, portAttrs := range atePorts {
+		port := ate.Port(t, portName)
+		portAttrs.AddToOTG(otgConfig, port, dutPorts[portName])
+	}
 
-	// Port3 Configuration.
-	iDut3Dev := otgConfig.Devices().Add().SetName(atePort3.Name)
-	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(atePort3.Name + ".Eth").SetMac(atePort3.MAC)
-	iDut3Eth.Connection().SetPortName(port3.Name())
-	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(atePort3.Name + ".IPv4")
-	iDut3Ipv4.SetAddress(atePort3.IPv4).SetGateway(dutPort3.IPv4).SetPrefix(uint32(atePort3.IPv4Len))
-	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(atePort3.Name + ".IPv6")
-	iDut3Ipv6.SetAddress(atePort3.IPv6).SetGateway(dutPort3.IPv6).SetPrefix(uint32(atePort3.IPv6Len))
-
-	// Port1 Configuration.
-	iDut1Dev := otgConfig.Devices().Add().SetName(atePort1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4")
-	iDut1Ipv4.SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-	// Port2 Configuration.
-	iDut2Dev := otgConfig.Devices().Add().SetName(atePort2.Name)
-	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	iDut2Eth.Connection().SetPortName(port2.Name())
-	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4")
-	iDut2Ipv4.SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).SetPrefix(uint32(atePort2.IPv4Len))
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(atePort2.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(atePort2.IPv6).SetGateway(dutPort2.IPv6).SetPrefix(uint32(atePort2.IPv6Len))
+	devices := otgConfig.Devices().Items()
 
 	// eBGP v4 session on Port1.
-	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
+	bgp := devices[0].Bgp().SetRouterId(atePort1.IPv4)
+	iDut1Ipv4 := devices[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 session on Port1.
+	iDut1Ipv6 := devices[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-	iDut1Bgp6Peer.Capability().SetIpv6UnicastAddPath(true)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// iBGP v4 session on Port3.
-	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(iDut3Ipv4.Address())
+	bgp = devices[2].Bgp().SetRouterId(atePort3.IPv4)
+	iDut3Ipv4 := devices[2].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	iDut3Bgp := bgp.SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(atePort3.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
 	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// iBGP v6 session on Port3.
+	iDut3Ipv6 := devices[2].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3Ipv6.Name()).Peers().Add().SetName(atePort3.Name + ".BGP6.peer")
 	iDut3Bgp6Peer.SetPeerAddress(iDut3Ipv6.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut3Bgp6Peer.Capability().SetIpv6UnicastAddPath(true)
 	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	return otgConfig
@@ -812,7 +784,7 @@ func validateRedistributeIPv4IPv6DefaultRejectPolicy(t *testing.T, dut *ondatra.
 func redistributeIPv4PrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4)
 
-	otgConfig := configureOTG(t)
+	otgConfig := configureOTG(t, ate)
 	otgConfig = configureTrafficFlow(t, otgConfig, isV4, "StaticRoutesV4Flow", atePort1.Name+".IPv4", atePort2.Name+".IPv4", atePort1.MAC, atePort1.IPv4, "192.168.10.0")
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1122,7 +1094,7 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyName)
 	staticPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 
-	otgConfig := configureOTG(t)
+	otgConfig := configureOTG(t, ate)
 	if isV4 {
 		otgConfig = configureTrafficFlow(t, otgConfig, isV4, "StaticDropRoutesV4Flow", atePort3.Name+".IPv4", atePort2.Name+".IPv4", atePort3.MAC, atePort3.IPv4, "192.168.20.0")
 	} else {
@@ -1189,7 +1161,7 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6)
 
-	otgConfig := configureOTG(t)
+	otgConfig := configureOTG(t, ate)
 	otgConfig = configureTrafficFlow(t, otgConfig, !isV4, "StaticRoutesV6Flow", atePort1.Name+".IPv6", atePort2.Name+".IPv6", atePort1.MAC, atePort1.IPv6, "2024:db8:128:128::")
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1605,7 +1577,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 	otg := ate.OTG()
 
 	configureDUT(t, dut)
-	otgConfig := configureOTG(t)
+	otgConfig := configureOTG(t, ate)
 	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
 
