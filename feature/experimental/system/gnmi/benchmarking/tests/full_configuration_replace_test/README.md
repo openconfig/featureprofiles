@@ -17,9 +17,26 @@ Measure time for Set to complete.
 Notes:
 This test does not measure the time to an entirely converged state, only to completion of the gNMI update.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
 
-## Telemetry Parameter Coverage
+paths:
+  ## Config Parameter coverage
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+    /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
+    /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
+
+```
+
+## Minimum DUT Required
+
+vRX - Virtual Router Device
 
 
