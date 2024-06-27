@@ -15,15 +15,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math/big"
+	"net"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -31,13 +34,14 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 
 	cpb "github.com/openconfig/attestz/proto/common_definitions"
 	attestzpb "github.com/openconfig/attestz/proto/tpm_attestz"
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
-	cert "github.com/openconfig/featureprofiles/internal/cisco/security/cert"
 	"google.golang.org/grpc"
 )
 
@@ -81,12 +85,15 @@ func getListOfCardTypes(t *testing.T, dut *ondatra.DUTDevice) [][]string {
 				} else {
 					card = append(card, "standby")
 				}
+				controllCards = append(controllCards, card)
 			}
+
 		default:
 			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
 		}
-		controllCards = append(controllCards, card)
+
 	}
+	t.Logf("ControllCards list: %v", controllCards)
 	return controllCards
 }
 
@@ -196,14 +203,15 @@ func getIakCert(t *testing.T, conn grpc.ClientConnInterface, inputType string) (
 	return resp, nil
 }
 
-func rotateOIAKCert(t *testing.T, conn grpc.ClientConnInterface, inputType string, oIAKCert string, oIDEVIDCert string) (*enrollzpb.RotateOIakCertResponse, error) {
+func rotateOIAKCert(t *testing.T, conn grpc.ClientConnInterface, inputType string, oIAKCert string, oIDEVIDCert string, sslProfileID string) (*enrollzpb.RotateOIakCertResponse, error) {
 
 	request := &enrollzpb.RotateOIakCertRequest{
 		ControlCardSelection: &cpb.ControlCardSelection{
 			ControlCardId: nil,
 		},
-		OiakCert:    oIAKCert,
-		OidevidCert: oIDEVIDCert,
+		OiakCert:     oIAKCert,
+		OidevidCert:  oIDEVIDCert,
+		SslProfileId: sslProfileID,
 	}
 
 	switch {
@@ -295,7 +303,7 @@ func generateCSR(privateKey *rsa.PrivateKey, commonName string) ([]byte, error) 
 	return csrPEM, nil
 }
 
-func signCertificate(csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.PrivateKey, forcePublicKey *rsa.PublicKey, expiredCert bool) ([]byte, error) {
+func signCertificate(ip string, csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.PrivateKey, forcePublicKey *rsa.PublicKey, expiredCert bool) ([]byte, error) {
 	csrBlock, _ := pem.Decode(csr)
 	if csrBlock == nil || csrBlock.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("failed to decode PEM block containing CSR")
@@ -311,6 +319,7 @@ func signCertificate(csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.Pri
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(0, 0, 1),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
+		IPAddresses:  []net.IP{net.ParseIP(ip)},
 	}
 	if expiredCert == true {
 		template = x509.Certificate{
@@ -319,6 +328,7 @@ func signCertificate(csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.Pri
 			NotBefore:    time.Now().AddDate(0, 0, -2),
 			NotAfter:     time.Now().AddDate(0, 0, -1),
 			KeyUsage:     x509.KeyUsageDigitalSignature,
+			IPAddresses:  []net.IP{net.ParseIP(ip)},
 		}
 	}
 	var publicKey interface{}
@@ -337,7 +347,9 @@ func signCertificate(csr []byte, caCert *x509.Certificate, caPrivateKey *rsa.Pri
 	return certPEM, nil
 }
 
-func generateOiakCert(t *testing.T, resp *enrollzpb.GetIakCertResponse, dirName string, expiredCert bool) (string, string, error) {
+func generateOiakCert(t *testing.T, ip string, caCertFile string, resp *enrollzpb.GetIakCertResponse, dirName string, expiredCert bool) (string, string, error) {
+	caPath, _ := filepath.Split(caCertFile)
+	caKeyFile := filepath.Join(caPath, "ca.key.pem")
 	iakPubKey, err := extractPubKeyFromCert(t, resp.IakCert)
 	if err != nil {
 		return "", "", err
@@ -346,26 +358,34 @@ func generateOiakCert(t *testing.T, resp *enrollzpb.GetIakCertResponse, dirName 
 	if err != nil {
 		return "", "", err
 	}
-	caCertFile := path.Join(dirName, "cacert.rsa.pem")
-	caKeyFile := path.Join(dirName, "cakey.rsa.pem")
-	_, err = os.Stat(caCertFile)
-	if err == nil {
-		err := os.Remove(caCertFile)
-		if err != nil {
-			return "", "", err
-		}
-	}
-	_, err = os.Stat(caKeyFile)
-	if err == nil {
-		err := os.Remove(caKeyFile)
-		if err != nil {
-			return "", "", err
-		}
-	}
-	caKey, caCert, err := cert.GenRootCA("ROOTCA", x509.RSA, 100, dirName)
+	caCertPem, err := os.ReadFile(caCertFile)
 	if err != nil {
 		return "", "", err
 	}
+	caCertpemBlock, _ := pem.Decode(caCertPem)
+	if caCertpemBlock == nil {
+		return "", "", errors.New("Failed to decode PEM block containing the certificate")
+	}
+
+	caCert, err := x509.ParseCertificate(caCertpemBlock.Bytes)
+	if err != nil {
+		return "", "", err
+	}
+
+	caKeyPem, err := os.ReadFile(caKeyFile)
+	if err != nil {
+		return "", "", err
+	}
+
+	caKeypemBlock, _ := pem.Decode(caKeyPem)
+	if caKeypemBlock == nil {
+		return "", "", errors.New("Failed to decode PEM block containing the certificate")
+	}
+	caKey, err := x509.ParsePKCS1PrivateKey(caKeypemBlock.Bytes)
+	if err != nil {
+		return "", "", err
+	}
+
 	pvtKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return "", "", err
@@ -374,11 +394,12 @@ func generateOiakCert(t *testing.T, resp *enrollzpb.GetIakCertResponse, dirName 
 	if err != nil {
 		return "", "", err
 	}
-	signedCertiakPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), iakPubKey.(*rsa.PublicKey), expiredCert)
+
+	signedCertiakPEM, err := signCertificate(ip, csrPEM, caCert, caKey, iakPubKey.(*rsa.PublicKey), expiredCert)
 	if err != nil {
 		return "", "", err
 	}
-	signedCertidevidPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), idevidPubKey.(*rsa.PublicKey), expiredCert)
+	signedCertidevidPEM, err := signCertificate(ip, csrPEM, caCert, caKey, idevidPubKey.(*rsa.PublicKey), expiredCert)
 
 	if err != nil {
 		return "", "", err
@@ -386,24 +407,33 @@ func generateOiakCert(t *testing.T, resp *enrollzpb.GetIakCertResponse, dirName 
 	return string(signedCertiakPEM), string(signedCertidevidPEM), nil
 }
 
-func generateOiakCertWithInValidPubKey(dirName string, expiredCert bool) (string, error) {
-	caCertFile := path.Join(dirName, "cacert.rsa.pem")
-	caKeyFile := path.Join(dirName, "cakey.rsa.pem")
-	_, err := os.Stat(caCertFile)
-	if err == nil {
-		err := os.Remove(caCertFile)
-		if err != nil {
-			return "", err
-		}
+func generateOiakCertWithInValidPubKey(ip string, caCertFile string, dirName string, expiredCert bool) (string, error) {
+	caPath, _ := filepath.Split(caCertFile)
+	caKeyFile := filepath.Join(caPath, "ca.key.pem")
+	caCertPem, err := os.ReadFile(caCertFile)
+	if err != nil {
+		return "", err
 	}
-	_, err = os.Stat(caKeyFile)
-	if err == nil {
-		err := os.Remove(caKeyFile)
-		if err != nil {
-			return "", err
-		}
+	caCertpemBlock, _ := pem.Decode(caCertPem)
+	if caCertpemBlock == nil {
+		return "", errors.New("Failed to decode PEM block containing the certificate")
 	}
-	caKey, caCert, err := cert.GenRootCA("ROOTCA", x509.RSA, 100, dirName)
+
+	caCert, err := x509.ParseCertificate(caCertpemBlock.Bytes)
+	if err != nil {
+		return "", err
+	}
+
+	caKeyPem, err := os.ReadFile(caKeyFile)
+	if err != nil {
+		return "", err
+	}
+
+	caKeypemBlock, _ := pem.Decode(caKeyPem)
+	if caKeypemBlock == nil {
+		return "", errors.New("Failed to decode PEM block containing the certificate")
+	}
+	caKey, err := x509.ParsePKCS1PrivateKey(caKeypemBlock.Bytes)
 	if err != nil {
 		return "", err
 	}
@@ -415,7 +445,7 @@ func generateOiakCertWithInValidPubKey(dirName string, expiredCert bool) (string
 	if err != nil {
 		return "", err
 	}
-	signedCertPEM, err := signCertificate(csrPEM, caCert, caKey.(*rsa.PrivateKey), nil, expiredCert)
+	signedCertPEM, err := signCertificate(ip, csrPEM, caCert, caKey, nil, expiredCert)
 
 	if err != nil {
 		return "", err
@@ -423,7 +453,7 @@ func generateOiakCertWithInValidPubKey(dirName string, expiredCert bool) (string
 	return string(signedCertPEM), nil
 }
 
-func attestPcrs(conn grpc.ClientConnInterface, inputType string, nonce string, pcrIndices string) (*attestzpb.AttestResponse, error) {
+func attestPcrs(t *testing.T, conn grpc.ClientConnInterface, inputType string, nonce string, pcrIndices string) (*attestzpb.AttestResponse, error) {
 	nonceSlice, err := hex.DecodeString(nonce)
 	if err != nil {
 		return nil, err
@@ -469,6 +499,7 @@ func attestPcrs(conn grpc.ClientConnInterface, inputType string, nonce string, p
 	}
 
 	client := attestzpb.NewTpmAttestzServiceClient(conn)
+	t.Logf("%v", request)
 	resp, err := client.Attest(context.Background(), request)
 	if err != nil {
 		return nil, err
@@ -483,16 +514,6 @@ func verifySignature(t *testing.T, resp *attestzpb.AttestResponse) error {
 		t.Logf("Failed to read the Pubkey from OIAK Certificate")
 		return err
 	}
-	// quoteSignData, err := hex.DecodeString(string(resp.QuoteSignature))
-	// if err != nil {
-	// 	t.Logf("Error decoding hex data: %v", err)
-	// 	return err
-	// }
-	// quoteData, err := hex.DecodeString(string(resp.Quoted))
-	// if err != nil {
-	// 	t.Logf("Error decoding hex data: %v", err)
-	// 	return err
-	// }
 
 	quoteSignData, err := base64.StdEncoding.DecodeString(string(resp.QuoteSignature))
 	if err != nil {
@@ -636,6 +657,204 @@ func verifyControlCardId(t *testing.T, dut *ondatra.DUTDevice, controlCardIds *c
 	return nil
 }
 
+func readCertificatesFromFile(filename string) ([]*x509.Certificate, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var certificates []*x509.Certificate
+	block, rest := pem.Decode(data)
+	for block != nil {
+		if block.Type == "CERTIFICATE" {
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			certificates = append(certificates, cert)
+		}
+		if len(rest) == 0 {
+			break
+		}
+		block, rest = pem.Decode(rest)
+	}
+
+	return certificates, nil
+}
+
+func GetSudiRootCA(t *testing.T) (string, error) {
+	dut := ondatra.DUT(t, "dut")
+	ciscoHASudi := CMDViaGNMI(context.Background(), t, dut, "show platform security attest certificate CiscoHASUDI")
+	t.Logf("%v", ciscoHASudi)
+	pattern := `-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllString(ciscoHASudi, -1)[:2]
+	if len(matches) == 0 {
+		return "", errors.New("Failed to Parse 'show platform security attest certificate CiscoHASUDI' cmd output")
+	}
+	certs := strings.Join(matches[:2], "\n")
+	t.Logf(certs)
+	return certs, nil
+}
+
+func gnsiNewConnWithIdevID(t *testing.T, target string, options *bindpb.Options) (*grpc.ClientConn, error) {
+	targetIP := strings.Split(target, ":")[0]
+	certificate, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
+	if err != nil {
+		t.Fatalf("Failed to load client certificate and key: %v", err)
+	}
+
+	caCert, err := GetSudiRootCA(t)
+	if err != nil {
+		return nil, err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM([]byte(caCert))
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{certificate},
+		RootCAs:            caCertPool,
+		MaxVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // To Skip the SAN verification for SUDI Cert
+		ServerName:         targetIP,
+	}
+	tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		opts := x509.VerifyOptions{
+			Roots: caCertPool,
+		}
+		for _, rawCert := range rawCerts {
+			cert, err := x509.ParseCertificate(rawCert)
+			if err != nil {
+				return fmt.Errorf("failed to parse certificate: %v", err)
+			}
+			if _, err := cert.Verify(opts); err != nil {
+				return fmt.Errorf("certificate verification failed: %v", err)
+			}
+		}
+		return nil
+	}
+
+	opts := []grpc.DialOption{}
+	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	var authorizedUser userCredentials
+	authorizedUser.username = "cafyauto"
+	authorizedUser.password = "cisco123"
+	opts = append(opts, grpc.WithPerRPCCredentials(&authorizedUser))
+
+	conn, err := grpc.NewClient(target, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to dial server: %v", err)
+	}
+
+	return conn, nil
+}
+
+func createCertZProfileAndRotateTrustBundle(t *testing.T, gnsiC binding.GNSIClients, profileId string,
+	trustBundleFile string, certSource certzpb.Certificate_CertSource) error {
+
+	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profileId})
+	if err != nil {
+		return err
+	}
+	t.Logf("Profile add successful %v", profiles)
+
+	//ROTATE with TRUSTBUNDLE
+	certificates, err := readCertificatesFromFile(trustBundleFile)
+	if err != nil {
+		return err
+	}
+	var certChainMessage certzpb.CertificateChain
+	var x509toPEM = func(cert *x509.Certificate) []byte {
+		return pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+	}
+	for i, cert := range certificates {
+		certMessage := &certzpb.Certificate{
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: x509toPEM(cert)},
+		}
+		if i > 0 {
+			certChainMessage.Parent = &certzpb.CertificateChain{
+				Certificate: certMessage,
+				Parent:      certChainMessage.Parent,
+			}
+		} else {
+			certChainMessage = certzpb.CertificateChain{
+				Certificate: certMessage,
+			}
+		}
+	}
+
+	stream, err := gnsiC.Certz().Rotate(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get stream:%v", err)
+	}
+	var response *certzpb.RotateCertificateResponse
+
+	request := &certzpb.RotateCertificateRequest{
+		ForceOverwrite: true,
+		SslProfileId:   profileId,
+		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+			Certificates: &certzpb.UploadRequest{
+				Entities: []*certzpb.Entity{
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_CertificateChain{
+							CertificateChain: &certzpb.CertificateChain{
+								Certificate: &certzpb.Certificate{
+									Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+									Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+									CertificateType: &certzpb.Certificate_CertSource_{CertSource: certSource},
+									PrivateKeyType:  &certzpb.Certificate_KeySource_{KeySource: certzpb.Certificate_KEY_SOURCE_IDEVID_TPM},
+								},
+							},
+						},
+					},
+					{
+						Version:   "1.0",
+						CreatedOn: 123456789,
+						Entity: &certzpb.Entity_TrustBundle{
+							TrustBundle: &certChainMessage,
+						},
+					},
+				},
+			},
+		},
+	}
+	//log.V(1).Info("RotateCertificateRequest:\n", prettyPrint(request))
+	t.Logf("RotateCertificateRequest:%v", request)
+	if err = stream.Send(request); err != nil {
+		t.Fatalf("failed to send RotateRequest:%v", err)
+	}
+	if response, err = stream.Recv(); err != nil {
+		t.Fatalf("failed to receive RotateCertificateResponse:%v", err)
+	}
+	t.Logf("RotateCertificateResponse:%v", response)
+	t.Logf("Rotate successful %v", request)
+
+	//FINALIZE ROTATE REQUEST
+	request = &certzpb.RotateCertificateRequest{
+		ForceOverwrite: true,
+		SslProfileId:   profileId,
+		RotateRequest:  &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}},
+	}
+	t.Logf("RotateCertificateRequest:%v", request)
+	if err := stream.Send(request); err != nil {
+		t.Fatalf("failed to send RotateRequest:%v", err)
+	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			t.Fatalf("Failed, finalize Rotation is cancelled: %v", err)
+		}
+	}
+	t.Logf("RotateCertificateFinalize: Success, stream has ended")
+	stream.CloseSend()
+	return nil
+}
+
 func TestGetIAKCert(t *testing.T) {
 	target, err := getTargetFromBindingFile()
 	if err != nil {
@@ -664,16 +883,17 @@ func TestGetIAKCert(t *testing.T) {
 	}
 }
 
-func TestRotateOIak(t *testing.T) {
+func TestEnrollZFlow(t *testing.T) {
 	dirName := "testdata"
+	profileId := "CERTZ_ENROLLZ"
 	os.Mkdir(dirName, 0755)
 	defer os.RemoveAll(dirName)
 
 	target, err := getTargetFromBindingFile()
+	targetIP := strings.Split(target, ":")[0]
 	if err != nil {
 		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
 	}
-	targetIP := strings.Split(target, ":")[0]
 
 	options, err := getOptionsFromBindingFile()
 	if err != nil {
@@ -681,12 +901,38 @@ func TestRotateOIak(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	cardTypes := getListOfCardTypes(t, dut)
+	gnsiC := dut.RawAPIs().GNSI(t)
 
-	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
+	// Adding New SSL Profile and Rotate CertSource as IDEVID
+	err = createCertZProfileAndRotateTrustBundle(t, gnsiC, profileId, options.TrustBundleFile,
+		certzpb.Certificate_CERT_SOURCE_IDEVID)
 	if err != nil {
-		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
+		t.Fatalf("Error in Create and Rotate CertZ Profile: %v", err)
 	}
+
+	//CONFIG SSL Profile ID under GRPC
+	t.Log("Config new gNSI CLI")
+	configToChange := fmt.Sprintf("grpc gnsi service certz ssl-profile-id %s \n", profileId)
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	// Create a new connection with IDEVID
+	gnsiCNew, err := gnsiNewConnWithIdevID(t, target, options)
+	if err != nil {
+		t.Fatalf("Error in establishing connection with IDEVID: %v", err)
+	}
+	defer gnsiCNew.Close()
+	client := certzpb.NewCertzClient(gnsiCNew)
+
+	//Get-profile with rotated CERTS
+	profilelist, err := client.GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
+	if err != nil {
+		t.Fatalf("Unexpected Error in getting profile list: %v", err)
+	}
+	t.Logf("Profile list get was successful, %v", profilelist)
+
+	//Rotate OIAK and OIDEVID
+	cardTypes := getListOfCardTypes(t, dut)
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
 			t.Run(fmt.Sprintf("Roatate OIAK Certificate with %s", cType), func(t *testing.T) {
@@ -694,15 +940,15 @@ func TestRotateOIak(t *testing.T) {
 				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
 
-				resp, err := getIakCert(t, conn, cType)
+				resp, err := getIakCert(t, gnsiCNew, cType)
 				if err != nil {
 					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
 				}
-				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, resp, dirName, false)
+				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, targetIP, options.TrustBundleFile, resp, dirName, false)
 				if err != nil {
 					t.Fatalf("Error in generating OIAK Certificate: %v", err)
 				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM)
+				rotateResp, err = rotateOIAKCert(t, gnsiCNew, cType, signedCertiakPEM, signedCertidevidPEM, profileId)
 				if err != nil {
 					t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
 				}
@@ -711,80 +957,35 @@ func TestRotateOIak(t *testing.T) {
 		}
 	}
 
-	for _, cardType := range cardTypes {
-		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate Expired OIAK Certificate with %s", cType), func(t *testing.T) {
-				var signedCertiakPEM string
-				var signedCertidevidPEM string
-				var rotateResp *enrollzpb.RotateOIakCertResponse
-
-				resp, err := getIakCert(t, conn, cType)
-				if err != nil {
-					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
-				}
-				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, resp, dirName, true)
-				if err != nil {
-					t.Fatalf("Error in generating OIAK Certificate: %v", err)
-				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM)
-				if err != nil {
-					if strings.Contains(err.Error(), "AttestZ client oIAK certificate not valid yet") {
-						t.Logf("Certificate not valid yet is an expected error")
-					} else {
-						t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
-					}
-				}
-				t.Logf("%s", rotateResp)
-			})
-		}
-	}
-	for _, cardType := range cardTypes {
-		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate OIAK and ODEVID Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
-				var signedCertPEM string
-				var rotateResp *enrollzpb.RotateOIakCertResponse
-				signedCertPEM, err = generateOiakCertWithInValidPubKey(dirName, false)
-				if err != nil {
-					t.Fatalf("Error in generating OIAK Certificate: %v", err)
-				}
-				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM, signedCertPEM)
-				if err != nil {
-					if strings.Contains(err.Error(), "AttestZ client mismatch oIAK pubkey") {
-						t.Logf("AttestZ client mismatch OIAK pubkey is an expected error")
-					} else {
-						t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
-					}
-				}
-				t.Logf("%s", rotateResp)
-			})
-		}
-	}
-}
-
-func TestGetPCRIndices(t *testing.T) {
-
-	pcrIndices := "0,1,2,3,4,5,6,7,8,9"
-	target, err := getTargetFromBindingFile()
+	//Close the IDEVID Connection and Create a connection again and check
+	gnsiCNew.Close()
+	gnsiCNew, err = gnsiNewConnWithIdevID(t, target, options)
 	if err != nil {
-		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+		t.Fatalf("Error in establishing connection with IDEVID: %v", err)
 	}
-	targetIP := strings.Split(target, ":")[0]
-	options, err := getOptionsFromBindingFile()
+	client = certzpb.NewCertzClient(gnsiCNew)
+
+	_, err = client.GetProfileList(context.Background(), &certzpb.GetProfileListRequest{})
 	if err != nil {
-		t.Fatalf("Error in reading Options from binding file: %v", err)
+		t.Logf("Error in getting profile list which is expected: %v", err)
 	}
-	dut := ondatra.DUT(t, "dut")
-	cardTypes := getListOfCardTypes(t, dut)
+
+	//Create a connection with OIDEVID (with Ondatra CA)
 	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
 	if err != nil {
 		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
 	}
+	client = certzpb.NewCertzClient(conn)
+
+	nonce := "1234"
+	pcrIndices := "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23"
+	t.Logf("%v", cardTypes)
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Get IAK Certificate with %s", cType), func(t *testing.T) {
-				resp, err := attestPcrs(conn, cType, "1234", pcrIndices)
+			t.Run(fmt.Sprintf("Get PCR Indices with %s", cType), func(t *testing.T) {
+				resp, err := attestPcrs(t, conn, cType, nonce, pcrIndices)
 				if err != nil {
-					t.Fatalf("Error in getIak Certificate with card type-%s: %v", cType, err)
+					t.Fatalf("Error in get PCR Indices with card type-%s: %v", cType, err)
 				}
 				t.Logf("%v", resp)
 
@@ -810,11 +1011,199 @@ func TestGetPCRIndices(t *testing.T) {
 		}
 	}
 
+	//UnCONFIG SSL Profile ID under GRPC
+	t.Log("UnConfig new gNSI CLI")
+	configToremove := fmt.Sprintf("no grpc gnsi service certz ssl-profile-id %s \n", profileId)
+	ctx = context.Background()
+	util.GNMIWithText(ctx, t, dut, configToremove)
+
+	//Delete rotated profile-id
+	delprofile, err := client.DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profileId})
+	if err != nil {
+		t.Fatalf("Unexpected Error in deleting profile list: %v", err)
+	}
+	t.Logf("Delete Profile was successful, %v", delprofile)
+
+}
+
+func TestRotateOIak(t *testing.T) {
+	dirName := "testdata"
+	profileId := "CERTZ_ENROLLZ"
+	os.Mkdir(dirName, 0755)
+	defer os.RemoveAll(dirName)
+
+	target, err := getTargetFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+	}
+	targetIP := strings.Split(target, ":")[0]
+
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from binding file: %v", err)
+	}
+
+	dut := ondatra.DUT(t, "dut")
+	gnsiC := dut.RawAPIs().GNSI(t)
+
+	err = createCertZProfileAndRotateTrustBundle(t, gnsiC, profileId, options.TrustBundleFile,
+		certzpb.Certificate_CERT_SOURCE_OIDEVID)
+	if err != nil {
+		t.Fatalf("Error in Create and Rotate CertZ Profile: %v", err)
+	}
+
+	t.Log("Config new gNSI CLI")
+	configToChange := fmt.Sprintf("grpc gnsi service certz ssl-profile-id %s \n", profileId)
+	ctx := context.Background()
+	util.GNMIWithText(ctx, t, dut, configToChange)
+
+	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
+	if err != nil {
+		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
+	}
+	cardTypes := getListOfCardTypes(t, dut)
+	for _, cardType := range cardTypes {
+		for _, cType := range cardType {
+			t.Run(fmt.Sprintf("Roatate OIAK Certificate with %s", cType), func(t *testing.T) {
+				var signedCertiakPEM string
+				var signedCertidevidPEM string
+				var rotateResp *enrollzpb.RotateOIakCertResponse
+
+				resp, err := getIakCert(t, conn, cType)
+				if err != nil {
+					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
+				}
+				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, targetIP, options.TrustBundleFile, resp, dirName, false)
+				if err != nil {
+					t.Fatalf("Error in generating OIAK Certificate: %v", err)
+				}
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM, profileId)
+				if err != nil {
+					t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
+				}
+				t.Logf("%s", rotateResp)
+			})
+		}
+	}
+
+	for _, cardType := range cardTypes {
+		for _, cType := range cardType {
+			t.Run(fmt.Sprintf("Roatate Expired OIAK Certificate with %s", cType), func(t *testing.T) {
+				var signedCertiakPEM string
+				var signedCertidevidPEM string
+				var rotateResp *enrollzpb.RotateOIakCertResponse
+
+				resp, err := getIakCert(t, conn, cType)
+				if err != nil {
+					t.Fatalf("Error in getIak Certificate with card type-%s:%v", cType, err)
+				}
+				signedCertiakPEM, signedCertidevidPEM, err = generateOiakCert(t, targetIP, options.TrustBundleFile, resp, dirName, true)
+				if err != nil {
+					t.Fatalf("Error in generating OIAK Certificate: %v", err)
+				}
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertiakPEM, signedCertidevidPEM, profileId)
+				if err != nil {
+					if strings.Contains(err.Error(), "AttestZ client oIAK certificate not valid yet") {
+						t.Logf("Certificate not valid yet is an expected error")
+					} else {
+						t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
+					}
+				}
+				t.Logf("%s", rotateResp)
+			})
+		}
+	}
+	for _, cardType := range cardTypes {
+		for _, cType := range cardType {
+			t.Run(fmt.Sprintf("Roatate OIAK and ODEVID Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
+				var signedCertPEM string
+				var rotateResp *enrollzpb.RotateOIakCertResponse
+				signedCertPEM, err = generateOiakCertWithInValidPubKey(targetIP, options.TrustBundleFile, dirName, false)
+				if err != nil {
+					t.Fatalf("Error in generating OIAK Certificate: %v", err)
+				}
+				rotateResp, err = rotateOIAKCert(t, conn, cType, signedCertPEM, signedCertPEM, profileId)
+				if err != nil {
+					if strings.Contains(err.Error(), "AttestZ client mismatch oIAK pubkey") {
+						t.Logf("AttestZ client mismatch OIAK pubkey is an expected error")
+					} else {
+						t.Fatalf("Error in rotate OIAK Certificate with card type-%s: %v", cType, err)
+					}
+				}
+				t.Logf("%s", rotateResp)
+			})
+		}
+	}
+
+	//UnCONFIG SSL Profile ID under GRPC
+	t.Log("UnConfig new gNSI CLI")
+	configToremove := fmt.Sprintf("no grpc gnsi service certz ssl-profile-id %s \n", profileId)
+	ctx = context.Background()
+	util.GNMIWithText(ctx, t, dut, configToremove)
+
+	//Delete rotated profile-id
+	delprofile, err := gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profileId})
+	if err != nil {
+		t.Fatalf("Unexpected Error in deleting profile list: %v", err)
+	}
+	t.Logf("Delete Profile was successful, %v", delprofile)
+}
+
+func TestGetPCRIndices(t *testing.T) {
+
+	pcrIndices := "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23"
+	target, err := getTargetFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading target IP and Port from Binding file: %v", err)
+	}
+	targetIP := strings.Split(target, ":")[0]
+	options, err := getOptionsFromBindingFile()
+	if err != nil {
+		t.Fatalf("Error in reading Options from binding file: %v", err)
+	}
+	dut := ondatra.DUT(t, "dut")
+	cardTypes := getListOfCardTypes(t, dut)
+	conn, err := grpcConn(targetIP, target, options.TrustBundleFile, options.Username, options.Password, options.CertFile, options.KeyFile)
+	if err != nil {
+		t.Fatalf("Error in establishing Grpc Clinet connection: %v", err)
+	}
+	nonce := "1234"
+	t.Logf("%v", cardTypes)
+	for _, cardType := range cardTypes {
+		for _, cType := range cardType {
+			t.Run(fmt.Sprintf("Get PCR Indices with %s", cType), func(t *testing.T) {
+				resp, err := attestPcrs(t, conn, cType, nonce, pcrIndices)
+				if err != nil {
+					t.Fatalf("Error in get PCR Indices with card type-%s: %v", cType, err)
+				}
+				t.Logf("%v", resp)
+
+				err = verifyControlCardId(t, dut, resp.ControlCardId, cardType)
+				if err != nil {
+					t.Fatalf(err.Error())
+				} else {
+					t.Logf("Controll Card ID values Verification Successfull")
+				}
+
+				err = verifySignature(t, resp)
+				if err != nil {
+					t.Fatalf("Error in verifying signature %v", err)
+				}
+
+				err = verifyPCRValues(t, dut, pcrIndices, resp.PcrValues, cardType[0])
+				if err != nil {
+					t.Fatalf(err.Error())
+				} else {
+					t.Logf("PCR values Verification Successfull")
+				}
+			})
+		}
+	}
 	pcrIndices = "0,1,2,3,4,0,1,2,3,4"
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
 			t.Run(fmt.Sprintf("Test Invalid PCR Indices with  %s", cType), func(t *testing.T) {
-				resp, err := attestPcrs(conn, cType, "1234", pcrIndices)
+				resp, err := attestPcrs(t, conn, cType, nonce, pcrIndices)
 				if err != nil {
 					t.Logf("Error in Get PCR Indices with card type-%s which is expected: %v", cType, err)
 				} else {
