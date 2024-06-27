@@ -154,6 +154,7 @@ func TestCollectDebugFiles(t *testing.T) {
 			})
 		}
 
+		time.Sleep(5 * time.Second)
 		copyDebugFiles(t, targetInfo)
 	}
 }
