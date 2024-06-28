@@ -682,6 +682,7 @@ tests:
     timeout: 21000
     priority: 65
     pr: 1190
+    internal: true
     owners:
       - harikri4
     testbeds_exclude:
