@@ -330,7 +330,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config
 	top.Flows().Clear().Items()
 	flow := top.Flows().Add().SetName("Flow")
 	flow.Metrics().SetEnable(true)
-	flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2"})
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().SetValue(dstMac)
@@ -483,6 +483,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 	dp1 := dut.Port(t, "port1")
 	ap1 := ate.Port(t, "port1")
 	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
 	top.Ports().Add().SetName(ap1.ID())
 	// configure DUT port#1 - source port.
 	configureSubinterfaceDUT(d, dp1, 0, 0, dutPort1.IPv4, dut)

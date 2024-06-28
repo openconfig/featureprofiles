@@ -78,6 +78,11 @@ func TestMain(m *testing.M) {
 //
 
 func TestQoSCounters(t *testing.T) {
+	// Clear otg config
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -91,10 +96,8 @@ func TestQoSCounters(t *testing.T) {
 	}
 
 	// Configure ATE interfaces.
-	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
-	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ap1.ID())
 	top.Ports().Add().SetName(ap2.ID())

@@ -163,7 +163,7 @@ func decodePacket(t *testing.T, packetData []byte) (string, string, uint16, laye
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, duration int) map[string]uint64 {
 	t.Helper()
 	for _, flow := range flows {
-		flow.TxRx().Port().SetTxName("port1").SetRxName("port2")
+		flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2"})
 		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
@@ -470,12 +470,13 @@ func TestPacketIn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	// Configure P4RT device-id

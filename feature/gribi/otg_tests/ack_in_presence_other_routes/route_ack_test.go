@@ -272,14 +272,15 @@ func TestRouteAck(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	otg.StartProtocols(t)
 
 	// Configure the DUT with static route 203.0.113.0/24

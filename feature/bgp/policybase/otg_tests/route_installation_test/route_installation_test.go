@@ -596,6 +596,13 @@ type bgpNeighbor struct {
 // TestEstablish sets up a basic BGP connection and confirms that traffic is forwarded according to
 // it.
 func TestEstablish(t *testing.T) {
+	// ATE Configuration.
+	t.Logf("Start ATE Config")
+	ate := ondatra.ATE(t, "ate")
+
+	otg := ate.OTG()
+	otgConfig := configureATE(t, otg)
+
 	// DUT configurations.
 	t.Logf("Start DUT config load:")
 	dut := ondatra.DUT(t, "dut")
@@ -621,12 +628,6 @@ func TestEstablish(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
-	// ATE Configuration.
-	t.Logf("Start ATE Config")
-	ate := ondatra.ATE(t, "ate")
-
-	otg := ate.OTG()
-	otgConfig := configureATE(t, otg)
 	// Verify Port Status
 	t.Logf("Verifying port status")
 	verifyPortsUp(t, dut.Device)
@@ -719,6 +720,10 @@ func TestBGPPolicy(t *testing.T) {
 			dut := ondatra.DUT(t, "dut")
 			ate := ondatra.ATE(t, "ate")
 
+			// Configure ATE to setup traffic.
+			otg := ate.OTG()
+			otgConfig := configureATE(t, otg)
+
 			// Configure Routing Policy on the DUT.
 			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
@@ -730,9 +735,6 @@ func TestBGPPolicy(t *testing.T) {
 			}
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 			bgp := bgpCreateNbr(dutAS, ateAS, tc.policy, dut)
-			// Configure ATE to setup traffic.
-			otg := ate.OTG()
-			otgConfig := configureATE(t, otg)
 			gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgp)
 
 			// Verify the OTG BGP state
