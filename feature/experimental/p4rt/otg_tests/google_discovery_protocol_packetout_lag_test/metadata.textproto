@@ -1,21 +1,25 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "b4b2249f-9226-4555-9946-dc22cf6adae2"
-plan_id:  "RT-1.32"
-description:  "BGP policy actions - MED, LocPref, prepend, flow-control"
-testbed:  TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_DATACENTER_EDGE]
+uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
+plan_id: "P4RT-3.21"
+description: "Google Discovery Protocol: PacketOut with LAG"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
     ipv4_missing_enabled: true
-    prepolicy_received_routes: true
-    default_route_policy_unsupported: true
-    skip_checking_attribute_index: true
-    skip_setting_statement_for_policy: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
   }
 }
 platform_exceptions: {
@@ -33,8 +37,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
-    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
   }
