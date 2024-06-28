@@ -1033,3 +1033,9 @@ func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
 }
+
+// OverrideNextHopScale returns true if default NextHop scale needs to be modified
+// else returns false
+func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+}

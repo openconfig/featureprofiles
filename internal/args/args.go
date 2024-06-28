@@ -50,7 +50,7 @@ var (
 	DecapEncapCount               = flag.Int("arg_decap_encap_count", 64, "In gRIBI scaling tests, number of next-hop-groups with decap+encap next-hops")
 	DefaultVRFPrimarySubifCount   = flag.Int("arg_default_vrf_primary_subif_count", 64, "In gRIBI scaling tests, number of subinterfaces to use for \"primary\" (i.e. non-backup) next-hop forwarding. Set such that DefaultVRFPrimarySubifCount <= (DefaultVRFIPv4NHCount - DefaultVRFIPv4NHSize)")
 
-	V4TunnelCount         = flag.Int("arg_v4_tunnel_count", 1024, "In gRIBI scaling tests, the number of tunnel IPs.")
+	V4TunnelCount         = flag.Int("arg_v4_tunnel_count", 20000, "In gRIBI scaling tests, the number of tunnel IPs.")
 	V4TunnelNHGCount      = flag.Int("arg_v4_tunnel_nhg_count", 256, "In gRIBI scaling tests, the number of next-hop-groups associated to the v4 tunnels.")
 	V4TunnelNHGSplitCount = flag.Int("arg_v4_tunnel_nhg_split_count", 2, "In gRIBI scaling tests, the number of next-hop per next-hop-group for the v4 tunnels.")
 	EgressNHGSplitCount   = flag.Int("arg_egress_nhg_split_count", 16, "In gRIBI scaling tests, the number of next-hop per next-hop-group for the egress traffic.")

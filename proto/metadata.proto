@@ -563,6 +563,10 @@ message Metadata {
     // Devices does not multipath config at neighbor or afisafi level
     // Juniper: b/341130490
     bool multipath_unsupported_neighbor_or_afisafi = 193;
+    // Override default NextHop scale while enabling encap/decap scale
+    // CISCO: 
+    bool override_default_nh_scale = 194;
+
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;

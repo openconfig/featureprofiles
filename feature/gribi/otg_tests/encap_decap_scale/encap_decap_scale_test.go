@@ -110,12 +110,15 @@ const (
 	encapNhgcount           = 200
 	encapIPv4Count          = 5000
 	encapIPv6Count          = 5000
-	encapNhSize             = 2
 	decapIPv4Count          = 48
-	decapIPv4ScaleCount     = 400
 	decapScale              = true
 	tolerancePct            = 2
 	seqIDBase               = 10
+)
+
+var (
+	encapNhSize         = 8
+	decapIPv4ScaleCount = 1000
 )
 
 var (
@@ -904,6 +907,7 @@ type testArgs struct {
 
 func TestGribiEncapDecapScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	overrideScaleParams(dut)
 
 	ate := ondatra.ATE(t, "ate")
 	ctx := context.Background()
@@ -1053,4 +1057,15 @@ func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
 		return i + seqIDBase
 	}
 	return i
+}
+
+// overrideScaleParams allows to override the default scale parameters based on the DUT vendor.
+func overrideScaleParams(dut *ondatra.DUTDevice) {
+	if deviations.OverrideDefaultNhScale(dut) {
+		if dut.Vendor() == ondatra.CISCO {
+			*fpargs.V4TunnelCount = 1024
+			encapNhSize = 2
+			decapIPv4ScaleCount = 400
+		}
+	}
 }
