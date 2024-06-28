@@ -10,6 +10,8 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    isis_global_authentication_not_required: true
+    isis_explicit_level_authentication_config: true
     isis_interface_level1_disable_required: true
     missing_isis_interface_afi_safi_enable: true
     explicit_port_speed: true
