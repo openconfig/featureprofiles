@@ -185,11 +185,6 @@ func StaticProtocolName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
-}
-
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
 func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchChipIdUnsupported()
@@ -1024,14 +1019,53 @@ func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
 }
 
-// Devices does not support bgp max multipaths.
+// CommunityMatchWithRedistributionUnsupported is set to true for devices that do not support matching community at the redistribution attach point.
+func CommunityMatchWithRedistributionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMatchWithRedistributionUnsupported()
+}
+
+// BgpMaxMultipathPathsUnsupported returns true if the device does not support
+// bgp max multipaths.
 func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
 }
 
-// Devices does not support multipath under neighbor or afisafi
+// MultipathUnsupportedNeighborOrAfisafi returns true if the device does not
+// support multipath under neighbor or afisafi.
 func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+}
+
+// ModelNameUnsupported returns true if /components/components/state/model-name
+// is not supported for any component type.
+func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetModelNameUnsupported()
+}
+
+// InstallPositionAndInstallComponentUnsupported returns true if install
+// position and install component are not supported.
+func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
+}
+
+// EncapTunnelShutBackupNhgZeroTraffic returns true when encap tunnel is shut then zero traffic flows to backup NHG
+func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
+}
+
+// MaxEcmpPaths supported for isis max ecmp path
+func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
+}
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
 }
 
 // OverrideNextHopScale returns true if default NextHop scale needs to be modified
