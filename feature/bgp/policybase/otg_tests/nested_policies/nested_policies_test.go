@@ -282,14 +282,27 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 	}
 	// Configure the parent BGP import policy.
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetImportPolicy([]string{v4LPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().PeerGroup(peerGrpNamev4).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpNamev4).GetOrCreateApplyPolicy()
+		policy.SetImportPolicy([]string{v4LPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+	} else {
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+		policy.SetImportPolicy([]string{v4LPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
 	}
+
 	batch.Set(t, dut)
 }
 
@@ -358,13 +371,25 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	time.Sleep(time.Second * 60)
 
 	// Configure the parent BGP import policy.
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetExportPolicy([]string{v4ASPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().PeerGroup(peerGrpNamev4).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpNamev4).GetOrCreateApplyPolicy()
+		policy.SetExportPolicy([]string{v4ASPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+	} else {
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+		policy.SetExportPolicy([]string{v4ASPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
 	}
 	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
@@ -450,13 +475,25 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 
 	// Configure the parent BGP import policy.
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetImportPolicy([]string{v6LPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().PeerGroup(peerGrpNamev6).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpNamev6).GetOrCreateApplyPolicy()
+		policy.SetImportPolicy([]string{v6LPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+	} else {
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+		policy.SetImportPolicy([]string{v6LPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
 	}
 	batch.Set(t, dut)
 }
@@ -526,15 +563,27 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	time.Sleep(time.Second * 60)
 
 	// Configure the parent BGP export policy.
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetExportPolicy([]string{v6ASPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		//policy under peer group
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().PeerGroup(peerGrpNamev6).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpNamev6).GetOrCreateApplyPolicy()
+		policy.SetExportPolicy([]string{v6LPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+	} else {
+		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+		policy.SetExportPolicy([]string{v6ASPPolicy})
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+		batch.Set(t, dut)
 	}
-	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
 }
 
