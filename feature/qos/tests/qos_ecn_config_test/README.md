@@ -60,7 +60,7 @@ Verify QoS ECN feature configuration.
 
 *   ECN
     *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold-percent
-    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent    
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold-percent
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn
@@ -79,7 +79,7 @@ Verify QoS ECN feature configuration.
 *   ECN
 
     *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold-percent
-    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent  
+    *   [TODO] qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold-percent
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold
     *   qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn
@@ -96,3 +96,39 @@ Verify QoS ECN feature configuration.
 ## platform
 
  * vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/min-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/drop:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/config/max-drop-probability-percent:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/name:
+  /qos/interfaces/interface/output/queues/queue/config/queue-management-profile:
+
+  ## State paths:
+
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/enable-ecn:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/weight:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/drop:
+  /qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-drop-probability-percent:
+  /qos/interfaces/interface/input/classifiers/classifier/state/name:
+  /qos/interfaces/interface/output/queues/queue/state/name:
+  /qos/interfaces/interface/output/queues/queue/state/queue-management-profile:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
