@@ -578,6 +578,8 @@ message Metadata {
     bool max_ecmp_paths = 198;
     // wecmp_auto_unsupported is set to true for devices that do not support auto wecmp
     bool wecmp_auto_unsupported = 199;
+    // policy chaining, ie. more than one policy at an attachement point is not supported
+    bool routing_policy_chaining_unsupported = 200;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
