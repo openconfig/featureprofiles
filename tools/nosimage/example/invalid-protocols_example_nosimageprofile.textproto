@@ -1,0 +1,62 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/nosimage.proto
+# proto-message: NOSImageProfile
+# txtpbfmt: expand_all_children
+# txtpbfmt: sort_repeated_fields_by_content
+vendor_id: OPENCONFIG
+nos: "lemming"
+software_version: "7a1cb734c83f0d9ba5b273f920bc002ad0056178"
+hardware_name: "lemming"
+release_date: {
+  seconds: 1700180400
+}
+ocpaths: {
+  ocpaths: {
+    name: "/interfaces/interface/config/name"
+  }
+  ocpaths: {
+    name: "/components/component/state/location"
+    ocpath_constraint: {
+      platform_type: "PORT"
+    }
+  }
+  ocpaths: {
+    name: "/components/component/state/serial-no"
+    ocpath_constraint: {
+      platform_type: "STORAGE"
+    }
+  }
+  ocpaths: {
+    name: "/components/component/state/software-version"
+    ocpath_constraint: {
+      platform_type: "OPERATING_SYSTEM"
+    }
+  }
+  ocpaths: {
+    name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as"
+  }
+  version: "2.5.0"
+}
+ocrpcs: {
+  oc_protocols: {
+    key: "gnmi"
+    value: {
+      method_name: "gnmi.gNMI.Set"
+      method_name: "gnmi.gNMI.Subscribe"
+      method_name: "gnmi.gNMI.Whatsup"
+      version: "0.10.0"
+    }
+  }
+  oc_protocols: {
+    key: "gnoi"
+    value: {
+      method_name: "gnmi.gNMI.Get"
+      method_name: "gnoi.bgp.BGP.ClearBGPNeighbor"
+      method_name: "gnoi.healthz.Healthz.Acknowledge"
+      method_name: "gnoi.healthz.Healthz.Artifact"
+      method_name: "gnoi.healthz.Healthz.Check"
+      method_name: "gnoi.healthz.Healthz.Get"
+      method_name: "gnoi.healthz.Healthz.List"
+      version: "0.3.0"
+    }
+  }
+}
