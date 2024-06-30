@@ -1,9 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "9f319fa6-d197-48fa-84fe-ea075c422190"
-plan_id: "RT-1.14"
-description: "BGP Long-Lived Graceful Restart"
+uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
+plan_id: "P4RT-3.21"
+description: "Google Discovery Protocol: PacketOut with LAG"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
@@ -11,6 +11,15 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
   }
 }
 platform_exceptions: {
@@ -25,25 +34,11 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    bgp_llgr_oc_undefined: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
-    omit_l2_mtu: true
-    interface_config_vrf_before_address: true
-    deprecated_vlan_id: true
     interface_enabled: true
-    require_routed_subinterface_0: true
     default_network_instance: "default"
-    bgp_llgr_oc_undefined: true
   }
 }
-tags: TAGS_AGGREGATION
+
