@@ -1,0 +1,8 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "ae09edfd-f64e-4095-b56d-021ce29b659b"
+plan_id:  "ACCTZ-4.2"
+description:  "Record Payload Truncation"
+testbed:  TESTBED_DUT
+platform_exceptions:  {}
