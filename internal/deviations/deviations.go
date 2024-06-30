@@ -1062,3 +1062,8 @@ func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
 }
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
+}

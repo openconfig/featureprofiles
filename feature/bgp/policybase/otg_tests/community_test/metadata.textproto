@@ -5,7 +5,7 @@ uuid: "4330effe-a20c-42fb-8372-80fb0901a325"
 plan_id: "RT-7.2"
 description: "BGP Policy Community Set"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+tags: [TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -40,3 +40,4 @@ platform_exceptions: {
     bgp_conditions_match_community_set_unsupported: true
   }
 }
+
