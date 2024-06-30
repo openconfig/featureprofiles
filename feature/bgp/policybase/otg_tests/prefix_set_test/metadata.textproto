@@ -39,6 +39,5 @@ platform_exceptions:  {
     prepolicy_received_routes: true
   }
 }
-tags: TAGS_AGGREGATION
 tags: TAGS_TRANSIT
 tags: TAGS_DATACENTER_EDGE

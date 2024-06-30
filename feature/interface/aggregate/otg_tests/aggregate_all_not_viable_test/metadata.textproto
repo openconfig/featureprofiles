@@ -1,10 +1,25 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "2beaac46-9b7b-49c4-9bde-62ad530aa5c4"
-plan_id: "RT-2.13"
-description: "Weighted-ECMP for IS-IS"
+uuid: "2beaac46-9b7b-49c4-9bde-62ad530aa5c6"
+plan_id: "RT-5.7"
+description: "Aggregate Not Viable All"
 testbed: TESTBED_DUT_ATE_8LINKS
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    aggregate_atomic_update: true
+    interface_enabled: true
+    missing_value_for_defaults: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -19,16 +34,9 @@ platform_exceptions: {
     isis_require_same_l1_metric_with_l2_metric: true
     route_policy_under_afi_unsupported: true
     static_protocol_name: "STATIC"
-    rib_wecmp: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    interface_ref_config_unsupported:true
-    rib_wecmp: true
-    wecmp_auto_unsupported: true
+    aggregate_atomic_update: true
+    missing_value_for_defaults: true
+    max_ecmp_paths: false
+    explicit_interface_in_default_vrf: false
   }
 }
