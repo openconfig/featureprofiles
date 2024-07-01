@@ -302,6 +302,7 @@ func randRange(t *testing.T, start, end uint32, count int) []uint32 {
 
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV6 *ipAddr) []gosnappi.Flow {
 	t.Helper()
+	dut := ondatra.DUT(t, "dut")
 	top.Flows().Clear()
 	fV4 := top.Flows().Add().SetName("flowV4")
 	if deviations.WeightedEcmpFixedPacketVerification(dut) {
