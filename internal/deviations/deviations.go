@@ -1068,6 +1068,16 @@ func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
 }
 
+// ISISLoopbackRequired returns true if isis loopback is required.
+func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLoopbackRequired()
+}
+
+// WeightedEcmpFixedPacketVerification returns true if fixed packet is used in traffic flow
+func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
+}
+
 // OverrideNextHopScale returns true if default NextHop scale needs to be modified
 // else returns false
 func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
