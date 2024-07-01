@@ -27,9 +27,9 @@ paths:
 
     ## Telemetry Parameter Coverage
 
-    /global/config/as:
-    /neighbors/neighbor/config/peer-as:
-    /neighbors/neighbor/config/local-as:
+    /global/state/as:
+    /neighbors/neighbor/state/peer-as:
+    /neighbors/neighbor/state/local-as:
 
 rpcs:
   gnmi:
