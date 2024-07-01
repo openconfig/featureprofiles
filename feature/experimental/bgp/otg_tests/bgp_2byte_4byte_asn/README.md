@@ -21,15 +21,15 @@ BGP 2-Byte and 4-Byte ASN support
 paths:
     ## Config Parameter Coverage
 
-    /global/config/as:
-    /neighbors/neighbor/config/peer-as:
-    /neighbors/neighbor/config/local-as:
+    /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
 
     ## Telemetry Parameter Coverage
 
-    /global/state/as:
-    /neighbors/neighbor/state/peer-as:
-    /neighbors/neighbor/state/local-as:
+    /network-instances/network-instance/protocols/protocol/bgp/global/state/as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
 
 rpcs:
   gnmi:
