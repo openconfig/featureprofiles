@@ -229,7 +229,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	top.Flows().Clear()
-	if vendor == ondatra.CISCO {
+	if deviations.ISISLoopbackRequired(dut) {
 		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
@@ -304,7 +304,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	t.Helper()
 	top.Flows().Clear()
 	fV4 := top.Flows().Add().SetName("flowV4")
-	if vendor == ondatra.CISCO {
+	if deviations.WeightedEcmpFixedPacketVerification(dut) {
 		fV4.Duration().FixedPackets().SetPackets(fixedPackets)
 	}
 	fV4.Metrics().SetEnable(true)
@@ -319,18 +319,11 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
-
-	switch vendor {
-	case ondatra.CISCO:
-		udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
-		udp.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
-	default:
-		udp.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
-		udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
-	}
+	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
+	udp.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
 
 	fV6 := top.Flows().Add().SetName("flowV6")
-	if vendor == ondatra.CISCO {
+	if deviations.WeightedEcmpFixedPacketVerification(dut) {
 		fV6.Duration().FixedPackets().SetPackets(fixedPackets)
 	}
 	fV6.Metrics().SetEnable(true)
@@ -346,14 +339,8 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
-	switch vendor {
-	case ondatra.CISCO:
-		udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
-		udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
-	default:
-		udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
-		udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
-	}
+	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
+	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
 
 	return []gosnappi.Flow{fV4, fV6}
 }
@@ -641,7 +628,7 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	if dut.Vendor() == ondatra.CISCO {
+	if deviations.ISISLoopbackRequired( dut ) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 		// add loopback interface to ISIS
 		aggIDs = append(aggIDs, "Loopback0")
@@ -676,7 +663,7 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 			isisIntfLevelAfiv6.Enabled = nil
 		}
 	}
-	if dut.Vendor() == ondatra.CISCO {
+	if deviations.ISISLoopbackRequired(dut) {
 		gnmi.Update(t, dut, dutConfIsisPath.Config(), prot)
 	} else {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
@@ -771,7 +758,7 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
-	if dut.Vendor() == ondatra.CISCO {
+	if deviations.ISISLoopbackRequired(dut) {
 		// verify loopback has been received via ISIS
 		t.Log("Starting route check")
 		for _, loopBack := range loopBacks {
