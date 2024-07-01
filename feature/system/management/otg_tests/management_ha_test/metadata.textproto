@@ -33,5 +33,13 @@ platform_exceptions:  {
     table_connections_unsupported: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    table_connections_unsupported: true
+  }
+}
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE
