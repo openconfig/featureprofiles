@@ -434,7 +434,7 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetMetric(10)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-	if vendor == ondatra.CISCO {
+	if deviations.ISISLoopbackRequired(dut) {
 		// configure ISIS loopback interface and advertise them via ISIS.
 		isisPort2V4 := dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".ISISV4").SetLinkMetric(10)
 		isisPort2V4.Addresses().Add().SetAddress(agg.ateLoopbackV4).SetPrefix(32)
@@ -511,7 +511,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
-	if dut.Vendor() != ondatra.CISCO {
+	if deviations.ISISLoopbackRequired(dut) {
 		configureStaticRouteToATELoopbacks(t, dut)
 	}
 	configureRoutingPolicy(t, dut)
@@ -711,7 +711,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		bgpNbrV4.Enabled = ygot.Bool(true)
 		bgpNbrV4T := bgpNbrV4.GetOrCreateTransport()
 		localAddressLeafv4 := dutLoopback.IPv4
-		if dut.Vendor() == ondatra.CISCO {
+		if deviations.ISISLoopbackRequired(dut) {
 			localAddressLeafv4 = lb
 		}
 		bgpNbrV4T.LocalAddress = ygot.String(localAddressLeafv4)
@@ -726,7 +726,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		bgpNbrV6.Enabled = ygot.Bool(true)
 		bgpNbrV6T := bgpNbrV6.GetOrCreateTransport()
 		localAddressLeafv6 := dutLoopback.IPv6
-		if dut.Vendor() == ondatra.CISCO {
+		if deviations.ISISLoopbackRequired(dut) {
 			localAddressLeafv6 = lb
 		}
 		bgpNbrV6T.LocalAddress = ygot.String(localAddressLeafv6)
