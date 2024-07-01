@@ -580,6 +580,10 @@ message Metadata {
     bool wecmp_auto_unsupported = 199;
     // policy chaining, ie. more than one policy at an attachement point is not supported
     bool routing_policy_chaining_unsupported = 200;
+    // isis loopback config required
+    bool isis_loopback_required = 201;
+    // weighted ecmp feature verification using fixed packet
+    bool weighted_ecmp_fixed_packet_verification = 202;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
