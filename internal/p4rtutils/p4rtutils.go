@@ -184,21 +184,10 @@ func ACLWbbIngressTableEntryGet(infoList []*ACLWbbIngressTableEntryInfo) []*p4_v
 	return updates
 }
 
-func explicitP4RTNodes() map[string]string {
-	return map[string]string{
-		"port1": *args.P4RTNodeName1,
-		"port2": *args.P4RTNodeName2,
-	}
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
-	if deviations.ExplicitP4RTNodeComponent(dut) {
-		return explicitP4RTNodes()
-	}
-
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())

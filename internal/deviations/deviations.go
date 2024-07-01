@@ -146,12 +146,6 @@ func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
-// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
-func ExplicitP4RTNodeComponent(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitP4RtNodeComponent()
-}
-
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
