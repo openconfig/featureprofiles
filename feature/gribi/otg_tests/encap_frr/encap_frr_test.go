@@ -115,7 +115,7 @@ const (
 	// Maximum reboot time is 900 seconds (15 minutes).
 	maxRebootTime = 900
 	// Maximum wait time for all components to be in responsive state
-	maxCompWaitTime = 600
+	maxCompWaitTime = 900
 )
 
 var (
