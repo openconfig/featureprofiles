@@ -862,11 +862,11 @@ func TestIntfCounterUpdate(t *testing.T) {
 	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
+	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateOutPkts) {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
-		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
+	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateInPkts) {
+		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateInPkts)
 	}
 }
 
