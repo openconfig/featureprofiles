@@ -425,6 +425,7 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4,
 
 func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 	t.Helper()
+	dut := ondatra.DUT(t, "dut")
 	isis := dev.Isis().SetSystemId(agg.ateISISSysID).SetName(agg.ateAggName + ".ISIS")
 	isis.Basic().SetHostname(isis.Name())
 	isis.Advanced().SetAreaAddresses([]string{ateAreaAddress})
