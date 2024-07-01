@@ -629,7 +629,7 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	if deviations.ISISLoopbackRequired( dut ) {
+	if deviations.ISISLoopbackRequired(dut) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 		// add loopback interface to ISIS
 		aggIDs = append(aggIDs, "Loopback0")
