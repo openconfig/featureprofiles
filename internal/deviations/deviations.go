@@ -1057,3 +1057,23 @@ func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
 }
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
+}
+
+// ISISLoopbackRequired returns true if isis loopback is required.
+func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLoopbackRequired()
+}
+
+// WeightedEcmpFixedPacketVerification returns true if fixed packet is used in traffic flow
+func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
+}
