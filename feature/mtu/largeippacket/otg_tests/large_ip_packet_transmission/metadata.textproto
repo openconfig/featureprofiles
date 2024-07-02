@@ -14,6 +14,7 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
+    omit_l2_mtu: true
   }
 }
 platform_exceptions: {
@@ -27,4 +28,3 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
-

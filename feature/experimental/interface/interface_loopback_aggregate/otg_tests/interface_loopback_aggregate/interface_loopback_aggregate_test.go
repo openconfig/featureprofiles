@@ -15,7 +15,6 @@
 package interface_loopback_aggregate_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -232,40 +230,9 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	t.Run("Configure interface loopback mode FACILITY on DUT AE interface", func(t *testing.T) {
 		if deviations.InterfaceLoopbackModeRawGnmi(dut) {
-			gpbSetRequest := &gpb.SetRequest{
-				Update: []*gpb.Update{{
-					Path: &gpb.Path{
-						Origin: "openconfig",
-						Elem: []*gpb.PathElem{
-							{
-								Name: "interfaces",
-							},
-							{
-								Name: "interface",
-								Key: map[string]string{
-									"name": dut.Port(t, "port1").Name(),
-								},
-							},
-							{
-								Name: "config",
-							},
-							{
-								Name: "loopback-mode",
-							},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: []byte("true"),
-						},
-					},
-				}},
-			}
-			gnmiClient := dut.RawAPIs().GNMI(t)
-			_, err := gnmiClient.Set(context.Background(), gpbSetRequest)
-			if err != nil {
-				t.Errorf("Failed to update interface loopback mode")
-			}
+
+			gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1.Name()).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_TERMINAL)
+
 		} else {
 			if deviations.MemberLinkLoopbackUnsupported(dut) {
 				gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_FACILITY)

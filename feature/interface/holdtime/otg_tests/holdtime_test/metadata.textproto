@@ -1,6 +1,15 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
+uuid: "4ed6ff3f-b27e-4f46-93b2-8bcbc521d883"
 plan_id: "RT-5.5"
-description: "Interface hold-times"
+description: "Interface hold-time"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}

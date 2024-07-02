@@ -50,9 +50,8 @@ func keyboardInteraction(password string) ssh.KeyboardInteractiveChallenge {
 	}
 }
 
-func gnmiClient(ctx context.Context, dut *ondatra.DUTDevice, gnmiAddr string) (gpb.GNMIClient, error) {
-	conn, err := grpc.DialContext(
-		ctx,
+func gnmiClient(dut *ondatra.DUTDevice, gnmiAddr string) (gpb.GNMIClient, error) {
+	conn, err := grpc.NewClient(
 		gnmiAddr,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(&tls.Config{
@@ -60,7 +59,7 @@ func gnmiClient(ctx context.Context, dut *ondatra.DUTDevice, gnmiAddr string) (g
 			})),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("grpc.DialContext => unexpected failure dialing GNMI (should not require auth): %w", err)
+		return nil, fmt.Errorf("grpc.NewClient => unexpected failure dialing GNMI (should not require auth): %w", err)
 	}
 	return gpb.NewGNMIClient(conn), nil
 }
@@ -240,7 +239,7 @@ func TestAuthentication(t *testing.T) {
 				context.Background(),
 				"username", tc.user,
 				"password", tc.pass)
-			gnmi, err := gnmiClient(ctx, dut, gnmiAddr)
+			gnmi, err := gnmiClient(dut, gnmiAddr)
 			if err != nil {
 				t.Fatal(err)
 			}

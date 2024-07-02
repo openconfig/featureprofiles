@@ -7,26 +7,9 @@ description: "Network Time Protocol (NTP)"
 testbed: TESTBED_DUT
 platform_exceptions: {
   platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    ntp_non_default_vrf_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    ntp_non_default_vrf_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: NOKIA
   }
   deviations: {
     ntp_non_default_vrf_unsupported: true
   }
 }
-

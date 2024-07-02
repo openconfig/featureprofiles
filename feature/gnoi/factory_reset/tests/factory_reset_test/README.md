@@ -12,7 +12,13 @@ Performs Factory Reset with and without disk-encryption
         *   The base config is updated on the box via Secure ZTP  
 *   Connect to the router and check if the files in the harddisk are removed as a part of verifying Factory reset. 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   No new configuration covered.
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
+```yaml
+rpcs:
+  gnoi:
+    factory_reset.FactoryReset.Start:
+```

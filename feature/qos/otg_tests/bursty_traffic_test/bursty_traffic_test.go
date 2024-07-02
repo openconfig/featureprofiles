@@ -432,6 +432,7 @@ func TestBurstyTraffic(t *testing.T) {
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
 			t.Logf("Running traffic 2 on DUT interfaces: %s => %s ", dp2.Name(), dp3.Name())
 			t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
+			time.Sleep(30 * time.Second)
 			ate.OTG().StartTraffic(t)
 			time.Sleep(30 * time.Second)
 			ate.OTG().StopTraffic(t)

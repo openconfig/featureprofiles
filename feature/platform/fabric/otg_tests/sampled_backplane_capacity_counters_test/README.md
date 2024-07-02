@@ -34,7 +34,7 @@ This test if to verify that DUT supports gNMI Subscribe with ON_CHANGE for backp
 
     *   Validate that we recieve a changed consumed-capacity metric matching the initial value
 
-### gNMI-1.18.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2323]
+### gNMI-1.18.2
 
 *   Use gNMI subscribe with "ON_CHANGE" mode for the below telemetry paths
 
@@ -70,26 +70,34 @@ This test if to verify that DUT supports gNMI Subscribe with ON_CHANGE for backp
 
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
-*   /components/component/{fabric}/config/power-admin-state
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+```yaml
+paths:
+  ## Config parameter coverage
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /components/component/fabric/config/power-admin-state:
+    platform_type: ["FABRIC"]
 
-## Telemetry parameter coverage
+  ## Telemetry parameter coverage
+  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
 
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
-
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Set
-  * Update
-  * Subscribe
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+          Mode: [ "ON_CHANGE", "SAMPLE" ]
+```
 
 ## Required DUT platform
 

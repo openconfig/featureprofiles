@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {
@@ -21,7 +22,6 @@ platform_exceptions: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
-    skip_pbf_with_decap_encap_vrf: true
   }
 }
 platform_exceptions: {
@@ -36,3 +36,4 @@ platform_exceptions: {
     backup_nhg_requires_vrf_with_decap: true
   }
 }
+tags: TAGS_TRANSIT

@@ -397,12 +397,22 @@ func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix, ipAddress
 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix+"/"+mask)
 	}
 	aftPfx, _ := aftPfxVal.Val()
-
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
-	if got := len(aftNHG.NextHop); got != 1 {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix+"/"+mask, got)
+	_, found = gnmi.Watch(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State(),
+		2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_NextHopGroup]) bool {
+			value, present := val.Val()
+			return present && len(value.NextHop) == 1
+		}).Await(t)
+	if !found {
+		t.Fatalf("nexthop entry count mismatch for prefix %s", prefix+"/"+mask)
 	}
 
+	/*
+		aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
+		if got := len(aftNHG.NextHop); got != 1 {
+			t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix+"/"+mask, got)
+		}
+	*/
+	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
 	for k := range aftNHG.NextHop {
 		aftnh := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHop(k).State())
 		// Handle the cases where the device returns the indirect NH or the recursively resolved NH.

@@ -601,8 +601,8 @@ func testECNConfig(t *testing.T) {
 		ecnEnabled:                true,
 		dropEnabled:               false,
 		minThreshold:              uint64(80000),
-		maxThreshold:              math.MaxUint32,
-		maxDropProbabilityPercent: uint8(1),
+		maxThreshold:              uint64(80001),
+		maxDropProbabilityPercent: uint8(100),
 		weight:                    uint32(0),
 	}
 
@@ -619,9 +619,6 @@ func testECNConfig(t *testing.T) {
 
 	t.Logf("qos ECN QueueManagementProfile config cases: %v", ecnConfig)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-
-	// TODO: Remove the following t.Skipf() after the config verification code has been tested.
-	t.Skipf("Skip the QoS config verification until it is tested against a DUT.")
 
 	// Verify the QueueManagementProfile is applied by checking the telemetry path state values.
 	wredUniform := gnmi.OC().Qos().QueueManagementProfile("DropProfile").Wred().Uniform()

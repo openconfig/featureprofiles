@@ -14,14 +14,7 @@ platform_exceptions:  {
     transceiver_thresholds_unsupported:  true
   }
 }
-platform_exceptions:  {
-  platform:  {
-    vendor:  JUNIPER
-  }
-  deviations:  {
-    transceiver_thresholds_unsupported:  true
-  }
-}
+
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA

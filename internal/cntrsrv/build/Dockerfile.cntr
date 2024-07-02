@@ -1,0 +1,6 @@
+FROM us-west1-docker.pkg.dev/gep-kne/arista/ceos:ga
+
+COPY cntrsrv /usr/bin
+COPY ./cntr.service /etc/systemd/system
+
+RUN systemctl enable cntr

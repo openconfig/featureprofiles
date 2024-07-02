@@ -47,6 +47,7 @@ import (
 
 var (
 	// To be stubbed out by unit tests.
+	//lint:ignore SA1019 DialContext allows for blocking on new connections.
 	grpcDialContextFn = grpc.DialContext
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
@@ -90,7 +91,7 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
-	resv, err := reservation(tb, b.r)
+	resv, err := reservation(ctx, tb, b.r)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +276,17 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
-func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
+func reservation(ctx context.Context, tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
+	if r.Dynamic {
+		return dynamicReservation(ctx, tb, r)
+	}
+	resv, errs := staticReservation(tb, r)
+	return resv, errors.Join(errs...)
+}
+
+func staticReservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+	var errs []error
+
 	bduts := make(map[string]*bindpb.Device)
 	for _, bdut := range r.Duts {
 		bduts[bdut.Id] = bdut
@@ -285,8 +296,6 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 		bates[bate.Id] = bate
 	}
 
-	var errs []error
-
 	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
 		bdut, ok := bduts[tdut.Id]
@@ -294,10 +303,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			errs = append(errs, fmt.Errorf("missing binding for DUT %q", tdut.Id))
 			continue
 		}
-		d, dimErrs := dims(tdut, bdut)
+		dims, dimErrs := staticDims(tdut, bdut)
 		errs = append(errs, dimErrs...)
 		duts[tdut.Id] = &staticDUT{
-			AbstractDUT: &binding.AbstractDUT{Dims: d},
+			AbstractDUT: &binding.AbstractDUT{Dims: dims},
 			r:           r,
 			dev:         bdut,
 		}
@@ -310,52 +319,36 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 			errs = append(errs, fmt.Errorf("missing binding for ATE %q", tate.Id))
 			continue
 		}
-		d, dimErrs := dims(tate, bate)
+		dims, dimErrs := staticDims(tate, bate)
 		errs = append(errs, dimErrs...)
 		ates[tate.Id] = &staticATE{
-			AbstractATE: &binding.AbstractATE{Dims: d},
+			AbstractATE: &binding.AbstractATE{Dims: dims},
 			r:           r,
 			dev:         bate,
 		}
 	}
 
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
-	}
 	return &binding.Reservation{
 		DUTs: duts,
 		ATEs: ates,
-	}, nil
+	}, errs
 }
 
-func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
+func staticDims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 	var errs []error
 
 	// Check that the bound device matches the testbed device.
-	// TODO(greg-dennis): Stop copying the testbed device dimensions into the bound dimensions.
 	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED && bd.Vendor != tdVendor {
-		if bd.Vendor == opb.Device_VENDOR_UNSPECIFIED {
-			bd.Vendor = tdVendor
-		} else {
-			errs = append(errs, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", bd.Vendor, tdVendor))
-		}
+		errs = append(errs, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", bd.Vendor, tdVendor))
 	}
 	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" && bd.HardwareModel != tdHardwareModel {
-		if bd.HardwareModel == "" {
-			bd.HardwareModel = td.GetHardwareModel()
-		} else {
-			errs = append(errs, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", bd.HardwareModel, tdHardwareModel))
-		}
+		errs = append(errs, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", bd.HardwareModel, tdHardwareModel))
 	}
 	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" && bd.SoftwareVersion != tdSoftwareVersion {
-		if bd.SoftwareVersion == "" {
-			bd.SoftwareVersion = td.GetSoftwareVersion()
-		} else {
-			errs = append(errs, fmt.Errorf("binding software version %v and testbed software version %v do not match", bd.SoftwareVersion, tdSoftwareVersion))
-		}
+		errs = append(errs, fmt.Errorf("binding software version %v and testbed software version %v do not match", bd.SoftwareVersion, tdSoftwareVersion))
 	}
 
-	portmap, portErrs := ports(td.Ports, bd)
+	portmap, portErrs := staticPorts(td.Ports, bd)
 	errs = append(errs, portErrs...)
 
 	return &binding.Dims{
@@ -367,13 +360,14 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 	}, errs
 }
 
-func ports(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+func staticPorts(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+	var errs []error
+
 	bports := make(map[string]*bindpb.Port)
 	for _, bport := range bd.Ports {
 		bports[bport.Id] = bport
 	}
 
-	var errs []error
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
 		bport, ok := bports[tport.Id]
@@ -381,20 +375,11 @@ func ports(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []e
 			errs = append(errs, fmt.Errorf("missing binding for port %q on %q", tport.Id, bd.Id))
 			continue
 		}
-		// TODO(greg-dennis): Stop copying the testbed port dimensions into the bound dimensions.
 		if tport.Speed != opb.Port_SPEED_UNSPECIFIED && tport.Speed != bport.Speed {
-			if bport.Speed == opb.Port_SPEED_UNSPECIFIED {
-				bport.Speed = tport.Speed
-			} else {
-				errs = append(errs, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, tport.Speed))
-			}
+			errs = append(errs, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, tport.Speed))
 		}
 		if tport.GetPmd() != opb.Port_PMD_UNSPECIFIED && tport.GetPmd() != bport.Pmd {
-			if bport.Pmd == opb.Port_PMD_UNSPECIFIED {
-				bport.Pmd = tport.GetPmd()
-			} else {
-				errs = append(errs, fmt.Errorf("binding port PMD %v and testbed port PMD %v do not match", bport.Pmd, tport.GetPmd()))
-			}
+			errs = append(errs, fmt.Errorf("binding port PMD %v and testbed port PMD %v do not match", bport.Pmd, tport.GetPmd()))
 		}
 		portmap[tport.Id] = &binding.Port{
 			Name:  bport.Name,

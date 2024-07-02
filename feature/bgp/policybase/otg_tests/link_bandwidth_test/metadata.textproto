@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "RT-7.5"
+description: "BGP Policy - Set Link Bandwidth Community"
+testbed: TESTBED_DUT_ATE_2LINKS
+tags: TAGS_DATACENTER_EDGE

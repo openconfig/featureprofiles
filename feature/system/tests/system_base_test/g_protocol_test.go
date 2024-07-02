@@ -24,6 +24,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -56,7 +58,7 @@ func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
-	if _, err := c.Get(context.Background(), &gpb.GetRequest{}); err != nil {
+	if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
@@ -76,9 +78,16 @@ func TestGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNSI, 9339)
 	c := authzpb.NewAuthzClient(conn)
-	if _, err := c.Get(context.Background(), &authzpb.GetRequest{}); err != nil {
-		t.Fatalf("gnsi.authz.Get failed: %v", err)
+	rsp, err := c.Get(context.Background(), &authzpb.GetRequest{})
+	if err != nil {
+		statusError, _ := status.FromError(err)
+		if statusError.Code() == codes.FailedPrecondition {
+			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
+		} else {
+			t.Errorf("Unexpected error during authz Get Request.")
+		}
 	}
+	t.Logf("gNSI authz get response is %s", rsp)
 }
 
 // TestGRIBIClient validates that the DUT listens on standard gRIBI Port.

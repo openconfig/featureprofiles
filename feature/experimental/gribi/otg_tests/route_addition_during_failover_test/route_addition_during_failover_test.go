@@ -661,6 +661,7 @@ func TestRouteAdditionDuringFailover(t *testing.T) {
 	// SINGLE_PRIMARY mode, with FIB ACK requested. Specify gRIBI as the leader.
 	// Check vars for WithInitialElectionID.
 
+	client.Stop(t)
 	t.Log("Reconnect gRIBi client after switchover on new master.")
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(eID.Low, eID.High).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)

@@ -187,6 +187,12 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp, dut); i != nil {
+			if dp.PMD() == ondatra.PMD100GBASEFR {
+				e := i.GetOrCreateEthernet()
+				e.AutoNegotiate = ygot.Bool(false)
+				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			}
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
@@ -208,7 +214,11 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
+	pmd100GFRPorts := []string{}
 	for i, ap := range ate.Ports() {
+		if ap.PMD() == ondatra.PMD100GBASEFR {
+			pmd100GFRPorts = append(pmd100GFRPorts, ap.ID())
+		}
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
 		ateid := fmt.Sprintf("ate:%s", ap.ID())
@@ -221,6 +231,13 @@ func configureATE(t testing.TB, ate *ondatra.ATEDevice) gosnappi.Config {
 		eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4").
 			SetAddress(portsIPv4[ateid]).SetGateway(portsIPv4[dutid]).
 			SetPrefix(plen)
+	}
+	// Disable FEC for 100G-FR ports because Novus does not support it.
+	if len(pmd100GFRPorts) > 0 {
+		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
+		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(false)
 	}
 	ate.OTG().PushConfig(t, config)
 	return config

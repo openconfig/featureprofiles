@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -174,4 +175,33 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
 
 	return standbyRP, activeRP
+}
+
+// OpticalChannelComponentFromPort finds the optical channel component for a port.
+func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		default:
+			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
+		}
+	}
+	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for {
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
+		if !ok {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
+		}
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
+			return compName
+		}
+		if comp.GetParent() == "" {
+			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
+		}
+		compName = comp.GetParent()
+	}
 }

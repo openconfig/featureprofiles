@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "6ed65b76-d20a-4aa3-a1e1-55077a23d02b"
+plan_id:  "RT-1.25"
+description:  "Management network-instance default static route"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_enabled: true
+  }
+}

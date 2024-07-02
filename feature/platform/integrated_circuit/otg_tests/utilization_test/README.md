@@ -31,19 +31,29 @@ Test `used-threshold-upper` configuration and telemetry for hardware resources.
 
 *   Get utilization percentages again and validate decrease in utilization.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /system/utilization/resources/resource/config/name
-*   /system/utilization/resources/resource/config/used-threshold-upper
-*   /system/utilization/resources/resource/config/used-threshold-upper-clear
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+```yaml
+paths:
+  ## Config parameter coverage
+  /system/utilization/resources/resource/config/name:
+  /system/utilization/resources/resource/config/used-threshold-upper:
+  /system/utilization/resources/resource/config/used-threshold-upper-clear:
 
-## Telemetry Parameter coverage
-
-*   /system/utilization/resources/resource/state/name
-*   /system/utilization/resources/resource/state/used-threshold-upper
-*   /system/utilization/resources/resource/state/used-threshold-upper-clear
-*   /components/component/integrated_circuit/utilization/resources/resource/state/name
-*   /components/component/integrated_circuit/utilization/resources/resource/state/used
-*   /components/component/integrated_circuit/utilization/resources/resource/state/free
-*   /components/component/integrated_circuit/utilization/resources/resource/state/used-threshold-upper
-*   /components/component/integrated_circuit/utilization/resources/resource/state/used-threshold-upper-clear
+  ## Telemetry parameter coverage
+  /system/utilization/resources/resource/state/name:
+  /system/utilization/resources/resource/state/used-threshold-upper:
+  /system/utilization/resources/resource/state/used-threshold-upper-clear:
+  /components/component/integrated-circuit/utilization/resources/resource/state/name:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/used:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/utilization/resources/resource/state/free:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+          Mode: [ "ON_CHANGE", "SAMPLE" ]
+```

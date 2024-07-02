@@ -1,3 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
+# proto-message: FeatureProfile
+
 id {
   name: "platform_fabric"
   version: 1

@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         path: featureprofiles
     - name: Checkout wiki
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: "openconfig/featureprofiles.wiki"
         path: featureprofiles.wiki
@@ -28,7 +28,6 @@ jobs:
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-        restore-keys: ${{ github.job }}-${{ runner.os }}-go-build-
     - name: Build Wiki
       run: |
         pushd featureprofiles.wiki

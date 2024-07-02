@@ -44,6 +44,11 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
+var (
+	minRequiredGeneratorMTU = uint64(8184)
+	minRequiredGeneratorPPS = uint64(1e8)
+)
+
 func TestCapabilitiesResponse(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
@@ -58,6 +63,14 @@ func TestCapabilitiesResponse(t *testing.T) {
 	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
 	if err != nil {
 		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+
+	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+	}
+
+	if deviations.PLQGeneratorCapabilitiesMaxPPS(dut1) != 0 {
+		minRequiredGeneratorPPS = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
 	}
 
 	cases := []struct {
@@ -91,7 +104,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxMtu",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  uint64(8184),
+		min:  minRequiredGeneratorMTU,
 	}, {
 		desc: "Generator MaxBps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
@@ -99,7 +112,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxPps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxPps()),
-		min:  uint64(1e8),
+		min:  minRequiredGeneratorPPS,
 	}}
 
 	for _, tc := range cases {
@@ -231,6 +244,10 @@ func TestLinkQualification(t *testing.T) {
 	}
 
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
+
+	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+	}
 	type LinkQualificationDuration struct {
 		// time needed to complete preparation
 		generatorsetupDuration time.Duration
@@ -265,7 +282,7 @@ func TestLinkQualification(t *testing.T) {
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
 					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
 						PacketRate: uint64(138888),
-						PacketSize: uint32(8184),
+						PacketSize: uint32(minRequiredGeneratorMTU),
 					},
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{
@@ -422,11 +439,16 @@ func TestLinkQualification(t *testing.T) {
 	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
 	var tolerance float64 = 0.0001
 
-	if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
-		t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
+	if deviations.PLQReflectorStatsUnsupported(dut1) {
+		if (math.Abs(float64(generatorPktsSent)-float64(generatorPktsRxed))/float64(generatorPktsSent))*100.00 > tolerance {
+			t.Errorf("The difference between packets sent count and packets received count at Generator is greater than %0.4f percent: generatorPktsSent %v, generatorPktsRxed %v", tolerance, generatorPktsSent, generatorPktsRxed)
+		}
+	} else {
+		if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
+		}
+		if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
+			t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
+		}
 	}
-	if ((math.Abs(float64(reflectorPktsSent)-float64(generatorPktsRxed)))/(float64(reflectorPktsSent)+float64(generatorPktsRxed)+tolerance))*200.00 > tolerance {
-		t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
-	}
-
 }

@@ -41,6 +41,7 @@ platform_exceptions: {
     isis_timers_csnp_interval_unsupported: true
     isis_counter_manual_address_drop_from_areas_unsupported: true
     isis_counter_part_changes_unsupported: true
+    isis_interface_afi_unsupported: true
   }
 }
 platform_exceptions: {

@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "596a9ddc-f112-426f-9f5e-80ecfd94cd2c"
-plan_id: "RT-2.12"
+plan_id: "RT-2.14"
 description: "IS-IS Drain Test"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
@@ -37,5 +37,13 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
   }
 }

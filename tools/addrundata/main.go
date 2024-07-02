@@ -14,15 +14,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"flag"
 
 	"github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/tools/internal/fpciutil"
 )
 
 var (
@@ -32,37 +30,13 @@ var (
 	mergejson = flag.String("mergejson", "", "Merge the JSON listing from this JSON file.")
 )
 
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-func featureDir() (string, error) {
-	_, path, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.New("could not detect caller")
-	}
-	newpath := filepath.Dir(path)
-	for newpath != "." && newpath != "/" {
-		featurepath := filepath.Join(newpath, "feature")
-		if isDir(featurepath) {
-			return featurepath, nil
-		}
-		newpath = filepath.Dir(newpath)
-	}
-	return "", fmt.Errorf("feature root not found from %s", path)
-}
-
 func main() {
 	flag.Parse()
 
 	featuredir := *dir
 	if featuredir == "" {
 		var err error
-		featuredir, err = featureDir()
+		featuredir, err = fpciutil.FeatureDir()
 		if err != nil {
 			glog.Exitf("Unable to locate feature root: %v", err)
 		}

@@ -50,21 +50,21 @@ It's ok that some NOS does not support this config (duplicated matching conditio
 
 Ensure that unspecified fields are wildcard and IPinIP packets are only received at VLAN 10 subinterface. 
 
-## Config Parameter Coverage
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/config/type
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/policy-id
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/interfaces/interface/interface-id
- *  /openconfig-network-instance/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy
-
-## Paths
-
-* /openconfig-network-instance/network-instances/network-instance/policy-forwarding
-* /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy
-* /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule
-* /openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4
-* /openconfig-network-instance/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy 
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-id:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
 

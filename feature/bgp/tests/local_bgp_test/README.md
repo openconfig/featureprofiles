@@ -13,18 +13,28 @@ Enable an Accept-route all import-policy/export-policy for eBGP session under th
 
 This test is suitable for running in a KNE environment.
 
-## Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config/as
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval
+```yaml
+paths:
+    ## Parameter Coverage
+
+   /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 

@@ -212,6 +212,11 @@ func configureGRIBIPrefixes(t *testing.T, dut *ondatra.DUTDevice, aggID string) 
 		WithIndex(nh1ID).WithInterfaceRef(aggID).WithMacAddress(staticDstMAC)
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		// Static route to nh1IPAddr which is the ATE Lag port.
+		spID := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.Update(t, dut, spID.Config(), &oc.NetworkInstance_Protocol{
+			Name:       ygot.String(deviations.StaticProtocolName(dut)),
+			Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		})
 		s := &oc.NetworkInstance_Protocol_Static{
 			Prefix: ygot.String(nh1IpAddr + "/32"),
 			NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
@@ -402,14 +407,6 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 
-	// Static ARP configuration with neighbor IP as nh1IPAddr
-	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		ipv4 := agg.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-		n4 := ipv4.GetOrCreateNeighbor(nh1IpAddr)
-		n4.LinkLayerAddress = ygot.String(staticDstMAC)
-		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-	}
-
 	for _, port := range aggPorts {
 		d := &oc.Root{}
 		i := d.GetOrCreateInterface(port.Name())
@@ -420,6 +417,14 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 			i.Enabled = ygot.Bool(true)
 		}
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+
+	// Static ARP configuration with neighbor IP as nh1IPAddr
+	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) || deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		ipv4 := agg.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+		n4 := ipv4.GetOrCreateNeighbor(nh1IpAddr)
+		n4.LinkLayerAddress = ygot.String(staticDstMAC)
+		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 	}
 }
 
