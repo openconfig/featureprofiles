@@ -581,20 +581,18 @@ func TestControllerCardEmpty(t *testing.T) {
 
 // validateSubcomponentsExistAsComponents checks that if the given component has subcomponents, that
 // those subcomponents exist as components on the device (i.e. the leafref is valid).
-func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T) {
-	// Note that this will get the subcomponents regardless of whether they are stored in
-	// subcomponent/name or subcomponent/state/name.
-	for _, s := range c.Subcomponent {
-		sName := s.GetName()
-		if sName != "" {
-			for _, component := range components {
-				if component.GetName() == sName {
-					continue
-				}
-			}
-			t.Errorf("Subcomponent %s not found in list of components", sName)
-		} else {
-			t.Errorf("Component %s has empty subcomponent name", c.GetName())
+func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T, dut *ondatra.DUTDevice) {
+	cName := c.GetName()
+	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(cName).SubcomponentAny().State())
+	for _, s := range subcomponents {
+		subc, ok := s.Val()
+		if !ok {
+			t.Errorf("Error getting subcomponent for component %s", cName)
+		}
+		subcName := subc.GetName()
+		subComponent := gnmi.Lookup[*oc.Component](t, dut, gnmi.OC().Component(subcName).State())
+		if subComponent == nil {
+			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
 		}
 	}
 }
@@ -623,7 +621,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		}
 		cName := card.GetName()
 		t.Run(cName, func(t *testing.T) {
-			validateSubcomponentsExistAsComponents(card, validCards, t)
+			validateSubcomponentsExistAsComponents(card, validCards, t, dut)
 			if p.descriptionValidation {
 				t.Logf("Component %s Description: %s", cName, card.GetDescription())
 				if card.GetDescription() == "" {
