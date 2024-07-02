@@ -20,6 +20,14 @@ platform_exceptions:  {
 }
 platform_exceptions:  {
   platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    ttl_copy_unsupported: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
     vendor: ARISTA 
   }
   deviations:  {
