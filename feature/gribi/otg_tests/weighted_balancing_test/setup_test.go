@@ -187,12 +187,6 @@ func configureDUT(t testing.TB, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	for _, dp := range dut.Ports() {
 		if i := dutInterface(dp, dut); i != nil {
-			if dp.PMD() == ondatra.PMD100GBASEFR {
-				e := i.GetOrCreateEthernet()
-				e.AutoNegotiate = ygot.Bool(false)
-				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-			}
 			gnmi.Replace(t, dut, dc.Interface(dp.Name()).Config(), i)
 		} else {
 			t.Fatalf("No address found for port %v", dp)
