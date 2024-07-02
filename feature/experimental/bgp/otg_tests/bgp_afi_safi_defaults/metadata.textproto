@@ -26,6 +26,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    explicit_interface_in_default_vrf: true
+    bgp_global_extended_next_hop_encoding_unsupported: true
+    skip_bgp_session_check_without_afisafi: true
     interface_enabled: true
   }
 }
