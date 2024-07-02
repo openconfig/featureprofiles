@@ -45,7 +45,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
 
 ### RT-7.1.2 : Policy definition in policy chain is not satisfied and Default Policy has ACCEPT_ROUTE action  
-  * Continue with the same configuration as RT-7.1
+  * Continue with the same configuration as RT-7.1.1
   * Replace the default-policy REJECT-ALL with default-policy ACCEPT-ALL which has action ACCEPT_ROUTE.
   * Ensure ACCEPT-ALL default-policy is applied to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
   * Following test expectations. If expectations not met, the test should fail.
@@ -56,7 +56,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
       
 ### RT-7.1.3 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has ACCEPT_ROUTE action
-  * Continue with the same configuration as RT-7.2. However, do not attach any non-default import/export policies to the peers at either the peer-group or neighbor levels.
+  * Continue with the same configuration as RT-7.1.2. However, do not attach any non-default import/export policies to the peers at either the peer-group or neighbor levels.
   * Ensure that the ACCEPT-ALL default-policy with default action of ACCEPT_ROUTE is appled to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should accept import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
@@ -66,7 +66,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
     * IS-IS and static routes shouldn't be advertised to the EBGP and IBGP peers.
 
 ### RT-7.1.4 : No policy attached either at the Peer-group or at the neighbor level and Default Policy has REJECT_ROUTE action
-  * Continue with the same configuration as RT-7.3. Ensure no non-default import/export policies are applied to the peers at either the peer-group or neighbor levels.
+  * Continue with the same configuration as RT-7.1.3. Ensure no non-default import/export policies are applied to the peers at either the peer-group or neighbor levels.
   * Ensure that only the REJECT-ALL default-policy with default action of REJECT_ROUTE is appled to both IPv4-unicast and IPv6-unicast AFI-SAFI of both IBGP and EBGP peers
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should reject import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
@@ -77,7 +77,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
 
 ### RT-7.1.5 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for only IBGP peer
 #### TODO: RT-7.5 should be automated only after the expected behavior is confirmed in https://github.com/openconfig/public/issues/981
-  * Continue with the same configuration as RT-7.4. However, do not attach any non-default OR default import/export policies to the IBGP peer at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
+  * Continue with the same configuration as RT-7.1.4. However, do not attach any non-default OR default import/export policies to the IBGP peer at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
   * Ensure that only the ACCEPT-ALL IMPORT/EXPORT default-policy with default action of ACCEPT_ROUTE is appled to the EBGP peer on both IPv4-unicast and IPv6-unicast AFI-SAFI
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should accept import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
@@ -88,7 +88,7 @@ B <-- IBGP+IS-IS --> C[Port2:OTG];
    
 ### RT-7.1.6 : No policy, including the default-policy is attached either at the Peer-group or at the neighbor level for both EBGP and IBGP peers
 #### TODO: RT-7.1.6 should be automated only after the expected behavior is confirmed in https://github.com/openconfig/public/issues/981
-  * Continue with the same configuration as RT-7.5. However, do not attach any non-default OR default import/export policies to the IBGP and EBGP peers at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
+  * Continue with the same configuration as RT-7.1.5. However, do not attach any non-default OR default import/export policies to the IBGP and EBGP peers at the peer-group or neighbor levels. This is true for both IPv4-unicast and IPv6-unicast AFI-SAFI.
   * Following test expectations. If expectations not met, the test should fail.
     * DUT:Port1 should reject import of IPv4-prefix1, IPv4-prefix2, IPv4-prefix3, IPv6-prefix1, IPv6-prefix2 and IPv6-prefix3
     * DUT:Port1 should reject export of IPv4-prefix4, IPv4-prefix5, IPv4-prefix6, IPv6-prefix4, IPv6-prefix5 and IPv6-prefix6
