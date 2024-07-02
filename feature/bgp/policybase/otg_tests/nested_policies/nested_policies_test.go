@@ -240,52 +240,64 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	// Configure a route-policy to set the local preference.
-	pdef1 := rp.GetOrCreatePolicyDefinition(v4LPPolicy)
-	stmt1, err := pdef1.AppendNewStatement(v4LPStatement)
+	// Configure PERMIT-ALL policy
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v4LPStatement, err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
 	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		t.Logf("Setting statement for policy")
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	// Configure a route-policy to match the prefix.
-	pdef2 := rp.GetOrCreatePolicyDefinition(v4PrefixPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v4PrefixStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v4PrefixStatement, err)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
+	if operation == "set" {
+		// Configure a route-policy to set the local preference.
+		pdef1 := rp.GetOrCreatePolicyDefinition(v4LPPolicy)
+		stmt1, err := pdef1.AppendNewStatement(v4LPStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4LPStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			t.Logf("Setting statement for policy")
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
-	t.Logf("Configuring nested policy")
-	// Configure a prefix-set for route filtering/matching.
-	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
-	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
+		// Configure a route-policy to match the prefix.
+		pdef2 := rp.GetOrCreatePolicyDefinition(v4PrefixPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v4PrefixStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4PrefixStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+		t.Logf("Configuring nested policy")
+		// Configure a prefix-set for route filtering/matching.
+		prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+		prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
+
+		if !deviations.SkipSetRpMatchSetOptions(dut) {
+			stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+		}
+		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 	}
-	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 	if operation == "set" {
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
-	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpPolicy := root.GetOrCreateRoutingPolicy()
-	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
-	statPath.SetCallPolicy(v4PrefixPolicy)
 	if operation == "set" {
+		// Configure the nested policy.
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v4PrefixPolicy)
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 	// Configure the parent BGP import policy.
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -360,42 +372,52 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	batch := &gnmi.SetBatch{}
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
+
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	t.Logf("Configuring export routing policy")
-	pdef1 := rp.GetOrCreatePolicyDefinition(v4ASPPolicy)
-	stmt1, err := pdef1.AppendNewStatement(v4ASPStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v4ASPStatement, err)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
-
-	pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
-	}
-
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 	if operation == "set" {
+		pdef1 := rp.GetOrCreatePolicyDefinition(v4ASPPolicy)
+		stmt1, err := pdef1.AppendNewStatement(v4ASPStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4ASPStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+
+		pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
+		}
+
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpPolicy := root.GetOrCreateRoutingPolicy()
-	statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
-	statPath.SetCallPolicy(v4MedPolicy)
 	if operation == "set" {
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v4MedPolicy)
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 	time.Sleep(time.Second * 60)
 
@@ -469,50 +491,61 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	batch := &gnmi.SetBatch{}
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	t.Logf("Configuring import routing policy")
-	pdef1 := rp.GetOrCreatePolicyDefinition(v6LPPolicy)
-	stmt1, err := pdef1.AppendNewStatement(v6LPStatement)
+
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v6LPStatement, err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
 	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		t.Logf("Setting statement for policy")
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	pdef2 := rp.GetOrCreatePolicyDefinition(v6PrefixPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v6PrefixStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v6PrefixStatement, err)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-
-	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
-	prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
-
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
-	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 	if operation == "set" {
+		t.Logf("Configuring import routing policy")
+		pdef1 := rp.GetOrCreatePolicyDefinition(v6LPPolicy)
+		stmt1, err := pdef1.AppendNewStatement(v6LPStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6LPStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			t.Logf("Setting statement for policy")
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+
+		pdef2 := rp.GetOrCreatePolicyDefinition(v6PrefixPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v6PrefixStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6PrefixStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+
+		prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+		prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
+
+		if !deviations.SkipSetRpMatchSetOptions(dut) {
+			stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+		}
+		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
+
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpPolicy := root.GetOrCreateRoutingPolicy()
-	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
-	statPath.SetCallPolicy(v6PrefixPolicy)
 	if operation == "set" {
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v6PrefixPolicy)
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 
 	// Configure the parent BGP import policy.
@@ -588,41 +621,51 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	batch := &gnmi.SetBatch{}
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	t.Logf("Configuring export routing policy")
-	pdef1 := rp.GetOrCreatePolicyDefinition(v6ASPPolicy)
-	stmt1, err := pdef1.AppendNewStatement(v6ASPStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v6ASPStatement, err)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
 
-	pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
+	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+	stmt, err := pdef.AppendNewStatement("20")
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v6MedStatement, err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
 	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	}
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	if operation == "set" {
+		t.Logf("Configuring export routing policy")
+		pdef1 := rp.GetOrCreatePolicyDefinition(v6ASPPolicy)
+		stmt1, err := pdef1.AppendNewStatement(v6ASPStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6ASPStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+
+		pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6MedStatement, err)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		}
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	rpPolicy := root.GetOrCreateRoutingPolicy()
-	statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
-	statPath.SetCallPolicy(v6MedPolicy)
 	if operation == "set" {
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v6MedPolicy)
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 	time.Sleep(time.Second * 60)
 
