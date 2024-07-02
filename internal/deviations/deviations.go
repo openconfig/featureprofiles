@@ -1077,3 +1077,9 @@ func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
 func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
 }
+
+// OverrideNextHopScale returns true if default NextHop scale needs to be modified
+// else returns false
+func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+}
