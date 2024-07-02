@@ -584,6 +584,9 @@ message Metadata {
     bool isis_loopback_required = 201;
     // weighted ecmp feature verification using fixed packet
     bool weighted_ecmp_fixed_packet_verification = 202;
+    // Devices missing component tree mapping from hardware port
+    // to optical channel .
+    int32 breakout_schema_value = 198;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
