@@ -24,7 +24,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"testing"
@@ -247,7 +246,7 @@ func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzC
 		t.Fatalf("Error sending rotate request: %v", err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 20; i++ {
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
 			break
@@ -316,12 +315,12 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 	success := false
 	//Trying for 60s for the connection to succeed.
 	for i := 0; i < 6; i++ {
-		success = TestGnmi(t, caCert, san, serverAddr, username, password, cert)
+		success = VerifyGnmi(t, caCert, san, serverAddr, username, password, cert)
 		if success {
 			break
 		}
 		if i != 5 {
-			log.Printf("GNMI subscription did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
+			t.Logf("GNMI subscription did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -342,7 +341,7 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 		}
 		return true
 	} else {
-		log.Printf("GNMI subscription did not succeed ~60s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent")
+		t.Logf("GNMI subscription did not succeed ~60s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent")
 		return false
 	}
 }
@@ -413,8 +412,8 @@ func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san stri
 	return san
 }
 
-// TestGnsi function to validate the gNSI service RPC after successful rotation.
-func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnsi function to validate the gNSI service RPC after successful rotation.
+func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -430,7 +429,7 @@ func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("TestGnsi:gRPCdial failed to %q", target)
+		t.Fatalf("VerifyGnsi:gRPCdial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -449,8 +448,8 @@ func TestGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	return true
 }
 
-// TestGnoi function to validate the gNOI service RPC after successful rotation.
-func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnoi function to validate the gNOI service RPC after successful rotation.
+func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -467,7 +466,7 @@ func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("TestGnoi : gRPCdial failed to %q", target)
+		t.Fatalf("VerifyGnoi : gRPCdial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -480,8 +479,8 @@ func TestGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	return true
 }
 
-// TestGnmi function to validate the gNMI service RPC after successful rotation.
-func TestGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnmi function to validate the gNMI service RPC after successful rotation.
+func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -497,7 +496,7 @@ func TestGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Logf("TestGnmi: gRpcDial failed to %q", target)
+		t.Logf("VerifyGnmi: gRpcDial failed to %q", target)
 		return false
 	}
 	defer conn.Close()
@@ -542,8 +541,8 @@ func TestGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	return true
 }
 
-// TestGribi function to validate the gRIBI service RPC after successful rotation.
-func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGribi function to validate the gRIBI service RPC after successful rotation.
+func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -559,7 +558,7 @@ func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, p
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("TestGnmi: gRpcDial failed to %q", target)
+		t.Fatalf("VerifyGnmi: gRpcDial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -572,8 +571,8 @@ func TestGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, p
 	return true
 }
 
-// TestP4rt function to validate the P4rt service RPC after successful rotation.
-func TestP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyP4rt function to validate the P4rt service RPC after successful rotation.
+func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
 	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
@@ -589,7 +588,7 @@ func TestP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, pa
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
 	conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
-		t.Fatalf("TestP4rt : gRpcDial failed to %q", target)
+		t.Fatalf("VerifyP4rt : gRpcDial failed to %q", target)
 	}
 	defer conn.Close()
 
@@ -607,50 +606,59 @@ func PreInitCheck(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) boo
 
 	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
-		t.Fatalf("Could not create gNMI Connection %v", err)
+		t.Fatalf("Failed to create gNMI Connection with error: %v", err)
 	}
 	t.Logf("Precheck:gNMI connection is successful %v", gnmiC)
 	gribiC, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
 	if err != nil {
-		t.Fatalf("Could not create gRIBI Connection %v", err)
+		t.Fatalf("Failed to create gRIBI Connection with error: %v", err)
 	}
 	t.Logf("Precheck:gRIBI connection is successful %v", gribiC)
 	gnoiC, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
 	if err != nil {
-		t.Fatalf("Could not create gNOI Connection %v", err)
+		t.Fatalf("Faield to create gNOI Connection with error: %v", err)
 	}
 	t.Logf("Precheck:gNOI connection is successful %v", gnoiC)
 	p4rtC, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
 	if err != nil {
-		t.Fatalf("Could not create p4RT Connection %v", err)
+		t.Fatalf("Failed to create p4RT Connection with error: %v", err)
 	}
 	t.Logf("Precheck:p4RT connection is successful %v", p4rtC)
 	return true
 }
 
+// GetSslProfilelist function to fetch the existing ssl profiles on the device.
+func GetSslProfilelist(ctx context.Context, t *testing.T, certzClient certzpb.CertzClient, certzGetReq *certzpb.GetProfileListRequest) {
+	getProfileResponse, err := certzClient.GetProfileList(ctx, certzGetReq)
+	if err != nil {
+		t.Fatalf("Get profile list request failed with %v!", err)
+	}
+	t.Logf("GetProfileResponse: %v", getProfileResponse)
+}
+
 // PostValidationCheck function to do a validation of all services after certz rotation.
 func PostValidationCheck(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 
-	if !TestGnsi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Could not create new gNSI Connection.")
+	if !VerifyGnsi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNSI Connection: got false, want true")
 	}
-	t.Logf("New gNSI connection successfully completed")
-	if !TestGnmi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Could not create new gNMI Connection.")
+	t.Logf("New gNSI connection successfully completed.")
+	if !VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNMI Connection: got false, want true")
 	}
-	t.Logf("New gNMI connection successfully completed")
-	if !TestGnoi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Could not create new gNOI Connection")
+	t.Logf("New gNMI connection successfully completed.")
+	if !VerifyGnoi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNOI Connection: got false, want true")
 	}
-	t.Logf("New gNOI connection successfully completed")
-	if !TestGribi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Could not create new gRIBI Connection")
+	t.Logf("New gNOI connection successfully completed.")
+	if !VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gRIBI Connection: got false, want true")
 	}
-	t.Logf("New gRIBI connection successfully completed")
-	if !TestP4rt(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Could not create new P4rt Connection")
+	t.Logf("New gRIBI connection successfully completed.")
+	if !VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new P4rt Connection: got false, want true")
 	}
-	t.Logf("New P4rt connection successfully completed")
+	t.Logf("New P4rt connection successfully completed.")
 	return true
 }
 
@@ -675,5 +683,31 @@ func TestNewConnection(t *testing.T, caCert *x509.CertPool, san, serverAddr, use
 		return false
 	}
 	conn.Close()
+	return true
+}
+
+// MismatchPostValidationCheck function to do a validation of all services after certz rotation.
+func MismatchPostValidationCheck(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+
+	if VerifyGnsi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNSI Connection: got true, want false")
+	}
+	t.Logf("New gNSI connection failed as expected.")
+	if VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNMI Connection: got true, want false")
+	}
+	t.Logf("New gNMI connection failed as expected.")
+	if VerifyGnoi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNOI Connection: got true, want false")
+	}
+	t.Logf("New gNOI connection failed as expected.")
+	if VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gRIBI Connection: got true, want false")
+	}
+	t.Logf("New gRIBI connection failed as expected.")
+	if VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new P4rt Connection: got true, want false")
+	}
+	t.Logf("New P4rt connection failed as expected.")
 	return true
 }
