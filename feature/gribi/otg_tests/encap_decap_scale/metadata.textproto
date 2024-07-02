@@ -46,4 +46,3 @@ platform_exceptions:  {
     omit_l2_mtu: true
   }
 }
-
