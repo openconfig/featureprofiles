@@ -423,12 +423,20 @@ func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 	if err != nil {
 		return err
 	}
-	pingC, err := gnoiC.System().Ping(ctx, &spb.PingRequest{Destination: "192.0.2.1"})
+	pingC, err := gnoiC.System().Ping(ctx, &spb.PingRequest{Destination: dut.Name()})
 	if err != nil {
 		return err
 
 	}
-	_, err = pingC.Recv()
+	for {
+		_, err := pingC.Recv()
+		switch {
+		case err == io.EOF:
+			return nil
+		case err != nil:
+			return err
+		}
+	}
 	return err
 }
 
@@ -505,10 +513,17 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 	if err != nil {
 		return err
 	}
-	_, err = gnsiCStream.Recv()
-	// invalid policy is expected since the empty policy is not allowed
-	if strings.Contains(err.Error(), "invalid policy") || status.Code(err) == codes.InvalidArgument {
-		return nil
+	for {
+		msg, err := gnsiCStream.Recv()
+		if err != nil {
+			if strings.Contains(err.Error(), "invalid policy") || status.Code(err) == codes.InvalidArgument || strings.Contains(err.Error(), "InvalidArgument") {
+				return nil
+			} else {
+				return err
+			}
+		} else if err == io.EOF {
+			return err
+		}
 	}
 	return err
 }
@@ -617,9 +632,14 @@ func GribiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOptio
 	if err != nil {
 		return err
 	}
-	_, err = getSteram.Recv()
-	if err == io.EOF {
-		return nil
+	for {
+		_, err = getSteram.Recv()
+		switch {
+		case err == io.EOF:
+			return nil
+		case err != nil:
+			return err
+		}
 	}
 	return err
 }
@@ -641,7 +661,16 @@ func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 	if err != nil {
 		return err
 	}
-	_, err = mStream.Recv()
+	for {
+		msg, err := mStream.Recv()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		} else if err == nil && msg.SessionParamsResult != nil {
+			return err
+		}
+	}
 	return err
 }
 
