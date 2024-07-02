@@ -96,9 +96,6 @@ func TestMain(m *testing.M) {
 func TestEthernetPortSpeed(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dp)
-	}
 	want := portSpeed[dp.Speed()]
 	got := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Ethernet().PortSpeed().State())
 	t.Logf("Got %s PortSpeed from telmetry: %v, expected: %v", dp.Name(), got, want)
@@ -126,9 +123,6 @@ func TestEthernetMacAddress(t *testing.T) {
 func TestInterfaceAdminStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dp)
-	}
 	adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State())
 	t.Logf("Got %s AdminStatus from telmetry: %v", dp.Name(), adminStatus)
 	if adminStatus != adminStatusUp {
@@ -139,9 +133,6 @@ func TestInterfaceAdminStatus(t *testing.T) {
 func TestInterfaceOperStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp := dut.Port(t, "port1")
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dp)
-	}
 	operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
 	t.Logf("Got %s OperStatus from telmetry: %v", dp.Name(), operStatus)
 	if operStatus != operStatusUp {
@@ -189,9 +180,6 @@ func TestInterfaceStatusChange(t *testing.T) {
 			i.Enabled = ygot.Bool(tc.IntfStatus)
 			i.Type = ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if deviations.ExplicitPortSpeed(dut) {
-				fptest.SetPortSpeed(t, dp)
-			}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, tc.expectedOperStatus)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).AdminStatus().State(), intUpdateTime, tc.expectedAdminStatus)
 			operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State())
@@ -703,9 +691,6 @@ func TestP4rtInterfaceID(t *testing.T) {
 			i.Id = ygot.Uint32(tc.portID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			if deviations.ExplicitPortSpeed(dut) {
-				fptest.SetPortSpeed(t, dp)
-			}
 			// Check path /interfaces/interface/state/id.
 			intfID := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Id().State())
 			intfVal, present := intfID.Val()
@@ -909,10 +894,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		a := s.GetOrCreateAddress(intf.ipAddr)
 		a.PrefixLength = ygot.Uint8(intf.prefixLen)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(intf.intfName).Config(), i)
-	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dp1)
-		fptest.SetPortSpeed(t, dp2)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)

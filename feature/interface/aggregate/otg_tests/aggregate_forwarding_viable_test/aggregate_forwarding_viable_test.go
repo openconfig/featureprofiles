@@ -298,9 +298,6 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 	tc.configSrcDUT(srci, &dutSrc)
 	srci.Type = ethernetCsmacd
 	srciPath := d.Interface(srcp.Name())
-	if deviations.ExplicitPortSpeed(tc.dut) {
-		srci.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, srcp)
-	}
 	fptest.LogQuery(t, srcp.String(), srciPath.Config(), srci)
 	gnmi.Replace(t, tc.dut, srciPath.Config(), srci)
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
@@ -317,9 +314,6 @@ func (tc *testArgs) configureDUT(t *testing.T) {
 
 		tc.configDstMemberDUT(i, port)
 		iPath := d.Interface(port.Name())
-		if deviations.ExplicitPortSpeed(tc.dut) {
-			i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
-		}
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}

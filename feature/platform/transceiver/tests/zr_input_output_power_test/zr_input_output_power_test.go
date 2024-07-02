@@ -68,9 +68,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, transceiverName string) 
 
 	i1 := &oc.Interface{Name: ygot.String(port.Name())}
 	i1.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.ExplicitPortSpeed(dut) {
-		i1.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, port)
-	}
 
 	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i1)
 	gnmi.Replace(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Enabled().Config(), *ygot.Bool(true))

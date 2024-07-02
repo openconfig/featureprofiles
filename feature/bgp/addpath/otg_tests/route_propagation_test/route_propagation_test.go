@@ -213,11 +213,6 @@ func (d *dutData) Configure(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
-			fptest.SetPortSpeed(t, dut.Port(t, a.Name))
-		}
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		for _, a := range []attrs.Attributes{dutPort1, dutPort2} {
 			ocName := dut.Port(t, a.Name).Name()

@@ -82,9 +82,6 @@ func configureDUTPort1(t *testing.T, dut *ondatra.DUTDevice, dutOcRoot *oc.Root,
 	dutOcPath := gnmi.OC()
 	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), dutOcPath.Config(), dutOcRoot)
 	gnmi.Update(t, dut, dutOcPath.Config(), dutOcRoot)
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dutPort1)
-	}
 }
 
 // configureDUT configures AE interface and adds port1 to AE.

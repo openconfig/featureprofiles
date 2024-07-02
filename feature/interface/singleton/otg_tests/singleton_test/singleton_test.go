@@ -177,10 +177,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.AssignToNetworkInstance(t, tc.dut, p1.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 		fptest.AssignToNetworkInstance(t, tc.dut, p2.Name(), deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
-	if deviations.ExplicitPortSpeed(tc.dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {

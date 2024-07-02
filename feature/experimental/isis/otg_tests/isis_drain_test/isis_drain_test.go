@@ -221,12 +221,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, agg3ID, deviations.DefaultNetworkInstance(dut), 0)
 	}
 
-	if deviations.ExplicitPortSpeed(dut) {
-		for _, port := range dut.Ports() {
-			fptest.SetPortSpeed(t, port)
-		}
-	}
-
 	// configure ISIS
 	configureISISDUT(t, dut, []string{agg2ID, agg3ID})
 }

@@ -260,11 +260,6 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.LogQuery(t, port.String(), iPath.Config(), i)
 		gnmi.Replace(t, tc.dut, iPath.Config(), i)
 	}
-	if deviations.ExplicitPortSpeed(tc.dut) {
-		for _, port := range tc.dutPorts {
-			fptest.SetPortSpeed(t, port)
-		}
-	}
 }
 
 func (tc *testCase) configureATE(t *testing.T) {

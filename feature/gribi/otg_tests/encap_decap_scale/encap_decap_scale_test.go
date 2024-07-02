@@ -752,9 +752,6 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 	if deviations.InterfaceEnabled(dut) {
 		i.Enabled = ygot.Bool(true)
 	}
-	if deviations.ExplicitPortSpeed(dut) {
-		i.GetOrCreateEthernet().PortSpeed = fptest.GetIfSpeed(t, dutPort)
-	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Config(), i)
 	t.Logf("DUT port %s configured", dutPort)
 }

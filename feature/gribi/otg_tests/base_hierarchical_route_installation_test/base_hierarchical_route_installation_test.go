@@ -285,9 +285,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		p1 := dut.Port(t, p)
 		i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dp, dut))
-		if deviations.ExplicitPortSpeed(dut) {
-			fptest.SetPortSpeed(t, p1)
-		}
 		if deviations.ExplicitIPv6EnableForGRIBI(dut) {
 			gnmi.Update(t, dut, d.Interface(p1.Name()).Subinterface(0).Ipv6().Enabled().Config(), bool(true))
 		}
