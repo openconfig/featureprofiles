@@ -45,5 +45,3 @@ Test `used-threshold-upper` configuration and telemetry for hardware resources.
 *   /components/component/integrated_circuit/utilization/resources/resource/state/name
 *   /components/component/integrated_circuit/utilization/resources/resource/state/used
 *   /components/component/integrated_circuit/utilization/resources/resource/state/free
-*   /components/component/integrated_circuit/utilization/resources/resource/state/used-threshold-upper
-*   /components/component/integrated_circuit/utilization/resources/resource/state/used-threshold-upper-clear
