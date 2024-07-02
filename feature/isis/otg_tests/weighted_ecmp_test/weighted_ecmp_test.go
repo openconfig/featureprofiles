@@ -512,7 +512,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
-	if deviations.ISISLoopbackRequired(dut) {
+	if !deviations.ISISLoopbackRequired(dut) {
 		configureStaticRouteToATELoopbacks(t, dut)
 	}
 	configureRoutingPolicy(t, dut)
