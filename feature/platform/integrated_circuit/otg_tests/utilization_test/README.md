@@ -45,11 +45,11 @@ paths:
   /system/utilization/resources/resource/state/name:
   /system/utilization/resources/resource/state/used-threshold-upper:
   /system/utilization/resources/resource/state/used-threshold-upper-clear:
-  /components/component/integrated_circuit/utilization/resources/resource/state/name:
+  /components/component/integrated-circuit/utilization/resources/resource/state/name:
     platform_type: ["INTEGRATED_CIRCUIT"]
-  /components/component/integrated_circuit/utilization/resources/resource/state/used:
+  /components/component/integrated-circuit/utilization/resources/resource/state/used:
     platform_type: ["INTEGRATED_CIRCUIT"]
-  /components/component/integrated_circuit/utilization/resources/resource/state/free:
+  /components/component/integrated-circuit/utilization/resources/resource/state/free:
     platform_type: ["INTEGRATED_CIRCUIT"]
 rpcs:
   gnmi:
