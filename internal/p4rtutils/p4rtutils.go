@@ -25,8 +25,6 @@ import (
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/args"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
