@@ -786,7 +786,7 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr string, ipv4SubintfPrefixLen int) *oc.Interface_Subinterface {
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
-	if vlanID != 0 && index != 0 {
+	if vlanID != 0 {
 		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {
