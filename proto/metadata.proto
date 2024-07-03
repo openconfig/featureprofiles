@@ -584,7 +584,9 @@ message Metadata {
     bool isis_loopback_required = 201;
     // weighted ecmp feature verification using fixed packet
     bool weighted_ecmp_fixed_packet_verification = 202;
-
+    // Override default NextHop scale while enabling encap/decap scale
+    // CISCO: 
+    bool override_default_nh_scale = 203;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
