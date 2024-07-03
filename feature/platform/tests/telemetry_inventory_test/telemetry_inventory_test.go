@@ -591,7 +591,7 @@ func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Co
 		}
 		subcName := subc.GetName()
 		subComponent := gnmi.Lookup[*oc.Component](t, dut, gnmi.OC().Component(subcName).State())
-		if subComponent == nil {
+		if !subComponent.IsPresent() {
 			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
 		}
 	}
