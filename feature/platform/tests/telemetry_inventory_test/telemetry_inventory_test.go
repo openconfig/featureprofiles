@@ -583,9 +583,12 @@ func TestControllerCardEmpty(t *testing.T) {
 // those subcomponents exist as components on the device (i.e. the leafref is valid).
 func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T, dut *ondatra.DUTDevice) {
 	cName := c.GetName()
-	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(cName).SubcomponentAny().State())
-	for _, s := range subcomponents {
-		subc, ok := s.Val()
+	subcomponentsValue := gnmi.Lookup(t, dut, gnmi.OC().Component(cName).SubcomponentMap().State())
+	subcomponents, ok := subcomponentsValue.Val()
+	if !ok {
+		t.Errorf("Error getting subcomponents for component %s", cName)
+	}
+	for _, subc := range subcomponents {
 		if !ok {
 			t.Errorf("Error getting subcomponent for component %s", cName)
 		}
