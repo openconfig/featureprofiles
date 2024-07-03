@@ -32,7 +32,6 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     qos_queue_requires_id: true
     missing_value_for_defaults: true
-    backplane_facing_capacity_unsupported: true
   }
 }
 platform_exceptions: {
