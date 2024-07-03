@@ -93,3 +93,12 @@ Test different VRF selection policies.
 *   Native IPv6
 
         *   Flow#10: Native IPv6 flow with any source address and destination as ATE-DEST-IPv6-VLAN20
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

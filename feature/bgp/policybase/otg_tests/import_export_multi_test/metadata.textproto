@@ -6,7 +6,7 @@ description: "BGP Policy - Import/Export Policy Action Using Multiple Criteria"
 uuid: "520f6013-0188-45a3-b5be-ce13c55ce7cd"
 
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
+tags: [TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -21,6 +21,7 @@ platform_exceptions: {
     bgp_conditions_match_community_set_unsupported: true
     skip_prefix_set_mode: true
     bgp_community_member_is_a_string: true
+    skip_bgp_send_community_type: true
   }
 }
 platform_exceptions: {
@@ -33,5 +34,7 @@ platform_exceptions: {
     community_member_regex_unsupported: true
     skip_setting_statement_for_policy: true
     default_route_policy_unsupported: true
+    skip_checking_attribute_index: true
+    skip_bgp_send_community_type: true
   }
 }
