@@ -46,7 +46,7 @@ func TestSchedReplaceSched(t *testing.T) {
 	for _, schedqueue := range schedqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
-		if ind != 8 {
+		if ind != 7 {
 			input.Weight = ygot.Uint64(7 - ind)
 		}
 		input.Queue = ygot.String(schedqueue)
