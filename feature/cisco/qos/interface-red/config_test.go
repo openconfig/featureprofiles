@@ -204,14 +204,17 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
+	var schedulerPolName = "eg_policy1111"
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
-	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = oc.Scheduler_Priority_STRICT
+	schedule := make(map[uint32]*oc.Qos_SchedulerPolicy_Scheduler)
+	schedule1 := schedulerpol.GetOrCreateScheduler(1)
+	schedule[1] = schedule1
+	schedule1.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
-		input := schedule.GetOrCreateInput(schedqueue)
+		input := schedule1.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
 		input.SetInputType(oc.Input_InputType_QUEUE)
 		input.Weight = ygot.Uint64(7 - ind)
@@ -219,13 +222,16 @@ func TestQmRedWrrSetReplaceQueue(t *testing.T) {
 		ind += 1
 
 	}
-	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	gnmi.Replace(t, dut, configprior.Config(), schedule)
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, configprior.Config(), &oc.Qos_SchedulerPolicy{
+		Name:      &schedulerPolName,
+		Scheduler: schedule,
+	})
 	configGotprior := gnmi.Get(t, dut, configprior.Config())
-	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
+	if diff := cmp.Diff(*configGotprior, *schedule1); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
-	inputupd := schedule.GetOrCreateInput("tc5")
+	inputupd := schedule1.GetOrCreateInput("tc5")
 	inputupd.Id = ygot.String("tc5")
 	inputupd.Weight = ygot.Uint64(5)
 	inputupd.SetInputType(oc.Input_InputType_QUEUE)
