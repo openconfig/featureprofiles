@@ -91,4 +91,7 @@ paths:
         *   /components/component/integrated-circuit/pipeline-counters/drop/interface-block/state/oversubscription
         *   /components/component/integrated-circuit/pipeline-counters/drop/fabric-block/state/lost-packets
 
+
+```
+
 ## Protocol/RPC Parameter Coverage

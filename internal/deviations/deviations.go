@@ -1089,4 +1089,3 @@ func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
 func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
 }
-
