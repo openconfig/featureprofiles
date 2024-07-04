@@ -1053,12 +1053,6 @@ func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
 }
 
-
-// QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
-// is not supported for any component type.
-func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
-
 // MaxEcmpPaths supported for isis max ecmp path
 func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
@@ -1088,5 +1082,11 @@ func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
 // else returns false
 func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
-
 }
+
+// QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
+// is not supported for any component type.
+func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
+}
+

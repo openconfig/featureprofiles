@@ -574,10 +574,6 @@ message Metadata {
     bool install_position_and_install_component_unsupported = 196;
     // Encap tunnel is shut then zero traffic will flow to backup NHG
     bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
-
-    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
-    // Juniper: b/350956750
-    bool qos_inqueue_drop_counter_unsupported = 198;
     // Flag to indicate support for max ecmp paths for isis.
     bool max_ecmp_paths = 198;
     // wecmp_auto_unsupported is set to true for devices that do not support auto wecmp
@@ -591,7 +587,9 @@ message Metadata {
     // Override default NextHop scale while enabling encap/decap scale
     // CISCO: 
     bool override_default_nh_scale = 203;
-    
+    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
+    // Juniper: b/341130490
+    bool qos_inqueue_drop_counter_unsupported = 204;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
