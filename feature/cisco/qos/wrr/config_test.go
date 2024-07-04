@@ -24,7 +24,7 @@ func TestSchedReplaceSched(t *testing.T) {
 	d := &oc.Root{}
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
-	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	for i, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
@@ -33,7 +33,7 @@ func TestSchedReplaceSched(t *testing.T) {
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	//Replace at /qos/schedulerpolicy/scheduler(seq)
-	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
+	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	gnmi.Replace(t, dut, gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Config(), schedulerpol)
 	schedule := schedulerpol.GetOrCreateScheduler(1)
@@ -65,7 +65,7 @@ func TestSchedReplaceSched(t *testing.T) {
 	schedinterfaceout := schedinterface.GetOrCreateOutput()
 	scheinterfaceschedpol := schedinterfaceout.GetOrCreateSchedulerPolicy()
 	scheinterfaceschedpol.Name = ygot.String("eg_policy1111")
-	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7"}
+	wrrqueues := []string{"tc1", "tc2", "tc3", "tc4", "tc5", "tc6", "tc7", "SYSTEM"}
 	for _, wrrque := range wrrqueues {
 		schedinterfaceout.GetOrCreateQueue(wrrque)
 	}
@@ -79,7 +79,7 @@ func TestSchedReplaceSched(t *testing.T) {
 	if diff := cmp.Diff(*ConfigGotQosRep, *qos); diff != "" {
 		t.Errorf("Config Schedule fail at scheduler sequnce: \n%v", diff)
 	}
-	schedqueuesrep := []string{"tc7", "tc6", "tc5", "tc4", "tc3"}
+	schedqueuesrep := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "SYSTEM"}
 	schedulerpolrep := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
 	schedulerep := schedulerpolrep.GetOrCreateScheduler(1)
 	schedulerep.Priority = oc.Scheduler_Priority_STRICT
