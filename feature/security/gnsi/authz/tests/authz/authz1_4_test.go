@@ -205,7 +205,7 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
 		statusmsg, policyBefore := authz.Get(t, dut)
-		t.Logf("Message for first authz get %s", msg)
+		//t.Logf("Message for first authz get %s", msg)
 		if statusmsg == nil {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		} else {
@@ -291,7 +291,7 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.4, Test Normal Policy", func(t *testing.T) {
 		// Pre-Test Section
 		statusmsg, policyBefore := authz.Get(t, dut)
-		t.Logf("Message for first authz get %s", msg)
+		//t.Logf("Message for first authz get %s", msg)
 		if statusmsg == nil {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		} else {
