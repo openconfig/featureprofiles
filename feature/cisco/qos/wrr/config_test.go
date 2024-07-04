@@ -22,15 +22,18 @@ func TestSchedReplaceSched(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 	d := &oc.Root{}
+	var ind uint64
 	qos := d.GetOrCreateQos()
 	defer teardownQos(t, dut)
 	queues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
-	for i, queue := range queues {
+	ind = 1
+	for _, queue := range queues {
 		q1 := qos.GetOrCreateQueue(queue)
 		q1.Name = ygot.String(queue)
-		queueid := len(queues) - i
+		queueid := (len(queues) - int(ind))
 		q1.QueueId = ygot.Uint8(uint8(queueid))
 		gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
+		ind += 1
 	}
 	//Replace at /qos/schedulerpolicy/scheduler(seq)
 	schedqueues := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1", "SYSTEM"}
@@ -39,12 +42,13 @@ func TestSchedReplaceSched(t *testing.T) {
 	schedule := schedulerpol.GetOrCreateScheduler(1)
 	schedule.Priority = oc.Scheduler_Priority_STRICT
 
-	var ind uint64
 	ind = 0
 	for _, schedqueue := range schedqueues {
 		input := schedule.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
-		input.Weight = ygot.Uint64(7 - ind)
+		if (8 - ind) != 0 {
+			input.Weight = ygot.Uint64(8 - ind)
+		}
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
