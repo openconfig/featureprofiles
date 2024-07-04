@@ -35,7 +35,7 @@ Generic Health Check
 
 N/A
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
 *   /components/component/state/oper-status
 *   /components/component/cpu/utilization/state/avg

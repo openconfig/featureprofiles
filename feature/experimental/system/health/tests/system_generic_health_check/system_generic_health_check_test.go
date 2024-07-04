@@ -157,6 +157,10 @@ func TestComponentStatus(t *testing.T) {
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
+			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
+			if compMtyPresent && compMtyVal {
+				t.Skipf("INFO: Skip status check as %s is empty", component)
+			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
 			if !present {
 				t.Errorf("ERROR: Get component %s oper-status failed", component)
@@ -366,7 +370,7 @@ func TestNoQueueDrop(t *testing.T) {
 	for _, intf := range interfaces {
 		t.Run(intf, func(t *testing.T) {
 			qosInterface := gnmi.OC().Qos().Interface(intf)
-			if dut.Vendor() == ondatra.JUNIPER {
+			if deviations.QOSInQueueDropCounterUnsupported(dut) {
 				t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
 				counters := gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State())
 				t.Logf("counters: %s", counters)
