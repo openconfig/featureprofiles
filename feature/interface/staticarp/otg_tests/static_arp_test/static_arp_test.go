@@ -119,6 +119,11 @@ func configInterfaceDUT(t *testing.T, p *ondatra.Port, me, peer *attrs.Attribute
 		i.Enabled = ygot.Bool(true)
 	}
 
+	if deviations.ExplicitPortSpeed(dut) {
+		e := i.GetOrCreateEthernet()
+		e.PortSpeed = fptest.GetIfSpeed(t, p)
+	}
+
 	if me.MAC != "" {
 		e := i.GetOrCreateEthernet()
 		e.MacAddress = ygot.String(me.MAC)

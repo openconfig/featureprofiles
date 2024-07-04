@@ -661,6 +661,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p7 := dut.Port(t, "port7")
 	p8 := dut.Port(t, "port8")
 	portList := []*ondatra.Port{p1, p2, p3, p4, p5, p6, p7, p8}
+	portNameList := []string{"port1", "port2", "port3", "port4", "port5", "port6", "port7", "port8"}
 
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5, dutPort6, dutPort7, dutPort8} {
 		p := portList[idx]
@@ -699,6 +700,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, p := range portList {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		}
+	}
+	for _, pName := range portNameList {
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, dut.Port(t, pName))
 		}
 	}
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {

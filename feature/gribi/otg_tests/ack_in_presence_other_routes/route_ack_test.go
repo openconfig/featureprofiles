@@ -148,6 +148,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
+
 }
 
 // configureATE configures port1, port2 and port3 on the ATE.

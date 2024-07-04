@@ -350,6 +350,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 			fptest.AssignToNetworkInstance(t, dut, intf.intfName, deviations.DefaultNetworkInstance(dut), 0)
 		}
 	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
 }
 
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {

@@ -210,6 +210,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := dut.Port(t, "port4")
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+		fptest.SetPortSpeed(t, p3)
+		fptest.SetPortSpeed(t, p4)
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)

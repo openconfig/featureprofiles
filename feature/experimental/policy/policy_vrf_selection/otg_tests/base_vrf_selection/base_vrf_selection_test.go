@@ -117,6 +117,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, p1 *ondatra.Port, p2 *on
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, 10, vlan10, dut))
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst2, 20, vlan20, dut))
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p1)
+		fptest.SetPortSpeed(t, p2)
+	}
+
 	// Configure network instance
 	t.Logf("*** Configuring network instance on DUT ... ")
 	niConfPath := gnmi.OC().NetworkInstance("VRF-10")

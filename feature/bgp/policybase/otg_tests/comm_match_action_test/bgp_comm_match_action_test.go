@@ -157,6 +157,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port2").Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -193,7 +197,9 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerGrpName)
-	pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+	if !deviations.SkipBgpSendCommunityType(dut) {
+		pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+	}
 	as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	as4.Enabled = ygot.Bool(true)
 	as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -525,7 +531,7 @@ func validateDutIPv4PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)
 		t.Logf("DUT: Could not find AdjRibInPost Community for Prefix %v", subnet)
 	}
-	//TODO Validate Community for ipv4 prefixes on DUT
+	// TODO Validate Community for ipv4 prefixes on DUT
 }
 
 func validateATEIPv6PrefixCommunitySet(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, wantCommunitySet []string) {
@@ -572,7 +578,7 @@ func validateDutIPv6PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)
 		t.Logf("DUT: Could not find AdjRibInPost Community for Prefix %v", subnet)
 	}
-	//TODO Validate Community for ipv6 prefixes on DUT
+	// TODO Validate Community for ipv6 prefixes on DUT
 }
 
 type TestResults struct {

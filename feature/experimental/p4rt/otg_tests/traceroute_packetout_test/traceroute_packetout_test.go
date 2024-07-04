@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -118,6 +119,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2.Id = ygot.Uint32(egressPortId)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
@@ -233,6 +238,8 @@ func TestPacketOut(t *testing.T) {
 
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	otg.StartProtocols(t)
 
 	configureDeviceID(ctx, t, dut)

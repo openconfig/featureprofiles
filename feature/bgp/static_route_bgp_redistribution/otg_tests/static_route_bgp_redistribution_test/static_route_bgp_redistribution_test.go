@@ -167,6 +167,10 @@ func configureDUTPort(
 		portAttrs.NewOCInterface(port.Name(), dut),
 	)
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, port)
+	}
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), subInterfaceIndex)
 	}

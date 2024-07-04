@@ -238,6 +238,9 @@ func TestLinkQualification(t *testing.T) {
 		p := dut.Port(t, "port1")
 		i := &oc.Interface{Name: ygot.String(p.Name())}
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i, dut))
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, p)
+		}
 	}
 
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()

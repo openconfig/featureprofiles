@@ -308,6 +308,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, aggID string) {
 		fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, p1)
+		for _, port := range dutAggPorts {
+			fptest.SetPortSpeed(t, port)
+		}
+	}
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, aggID string) {

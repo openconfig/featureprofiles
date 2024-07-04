@@ -11,7 +11,10 @@ platform_exceptions:  {
   }
   deviations:  {
     ipv4_missing_enabled:  true
-    interface_ref_config_unsupported:  true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true
+    override_default_nh_scale: true
   }
 }
 platform_exceptions:  {

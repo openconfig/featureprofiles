@@ -157,6 +157,9 @@ message Metadata {
     bool storage_component_unsupported = 39;
     // Device requires gribi-protocol to be enabled under network-instance.
     bool explicit_gribi_under_network_instance = 40;
+    // Device requires port-speed to be set because its default value may not be
+    // usable.
+    bool explicit_port_speed = 41;
     // Device requires explicit attachment of an interface or subinterface to
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
@@ -577,9 +580,15 @@ message Metadata {
     bool wecmp_auto_unsupported = 199;
     // policy chaining, ie. more than one policy at an attachement point is not supported
     bool routing_policy_chaining_unsupported = 200;
-
+    // isis loopback config required
+    bool isis_loopback_required = 201;
+    // weighted ecmp feature verification using fixed packet
+    bool weighted_ecmp_fixed_packet_verification = 202;
+    // Override default NextHop scale while enabling encap/decap scale
+    // CISCO: 
+    bool override_default_nh_scale = 203;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 41;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
 
   message PlatformExceptions {

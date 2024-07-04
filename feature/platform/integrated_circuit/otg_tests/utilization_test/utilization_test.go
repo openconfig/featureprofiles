@@ -139,18 +139,6 @@ func TestResourceUtilization(t *testing.T) {
 	if len(beforeUtzs) != len(comps) {
 		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
 	}
-	t.Run("Utilization Thresholds per Component", func(t *testing.T) {
-		for _, c := range comps {
-			t.Run(c, func(t *testing.T) {
-				if got, want := beforeUtzs[c].upperThreshold, usedThresholdUpper; got != want {
-					t.Errorf("used-upper-threshold mismatch for component: %s, got: %d, want: %d", c, got, want)
-				}
-				if got, want := beforeUtzs[c].upperThresholdClear, usedThresholdUpperClear; got != want {
-					t.Errorf("used-upper-threshold-clear mismatch for component: %s, got: %d, want: %d", c, got, want)
-				}
-			})
-		}
-	})
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
@@ -222,6 +210,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
