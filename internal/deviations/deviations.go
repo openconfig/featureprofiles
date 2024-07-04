@@ -185,11 +185,6 @@ func StaticProtocolName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
-}
-
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
 func SwitchChipIDUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSwitchChipIdUnsupported()
@@ -1058,8 +1053,40 @@ func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
 }
 
+
 // QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
 // is not supported for any component type.
 func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
+
+// MaxEcmpPaths supported for isis max ecmp path
+func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
+}
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
+}
+
+// ISISLoopbackRequired returns true if isis loopback is required.
+func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLoopbackRequired()
+}
+
+// WeightedEcmpFixedPacketVerification returns true if fixed packet is used in traffic flow
+func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
+}
+
+// OverrideNextHopScale returns true if default NextHop scale needs to be modified
+// else returns false
+func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+
 }

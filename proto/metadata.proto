@@ -146,8 +146,6 @@ message Metadata {
     bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
     // Device does not report P4RT node names in the component hierarchy.
     bool explicit_p4rt_node_component = 35;
-    // Configure ACLs using vendor native model specifically for RT-1.4.
-    bool use_vendor_native_acl_config = 36;
     // Device does not support reporting software version according to the
     // requirements in gNMI-1.10.
     bool sw_version_unsupported = 37;
@@ -576,12 +574,26 @@ message Metadata {
     bool install_position_and_install_component_unsupported = 196;
     // Encap tunnel is shut then zero traffic will flow to backup NHG
     bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
+
     // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
     // Juniper: b/350956750
     bool qos_inqueue_drop_counter_unsupported = 198;
+    // Flag to indicate support for max ecmp paths for isis.
+    bool max_ecmp_paths = 198;
+    // wecmp_auto_unsupported is set to true for devices that do not support auto wecmp
+    bool wecmp_auto_unsupported = 199;
+    // policy chaining, ie. more than one policy at an attachement point is not supported
+    bool routing_policy_chaining_unsupported = 200;
+    // isis loopback config required
+    bool isis_loopback_required = 201;
+    // weighted ecmp feature verification using fixed packet
+    bool weighted_ecmp_fixed_packet_verification = 202;
+    // Override default NextHop scale while enabling encap/decap scale
+    // CISCO: 
+    bool override_default_nh_scale = 203;
     
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
 
   message PlatformExceptions {

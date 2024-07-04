@@ -126,15 +126,18 @@ N/A
 TODO:
 /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
 
-## Protocol/RPC Parameter coverage
-
-*   gRIBI:
-    *   Modify()
-        *   ModifyRequest:
-            *   AFTOperation:
-                *   next_hop_group
-                    *   NextHopGroupKey: id
-                    *   NextHopGroup: weight
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 
