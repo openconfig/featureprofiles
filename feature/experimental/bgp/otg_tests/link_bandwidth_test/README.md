@@ -119,20 +119,22 @@ bandwidth communities to routes based on a prefix match.
     * Expected community values for each policy
       |              | set_linkbw_0                           | not_match_100_set_linkbw_1M |
       | ------------ | -------------------------------------- | --------------------------- |
-      | prefix-set-1 | *DEPRECATED*                           | [none]                      |
+      | prefix-set-1 | *DEPRECATED*                           | ["link-bandwidth:23456:1M"] |
       | prefix-set-2 | *DEPRECATED*                           | [ "100:100" ]               |
-      | prefix-set-3 | *DEPRECATED*                           | [ "link-bandwidth:23456:0" ]  |
+      | prefix-set-3 | *DEPRECATED*                           | ["link-bandwidth:23456:1M"] |
 
       |              | match_100_set_linkbw_2G                           | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
       | ------------ | ------------------------------------------------- | ------------- | ---------------------------- |
       | prefix-set-1 | [ none ]                                          | [none]        | *DEPRECATED*                 |
       | prefix-set-2 | [  "100:100", "link-bandwidth:23456:2000000000" ] | [ "100:100" ] | *DEPRECATED*                 |
-      | prefix-set-3 | [ "link-bandwidth:23456:0" ]                      | [ none ]      | *DEPRECATED*                 |
+      | prefix-set-3 | [ "link-bandwidth:23456:0" ] or [ none ]          | [ none ]      | *DEPRECATED*                 |
 
       * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
         * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
         * The DUT evaluates a match for "regex_nomatch_as100".  This does not match because the regex pattern does not include the link-bandwidth community type.
         * Community linkbw_2G should be added.
+      * Regarding prefix-set-3 and policy match_100_set_linkbw_2G
+        * when 0 is not supported in community, expected community values is None
         
 <!-- Assotiated w/ deprecated policy
       * LocalPreference
