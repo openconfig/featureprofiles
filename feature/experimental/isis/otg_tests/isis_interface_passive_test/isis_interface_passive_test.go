@@ -252,7 +252,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Restart support not present")
 			}
 			// Checking isis restart suppress.
-			if deviations.MissingValueForDefaults(ts.DUT) {
+			if !deviations.MissingValueForDefaults(ts.DUT) {
 				if _, ok := gnmi.Lookup(t, ts.DUT, adjPath.RestartStatus().State()).Val(); !ok {
 					t.Errorf("FAIL- Restart suppress not present")
 				}
