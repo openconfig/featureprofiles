@@ -155,8 +155,6 @@ message Metadata {
     // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
-    // Device requires gribi-protocol to be enabled under network-instance.
-    bool explicit_gribi_under_network_instance = 40;
     // Device requires port-speed to be set because its default value may not be
     // usable.
     bool explicit_port_speed = 41;
@@ -588,7 +586,7 @@ message Metadata {
     // CISCO: 
     bool override_default_nh_scale = 203;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 40;
   }
 
   message PlatformExceptions {
