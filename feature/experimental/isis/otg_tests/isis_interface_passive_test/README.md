@@ -49,7 +49,7 @@ paths:
 
 # isis telemetry
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/passive:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/passive	:
+/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/passive:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address:
@@ -69,7 +69,6 @@ paths:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/afi-name:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
 /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/safi-name:
-/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
 /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-fails:
 /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/auth-type-fails:
 /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/corrupted-lsps:
