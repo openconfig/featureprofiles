@@ -196,3 +196,13 @@ This test checks that the static protocol name is usable.
 ## RPC Coverage
 
 *   gNMI.Set
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```

@@ -13,7 +13,6 @@ platform_exceptions: {
     hierarchical_weight_resolution_tolerance: 1.5
     ipv4_missing_enabled: true
     interface_ref_interface_id_format: true
-   
   }
 }
 platform_exceptions: {
@@ -47,3 +46,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+tags: TAGS_TRANSIT
