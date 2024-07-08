@@ -59,7 +59,7 @@ const (
 	vrfEncapB          = "ENCAP_TE_VRF_B"
 	ipv4PrefixLen      = 30
 	ipv6PrefixLen      = 126
-	trafficDuration    = 15 * time.Second
+	trafficDuration    = 30 * time.Second
 	nhg10ID            = 10
 	nh201ID            = 201
 	nh202ID            = 202
@@ -95,7 +95,7 @@ const (
 	ipv4EntryPrefixLen = 24
 	ipv6FlowIP         = "2015:aa8::1"
 	ipv6EntryPrefix    = "2015:aa8::"
-	ipv6EntryPrefixLen = 32
+	ipv6EntryPrefixLen = 64
 	ratioTunEncap1     = 0.25 // 1/4
 	ratioTunEncap2     = 0.75 // 3/4
 	ratioTunEncapTol   = 0.05 // 5/100
@@ -912,6 +912,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV4 := flow.Packet().Add().Ipv4()
 			innerV4.Src().SetValue(innerV4SrcIP)
 			innerV4.Dst().SetValue(innerV4DstIP)
+			innerV4.Priority().Dscp().Phb().SetValue(dscp)
 		}
 
 		// add inner ipv6 headers
@@ -919,6 +920,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV6 := flow.Packet().Add().Ipv6()
 			innerV6.Src().SetValue(InnerV6SrcIP)
 			innerV6.Dst().SetValue(InnerV6DstIP)
+			innerV6.TrafficClass().SetValue(dscp << 2)
 		}
 	} else if flowType == "ipv6" {
 		v6 := flow.Packet().Add().Ipv6()
@@ -939,8 +941,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
+
 	otg.PushConfig(t, args.topo)
 	otg.StartProtocols(t)
+
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv4")
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv6")
+
 	if capture {
 		startCapture(t, args.ate)
 		defer stopCapture(t, args.ate)
