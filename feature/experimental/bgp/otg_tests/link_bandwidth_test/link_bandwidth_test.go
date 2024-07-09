@@ -569,8 +569,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			var communityCLIConfig string
-			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
-			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
+			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match any \n end-set", "regex_match_any_comm100", CommunitySet["regex_match_comm100"])
+			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_any_comm100", "linkbw_1M")
 			helpers.GnmiCLIConfig(t, dut, communityCLIConfig)
 			helpers.GnmiCLIConfig(t, dut, policySetCLIConfig)
 		default:
