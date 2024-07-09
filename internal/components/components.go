@@ -177,7 +177,7 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 	return standbyRP, activeRP
 }
 
-// OpticalChannelFromPort returns the connected optical channel component name for a given ondatra port.
+// OpticalChannelComponentFromPort returns the connected optical channel component name for a given DUT port.
 func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
