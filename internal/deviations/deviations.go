@@ -1083,3 +1083,9 @@ func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
 func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
 }
+
+// QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
+// is not supported for any component type.
+func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
+}

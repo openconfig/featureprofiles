@@ -587,6 +587,9 @@ message Metadata {
     // Override default NextHop scale while enabling encap/decap scale
     // CISCO: 
     bool override_default_nh_scale = 203;
+    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
+    // Juniper: b/341130490
+    bool qos_inqueue_drop_counter_unsupported = 204;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
