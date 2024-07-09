@@ -1078,10 +1078,25 @@ func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
 }
 
-// OverrideNextHopScale returns true if default NextHop scale needs to be modified
+// OverrideDefaultNhScale returns true if default NextHop scale needs to be modified
 // else returns false
 func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+}
+
+// BgpExtendedCommunitySetUnsupported returns true if set bgp extended community is unsupported
+func BgpExtendedCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunitySetUnsupported()
+}
+
+// BgpSetExtCommunitySetRefsUnsupported returns true if bgp set ext community refs is unsupported
+func BgpSetExtCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetExtCommunitySetRefsUnsupported()
+}
+
+// BgpDeleteLinkBandwidthUnsupported returns true if bgp delete link bandwidth is unsupported
+func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDeleteLinkBandwidthUnsupported()
 }
 
 // QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts

@@ -587,9 +587,16 @@ message Metadata {
     // Override default NextHop scale while enabling encap/decap scale
     // CISCO: 
     bool override_default_nh_scale = 203;
+    // Devices that donot support setting bgp extended community set
+    bool bgp_extended_community_set_unsupported = 204;
+    // Devices that do not support setting bgp extended community set refs
+    bool bgp_set_ext_community_set_refs_unsupported = 205;
+    // Devices that do not support deleting link bandwidth
+    bool bgp_delete_link_bandwidth_unsupported = 206;
     // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
     // Juniper: b/341130490
-    bool qos_inqueue_drop_counter_unsupported = 204;
+    bool qos_inqueue_drop_counter_unsupported = 207;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }
