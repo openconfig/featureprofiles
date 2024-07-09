@@ -177,7 +177,7 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 	return standbyRP, activeRP
 }
 
-// OpticalChannelComponentFromPort finds the optical channel component for a port.
+// OpticalChannelFromPort returns the connected optical channel component name for a given ondatra port.
 func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
@@ -189,27 +189,6 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
 	}
-	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
-	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for _, comp := range comps {
-		comp, ok := comp.Val()
-
-		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
-			return comp.GetName()
-		}
-	}
-	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
-	return ""
-}
-
-func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
-	for {
-		if comp.GetName() == parentHardwarePortName {
-			return true
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
-			return false
-		}
-		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
-	}
+	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 }
