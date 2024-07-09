@@ -564,24 +564,70 @@ func CMDViaGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cmd s
 	return string(resp.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 }
 
-func verifyPCRValues(t *testing.T, dut *ondatra.DUTDevice, pcrIndices string, pcrValFromAttestZ map[int32][]byte, controllerCardLoc string) error {
-	pcrValFromCMD := CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("show  platform security attest pcr %s location %s", pcrIndices, controllerCardLoc))
+func concatenatePreviousHexValAndDoSHA256(digestVal string, pcrVal string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(digestVal)
+	if err != nil {
+		return "", err
+	}
+	hexStr := hex.EncodeToString(decoded)
+	var byteValue []byte
+	if pcrVal != "" {
+		byteValue, err = hex.DecodeString(pcrVal + hexStr)
+	} else {
+		byteValue, err = hex.DecodeString(strings.Repeat("0", len(hexStr)) + hexStr)
+	}
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(byteValue)
+	sha256Hash := hash[:]
+	sha256Hex := hex.EncodeToString(sha256Hash)
+	return sha256Hex, nil
+}
 
-	pattern := regexp.MustCompile(`\d+\s+(.*?)=`)
-	pcrValList := pattern.FindAllString(pcrValFromCMD, -1)
+func verifyPCRValues(t *testing.T, dut *ondatra.DUTDevice, pcrValFromAttestZ map[int32][]byte, controllerCardLoc string) error {
+	pcrValFromCMD := CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("show  platform security integrity log boot location %s", controllerCardLoc))
+	pattern := `Event Number:\s+\d[\s\S]+?Event Data:`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindAllString(pcrValFromCMD, -1)
+	pcr := make(map[string]string)
+	pcrRe := regexp.MustCompile(`PCR Index:\s+(\d+)`)
+	digestRe := regexp.MustCompile(`SHA256\nEvent Digest:\s+(.+)`)
+	for _, event := range matches[1:] {
+		pcrIndex := pcrRe.FindStringSubmatch(event)[1]
+		digestVal := digestRe.FindStringSubmatch(event)[1]
+		if _, ok := pcr[pcrIndex]; ok {
+			pcrVal, err := concatenatePreviousHexValAndDoSHA256(digestVal, pcr[pcrIndex])
+			if err != nil {
+				return err
+			}
+			pcr[pcrIndex] = pcrVal
+		} else {
+			pcrVal, err := concatenatePreviousHexValAndDoSHA256(digestVal, "")
+			if err != nil {
+				return err
+			}
+			pcr[pcrIndex] = pcrVal
+		}
+	}
 	errCount := 0
-	for i := 0; i < len(pcrValFromAttestZ); i++ {
-		if strings.Contains(pcrValList[i], string(pcrValFromAttestZ[int32(i)])) {
+	for i := 0; i < len(pcr); i++ {
+		bytes, err := hex.DecodeString(pcr[strconv.Itoa(i)])
+		if err != nil {
+			return err
+		}
+		base64String := base64.StdEncoding.EncodeToString(bytes)
+		if base64String == string(pcrValFromAttestZ[int32(i)]) {
 			t.Logf("PCR value %d matched Successfully", i)
 		} else {
-			t.Logf("PCR value from cmd: %d: %s", i, pcrValList[i])
+			t.Logf("PCR value from cmd: %d: %s", i, pcr[strconv.Itoa(i)])
 			t.Logf("PCR value from AttestZ Request: %d: %s", i, string(pcrValFromAttestZ[int32(i)]))
 			t.Logf("PCR value %d mismatch", i)
 			errCount = errCount + 1
 		}
 	}
 	if errCount != 0 {
-		return fmt.Errorf("Error in PCR value Verification")
+		return fmt.Errorf("PCR value Mismatch")
 	}
 	return nil
 }
@@ -935,7 +981,7 @@ func TestEnrollZFlow(t *testing.T) {
 	cardTypes := getListOfCardTypes(t, dut)
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate OIAK Certificate with %s", cType), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Rotate OIAK Certificate with %s", cType), func(t *testing.T) {
 				var signedCertiakPEM string
 				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
@@ -1001,7 +1047,7 @@ func TestEnrollZFlow(t *testing.T) {
 					t.Fatalf("Error in verifying signature %v", err)
 				}
 
-				err = verifyPCRValues(t, dut, pcrIndices, resp.PcrValues, cardType[0])
+				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
 					t.Fatalf(err.Error())
 				} else {
@@ -1064,7 +1110,7 @@ func TestRotateOIak(t *testing.T) {
 	cardTypes := getListOfCardTypes(t, dut)
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate OIAK Certificate with %s", cType), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Rotate OIAK Certificate with %s", cType), func(t *testing.T) {
 				var signedCertiakPEM string
 				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
@@ -1088,7 +1134,7 @@ func TestRotateOIak(t *testing.T) {
 
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate Expired OIAK Certificate with %s", cType), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Rotate Expired OIAK Certificate with %s", cType), func(t *testing.T) {
 				var signedCertiakPEM string
 				var signedCertidevidPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
@@ -1115,7 +1161,7 @@ func TestRotateOIak(t *testing.T) {
 	}
 	for _, cardType := range cardTypes {
 		for _, cType := range cardType {
-			t.Run(fmt.Sprintf("Roatate OIAK and ODEVID Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Rotate OIAK and ODEVID Certificate with Invalid PubKey %s", cType), func(t *testing.T) {
 				var signedCertPEM string
 				var rotateResp *enrollzpb.RotateOIakCertResponse
 				signedCertPEM, err = generateOiakCertWithInValidPubKey(targetIP, options.TrustBundleFile, dirName, false)
@@ -1190,7 +1236,7 @@ func TestGetPCRIndices(t *testing.T) {
 					t.Fatalf("Error in verifying signature %v", err)
 				}
 
-				err = verifyPCRValues(t, dut, pcrIndices, resp.PcrValues, cardType[0])
+				err = verifyPCRValues(t, dut, resp.PcrValues, cardType[0])
 				if err != nil {
 					t.Fatalf(err.Error())
 				} else {
