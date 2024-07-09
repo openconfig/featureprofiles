@@ -20,6 +20,7 @@ platform_exceptions: {
     route_policy_under_afi_unsupported: true
     static_protocol_name: "STATIC"
     rib_wecmp: true
+    explicit_port_speed: true
   }
 }
 platform_exceptions: {
@@ -30,5 +31,7 @@ platform_exceptions: {
     interface_ref_config_unsupported:true
     rib_wecmp: true
     wecmp_auto_unsupported: true
+    isis_loopback_required: true
+    weighted_ecmp_fixed_packet_verification: true
   }
 }
