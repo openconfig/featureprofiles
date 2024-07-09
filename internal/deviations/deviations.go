@@ -1097,6 +1097,7 @@ func BgpSetExtCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 // BgpDeleteLinkBandwidthUnsupported returns true if bgp delete link bandwidth is unsupported
 func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDeleteLinkBandwidthUnsupported()
+}
 
 // QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
 // is not supported for any component type.
