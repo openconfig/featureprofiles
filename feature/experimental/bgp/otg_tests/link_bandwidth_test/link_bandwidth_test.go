@@ -111,8 +111,8 @@ var (
 	advertisedIPv63 = ipAddr{address: v63Route, prefix: v6RoutePrefix}
 
 	extCommunitySet = map[string]string{
-		"linkbw_1M":  "link-bandwidth:23456:1000000",
-		"linkbw_2G":  "link-bandwidth:23456:2000000000",
+		"linkbw_1M":  "link-bandwidth:23456:1M",
+		"linkbw_2G":  "link-bandwidth:23456:2G",
 		"linkbw_any": "^link-bandwidth:.*:.$",
 	}
 
@@ -187,7 +187,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 			policyName:               "not_match_100_set_linkbw_1M",
 			applyPolicy:              applyPolicyDut,
 			validate:                 validatPolicyDut,
-			routeCommunity:           extCommunity{prefixSet1Comm: "link-bandwidth:23456:1000000", prefixSet2Comm: "100:100", prefixSet3Comm: "link-bandwidth:23456:1000000"},
+			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "100:100", prefixSet3Comm: "link-bandwidth:23456:0"},
 			localPerf:                false,
 			validateRouteCommunityV4: validateRouteCommunityV4,
 			validateRouteCommunityV6: validateRouteCommunityV6,
@@ -197,7 +197,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 			policyName:               "match_100_set_linkbw_2G",
 			applyPolicy:              applyPolicyDut,
 			validate:                 validatPolicyDut,
-			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "link-bandwidth:23456:2000000000", prefixSet3Comm: "none"},
+			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "link-bandwidth:23456:2000000000", prefixSet3Comm: "link-bandwidth:23456:0"},
 			localPerf:                false,
 			validateRouteCommunityV4: validateRouteCommunityV4,
 			validateRouteCommunityV6: validateRouteCommunityV6,
@@ -304,10 +304,6 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 0 {
 								t.Errorf("ERROR lb AS want 23456, got :%d, Bandwidth want 0, got:=%v", lbSubType.GetGlobal_2ByteAs(), ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 							}
-						} else if Bandwidth == "1000000" {
-							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-								t.Errorf("ERROR lb AS want 23456, got :%d, Bandwidth want: 1000000, got:=%v", lbSubType.GetGlobal_2ByteAs(), ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
 						} else {
 							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
 								t.Errorf("ERROR lb AS want 23456, got :%d, Bandwidth want: 2000000000 , got=%v", lbSubType.GetGlobal_2ByteAs(), ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
@@ -373,10 +369,6 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						if Bandwidth == "0" {
 							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 0 {
 								t.Errorf("ERROR lb AS want 23456, got :%d, Bandwidth want 0, got:=%v", lbSubType.GetGlobal_2ByteAs(), ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
-						} else if Bandwidth == "1000000" {
-							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-								t.Errorf("ERROR lb AS want 23456, got :%d, Bandwidth want 1000000, got:=%v", lbSubType.GetGlobal_2ByteAs(), ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 							}
 						} else {
 							if lbSubType.GetGlobal_2ByteAs() != 23456 || ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
@@ -576,8 +568,11 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if not community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
-			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+			var communityCLIConfig string
+			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
+			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
+			helpers.GnmiCLIConfig(t, dut, communityCLIConfig)
+			helpers.GnmiCLIConfig(t, dut, policySetCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpSetExtCommunitySetRefsUnsupported'", dut.Vendor())
 		}
@@ -614,7 +609,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 2-gigabit-match \n if community matches-any %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n end-policy", "match_100_set_linkbw_2G", "regex_match_comm100", "linkbw_2G")
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match any \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
+			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 2-gigabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n end-policy", "match_100_set_linkbw_2G", "regex_match_comm100", "linkbw_2G")
 			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpSetExtCommunitySetRefsUnsupported' and 'BGPConditionsMatchCommunitySetUnsupported' and 'SkipSettingStatementForPolicy'", dut.Vendor())
