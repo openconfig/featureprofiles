@@ -609,9 +609,9 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match any \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v' \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
 			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
-			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 2-gigabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n end-policy", "match_100_set_linkbw_2G", "regex_match_comm100", "linkbw_2G")
+			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 2-gigabit-match \n if community matches-any %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n end-policy", "match_100_set_linkbw_2G", "regex_match_comm100", "linkbw_2G")
 			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpSetExtCommunitySetRefsUnsupported' and 'BGPConditionsMatchCommunitySetUnsupported' and 'SkipSettingStatementForPolicy'", dut.Vendor())
