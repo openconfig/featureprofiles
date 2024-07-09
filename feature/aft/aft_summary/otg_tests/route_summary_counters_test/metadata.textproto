@@ -32,6 +32,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: ARISTA
   }
   deviations: {
