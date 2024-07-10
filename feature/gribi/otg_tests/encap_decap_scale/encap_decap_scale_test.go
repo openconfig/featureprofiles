@@ -597,8 +597,7 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string) 
 func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, prefix string) {
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP).
-			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut)),
+			WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
