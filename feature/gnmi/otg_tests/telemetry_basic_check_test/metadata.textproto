@@ -42,7 +42,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    sw_version_unsupported: true
     qos_dropped_octets: true
   }
 }
@@ -67,3 +66,4 @@ platform_exceptions: {
     os_component_parent_is_chassis: true
   }
 }
+path_presence_test: true

@@ -281,3 +281,15 @@ and
   * Ensure that access rejects telemetry counter is incremented
     `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
 
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+TODO(OCRPC): Record may not be complete
+
+```yaml
+rpcs:
+  gnsi:
+    credentialz.v1.Credentialz.RotateAccountCredentials:
+```
+
