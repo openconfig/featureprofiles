@@ -225,14 +225,14 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			fn:   testBaseHierarchialNHG,
 		},
 		{
-			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
-			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
-			fn:   testBaseHierarchialNHGwithVrfPolW,
-		},
-		{
 			name: "testImplementDrain",
 			desc: "Usecase for Implementing Drain test",
 			fn:   testImplementDrain,
+		},
+		{
+			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
+			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
+			fn:   testBaseHierarchialNHGwithVrfPolW,
 		},
 	}
 	// Configure the gRIBI client
