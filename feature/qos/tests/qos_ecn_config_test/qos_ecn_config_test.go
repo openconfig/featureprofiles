@@ -302,6 +302,41 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 	dp := dut.Port(t, "port2")
 	queues := netutil.CommonTrafficQueues(t, dut)
 
+	ecnConfig := struct {
+		ecnEnabled                bool
+		dropEnabled               bool
+		minThreshold              uint64
+		maxThreshold              uint64
+		maxDropProbabilityPercent uint8
+		weight                    uint32
+	}{
+		ecnEnabled:                true,
+		dropEnabled:               false,
+		minThreshold:              uint64(80000),
+		maxThreshold:              uint64(80000),
+		maxDropProbabilityPercent: uint8(100),
+		weight:                    uint32(0),
+	}
+
+	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
+	queueMgmtProfile.SetName("DropProfile")
+	wred := queueMgmtProfile.GetOrCreateWred()
+	uniform := wred.GetOrCreateUniform()
+	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+	uniform.SetDrop(ecnConfig.dropEnabled)
+	wantMinThreshold := ecnConfig.minThreshold
+	wantMaxThreshold := ecnConfig.maxThreshold
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
+		wantMinThreshold = CiscoMinThreshold
+		wantMaxThreshold = CiscoMaxThreshold
+	}
+	uniform.SetMinThreshold(wantMinThreshold)
+	uniform.SetMaxThreshold(wantMaxThreshold)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	if !deviations.QosSetWeightConfigUnsupported(dut) {
+		uniform.SetWeight(ecnConfig.weight)
+	}
+
 	cases := []struct {
 		desc       string
 		queueName  string
