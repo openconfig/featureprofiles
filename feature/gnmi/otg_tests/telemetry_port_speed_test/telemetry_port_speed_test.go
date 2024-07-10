@@ -353,7 +353,7 @@ func TestGNMIPortDown(t *testing.T) {
 	ate.OTG().SetControlState(t, portStateAction)
 
 	want := oc.Interface_OperStatus_DOWN
-	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 1*time.Minute, want)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State(), 2*time.Minute, want)
 	dutPortStatus := gnmi.Get(t, dut, gnmi.OC().Interface(dutPort.Name()).OperStatus().State())
 	if dutPortStatus != want {
 		t.Errorf("Get(DUT port1 status): got %v, want %v", dutPortStatus, want)

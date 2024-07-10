@@ -220,6 +220,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/qos_output_queue_counters_test/README.md"
 }
 test: {
+  id: "DP-1.5"
+  description: "Egress Strict Priority scheduler with bursty traffic"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_strict_priority_scheduler_with_bursty_traffic_test/README.md"
+}
+test: {
   id: "DP-1.7"
   description: "One strict priority queue traffic test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/one_sp_queue_traffic_test/README.md"

@@ -21,8 +21,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
+	log "github.com/golang/glog"
 	"github.com/protocolbuffers/txtpbfmt/parser"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -34,10 +36,13 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
+//go:generate go run generate_example.go -folder-path .
+//go:generate go run generate_example.go -folder-path . -invalid
+
 // Config is the set of flags for this binary.
 type Config struct {
-	FilePath string
-	Invalid  bool
+	FolderPath string
+	Invalid    bool
 }
 
 // New registers a flagset with the configuration needed by this binary.
@@ -47,8 +52,8 @@ func New(fs *flag.FlagSet) *Config {
 	if fs == nil {
 		fs = flag.CommandLine
 	}
-	fs.StringVar(&c.FilePath, "file-path", "example_nosimage.textproto", "generate an example file at the given path rather than validating a file.")
-	fs.BoolVar(&c.Invalid, "invalid", false, "generate an invalid example")
+	fs.StringVar(&c.FolderPath, "folder-path", "", "generate an example file in the given folder rather than validating a file.")
+	fs.BoolVar(&c.Invalid, "invalid", false, "generate invalid examples")
 
 	return c
 }
@@ -61,19 +66,30 @@ func init() {
 	config = New(nil)
 }
 
-func generateExample(filepath string, valid bool) error {
+func generateExample(invalidPaths, invalidProtocols, invalidSoftwareName, invalidHardwareName bool) ([]byte, error) {
 	componentPrefix := "/components/component"
 	softwareComponent := "OPERATING_SYSTEM"
 	interfaceLeafName := "name"
-	if !valid {
+	if invalidPaths {
 		componentPrefix = "/componentsssssssssss/component"
 		softwareComponent = "JOVIAN_ATMOSPHERE"
 		interfaceLeafName = "does-not-exist"
 	}
-	bs, err := formatTxtpb(&npb.NOSImageProfile{
+	var (
+		softwareVersion string
+		hardwareName    string
+	)
+	if !invalidSoftwareName {
+		softwareVersion = "7a1cb734c83f0d9ba5b273f920bc002ad0056178"
+	}
+	if !invalidHardwareName {
+		hardwareName = "lemming"
+	}
+	return formatTxtpb(&npb.NOSImageProfile{
 		VendorId:        opb.Device_OPENCONFIG,
 		Nos:             "lemming",
-		SoftwareVersion: "7a1cb734c83f0d9ba5b273f920bc002ad0056178",
+		SoftwareVersion: softwareVersion,
+		HardwareName:    hardwareName,
 		ReleaseDate:     timestamppb.New(time.Date(2023, time.November, 16, 16, 20, 0, 0, time.FixedZone("UTC-8", -8*60*60))),
 		Ocpaths: &ppb.OCPaths{
 			Version: "2.5.0",
@@ -96,7 +112,7 @@ func generateExample(filepath string, valid bool) error {
 		},
 		Ocrpcs: &rpb.OCRPCs{
 			OcProtocols: func() map[string]*rpb.OCProtocol {
-				if valid {
+				if !invalidProtocols {
 					return map[string]*rpb.OCProtocol{
 						"gnmi": {
 							Version: "0.10.0",
@@ -143,10 +159,6 @@ func generateExample(filepath string, valid bool) error {
 			}(),
 		},
 	})
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath, bs, 0664)
 }
 
 func formatTxtpb(msg proto.Message) ([]byte, error) {
@@ -171,13 +183,50 @@ func formatTxtpb(msg proto.Message) ([]byte, error) {
 func main() {
 	flag.Parse()
 
-	if config.FilePath == "" {
-		fmt.Println("must provide example file path to write")
-		os.Exit(1)
+	if config.FolderPath == "" {
+		log.Exitln("must provide example folder path to write to")
 	}
 
-	if err := generateExample(config.FilePath, !config.Invalid); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	fileSpecs := []struct {
+		name                string
+		isInvalid           bool
+		invalidPaths        bool
+		invalidProtocols    bool
+		invalidSoftwareName bool
+		invalidHardwareName bool
+	}{{
+		name: "valid",
+	}, {
+		name:         "invalid-path",
+		isInvalid:    true,
+		invalidPaths: true,
+	}, {
+		name:             "invalid-protocols",
+		isInvalid:        true,
+		invalidProtocols: true,
+	}, {
+		name:                "invalid-software-name",
+		isInvalid:           true,
+		invalidSoftwareName: true,
+	}, {
+		name:                "invalid-hw-name",
+		isInvalid:           true,
+		invalidHardwareName: true,
+	}}
+
+	for _, spec := range fileSpecs {
+		if config.Invalid != spec.isInvalid {
+			continue
+		}
+
+		bs, err := generateExample(spec.invalidPaths, spec.invalidProtocols, spec.invalidSoftwareName, spec.invalidHardwareName)
+		if err != nil {
+			log.Exitln(err)
+		}
+		path := filepath.Join(config.FolderPath, spec.name+"_example_nosimageprofile.textproto")
+		fmt.Printf("writing to %q\n", path)
+		if err := os.WriteFile(path, bs, 0664); err != nil {
+			log.Exitln(err)
+		}
 	}
 }

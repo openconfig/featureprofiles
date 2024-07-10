@@ -36,8 +36,8 @@ jobs:
         go install ./tools/validate_readme_spec
 
         exemption_flags=(
-          --non-test-readme security/gnsi/certz/test_data/README.md
-          --non-test-readme experimental/p4rt/README.md
+          --non-test-readme feature/security/gnsi/certz/test_data/README.md
+          --non-test-readme feature/experimental/p4rt/README.md
           --non-test-readme feature/security/gnsi/acctz/README.md
         )
 

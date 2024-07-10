@@ -34,3 +34,11 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
