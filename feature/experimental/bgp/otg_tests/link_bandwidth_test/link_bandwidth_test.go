@@ -377,7 +377,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 							}
 						}
 						if deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
-							verifyExtCommunityIndexV4(t, td, v6Prefix)
+							verifyExtCommunityIndexV6(t, td, v6Prefix)
 						}
 					}
 				}
