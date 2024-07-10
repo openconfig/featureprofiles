@@ -425,9 +425,8 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Fatalf("VerifyGnsi:gRPCdial failed to %q", target)
 	}
@@ -459,12 +458,8 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
-
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Fatalf("VerifyGnoi : gRPCdial failed to %q", target)
 	}
@@ -494,7 +489,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	defer cancel()
 
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Logf("VerifyGnmi: gRpcDial failed to %q", target)
 		return false
@@ -552,11 +547,9 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
+	//conn, err := grpc.DialContext(ctx, target, credOpts...)
 	if err != nil {
 		t.Fatalf("VerifyGnmi: gRpcDial failed to %q", target)
 	}
@@ -582,11 +575,8 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Fatalf("VerifyP4rt : gRpcDial failed to %q", target)
 	}
@@ -673,11 +663,8 @@ func TestNewConnection(t *testing.T, caCert *x509.CertPool, san, serverAddr, use
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
-	conn, err := grpc.DialContext(ctx, target, credOpts...)
+	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Logf("gRPCdial failed with mismatch certificate as expected to %q with error %s.", target, err)
 		return false
