@@ -919,8 +919,6 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
