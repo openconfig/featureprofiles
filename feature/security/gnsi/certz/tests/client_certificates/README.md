@@ -101,7 +101,12 @@ certificates:
       service on the DUT.
 
    5) Validate that the connection is properly torn down by the DUT.
-   
+
+## Protocol/RPC Parameter coverage
+
+## Config parameter coverage
+
+## Telemetry parameter coverage
 
 ## OpenConfig Path and RPC Coverage
 
@@ -113,6 +118,8 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
 ```
 
 
