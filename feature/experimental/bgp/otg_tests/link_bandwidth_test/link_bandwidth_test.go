@@ -296,7 +296,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						Bandwidth := listCommunity[2]
-						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 {
+						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
 							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
@@ -363,7 +363,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						Bandwidth := listCommunity[2]
-						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 {
+						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
 							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
@@ -548,11 +548,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
-	if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-		ref1.SetCommunitySet("regex_match_comm100")
-		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
-	} else {
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			name1, community1 := "regex_match_comm100_deviation1", "^100:.*$"
@@ -570,6 +566,10 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions()
 			ref1.SetCommunitySet("regex_match_comm100_deviation1")
 		}
+	} else {
+		ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		ref1.SetCommunitySet("regex_match_comm100")
+		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
@@ -608,11 +608,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
-	if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
-		ref1.SetCommunitySet("regex_match_comm100")
-		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
-	} else {
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			name2, community2 := "regex_match_comm100_deviation2", "^100:.*$"
@@ -630,6 +626,10 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions()
 			ref1.SetCommunitySet("regex_match_comm100_deviation2")
 		}
+	} else {
+		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
+		ref1.SetCommunitySet("regex_match_comm100")
+		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pdef3Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
