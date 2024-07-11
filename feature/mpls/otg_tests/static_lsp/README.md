@@ -28,7 +28,12 @@ paths:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label:
 
   ## State paths
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/next-hop:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/incoming-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/push-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/metric:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/interface:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/subinterface:
 
 rpcs:
   gnmi:
