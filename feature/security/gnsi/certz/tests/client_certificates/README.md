@@ -1,4 +1,4 @@
-# gNSI Client Certificate Tests
+# Client Certificate Tests
 
 ## Summary
 
@@ -115,6 +115,11 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 TODO(OCRPC): Record may not be correct or complete
 
 ```yaml
+paths:
+  # config paths
+  
+  # state paths 
+
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
