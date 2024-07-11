@@ -21,7 +21,6 @@ import (
 
 const (
 	username                    = "testuser"
-	password                    = "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj"
 	userPrivateKeyFilename      = "user"
 	userPublicKeyFilename       = "user.pub"
 	authorizedKeysListVersion   = "v1.0"
