@@ -2,7 +2,6 @@ package ssh_public_key_authentication
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
@@ -35,18 +33,18 @@ func TestMain(m *testing.M) {
 }
 
 func prepareUserKey(t *testing.T, dir string) {
-	caCmd := exec.Command(
+	userCmd := exec.Command(
 		"ssh-keygen",
 		"-t", "ed25519",
 		"-f", userPrivateKeyFilename,
 		"-C", "featureprofile@openconfig",
 		"-q", "-N", "", // quiet, empty passphrase
 	)
-	caCmd.Dir = dir
+	userCmd.Dir = dir
 
-	err := caCmd.Run()
+	err := userCmd.Run()
 	if err != nil {
-		t.Fatalf("failed generating ca key pair, error: %s", err)
+		t.Fatalf("failed generating user key pair, error: %s", err)
 	}
 }
 
@@ -65,7 +63,7 @@ func sendCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *crede
 
 	_, err = credzRotateClient.Recv()
 	if err != nil {
-		t.Fatalf("failed receiving credentialz rotate account credentials request, error: %s", err)
+		t.Fatalf("failed receiving credentialz rotate account credentials response, error: %s", err)
 	}
 
 	err = credzRotateClient.Send(&credentialz.RotateAccountCredentialsRequest{
@@ -78,89 +76,10 @@ func sendCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *crede
 	}
 }
 
-func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		roleData, err := json.Marshal([]any{
-			map[string]any{
-				"services": []string{"cli", "gnmi"},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		userData, err := json.Marshal([]any{
-			map[string]any{
-				"password": password,
-				"role":     []string{role},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		SetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": role}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: roleData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": username}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: userData,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err = gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
-	}
-}
-
 func setupUser(t *testing.T, dut *ondatra.DUTDevice) {
 	auth := &oc.System_Aaa_Authentication{}
-	user := auth.GetOrCreateUser(username)
-
-	if deviations.SetNativeUser(dut) {
-		// probably all vendors need to handle this since the user should have a role attached to
-		// it allowing us to login via ssh/console/whatever
-		createNativeRole(t, dut, "credz-fp-test")
-	} else {
-		user.SetPassword(password)
-	}
-
+	auth.GetOrCreateUser(username)
 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), auth)
-
 }
 
 func sshWithKey(t *testing.T, addr, dir string) error {
