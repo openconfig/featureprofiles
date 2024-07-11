@@ -102,7 +102,6 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
      *   Start traffic from ATE Port1 towards ATE Port2. Confirm there is zero packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
-
 ## Config Parameter Coverage
 
 For prefixes:
@@ -140,3 +139,15 @@ BGP conifguration:
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+  gnoi:
+    system.System.KillProcess:
+```
