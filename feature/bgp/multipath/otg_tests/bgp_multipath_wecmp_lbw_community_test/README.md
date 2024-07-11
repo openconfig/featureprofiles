@@ -29,11 +29,11 @@ Validate BGP in multipath UCMP support with link bandwidth community
     *   Configure ATE port 1, 2 and 3 on different AS
     *   Enable multipath, set maximum-paths limit to 2, enable allow multiple
         AS, and send community type to BOTH (STANDARD and EXTENDED)
-        *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled
-        *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
-        *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
-        *   /network-instances/network-instance/protocols/protocol/bgp/global/config/send-community-type
-        *   /network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type
+        *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled
     *   Advertise equal cost paths from port2 and port3 of ATE
     *   Check entries in FIB for advertised prefix, it should have 2 entries
         *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
@@ -44,11 +44,11 @@ Validate BGP in multipath UCMP support with link bandwidth community
 
 ## Config Parameter Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/config/enabled
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config/send-community-type
-*   /network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/allow-multiple-as
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/link-bandwidth-ext-community/config/enabled
 
 ## Telemetry Parameter Coverage
 
