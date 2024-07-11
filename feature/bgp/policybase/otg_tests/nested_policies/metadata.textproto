@@ -15,6 +15,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_value_for_defaults: true
     skip_set_rp_match_set_options: true
+    routing_policy_chaining_unsupported: true
   }
 }
 
