@@ -596,6 +596,10 @@ message Metadata {
     // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
     // Juniper: b/341130490
     bool qos_inqueue_drop_counter_unsupported = 207;
+    // peer_group_def_bgp_vrf_unsupported is set to true for devices that do not support peer group definition under bgp vrf configuration.
+    bool peer_group_def_ebgp_vrf_unsupported = 208;
+    // redis_uconnected+nder_ebgp_vrf_unsupported is set to true for devices that do not support redistribution of connected routes under ebgp vrf configuration.
+    bool redis_connected_under_ebgp_vrf_unsupported = 209;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;

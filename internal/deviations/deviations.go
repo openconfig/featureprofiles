@@ -1104,3 +1104,13 @@ func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
 }
+
+// PeerGroupDefEbgpVrfUnsupported returns true if peer group definition under ebgp vrf is unsupported
+func PeerGroupDefEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPeerGroupDefEbgpVrfUnsupported()
+}
+
+// RedisConnectedUnderEbgpVrfUnsupported returns true if redistribution of routes under ebgp vrf is unsupported
+func RedisConnectedUnderEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRedisConnectedUnderEbgpVrfUnsupported()
+}
