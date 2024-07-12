@@ -134,6 +134,7 @@ func TestCDValue(t *testing.T) {
 			// Wait for channels to be down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
+			t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
 			verifyAllCDValues(t, dut, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
 			time.Sleep(flapInterval)
@@ -145,6 +146,7 @@ func TestCDValue(t *testing.T) {
 			// Wait for channels to be up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+			t.Logf("Interfaces are up: %v, %v", dp1.Name(), dp2.Name())
 			verifyAllCDValues(t, dut, p1StreamInstant, p1StreamMax, p1StreamMin, p1StreamAvg, enabled)
 
 		}
