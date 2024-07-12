@@ -14,7 +14,7 @@ Ensure that gRIBI programmed operations results in the correct GUE encapsulation
 * Program policy forwarding entry matching logical interface and dest ip prefix pointing to a NHG containing a single NH, pushing MPLS label
 encapsulated in a GUE header.
 * Set outer packet source IP, destination IP.
-* Set source, destination port.
+* Set source, destination UDP port.
 * Verify at destination port that packet is received with mpls label encapsulated with GUE header.
 
 ### TE-18.2: Match ingress logical interface, dest IP and perform encaps with set DSCP value
