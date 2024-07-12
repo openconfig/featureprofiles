@@ -16,7 +16,6 @@ package ssh_password_login_disallowed
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
@@ -113,7 +111,7 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cr
 
 	_, err = credzRotateClient.Recv()
 	if err != nil {
-		t.Fatalf("failed receiving credentialz rotate host parameters request, error: %s", err)
+		t.Fatalf("failed receiving credentialz rotate host parameters response, error: %s", err)
 	}
 
 	err = credzRotateClient.Send(&credentialz.RotateHostParametersRequest{
@@ -124,6 +122,9 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cr
 	if err != nil {
 		t.Fatalf("failed sending credentialz rotate host parameters finalize request, error: %s", err)
 	}
+
+	// brief sleep for finalize to get processed
+	time.Sleep(time.Second)
 }
 
 func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
@@ -151,89 +152,11 @@ func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 	sendHostParametersRequest(t, dut, request)
 }
 
-func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		roleData, err := json.Marshal([]any{
-			map[string]any{
-				"services": []string{"cli", "gnmi"},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		userData, err := json.Marshal([]any{
-			map[string]any{
-				"password": password,
-				"role":     []string{role},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		SetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": role}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: roleData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": username}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: userData,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
-	}
-}
-
 func setupUser(t *testing.T, dut *ondatra.DUTDevice) {
 	auth := &oc.System_Aaa_Authentication{}
 	user := auth.GetOrCreateUser(username)
-
-	if deviations.SetNativeUser(dut) {
-		// probably all vendors need to handle this since the user should have a role attached to
-		// it allowing us to login via ssh/console/whatever
-		createNativeRole(t, dut, "credz-fp-test")
-	} else {
-		user.SetPassword(password)
-	}
-
+	user.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), auth)
-
 }
 
 func setupAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice) {
@@ -286,7 +209,7 @@ func setupAuthorizedUsers(t *testing.T, dut *ondatra.DUTDevice) {
 
 	_, err = credzRotateClient.Recv()
 	if err != nil {
-		t.Fatalf("failed receiving credentialz rotate account credentials request, error: %s", err)
+		t.Fatalf("failed receiving credentialz rotate account credentials response, error: %s", err)
 	}
 
 	err = credzRotateClient.Send(&credentialz.RotateAccountCredentialsRequest{
@@ -452,14 +375,14 @@ func assertSSHAuthAccounting(t *testing.T, dut *ondatra.DUTDevice) {
 			)
 		}
 
-		if acctzResponse.GetSessionInfo().RemotePort != 22 {
+		if acctzResponse.GetSessionInfo().LocalPort != 22 {
 			// not ssh, not checking
 			continue
 		}
 
 		reportedIdentity := acctzResponse.GetSessionInfo().GetUser().GetIdentity()
 
-		if reportedIdentity == userIdentity {
+		if reportedIdentity == username {
 			return
 		}
 	}

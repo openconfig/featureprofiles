@@ -9,7 +9,12 @@ accounted for.
 
 ## Procedure
 
-* Set DUT TrustedUserCAKeys using gnsi.Credentialz to the previously created CA
+* Create a ssh CA keypair with `ssh-keygen -f /tmp/ca`
+* Create a user keypair with `ssh-keygen -t ed25519`
+* Sign the user public key into a certificate using the CA using `ssh-keygen -s
+  /tmp/ca -I testuser -n principal_name -V +52w user.pub`. You will
+  find your certificate ending in `-cert.pub`
+* Set DUT TrustedUserCAKeys using gnsi.Credentialz with the CA public key
 * Set a username of `testuser` with a password of `i$V5^6IhD*tZ#eg1G@v3xdVZrQwj` using gnsi.Credentialz
 * Set DUT authentication types to permit only public key (PUBKEY) using gnsi.Credentialz
 * Set DUT authorized_users for `testuser` with a principal of `my_principal` (configured above 
@@ -40,19 +45,23 @@ accounted for.
           `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:last-access-accept`
 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-* /gnsi/credz
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
+```yaml
+paths:
+  ## State Paths ##
+  /system/ssh-server/state/counters/access-rejects:
+  /system/ssh-server/state/counters/last-access-reject:
+  /system/ssh-server/state/counters/access-accepts:
+  /system/ssh-server/state/counters/last-access-accept:
 
-## Telemetry Parameter coverage
-
-N/A
-
-
-## Protocol/RPC Parameter coverage
-
-N/A
+rpcs:
+  gnsi:
+    credentialz.v1.Credentialz.RotateAccountCredentials:
+    credentialz.v1.Credentialz.RotateHostParameters:
+```
 
 
 ## Minimum DUT platform requirement
