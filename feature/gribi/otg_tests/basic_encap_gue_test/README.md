@@ -1,0 +1,78 @@
+# TE-48: basic gue encapsulation tests
+
+## Summary
+
+Ensure that gRIBI programmed operations results in the correct GUE encapsulation.
+
+## Procedure
+
+### TE-48.1: Match ingress logical interface, dest IP
+
+* Configure DUT `port-1` to be connected to ATE `port-1`, and DUT `port-2` to
+  be connected to ATE `port-2`. ATE `port-2` is configured to have an assigned
+  address of `10.200.200.5`, and the interface is enabled.
+* Program policy forwarding entry matching logical interface and dest ip prefix pointing to a NHG containing a single NH, pushing MPLS label
+encapsulated in a GUE header.
+* Verify at destination port that packet is received with mpls label encapsulated with GUE header.
+
+### TE-48.2: Match on dest IP and perform IPSec encryption
+
+* Configure DUT `port-1` to be connected to ATE `port-1`, and DUT `port-2` to
+  be connected to ATE `port-2`. ATE `port-2` is configured to have an assigned
+  address of `2001:db8::1/128`, and the interface is enabled.
+* Program policy forwarding entry matching dest ip prefix pointing to a NHG containing a single NH performing IPSec encryption on packet, insert ESP header denoting SPI.
+* Verify at destination port that packet is received with IPSec encryption.
+
+## Protocol/RPC Parameter coverage
+
+*   gRIBI:
+    *  `Modify()`
+      * `ModifyRequest`
+        *   `AFTOperation`
+          *   `id`
+          *   `policy-forwarding`
+          *   `op`: `ADD`
+          *  `ip`
+            * `next_hop_group`
+          *  `next-hop`
+            *   `next_hop_group`
+          *   `next_hop_group`
+            *  `id`
+            *  `next_hop`
+          *   `next_hop`
+            * `id`
+            * `OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_UDP`
+            * `pushed_label_stack`
+    *   `ModifyResponse`
+    *   `AFTResult`
+        *   `id`
+        *   `status`
+
+*   gRIBI:
+    *  `Modify()`
+      * `ModifyRequest`
+        *   `AFTOperation`
+          *   `id`
+          *   `policy-forwarding`
+          *   `op`: `ADD`
+          *  `ip`
+            * `next_hop_group`
+          *  `next-hop`
+            *   `next_hop_group`
+          *   `next_hop_group`
+            *  `id`
+            *  `next_hop`
+          *   `next_hop`
+            * `id`
+            * `OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV6`
+    *   `ModifyResponse`
+    *   `AFTResult`
+        *   `id`
+        *   `status`
+
+## Config parameter coverage
+
+
+## Telemetry parameter coverage
+
+
