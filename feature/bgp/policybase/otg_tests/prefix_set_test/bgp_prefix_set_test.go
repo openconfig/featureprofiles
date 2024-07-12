@@ -506,3 +506,37 @@ func TestBGPPrefixSet(t *testing.T) {
 
 	testPrefixSet(t, dut)
 }
+
+func TestPrefixSetCount(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	dutOcRoot := &oc.Root{}
+	rp := dutOcRoot.GetOrCreateRoutingPolicy()
+
+	ds := rp.GetOrCreateDefinedSets()
+	v4PrefixSet := ds.GetOrCreatePrefixSet("TAG_3_IPV4")
+	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", "exact")
+	v4PrefixSet.GetOrCreatePrefix("10.244.187.32/28", "exact")
+
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").Config(), v4PrefixSet)
+	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").State())
+	if prefixSet.Prefix == nil {
+		t.Errorf("Prefix set is empty")
+	}
+	if len(prefixSet.Prefix) != 2 {
+		t.Errorf("Prefix set has %v prefixes, want 2", len(prefixSet.Prefix))
+	}
+
+	v4PrefixSet = ds.GetOrCreatePrefixSet("TAG_3_IPV4")
+	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", "exact")
+	v4PrefixSet.GetOrCreatePrefix("173.36.128.0/20", "exact")
+
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").Config(), v4PrefixSet)
+	prefixSet = gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").State())
+	if prefixSet.Prefix == nil {
+		t.Errorf("Prefix set is empty")
+	}
+	if len(prefixSet.Prefix) != 2 {
+		t.Errorf("Prefix set has %v prefixes, want 2", len(prefixSet.Prefix))
+	}
+}
