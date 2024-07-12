@@ -46,9 +46,14 @@ Configure an IPv6 address which is in link local scope. Verify the link local IP
 /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/type
 ```
 
-## Protocol/RPC Parameter Coverage
-
-None
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
 
 ## Required DUT platform
 
