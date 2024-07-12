@@ -246,13 +246,13 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 	}
 
 	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
-		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+		t.Errorf("secondary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
 	} else {
 		lastrebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
 		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
 	}
 	if !gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
-		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+		t.Errorf("secondary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
 	} else {
 		lastrebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
 		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
