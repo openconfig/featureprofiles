@@ -167,7 +167,6 @@ func TestAdminDistance(t *testing.T) {
 				if got := (math.Abs(float64(txPkts)-float64(rxPkts)) * 100) / float64(txPkts); got > lossTolerance {
 					t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerance)
 				}
-				time.Sleep(2 * time.Minute)
 			})
 		}
 	})
