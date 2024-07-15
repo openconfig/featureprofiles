@@ -7,14 +7,13 @@ Validate IPv6 ND Router Advertisement (RA) is suppresed. No periodic RA are sent
 ## Procedure
 *   Connect DUT port-1 to OTG port-1
 *   Configure IPv6 address on DUT port-1
-*   Set IPv6 ND RA transmission interval on DUT port-1 to 5 seconds
 *   Enable IPv6 ND RA suppression on DUT port-1
 
-### TestCase-1: No periodical Router Advertisement are sent
+### RT-5.11.1: No periodical Router Advertisement are sent 
 
 *   Verify over period of 10 seconds that IPv6 ND RA **doesn't** arrives on OTG Port-1 ([rfc4861 section 6.2.1](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.1))
 
-### TestCase-2: Router Advertisement response is sent to Router Solicitation
+### RT-5.11.2: Router Advertisement response is sent to Router Solicitation  
 
 *   Send IPv6 ND Router Solicitation from OTG Port-1
 *   Verify over period of 1 seconds that IPv6 ND RA does arrives on OTG Port-1 ([rfc4861 section 6.2.6](https://datatracker.ietf.org/doc/html/rfc4861#section-6.2.6))
