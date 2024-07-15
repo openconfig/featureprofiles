@@ -47,7 +47,9 @@ encap VRF.
     addresses 138.0.11.8. verify that packets with TTL=1 are received by the client.
 
 *   Verify that the punted packets have both ingress_port and target_egress_port metadata set.
-The distribution of packets should have target_egress_port set with port 2 10% of the time, port 3 30%, port 4 60%.
+
+The distribution of packets should have target_egress_port set with port2 1.56% of
+the time, port3 4.68%, port4 18.75% and port6 75%.
 
 ### TODO: Test-2
 
