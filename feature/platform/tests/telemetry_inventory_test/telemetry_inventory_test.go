@@ -1004,3 +1004,56 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 		t.Fatalf("Couldn't find chassis for %q", dut.Model())
 	}
 }
+
+func TestDefaultPowerAdminState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	fabrics := []*oc.Component{}
+	linecards := []*oc.Component{}
+	supervisors := []*oc.Component{}
+
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	for compName := range componentType {
+		for _, c := range components {
+			if c.GetType() == nil || c.GetType() != componentType[compName] {
+				continue
+			}
+			switch compName {
+			case "Fabric":
+				fabrics = append(fabrics, c)
+			case "Linecard":
+				linecards = append(linecards, c)
+			case "Supervisor":
+				supervisors = append(supervisors, c)
+			}
+		}
+	}
+
+	t.Logf("Fabrics: %v", fabrics)
+	t.Logf("Linecards: %v", linecards)
+	t.Logf("Supervisors: %v", supervisors)
+
+	if len(fabrics) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
+		}
+	}
+
+	if len(linecards) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
+		}
+	}
+
+	if len(supervisors) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+		}
+	}
+}
