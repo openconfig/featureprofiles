@@ -58,7 +58,7 @@ func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
-	if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}); err != nil {
+	if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}, Type: gpb.GetRequest_CONFIG}); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
