@@ -439,8 +439,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-// var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.10 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -540,8 +539,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
 		flowlabelRand := v6.FlowLabel().Random()
-		flowlabelRand.SetMin(1).SetMax(1048574).SetCount(10).SetSeed(0)
-		// v6.FlowLabel().SetValues(generateRandomFlowLabelList(10))
+		flowlabelRand.SetMin(1).SetMax(1048574).SetCount(250000).SetSeed(1)
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 		ipType = "IPv6"
@@ -549,16 +547,12 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 
 	tcp := flow.Packet().Add().Tcp()
 	tcpSrcPortRand := tcp.SrcPort().Random()
-	tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(10).SetSeed(0)
-	// tcp.SrcPort().SetValues(generateRandomPortList(10))
+	tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(65534).SetSeed(1)
 	tcpDstPortRand := tcp.DstPort().Random()
-	tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(10).SetSeed(0)
-	// tcp.DstPort().SetValues(generateRandomPortList(10))
+	tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(65534).SetSeed(1)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
-	conf, _ := tc.top.Marshal().ToJson()
-	t.Logf("Config --> %v", conf)
 	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, ipType)
 
 	tc.verifyLAG(t)
@@ -623,22 +617,22 @@ func TestBalancing(t *testing.T) {
 			desc:     "IPV4",
 			l3header: "ipv4",
 		},
-		// {
-		// 	desc:     "IPV4inIPV4",
-		// 	l3header: "ipv4inipv4",
-		// },
-		// {
-		// 	desc:     "IPV6",
-		// 	l3header: "ipv6",
-		// },
-		// {
-		// 	desc:     "IPV6inIPV4",
-		// 	l3header: "ipv6inipv4",
-		// },
-		// {
-		// 	desc:     "IPV6 FlowLabel",
-		// 	l3header: "ipv6flowlabel",
-		// },
+		{
+			desc:     "IPV4inIPV4",
+			l3header: "ipv4inipv4",
+		},
+		{
+			desc:     "IPV6",
+			l3header: "ipv6",
+		},
+		{
+			desc:     "IPV6inIPV4",
+			l3header: "ipv6inipv4",
+		},
+		{
+			desc:     "IPV6 FlowLabel",
+			l3header: "ipv6flowlabel",
+		},
 	}
 	tc := &testCase{
 		dut:     dut,
