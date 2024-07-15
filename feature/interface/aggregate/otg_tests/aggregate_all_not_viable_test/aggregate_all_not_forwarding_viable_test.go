@@ -372,10 +372,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
-			if port.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+			if port.PMD() == ondatra.PMD100GBASEFR {
 				e.AutoNegotiate = ygot.Bool(false)
 				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+				if deviations.ExplicitPortSpeed(dut) {
+					e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+				}
 			}
 
 			configMemberDUT(dut, i, port, aggID)
@@ -605,7 +607,6 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
-		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
 		if deviations.InterfaceRefConfigUnsupported(dut) {
 			isisIntf.InterfaceRef = nil
