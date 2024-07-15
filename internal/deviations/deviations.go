@@ -1057,3 +1057,50 @@ func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
 func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
 }
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
+}
+
+// ISISLoopbackRequired returns true if isis loopback is required.
+func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLoopbackRequired()
+}
+
+// WeightedEcmpFixedPacketVerification returns true if fixed packet is used in traffic flow
+func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
+}
+
+// OverrideDefaultNhScale returns true if default NextHop scale needs to be modified
+// else returns false
+func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+}
+
+// BgpExtendedCommunitySetUnsupported returns true if set bgp extended community is unsupported
+func BgpExtendedCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunitySetUnsupported()
+}
+
+// BgpSetExtCommunitySetRefsUnsupported returns true if bgp set ext community refs is unsupported
+func BgpSetExtCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetExtCommunitySetRefsUnsupported()
+}
+
+// BgpDeleteLinkBandwidthUnsupported returns true if bgp delete link bandwidth is unsupported
+func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDeleteLinkBandwidthUnsupported()
+}
+
+// QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
+// is not supported for any component type.
+func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
+}

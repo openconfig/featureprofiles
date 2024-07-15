@@ -123,6 +123,8 @@ func TestMain(m *testing.M) {
 //   - integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 //   - integrated-circuit/backplane-facing-capacity/state/total
 //   - integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+//   - components/component/subcomponents/subcomponent/name
+//   - components/component/subcomponents/subcomponent/state/name
 //   - Transceiver
 //   - Storage
 //   - Validate telemetry /components/component/storage exists.
@@ -577,6 +579,27 @@ func TestControllerCardEmpty(t *testing.T) {
 	}
 }
 
+// validateSubcomponentsExistAsComponents checks that if the given component has subcomponents, that
+// those subcomponents exist as components on the device (i.e. the leafref is valid).
+func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T, dut *ondatra.DUTDevice) {
+	cName := c.GetName()
+	subcomponentsValue := gnmi.Lookup(t, dut, gnmi.OC().Component(cName).SubcomponentMap().State())
+	subcomponents, ok := subcomponentsValue.Val()
+	if !ok {
+		t.Errorf("Error getting subcomponents for component %s", cName)
+	}
+	for _, subc := range subcomponents {
+		if !ok {
+			t.Errorf("Error getting subcomponent for component %s", cName)
+		}
+		subcName := subc.GetName()
+		subComponent := gnmi.Lookup[*oc.Component](t, dut, gnmi.OC().Component(subcName).State())
+		if !subComponent.IsPresent() {
+			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
+		}
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -601,6 +624,7 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		}
 		cName := card.GetName()
 		t.Run(cName, func(t *testing.T) {
+			validateSubcomponentsExistAsComponents(card, validCards, t, dut)
 			if p.descriptionValidation {
 				t.Logf("Component %s Description: %s", cName, card.GetDescription())
 				if card.GetDescription() == "" {
@@ -978,5 +1002,58 @@ func TestInterfaceComponentHierarchy(t *testing.T) {
 	})
 	if len(chassis) == 0 {
 		t.Fatalf("Couldn't find chassis for %q", dut.Model())
+	}
+}
+
+func TestDefaultPowerAdminState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	fabrics := []*oc.Component{}
+	linecards := []*oc.Component{}
+	supervisors := []*oc.Component{}
+
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	for compName := range componentType {
+		for _, c := range components {
+			if c.GetType() == nil || c.GetType() != componentType[compName] {
+				continue
+			}
+			switch compName {
+			case "Fabric":
+				fabrics = append(fabrics, c)
+			case "Linecard":
+				linecards = append(linecards, c)
+			case "Supervisor":
+				supervisors = append(supervisors, c)
+			}
+		}
+	}
+
+	t.Logf("Fabrics: %v", fabrics)
+	t.Logf("Linecards: %v", linecards)
+	t.Logf("Supervisors: %v", supervisors)
+
+	if len(fabrics) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
+		}
+	}
+
+	if len(linecards) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
+		}
+	}
+
+	if len(supervisors) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+		}
 	}
 }
