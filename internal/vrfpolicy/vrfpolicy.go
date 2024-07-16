@@ -36,7 +36,6 @@ const (
 	niEncapTeVrfB           = "ENCAP_TE_VRF_B"
 	niEncapTeVrfC           = "ENCAP_TE_VRF_C"
 	niEncapTeVrfD           = "ENCAP_TE_VRF_D"
-	niRepairVrf             = "REPAIR_VRF"
 	niDefault               = "DEFAULT"
 	niRepairVrf             = "REPAIR_VRF"
 	dscpEncapA1             = 10
