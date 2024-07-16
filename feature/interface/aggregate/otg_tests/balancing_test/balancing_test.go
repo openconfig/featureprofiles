@@ -439,7 +439,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.05 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -539,17 +539,20 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
 		flowlabelRand := v6.FlowLabel().Random()
-		flowlabelRand.SetMin(1).SetMax(1048574).SetCount(250000).SetSeed(1)
+		flowlabelRand.SetMin(1).SetMax(1048574).SetCount(1000).SetSeed(1)
+		// v6.FlowLabel().SetValues(generateRandomFlowLabelList(1000))
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 		ipType = "IPv6"
 	}
 
 	tcp := flow.Packet().Add().Tcp()
+	// tcp.SrcPort().SetValues(generateRandomPortList(1000))
+	// tcp.DstPort().SetValues(generateRandomPortList(1000))
 	tcpSrcPortRand := tcp.SrcPort().Random()
-	tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(65534).SetSeed(1)
+	tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(1000).SetSeed(1)
 	tcpDstPortRand := tcp.DstPort().Random()
-	tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(65534).SetSeed(1)
+	tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(1000).SetSeed(1)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 

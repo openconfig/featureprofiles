@@ -276,9 +276,12 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
-	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
-	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
-
+	// udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
+	// udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
+	udpSrcPortRand := udp.SrcPort().Random()
+	udpSrcPortRand.SetMin(34525).SetMax(65535).SetCount(500).SetSeed(1)
+	udpDstPortRand := udp.DstPort().Random()
+	udpDstPortRand.SetMin(49152).SetMax(65535).SetCount(500).SetSeed(1)
 	fV6 := top.Flows().Add().SetName("flowV6")
 	fV6.Metrics().SetEnable(true)
 	fV6.TxRx().Device().
@@ -293,8 +296,12 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
-	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
-	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
+	// udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
+	// udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
+	udpv6SrcPortRand := udpv6.SrcPort().Random()
+	udpv6SrcPortRand.SetMin(35521).SetMax(65535).SetCount(500).SetSeed(1)
+	udpv6DstPortRand := udpv6.DstPort().Random()
+	udpv6DstPortRand.SetMin(49152).SetMax(65535).SetCount(500).SetSeed(1)
 	return []gosnappi.Flow{fV4, fV6}
 }
 

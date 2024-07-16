@@ -548,7 +548,9 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
 	tcp := flow.Packet().Add().Tcp()
-	tcp.SrcPort().SetValues(generateRandomPortList(65534))
+	// tcp.SrcPort().SetValues(generateRandomPortList(1000))
+	tcpSrcPortRand := tcp.SrcPort().Random()
+	tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(1000).SetSeed(1)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 

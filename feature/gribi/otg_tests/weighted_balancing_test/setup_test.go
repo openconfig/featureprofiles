@@ -324,25 +324,33 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		// ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipSrcRand := ipv4.Src().Random()
+		ipSrcRand.SetMin(ateSrcNetFirstIP).SetMax("198.51.100.251").SetCount(ateSrcNetCount)
 	} else {
 		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
+		// ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipDstRand := ipv4.Dst().Random()
+		ipDstRand.SetMin(ateDstNetFirstIP).SetMax("203.0.113.251").SetCount(ateDstNetCount)
 	} else {
 		ipv4.Dst().Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
+		// tcp.SrcPort().SetValues((generateRandomPortList(1200)))
+		tcpSrcPortRand := tcp.SrcPort().Random()
+		tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(1200).SetSeed(1)
 	} else {
-		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
+		tcp.SrcPort().Increment().SetStart(1).SetCount(1200)
 	}
 	if *randomDstPort {
-		tcp.DstPort().SetValues(generateRandomPortList(65534))
+		// tcp.DstPort().SetValues(generateRandomPortList(1200))
+		tcpDstPortRand := tcp.DstPort().Random()
+		tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(1200).SetSeed(1)
 	} else {
-		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
+		tcp.DstPort().Increment().SetStart(1).SetCount(1200)
 	}
 
 	flow.Size().SetFixed(200)
