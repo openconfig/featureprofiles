@@ -11,3 +11,12 @@ tests:
   mustpass: true
   internal: true
   branch: master
+
+- name: Pathz_SIM
+  path: feature/security/gnsi/pathz/cisco/tests
+  args:
+    - '-test.run="(?:TestPathz)"'
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 36000
