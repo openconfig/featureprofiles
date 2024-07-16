@@ -106,18 +106,18 @@ paths:
     /components/component/transceiver/config/enabled:
         platform_type: ["OPTICAL_CHANNEL"]
     # Telemetry Parameter coverage
-    /platform/components/component/optical-channel/state/input-power/instant:
-    /platform/components/component/optical-channel/state/input-power/avg:
-    /platform/components/component/optical-channel/state/input-power/min:
-    /platform/components/component/optical-channel/state/input-power/max:
-    /platform/components/component/optical-channel/state/output-power/instant:
-    /platform/components/component/optical-channel/state/output-power/avg:
-    /platform/components/component/optical-channel/state/output-power/min:
-    /platform/components/component/optical-channel/state/output-power/max:
-    /platform/components/component/transceiver/physical-channel/channel/state/input-power/instant:
-    /platform/components/component/transceiver/physical-channel/channel/state/input-power/min:
-    /platform/components/component/transceiver/physical-channel/channel/state/input-power/max:
-    /platform/components/component/transceiver/physical-channel/channel/state/input-power/avg:
+    /components/component/*/optical-channel/state/input-power/instant:
+    /components/component/*/optical-channel/state/input-power/avg:
+    /components/component/*/optical-channel/state/input-power/min:
+    /components/component/*/optical-channel/state/input-power/max:
+    /components/component/*/optical-channel/state/output-power/instant:
+    /components/component/*/optical-channel/state/output-power/avg:
+    /components/component/*/optical-channel/state/output-power/min:
+    /components/component/*/optical-channel/state/output-power/max:
+    /components/component/*/transceiver/physical-channel/channel/state/input-power/instant:
+    /components/component/*/transceiver/physical-channel/channel/state/input-power/min:
+    /components/component/*/transceiver/physical-channel/channel/state/input-power/max:
+    /components/component/*/transceiver/physical-channel/channel/state/input-power/avg:
 
 rpcs:
     gnmi:
