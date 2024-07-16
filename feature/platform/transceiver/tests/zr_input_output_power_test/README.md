@@ -120,13 +120,13 @@ paths:
         platform_type: ["OPTICAL_CHANNEL"]
     /components/component/optical-channel/state/output-power/max:
         platform_type: ["OPTICAL_CHANNEL"]
-    /components/component/transceiver/physical-channel/channel/0/state/input-power/instant:
+    /components/component/transceiver/physical-channels/channel/state/input-power/instant:
         platform_type: [ "TRANSCEIVER" ]
-    /components/component/transceiver/physical-channel/channel/0/state/input-power/min:
+    /components/component/transceiver/physical-channels/channel/state/input-power/min:
         platform_type: [ "TRANSCEIVER" ]
-    /components/component/transceiver/physical-channel/channel/0/state/input-power/max:
+    /components/component/transceiver/physical-channels/channel/state/input-power/max:
         platform_type: [ "TRANSCEIVER" ]
-    /components/component/transceiver/physical-channel/channel/0/state/input-power/avg:
+    /components/component/transceiver/physical-channels/channel/state/input-power/avg:
         platform_type: [ "TRANSCEIVER" ]
 
 rpcs:
