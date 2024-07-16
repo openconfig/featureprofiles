@@ -1,8 +1,8 @@
-# RT-7.6: BGP Link Bandwidth Community - Aggregation
+# RT-7.6: BGP Link Bandwidth Community - Cumulative
 
 ## Summary
 
-This test verifies Link-bandwidth (LBW) extended community aggregation feature by DUT.
+This test verifies Link-bandwidth (LBW) extended community cumulative feature by DUT.
 
 ## Testbed type
 
@@ -18,15 +18,22 @@ This test verifies Link-bandwidth (LBW) extended community aggregation feature b
                                           |         |
     ```
 
-### RT-7.6.1: Verify LBW aggregation to eBGP peer
+#### Configuration
 
-* Configure DUT with routed ports on DUT.
-* Configure 64x eBGP peers on ATE Port 1 interface in peering group UPSTREAM.
-* Configure a single eBGP peer on ATE Port 2 interface in peering group DOWNSTREAM.
+* Configure DUT with 2 routed ports.
+* Configure 64x eBGP peers on ATE Port 1 interface
+* Configure 64x eBGP peers on DUT Port 1 interface in peering group UPSTREAM.
+* Configure a single eBGP peer on ATE Port 2 interface.
+* Configure a single eBGP peer on DUT Port 2 interface in peering group DOWNSTREAM.
+
+
+### RT-7.6.1: Verify LBW cumulative to eBGP peer
+
 * Enable BGP LBW receive for peering group UPSTREAM.
-* Enable BGP LBW send for peering group DOWNSTREAM. Enable Link Bandwidth aggregation feature.
+* Enable BGP LBW send for peering group DOWNSTREAM. 
+* Enable Link Bandwidth Cumulative feature on DOWNSTREAM.
 
-**TODO:** [Cumulative Link Bandwidth feature](https://datatracker.ietf.org/doc/draft-ietf-bess-ebgp-dmz/) is not currently modeled in OC. Cisco config example: `ebgp-send-extcommunity-dmz cumulative`
+**TODO:** [Cumulative Link Bandwidth feature](https://datatracker.ietf.org/doc/draft-ietf-bess-ebgp-dmz/) is not currently modeled in OC. Related PR: https://github.com/openconfig/public/pull/1131
 
 
 2. Advertise the same test prefix from ATE from all UPSTREAM peers with LBW community:
@@ -35,32 +42,21 @@ This test verifies Link-bandwidth (LBW) extended community aggregation feature b
   * 8 peers - 40Mbps
   * 8 peers - 80Mbps
 
-3. Verify that DUT advertises the test route to DOWNSTREAM eBGP peer with aggregated bandwidth community of 1600Mbps.
+3. Verify that DUT advertises the test route to DOWNSTREAM eBGP peer with cumulative bandwidth community of 1600Mbps.
 
 ### RT-7.6.2: Verify LBW changes.
 Using RT-7.6.1 set up conduct following changes:
 
 1) Disable 32 peers advertising 10Mpbs bandwidth community.
-2) Verify that DUT advertises the test route to Upstream peer with aggregated bandwidth community of 1280Mbps.
+2) Verify that DUT advertises the test route to Upstream peer with cumulative bandwidth community of 1280Mbps.
 3) Re-enable 32 peers advertising 10Mpbs bandwidth community.
-4) Verify that DUT advertises the test route to Upstream peer with aggregated bandwidth community of 1600Mbps.
+4) Verify that DUT advertises the test route to Upstream peer with cumulative bandwidth community of 1600Mbps.
 
-### RT-7.6.3: Verify LBW aggregation to iBGP peer
+### RT-7.6.3: Verify LBW cumulative to iBGP peer
 
-* Configure 64x eBGP peers on ATE Port 1 interface in peering group UPSTREAM.
-* Configure a single iBGP peer on ATE Port 2 interface in peering group DOWNSTREAM.
-* Enable BGP LBW receive for peering group UPSTREAM.
-* Enable BGP LBW send for peering group DOWNSTREAM. Enable Link Bandwidth aggregation feature.
-
-**TODO:** Link Bandwidth aggregation feature is not currently modeled in OC.
-
-2. Advertise the same test prefix from ATE from all UPSTREAM peer with LBW community:
-  * 32 peers - 10Mbps
-  * 16 peers - 20Mbps
-  * 8 peers - 40Mbps
-  * 8 peers - 80Mbps
-
-3. Verify that DUT advertises the test route to DOWNSTREAM iBGP peer with aggregated bandwidth community of 1600Mbps.
+1. Reconfigure 64x peers in peering group UPSTREAM to iBGP
+2. Reconfigure a single peer in peering group DOWNSTREAM to iBGP
+3. Repeat test RT-7.6.1 for iBGP.
 
 ## OpenConfig Path and RPC Coverage
 
