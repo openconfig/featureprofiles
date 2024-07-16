@@ -284,7 +284,11 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{v4LPPolicy})
-	gnmi.Update(t, dut, path.Config(), policy)
+	if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		gnmi.Replace(t, dut, path.Config(), policy)
+	}
 }
 
 func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -364,7 +368,11 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{v4ASPPolicy})
-	gnmi.Update(t, dut, path.Config(), policy)
+	if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		gnmi.Replace(t, dut, path.Config(), policy)
+	}
 	time.Sleep(time.Second * 120)
 }
 
@@ -450,7 +458,11 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{v6LPPolicy})
-	gnmi.Update(t, dut, path.Config(), policy)
+	if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		gnmi.Replace(t, dut, path.Config(), policy)
+	}
 
 }
 
@@ -530,7 +542,11 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{v6ASPPolicy})
-	gnmi.Update(t, dut, path.Config(), policy)
+	if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		gnmi.Replace(t, dut, path.Config(), policy)
+	}
 	time.Sleep(time.Second * 60)
 }
 
