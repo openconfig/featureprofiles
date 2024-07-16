@@ -31,7 +31,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true

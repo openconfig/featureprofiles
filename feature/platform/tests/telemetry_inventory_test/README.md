@@ -80,6 +80,12 @@ paths:
        platform_type: ["INTEGRATED_CIRCUIT"]
     /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
        platform_type: ["INTEGRATED_CIRCUIT"]
+    /components/component/controller-card/config/power-admin-state:
+       platform_type: ["CONTROLLER_CARD"]
+    /components/component/fabric/config/power-admin-state:
+       platform_type: ["FABRIC"]
+    /components/component/linecard/config/power-admin-state:
+       platform_type: ["LINECARD"]
 
 rpcs:
   gnmi:

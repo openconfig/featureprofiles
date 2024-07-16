@@ -21,21 +21,22 @@ jobs:
     - name: Generate Examples and Check No Diff
       run: |
         cd tools/nosimage
-        go run example/generate_example.go -file-path example/example_nosimageprofile.textproto
-        go run example/generate_example.go -file-path example/example_nosimageprofile_invalid.textproto -invalid
+        go generate ./example
 
         git diff --exit-code --ignore-all-space --ignore-blank-lines
 
     - name: Validate Good Example
       run: |
         cd tools/nosimage
-        go run validate/validate.go -file example/example_nosimageprofile.textproto; rm -rf tmp
+        go run validate/validate.go -file example/valid_example_nosimageprofile.textproto; rm -rf tmp
 
     - name: Validate Bad Example
       run: |
         cd tools/nosimage
-        if go run validate/validate.go -file example/example_nosimageprofile_invalid.textproto; then
-          echo "Validation passed, but failure expected"
-          exit 1
-        fi
+        for file in example/invalid-*.textproto; do
+          if go run validate/validate.go -file "$file"; then
+            echo "Validation passed for $file, but failure expected"
+            exit 1
+          fi
+        done
         rm -rf tmp
