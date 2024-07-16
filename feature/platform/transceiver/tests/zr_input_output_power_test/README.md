@@ -106,19 +106,18 @@ paths:
     /components/component/transceiver/config/enabled:
         platform_type: ["OPTICAL_CHANNEL"]
     # Telemetry Parameter coverage
-    /terminal-device/logical-channels/channel/otn/state/fec-uncorrectable-blocks:
-    /terminal-device/logical-channels/channel/otn/state/esnr/instant:
-    /terminal-device/logical-channels/channel/otn/state/esnr/avg:
-    /terminal-device/logical-channels/channel/otn/state/esnr/min:
-    /terminal-device/logical-channels/channel/otn/state/esnr/max:
-    /terminal-device/logical-channels/channel/otn/state/q-value/instant:
-    /terminal-device/logical-channels/channel/otn/state/q-value/avg:
-    /terminal-device/logical-channels/channel/otn/state/q-value/min:
-    /terminal-device/logical-channels/channel/otn/state/q-value/max:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/instant:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/avg:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/min:
-    /terminal-device/logical-channels/channel/otn/state/pre-fec-ber/max:
+    /components/component/optical-channel/state/input-power/instant:
+    /components/component/optical-channel/state/input-power/avg:
+    /components/component/optical-channel/state/input-power/min:
+    /components/component/optical-channel/state/input-power/max:
+    /components/component/optical-channel/state/output-power/instant:
+    /components/component/optical-channel/state/output-power/avg:
+    /components/component/optical-channel/state/output-power/min:
+    /components/component/optical-channel/state/output-power/max:
+    /components/component/transceiver/physical-channel/channel/state/input-power/instant:
+    /components/component/transceiver/physical-channel/channel/state/input-power/min:
+    /components/component/transceiver/physical-channel/channel/state/input-power/max:
+    /components/component/transceiver/physical-channel/channel/state/input-power/avg:
 
 rpcs:
     gnmi:
