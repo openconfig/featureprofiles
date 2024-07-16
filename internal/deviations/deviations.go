@@ -1062,9 +1062,3 @@ func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
 }
-
-// FanTrayTypeUnsupported returns true if the device does not support the
-// OPENCONFIG_HARDWARE_COMPONENT type of "FAN_TRAY".
-func FanTrayTypeUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetFanTrayTypeUnsupported()
-}
