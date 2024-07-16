@@ -596,7 +596,10 @@ message Metadata {
     // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
     // Juniper: b/341130490
     bool qos_inqueue_drop_counter_unsupported = 207;
-
+    //  Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
+    // Juniper: b/353280742
+    bool gribi_unresolvable_nexthops_unsupported = 208;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36;
   }

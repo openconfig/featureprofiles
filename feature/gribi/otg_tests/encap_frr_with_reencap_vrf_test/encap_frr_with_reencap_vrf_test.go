@@ -39,6 +39,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -105,8 +107,12 @@ const (
 	gribiIPv4EntryDefVRF5  = "192.0.2.105"
 	gribiIPv4EntryVRF1111  = "203.0.113.1"
 	gribiIPv4EntryVRF1112  = "203.0.113.2"
+	gribiIPv4EntryVRF1113  = "203.100.113.1"
+	gribiIPv4EntryVRF1114  = "203.100.113.2"
 	gribiIPv4EntryVRF2221  = "203.0.113.100"
 	gribiIPv4EntryVRF2222  = "203.0.113.101"
+	gribiIPv4EntryVRF2223  = "203.100.113.100"
+	gribiIPv4EntryVRF2224  = "203.100.113.101"
 	gribiIPv4EntryEncapVRF = "138.0.11.0"
 
 	dutAreaAddress = "49.0001"
@@ -904,6 +910,7 @@ func TestEncapFrr(t *testing.T) {
 		top:        top,
 		electionID: eID,
 		otg:        otg,
+		ctx:        ctx,
 	}
 
 	testCases := baseScenario.TestCases(atePortNamelist, ipv4InnerDst)
@@ -995,33 +1002,82 @@ func TestEncapFrr(t *testing.T) {
 				args.client.Modify().ReplaceEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).WithNextHopNetworkInstance(niTeVrf222),
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2223).WithNextHopNetworkInstance(niTeVrf222),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1000).AddNextHop(1000, 1),
 
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).WithNextHopNetworkInstance(niTeVrf222),
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2224).WithNextHopNetworkInstance(niTeVrf222),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1001).AddNextHop(1001, 1),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
+				res := args.client.Results(t)
+				operIndexList := []uint64{1000, 1001}
+				if !deviations.GRIBIUnresolvableNexthopsUnsupported(dut) {
+					for _, operIndex := range operIndexList {
+						chk.HasResult(t, res,
+							fluent.OperationResult().
+								WithOperationType(constants.Replace).
+								WithNextHopOperation(operIndex).
+								WithProgrammingResult(fluent.InstalledInFIB).
+								AsResult(),
+							chk.IgnoreOperationID(),
+						)
+						chk.HasResult(t, res,
+							fluent.OperationResult().
+								WithOperationType(constants.Replace).
+								WithNextHopGroupOperation(operIndex).
+								WithProgrammingResult(fluent.InstalledInFIB).
+								AsResult(),
+							chk.IgnoreOperationID(),
+						)
+					}
+				}
 			}
 			if tc.TestID == "teVrf111NoMatch" {
 				args.client.Modify().ReplaceEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(101).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.1").
+						WithIndex(101).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1113).
 						WithNextHopNetworkInstance(niTeVrf111),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(102).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.2").
+						WithIndex(102).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1114).
 						WithNextHopNetworkInstance(niTeVrf111),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(101).AddNextHop(101, 1).AddNextHop(102, 3).WithBackupNHG(2001),
 				)
 				if err := awaitTimeout(args.ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+				}
+				res := args.client.Results(t)
+				if !deviations.GRIBIUnresolvableNexthopsUnsupported(dut) {
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Replace).
+							WithNextHopOperation(101).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Replace).
+							WithNextHopOperation(102).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopGroupOperation(101).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
 				}
 			}
 

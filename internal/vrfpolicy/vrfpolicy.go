@@ -37,6 +37,7 @@ const (
 	niEncapTeVrfC           = "ENCAP_TE_VRF_C"
 	niEncapTeVrfD           = "ENCAP_TE_VRF_D"
 	niDefault               = "DEFAULT"
+	niRepairVrf             = "REPAIR_VRF"
 	dscpEncapA1             = 10
 	dscpEncapA2             = 18
 	dscpEncapB1             = 20
@@ -74,7 +75,7 @@ type policyFwRule struct {
 func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222}
+	vrfs := []string{niDecapTeVrf, niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222, niRepairVrf}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
