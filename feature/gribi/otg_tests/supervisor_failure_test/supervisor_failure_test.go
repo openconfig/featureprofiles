@@ -312,6 +312,7 @@ func TestSupFailure(t *testing.T) {
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
 
