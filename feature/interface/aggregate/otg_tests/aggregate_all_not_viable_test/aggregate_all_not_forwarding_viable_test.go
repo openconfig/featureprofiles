@@ -374,7 +374,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			}
 			if port.PMD() == ondatra.PMD100GBASEFR {
 				e.AutoNegotiate = ygot.Bool(false)
-				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+				if deviations.ExplicitDuplexModeRequired(dut) {
+					e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+				}
 				if deviations.ExplicitPortSpeed(dut) {
 					e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 				}
