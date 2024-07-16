@@ -382,6 +382,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.17"
+  description: "RT-1.17: BGP route-refresh capability"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.18"
+  description: "RT-1.18: Support for MP-BGP w/ Multiple AFI-SAFI Tuples on a single neighborship"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
