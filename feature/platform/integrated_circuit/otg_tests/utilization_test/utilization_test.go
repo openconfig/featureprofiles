@@ -115,14 +115,14 @@ func TestResourceUtilization(t *testing.T) {
 	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	beforeUtzs := componentUtilizations(t, dut, comps)
 	if len(beforeUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
+		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
 	afterUtzs := componentUtilizations(t, dut, comps)
 	if len(afterUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
+		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestResourceUtilization(t *testing.T) {
 
 	afterClearUtzs := componentUtilizations(t, dut, comps)
 	if len(afterClearUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
+		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
 
 	t.Run("Utilization after BGP route clear", func(t *testing.T) {

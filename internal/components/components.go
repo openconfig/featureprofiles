@@ -58,7 +58,7 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 	return s
 }
 
-// FindComponentsByType finds the list of components based on hardware type.
+// FindActiveComponentsByType finds the list of active components based on hardware type.
 func FindActiveComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
 	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
 	var s []string
