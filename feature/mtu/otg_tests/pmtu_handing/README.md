@@ -65,6 +65,7 @@ paths:
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor:
+          platform_type: [ "INTEGRATED_CIRCUIT" ]
 
 
 rpcs:
