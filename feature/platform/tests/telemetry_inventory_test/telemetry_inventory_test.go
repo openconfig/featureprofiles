@@ -34,6 +34,7 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Fabric":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC,
 	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
+	"Fan Tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
@@ -115,6 +116,7 @@ func TestMain(m *testing.M) {
 //   - Fabric card
 //   - FabricChip
 //   - Fan
+//   - Fan Tray
 //   - Supervisor or Controller
 //   - Validate telemetry components/component/state/software-version.
 //   - SwitchChip
@@ -200,20 +202,36 @@ func TestHardwareCards(t *testing.T) {
 		}, {
 			desc: "Fan",
 			cardFields: properties{
-				descriptionValidation:                 true,
-				idValidation:                          false,
-				installPositionAndComponentValidation: true,
-				nameValidation:                        true,
-				partNoValidation:                      true,
-				serialNoValidation:                    true,
-				mfgNameValidation:                     false,
-				mfgDateValidation:                     false,
-				hwVerValidation:                       false,
-				fwVerValidation:                       false,
-				rrValidation:                          false,
-				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:                      false,
-				pType:                                 componentType["Fan"],
+				descriptionValidation: true,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:      true,
+				pType:                 componentType["Fan"],
+			},
+		}, {
+			desc: "Fan Tray",
+			cardFields: properties{
+				descriptionValidation: true,
+				idValidation:          false,
+				nameValidation:        true,
+				partNoValidation:      true,
+				serialNoValidation:    true,
+				mfgNameValidation:     false,
+				mfgDateValidation:     false,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
+				rrValidation:          false,
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:      true,
+				pType:                 componentType["Fan Tray"],
 			},
 		}, {
 			desc: "Linecard",
@@ -338,6 +356,10 @@ func TestHardwareCards(t *testing.T) {
 				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
 			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
 				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Fan Tray" && *args.NumFanTrays == 0 {
+				t.Skip("Skip Fan Tray Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Fan" && *args.NumFans == 0 {
+				t.Skip("Skip Fan Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
