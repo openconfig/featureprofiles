@@ -76,6 +76,6 @@ paths:
 
 rpcs:
   gnmi:
-    gNMI.Replace:
+    gNMI.Set:
     gNMI.Subscribe:
 ```
