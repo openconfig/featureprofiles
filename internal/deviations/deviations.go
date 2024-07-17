@@ -1114,3 +1114,8 @@ func PeerGroupDefEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
 func RedisConnectedUnderEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRedisConnectedUnderEbgpVrfUnsupported()
 }
+
+// BgpAfiSafiInDefaultNiBeforeOtherNi returns true if certain AFI SAFIs are configured in default network instance before other network instances
+func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiInDefaultNiBeforeOtherNi()
+}
