@@ -97,21 +97,41 @@ power.
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
         * Typical min/max value range for TX Output Power -10 to -6 dbm.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /components/component/transceiver/config/enabled
+```yaml
+paths:
+    # Config Parameter coverage
+    /interfaces/interface/config/enabled:
+    # Telemetry Parameter coverage
+    /components/component/optical-channel/state/input-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/input-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/instant:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/avg:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/min:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/optical-channel/state/output-power/max:
+        platform_type: ["OPTICAL_CHANNEL"]
+    /components/component/transceiver/physical-channels/channel/state/input-power/instant:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/transceiver/physical-channels/channel/state/input-power/min:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/transceiver/physical-channels/channel/state/input-power/max:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/transceiver/physical-channels/channel/state/input-power/avg:
+        platform_type: [ "TRANSCEIVER" ]
 
-## Telemetry Parameter coverage
-
-*   /components/component/optical-channel/state/input-power/instant
-*   /components/component/optical-channel/state/input-power/avg
-*   /components/component/optical-channel/state/input-power/min
-*   /components/component/optical-channel/state/input-power/max
-*   /components/component/optical-channel/state/output-power/instant
-*   /components/component/optical-channel/state/output-power/avg
-*   /components/component/optical-channel/state/output-power/min
-*   /components/component/optical-channel/state/output-power/max
-*   /components/component/transceiver/physical-channel/channel/state/input-power/instant
-*   /components/component/transceiver/physical-channel/channel/state/input-power/min
-*   /components/component/transceiver/physical-channel/channel/state/input-power/max
-*   /components/component/transceiver/physical-channel/channel/state/input-power/avg
+rpcs:
+    gnmi:
+        gNMI.Get:
+        gNMI.Set:
+        gNMI.Subscribe:
+```
