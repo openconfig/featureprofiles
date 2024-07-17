@@ -16,7 +16,7 @@ Topology: ATE1—DUT1–ATE2
                                
 *   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
 *   Enable Segment Routing for the ISIS
-*   Enable MPLS forwarding (if required)
+*   Enable MPLS forwarding.
 
 *  Prefix (1) with node-SID is advertised by the direct ISIS neighbor
 *  Prefix (2) with node-SID is advertised by simulated indirect ISIS speaker
@@ -25,7 +25,6 @@ Topology: ATE1—DUT1–ATE2
 
 Verify that:
 
-*  DUT receives prefixes with SIDs and has a correct emulated ISIS topology (database).
 *  DUT advertises both prefixes with node-SID to ATE2.
 
 Generate traffic:
@@ -63,5 +62,4 @@ rpcs:
 ```
 ## Required DUT platform
 
-* MFF
 * FFF
