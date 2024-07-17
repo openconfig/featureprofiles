@@ -18,7 +18,7 @@ On DUT1 configure:
 *   Enable MPLS-SR for ISIS (`/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled`)
 *   reserved-label-block (lower-bound: 1000000 upper-bound: 1048576)
 *   Segment Routing Global Block (srgb)  with lower-bound: 400000 upper-bound: 465001
-*   Segment Routing Local Block (start: 40000 range: 1000)
+*   Segment Routing Local Block (srlb) with lower-bound: 40000 upper-bound: 41000)
 
 Verify:
 
