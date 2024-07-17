@@ -57,6 +57,4 @@ rpcs:
 
 ## Required DUT platform
 
-* MFF
 * FFF
-* VRX
