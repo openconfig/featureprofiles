@@ -122,7 +122,7 @@ func TestPM(t *testing.T) {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-			
+
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 		}
 	}
