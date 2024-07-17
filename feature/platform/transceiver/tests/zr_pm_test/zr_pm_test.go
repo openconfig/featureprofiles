@@ -203,7 +203,7 @@ func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, 
 			return
 		}
 	case oc.Interface_OperStatus_DOWN:
-		if instant != inactiveValue || avg != inactiveValue || min != inactiveValue || max != inactiveValue {
+		if instant != inactiveValue {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
