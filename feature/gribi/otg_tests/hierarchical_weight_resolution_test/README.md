@@ -121,13 +121,12 @@ WCMP width of 16 nexthops:
 
 N/A
 
-## Telemetry Parameter Coverage
-
-TODO:
-/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
-
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  ## State Paths ##
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+
 rpcs:
   gnmi:
     gNMI.Get:
@@ -141,5 +140,5 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-vRX
+* vRX - virtual router device
 
