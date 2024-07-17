@@ -197,6 +197,9 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
 	pg.PeerAs = ygot.Uint32(ateAS)
 	pg.PeerGroupName = ygot.String(peerGrpName)
+	if !deviations.SkipBgpSendCommunityType(dut) {
+		pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+	}
 	as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	as4.Enabled = ygot.Bool(true)
 	as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -528,7 +531,7 @@ func validateDutIPv4PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)
 		t.Logf("DUT: Could not find AdjRibInPost Community for Prefix %v", subnet)
 	}
-	//TODO Validate Community for ipv4 prefixes on DUT
+	// TODO Validate Community for ipv4 prefixes on DUT
 }
 
 func validateATEIPv6PrefixCommunitySet(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, wantCommunitySet []string) {
@@ -575,7 +578,7 @@ func validateDutIPv6PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)
 		t.Logf("DUT: Could not find AdjRibInPost Community for Prefix %v", subnet)
 	}
-	//TODO Validate Community for ipv6 prefixes on DUT
+	// TODO Validate Community for ipv6 prefixes on DUT
 }
 
 type TestResults struct {
