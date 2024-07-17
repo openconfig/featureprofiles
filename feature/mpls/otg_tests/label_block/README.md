@@ -16,7 +16,7 @@ On DUT1 configure:
 
 *   ISIS adjacency between ATE1 and DUT1
 *   Enable MPLS-SR for ISIS (`/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled`)
-*   Static Global Block (start: 1000000 range: 48576)
+*   reserved-label-block (lower-bound: 1000000 upper-bound: 1048576)
 *   Segment Routing Global Block (start: 400000 range: 65001)
 *   Segment Routing Local Block (start: 40000 range: 1000)
 
