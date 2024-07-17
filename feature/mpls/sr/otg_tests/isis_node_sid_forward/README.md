@@ -14,7 +14,7 @@ MPLS-SR transit forwarding to Node-SID distributed over ISIS
 
 Topology: ATE1—DUT1–ATE2
                                
-*   Configure Segment Routing Global Block (start: 400000 range: 65001)
+*   Configure Segment Routing Global Block (srgb) lower-bound: 400000 upper-bound: 465001)
 *   Enable Segment Routing for the ISIS
 *   Enable MPLS forwarding (if required)
 
