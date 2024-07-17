@@ -16,14 +16,23 @@ BGP 2-Byte and 4-Byte ASN support
     *   ATE (4-byte) - DUT (4-byte) - iBGP IPv4
     *   ATE (4-byte) - DUT (4-byte) - iBGP IPv6
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
+```yaml
+paths:
+    ## Config Parameter Coverage
 
-*   /global/config/as
-*   /neighbors/neighbor/config/peer-as
-*   /neighbors/neighbor/config/local-as
+    /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
 
-## Telemetry Parameter Coverage
+    ## Telemetry Parameter Coverage
 
-*   /global/config/as
-*   /neighbors/neighbor/config/peer-as
-*   /neighbors/neighbor/config/local-as
+    /network-instances/network-instance/protocols/protocol/bgp/global/state/as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```

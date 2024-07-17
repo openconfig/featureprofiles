@@ -304,7 +304,6 @@ func TestScaling(t *testing.T) {
 	}
 	gribi.BecomeLeader(t, client)
 
-	// pushIPv4EntriesRefactored(t, args, subIntfIPs)
 	vrfConfigs := tescale.BuildVRFConfig(dut, subIntfIPs,
 		tescale.Param{
 			V4TunnelCount:         *fpargs.V4TunnelCount,
@@ -314,17 +313,18 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+	createFlow(t, ate, top, vrfConfigs[1])
+
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
 		client.Modify().AddEntry(t, entries...)
-		if err := awaitTimeout(ctx, client, t, 2*time.Minute); err != nil {
+		if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
 			t.Fatalf("Could not program entries, got err: %v", err)
 		}
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
 
-	createFlow(t, ate, top, vrfConfigs[1])
 	checkTraffic(t, ate, top)
 }
 

@@ -5,3 +5,13 @@ uuid: "6f9059c8-e49c-4ff6-8bd2-f474cd4fcfce"
 plan_id: "TRANSCEIVER-10"
 description: "Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
 testbed: TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}
