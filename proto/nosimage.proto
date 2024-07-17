@@ -41,6 +41,10 @@ message NOSImageProfile {
   // /system/state/software-version.
   string software_version = 3;
 
+  // The name of the vendor's networking hardware device that is compatible with
+  // the NOS software version.
+  string hardware_name = 7;
+
   // The date the network operating system is released.
   // The date could be a value in the future indicating a future release.
   google.protobuf.Timestamp release_date = 4;
