@@ -40,7 +40,7 @@ The test also confirms the correct forwarding of traffic not matching the decaps
     *  Rule 2: Match all other traffic and forward (no decapsulation).
     *  Apply the defined policy with to the ingress ATE Port 1 interface. 
     
-    **TODO:** OC model does not have a provision to apply decap policy at the network-instance level for traffic destined to device loopback interface (see Cisco CLI config exepmt below). Needs clarification and/or augmentation by vendors if required.
+    **TODO:** OC model does not have a provision to apply decap policy at the network-instance level for traffic destined to device loopback interface (see Cisco CLI config exepmt below). Needs clarification and/or augmentation by vendors if required. [PR #1150](https://github.com/openconfig/public/pull/1150)
 
     ```
     vrf-policy
