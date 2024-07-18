@@ -16,6 +16,7 @@ import (
 	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/client"
@@ -560,4 +561,21 @@ func UniqueValues(t *testing.T, m map[string]string) []string {
 		}
 	}
 	return result
+}
+
+// getLCList returns a list of LCs on the device
+func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
+	lcList := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	t.Logf("List of linecard on device: %v", lcList)
+	return lcList
+}
+
+// getLCList returns the LC slot ID on the device for a location.
+func GetLCSlotID(lcloc string) uint8 {
+	lcSl := strings.Split(lcloc, "/")
+	lcslotID, err := strconv.Atoi(lcSl[1])
+	if err != nil {
+		panic(err)
+	}
+	return uint8(lcslotID)
 }
