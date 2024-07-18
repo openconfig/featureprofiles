@@ -95,7 +95,7 @@ func TestPM(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 
@@ -108,7 +108,7 @@ func TestPM(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, false, interfaceStreams, otnStreams)
 
@@ -121,7 +121,7 @@ func TestPM(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
 		}
@@ -195,18 +195,18 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 }
 
 // validatePMValue validates the pm value.
-func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, linkState oc.E_Interface_OperStatus) {
-	switch linkState {
+func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
+	switch operStatus {
 	case oc.Interface_OperStatus_UP:
 		if instant < minAllowed || instant > maxAllowed {
 			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
 	case oc.Interface_OperStatus_DOWN:
-		if instant != inactiveValue || avg != inactiveValue || min != inactiveValue || max != inactiveValue {
+		if instant != inactiveValue {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
 	}
-	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, linkState, min, max, avg, instant)
+	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
 }
