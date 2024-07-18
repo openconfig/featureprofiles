@@ -513,6 +513,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.53"
+  description: "Prefix-set test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/prefix_set/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.55"
   description: "BGP session mode (active/passive)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
