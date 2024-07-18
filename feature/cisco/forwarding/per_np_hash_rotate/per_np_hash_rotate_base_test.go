@@ -83,13 +83,6 @@ func getPerLCPerNPHashValTable(t *testing.T, dut *ondatra.DUTDevice) map[string]
 		npList := parseDebugCLIOutput(cliResp)
 		hashValMap[lc] = npList
 	}
-	// w := tabwriter.NewWriter(os.Stdout, 10, 1, 1, ' ', tabwriter.Debug)
-	// t.Log("Print a table of per-NP hash-rotate values for each LC on the device.")
-	// fmt.Fprintln(w, "LC_SLOT_ID\t  NP0\t  NP1\t  NP2")
-	// for lck, npv := range hashValMap {
-	// 	fmt.Fprintf(w, " %v\t  %v\t  %v\t  %v\t\n", lck, npv[0], npv[1], npv[2])
-	// }
-	// w.Flush()
 	return hashValMap
 }
 
