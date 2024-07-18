@@ -5,10 +5,6 @@ replace: {
   val: {
     ascii_val:
 "hostname R4_churchill\n"
-"username cisco\n"
-" group root-lr\n"
-" group cisco-support\n"
-" secret 10 $6$/JPCT/panLtw3T/.$7tqsN2aouOHw9Lsa.YLftVDBa57eBNRJSjOvaeVMRhhgsWWvvLG6EU9kzCH/8QUG2SjbPn5YUMwplwPTBq7sX1"
 "!\n"
 "grpc\n"
 " port 57777\n"
