@@ -182,35 +182,21 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	t.Log("Waiting for BGP v4 prefix to be installed")
-	got, found := gnmi.Watch(t, dut, statePath.Neighbor(agg1.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	got, found := gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		prefixCount, ok := val.Val()
 		return ok && prefixCount == 1
 	}).Await(t)
 	if !found {
-		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got, 1)
-	}
-	got2, found2 := gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		prefixCount, ok := val.Val()
-		return ok && prefixCount == 1
-	}).Await(t)
-	if !found2 {
-		t.Errorf("Installed prefixes v4 mismatch: got %v, want %v", got2, 1)
+		t.Fatalf("Installed prefixes v4 mismatch: got %v, want %v", got, 1)
 	}
 
 	t.Log("Waiting for BGP v6 prefix to be installed")
-	got, found = gnmi.Watch(t, dut, statePath.Neighbor(agg1.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	got, found = gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		prefixCount, ok := val.Val()
 		return ok && prefixCount == 1
 	}).Await(t)
 	if !found {
-		t.Errorf("Installed prefixes v6 mismatch: got %v, want %v", got, 1)
-	}
-	got2, found2 = gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 180*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		prefixCount, ok := val.Val()
-		return ok && prefixCount == 1
-	}).Await(t)
-	if !found2 {
-		t.Errorf("Installed prefixes v6 mismatch: got %v, want %v", got2, 1)
+		t.Fatalf("Installed prefixes v6 mismatch: got %v, want %v", got, 1)
 	}
 
 	startTraffic(t, ate, top)
@@ -458,7 +444,6 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4,
 
 func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	isis := dev.Isis().SetSystemId(agg.ateISISSysID).SetName(agg.ateAggName + ".ISIS")
 	isis.Basic().SetHostname(isis.Name())
 	isis.Advanced().SetAreaAddresses([]string{ateAreaAddress})
@@ -469,13 +454,11 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetMetric(10)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 
-	if deviations.ISISLoopbackRequired(dut) {
-		// configure ISIS loopback interface and advertise them via ISIS.
-		isisPort2V4 := dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".ISISV4").SetLinkMetric(10)
-		isisPort2V4.Addresses().Add().SetAddress(agg.ateLoopbackV4).SetPrefix(32)
-		isisPort2V6 := dev.Isis().V6Routes().Add().SetName(agg.ateAggName + ".ISISV6").SetLinkMetric(10)
-		isisPort2V6.Addresses().Add().SetAddress(agg.ateLoopbackV6).SetPrefix(uint32(128))
-	}
+	// configure ISIS loopback interface and advertise them via ISIS.
+	isisPort2V4 := dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".ISISV4").SetLinkMetric(10)
+	isisPort2V4.Addresses().Add().SetAddress(agg.ateLoopbackV4).SetPrefix(32)
+	isisPort2V6 := dev.Isis().V6Routes().Add().SetName(agg.ateAggName + ".ISISV6").SetLinkMetric(10)
+	isisPort2V6.Addresses().Add().SetAddress(agg.ateLoopbackV6).SetPrefix(uint32(128))
 
 }
 
@@ -545,9 +528,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
-	}
-	if !deviations.ISISLoopbackRequired(dut) {
-		configureStaticRouteToATELoopbacks(t, dut)
 	}
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
@@ -623,7 +603,6 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
 	if deviations.ISISLoopbackRequired(dut) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 		// add loopback interface to ISIS
@@ -783,20 +762,4 @@ func formatID(input string) string {
 	formatted := fmt.Sprintf("%s.%s.%s.00-00", part1, part2, part3)
 
 	return formatted
-}
-func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
-	t.Helper()
-
-	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-	intf := isisPath.Interface(intfName)
-
-	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, 2*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		v, ok := val.Val()
-		return v == oc.Isis_IsisInterfaceAdjState_UP && ok
-	}).Await(t)
-
-	if !ok {
-		t.Fatalf("IS-IS adjacency was not formed on interface %v", intfName)
-	}
 }
