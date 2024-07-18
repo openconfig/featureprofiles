@@ -200,6 +200,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	startTraffic(t, ate, top)
+	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
@@ -261,6 +262,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	startTraffic(t, ate, top)
+	time.Sleep(time.Minute)
 
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
