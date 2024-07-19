@@ -1005,7 +1005,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
-    if not force_install and os.path.exists(reserved_testbed['install_lock_file']):
+    if os.path.exists(reserved_testbed['install_lock_file']):
         return
     
     logger.print("Performing Software Upgrade...")

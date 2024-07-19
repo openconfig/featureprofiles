@@ -83,10 +83,10 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to handle gnoi LinkQualification().Get() for testID %v on Reflector: %v", plqID, err)
 		}
-		if generatorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+		if generatorGetResponse.GetResults()[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
 			genRunning = true
 		}
-		if reflectorGetResponse.Results[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+		if reflectorGetResponse.GetResults()[plqID].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
 			refRunning = true
 		}
 		if genRunning && refRunning {
@@ -515,7 +515,6 @@ func TestPlqSingleInterface(t *testing.T) {
 		}
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
-		t.Logf("LinkQualification().Get(): %v, err: %v", getResp.Results[plqID], err)
 		if err != nil {
 			t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
 		}
