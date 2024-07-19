@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestPerNPhashRotateVerifyval(t *testing.T) {
+func TestPerNPhashRotateVerifyVal(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lcList = util.GetLCList(t, dut)
 	hashMap := getPerLCPerNPHashValTable(t, dut)

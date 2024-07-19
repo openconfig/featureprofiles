@@ -20,20 +20,13 @@ package per_np_hash_rotate_test
 import (
 	"context"
 	"fmt"
-	// "os"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
-	// "text/tabwriter"
-
-	// "time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	// "github.com/openconfig/featureprofiles/internal/components"
-	// "github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/ondatra"
-	// "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
@@ -43,22 +36,27 @@ const (
 	lbHashSeparationOffset = 7
 )
 
-// testArgs holds the objects needed by a test case.
-// type testArgs struct {
-// 	dut         *ondatra.DUTDevice
-// 	ate         *ondatra.ATEDevice
-// 	topo        *ondatra.ATETopology
-// 	ctx         context.Context
-// 	gribiClient *gribi.Client
-// 	t           *testing.T
-// }
+// setperNPHashConfig configures per NP hash-rotate valie for a LC with
+// cef platform load-balancing algorithm adjust <> instance <> location <>.
+func setperNPHashConfig(t *testing.T, dut *ondatra.DUTDevice) map[string][]int {
+	t.Helper()
+	hashValMap := make(map[string][]int)
+	//get per LC per NP hash-rotate value from the device
+	for _, lc := range lcList {
+		debugCLI := fmt.Sprintf("show controllers npu debugshell 0 'script device_hash_rotate_info get_val_all_npu' location %v", lc)
+		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
+		npList := parseDebugCLIOutput(cliResp)
+		hashValMap[lc] = npList
+	}
+	return hashValMap
+}
 
 // verifyPerNPHashRotateValCalculation verifies the value programmed as per https://gh-xr.scm.engit.cisco.com/xr/iosxr/blob/main/platforms/common/leaba/ofa/include/la_loadbalance.h#L126
 // PER_NP_HASH_ROTATE = (CFG_RTR_ID+LC_ID+(NPU_ID*LB_HASH_SEPARATION_OFFSET)) % (LB_HASH_MAX_NODE_ID+1)
 // CFG_RTR_ID = show ofa objects global location <> | i router_id
 // LC_ID = LC Slot# + 1 (due to CSCwk77444);  LB_HASH_SEPARATION_OFFSET = 7 ; LB_HASH_MAX_NODE_ID = 35
 // Programmed Hash rotate value in SDK = PER_NP_HASH_ROTATE + 1.
-// TODO : Remove adding 1 in lcSlot after CSCwk77444 is fixed
+// TODO : Remove adding 1 in lcSlot after CSCwk77444 is fixed.
 func verifyPerNPHashRotateValCalculation(t *testing.T, lcSlot, npuID, rtrID uint32) int {
 	t.Helper()
 	var hashVal int
@@ -108,6 +106,7 @@ func parseDebugCLIOutput(cliOut string) []int {
 	return npList
 }
 
+// getRouterID returns uint32 OFA router-id using show ofa objects global location <> CLI.
 func getRouterID(t *testing.T, dut *ondatra.DUTDevice, lcloc string) uint32 {
 	var rtr string
 	ofaGlObj := fmt.Sprintf("show ofa objects global location %v | include router", lcloc)
