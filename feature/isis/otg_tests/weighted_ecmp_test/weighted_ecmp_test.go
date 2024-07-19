@@ -173,6 +173,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
+	
 	for _, agg := range []*aggPortData{agg1, agg2} {
 		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
