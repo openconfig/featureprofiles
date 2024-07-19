@@ -286,24 +286,16 @@ func setupEBGPAndAdvertise(t *testing.T, dut *ondatra.DUTDevice, ts *isissession
 
 	// Configure Import Allow-All policy
 	configureRoutePolicy(t, ts.DUT, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		rpl := pgv4.GetOrCreateApplyPolicy()
-		rpl.SetImportPolicy([]string{"ALLOW"})
-		rplv6 := pgv6.GetOrCreateApplyPolicy()
-		rplv6.SetImportPolicy([]string{"ALLOW"})
+	pg1af4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	pg1af4.Enabled = ygot.Bool(true)
 
-	} else {
-		pg1af4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		pg1af4.Enabled = ygot.Bool(true)
+	pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
+	pg1rpl4.SetImportPolicy([]string{"ALLOW"})
 
-		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
-		pg1rpl4.SetImportPolicy([]string{"ALLOW"})
-
-		pg1af6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		pg1af6.Enabled = ygot.Bool(true)
-		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
-		pg1rpl6.SetImportPolicy([]string{"ALLOW"})
-	}
+	pg1af6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	pg1af6.Enabled = ygot.Bool(true)
+	pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
+	pg1rpl6.SetImportPolicy([]string{"ALLOW"})
 
 	gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Config(), dni)
 
