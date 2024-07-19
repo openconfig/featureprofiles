@@ -760,26 +760,26 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 		},
-		// {
-		// 	numbreakouts:  4,
-		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		// },
-		// {
-		// 	numbreakouts:  3,
-		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		// },
-		// {
-		// 	numbreakouts:  2,
-		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		// },
-		// {
-		// 	numbreakouts:  1,
-		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		// },
-		// {
-		// 	numbreakouts:  4,
-		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB,
-		// },
+		{
+			numbreakouts:  4,
+			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		},
+		{
+			numbreakouts:  3,
+			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		},
+		{
+			numbreakouts:  2,
+			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		},
+		{
+			numbreakouts:  1,
+			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		},
+		{
+			numbreakouts:  4,
+			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB,
+		},
 	}
 	for _, tc := range cases {
 		for _, componentName := range componentNameList {
