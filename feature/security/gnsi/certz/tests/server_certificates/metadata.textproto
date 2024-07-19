@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "8ab4bc23-04ca-46fe-b055-c52c22251d83"
+plan_id:  "CERTZ-2"
+description:  "Server Certificate"
+testbed:  TESTBED_DUT_ATE_2LINKS
