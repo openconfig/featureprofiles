@@ -272,6 +272,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MPLS-1.1"
+  description: "MPLS label blocks: Static and MPLS-SR"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/label_block/README.md"
+  exec: " "
+}
+test: {
   id: "OC-1.1"
   description: "System Configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
