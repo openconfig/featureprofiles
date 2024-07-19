@@ -15,7 +15,7 @@
 For each section of configuration below, prepare a gnmi.SetBatch  with all the configuration items appended to one SetBatch. Then apply the configuration to the DUT in one gnmi.Set using the `replace` option
 
 ### RT-1.53.1 [TODO:https://github.com/openconfig/featureprofiles/issues/3306]
-#### Validate that a prefix list can be created correctly
+#### Create a prefix-set with 2 prefixes
 *   Create a prefix-set with name "prefix-set-a"
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
 *   Set the mode to IPv4
@@ -30,7 +30,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range
 
 ### RT-1.53.2 [TODO:https://github.com/openconfig/featureprofiles/issues/3306]
-#### Validate that a prefix list can be replaced correctly
+#### Replace the prefix-set by replacing an existing prefix with new prefix
 *   Define two prefixes 10.240.31.48/28 and 173.36.144.0/20 with mask "exact"
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
@@ -42,7 +42,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range
 
 ### RT-1.53.3 [TODO:https://github.com/openconfig/featureprofiles/issues/3306]
-#### Validate that a prefix list can be updated correctly
+### Replace the prefix-set with 2 existing and a new prR
 *   Define three prefixes 10.240.31.48/28, 10.240.31.64/28 and 173.36.144.0/20 with mask "exact"
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
