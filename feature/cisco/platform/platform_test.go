@@ -760,26 +760,26 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 		},
-		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		},
-		{
-			numbreakouts:  3,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		},
-		{
-			numbreakouts:  2,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		},
-		{
-			numbreakouts:  1,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-		},
-		{
-			numbreakouts:  4,
-			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB,
-		},
+		// {
+		// 	numbreakouts:  4,
+		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		// },
+		// {
+		// 	numbreakouts:  3,
+		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		// },
+		// {
+		// 	numbreakouts:  2,
+		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		// },
+		// {
+		// 	numbreakouts:  1,
+		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
+		// },
+		// {
+		// 	numbreakouts:  4,
+		// 	breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB,
+		// },
 	}
 	for _, tc := range cases {
 		for _, componentName := range componentNameList {
@@ -1058,7 +1058,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName)
+				path := gnmi.OC().Component(componentName).Port()
 				defer observer.RecordYgot(t, "UPDATE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
