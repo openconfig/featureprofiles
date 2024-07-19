@@ -32,7 +32,7 @@ replace: {
       "username cisco\n"
       " group root-lr\n"
       " group cisco-support\n"
-      " secret 5 $1$k6Xn$rD8WIoP896Jy9RND3FZKa1\n"
+      " secret 10 $6$aVGtw1cICzZnDw1.$9gzsV.6nE9S4wMHBjqYwWwavJfTSkVuF1DARDoDXrp41glO26FXea4Cd4YombSft0FTOFOP4Q5Sn4BBNDO/6i0\n"
       " password 7 1511021F0725\n"
       "!\n"
       "aaa accounting exec default start-stop group google-tacacs group tacacs+\n"
