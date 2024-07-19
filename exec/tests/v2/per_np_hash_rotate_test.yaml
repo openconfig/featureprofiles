@@ -1,0 +1,11 @@
+name: PerNPHashRotate 
+owners: 
+  - arvbaska
+
+tests:
+- name: PerNPHashRotate 
+  path: feature/cisco/forwarding/per_np_hash_rotate
+  timeout: 4200
+  mustpass: true
+  internal: true
+  branch: master

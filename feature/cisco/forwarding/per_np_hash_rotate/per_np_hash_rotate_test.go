@@ -19,33 +19,40 @@ package per_np_hash_rotate_test
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 	"text/tabwriter"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 )
 
 var (
 	lcList = []string{}
 	rtrID  uint32
+	npList = []int{0, 1, 2}
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestPerNPhashRotateVerifyVal(t *testing.T) {
+// TestPerNPHashRotateVerifyAutoVal verifies hash-rotate calculation for each NP/LC on the device.
+func TestPerNPHashRotateVerifyAutoVal(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lcList = util.GetLCList(t, dut)
-	hashMap := getPerLCPerNPHashValTable(t, dut)
+	hashMap := getPerLCPerNPHashTable(t, dut)
 	for lck, npv := range hashMap {
 		lcSlot := uint32(util.GetLCSlotID(lck))
-		rtrID = getRouterID(t, dut, lck)
+		rtrID = getOFARouterID(t, dut, lck)
 		for npuID, gotVal := range npv {
-			if want := verifyPerNPHashRotateValCalculation(t, lcSlot, uint32(npuID), rtrID); want != gotVal {
+			if want := verifyPerNPHashAutoValCalculation(t, lcSlot, uint32(npuID), rtrID); want != gotVal {
 				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lck, npuID, gotVal, want)
 			}
 		}
@@ -57,4 +64,78 @@ func TestPerNPhashRotateVerifyVal(t *testing.T) {
 		fmt.Fprintf(w, " %v\t %v\t  %v\t  %v\t  %v\t\n", rtrID, lck, npv[0], npv[1], npv[2])
 	}
 	w.Flush()
+}
+
+// TestChangeRouterIDVerifyAutoVal verifies for each NP/LC on the device after router-ID change.
+// PI router-ID is influenced by Highest IP on device.
+func TestChangeRouterIDVerifyAutoVal(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ridB := getPIRouterID(t, dut)
+	t.Logf("IPv4 router-ID before change %v", ridB)
+	t.Log("Change router-id by configuring highest IPv4 address on existing lowest loopback0") //Hardcoded to lo0, since tests will run on sim.
+	dutLoopback := attrs.Attributes{
+		IPv4:    "254.254.254.254",
+		IPv4Len: 32,
+	}
+	lb := netutil.LoopbackInterface(t, dut, 0)
+	lo0 := dutLoopback.NewOCInterface(lb, dut)
+	lo0.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo0)
+	ridA := getPIRouterID(t, dut)
+	t.Logf("PI router-ID after change %v", ridA)
+	if ridB == ridA {
+		t.Errorf("IPv4 Router-id did not change want %v, got %v", dutLoopback.IPv4, ridA)
+	}
+	t.Log("Verify hash-rotate calculation across all LCs after router-id change")
+	TestPerNPHashRotateVerifyAutoVal(t)
+}
+
+type testCase struct {
+	name    string
+	desc    string
+	npval   []int
+	hashval int
+	lcloc   []string
+}
+
+func TestExplicitNPHashRotateConfig(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Get list of LCs")
+	lcList = util.GetLCList(t, dut)
+	cases := []testCase{
+		{
+			name:    "Test perNP CLI config for 1 NP",
+			desc:    "Configure per-NP hash value on single NP0 for all LCs",
+			npval:   npList[:1],
+			hashval: rand.Intn(35),
+			lcloc:   lcList,
+		},
+		{
+			name:    "Test perNP CLI config for All NPs",
+			desc:    "Configure per-NP hash value on All the NPs for all LCs",
+			npval:   npList,
+			hashval: rand.Intn(35),
+			lcloc:   lcList,
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			for _, lc := range tc.lcloc {
+				for _, np := range tc.npval {
+					setPerNPHashConfig(t, dut, tc.hashval, np, lc)
+					if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(tc.hashval); got != want {
+						t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, tc.npval, got, want)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestAutoHashValRandomize verifies the auto set per-NP hash values are randomized such that
+// a given LC's 3 NPs dont have same values & LCn & LCn+1 values are not same.
+func TestAutoHashValRandomize(t *testing.T) {
+	//TODO
+	t.Skip()
 }

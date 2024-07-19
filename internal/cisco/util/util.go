@@ -579,3 +579,12 @@ func GetLCSlotID(lcloc string) uint8 {
 	}
 	return uint8(lcslotID)
 }
+
+// stringToInt converts int values in string format to int.
+func StringToInt(t *testing.T, intString string) int {
+	intVal, err := strconv.Atoi(intString)
+	if err != nil {
+		t.Fatalf("error in int conversion %v", err)
+	}
+	return intVal
+}
