@@ -82,7 +82,7 @@ func TestChangeRouterIDVerifyAutoVal(t *testing.T) {
 	lo0.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo0)
 	ridA := getPIRouterID(t, dut)
-	t.Logf("PI router-ID after change %v", ridA)
+	t.Logf("IPv4 router-ID after change %v", ridA)
 	if ridB == ridA {
 		t.Errorf("IPv4 Router-id did not change want %v, got %v", dutLoopback.IPv4, ridA)
 	}

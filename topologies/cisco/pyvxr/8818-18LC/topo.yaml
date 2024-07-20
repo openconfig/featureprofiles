@@ -18,7 +18,8 @@ devices:
     linecard_types: [88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M,88-LC0-36FH-M]
     platform: spitfire_d
     lcc_type: '8818'
-    xr_hostname: dut
+    fabcard_type: 8818-FC0
+    xr_hostname: DUT_8818
     xr_password: cisco123
     xr_port_redir: 
       - 22

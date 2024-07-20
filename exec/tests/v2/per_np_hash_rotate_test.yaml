@@ -1,7 +1,8 @@
 name: PerNPHashRotate 
 owners: 
   - arvbaska
-
+testbeds:
+  - 8818-18LC
 tests:
 - name: PerNPHashRotate 
   path: feature/cisco/forwarding/per_np_hash_rotate
