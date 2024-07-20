@@ -396,8 +396,8 @@ test: {
 test: {
   id: "RT-1.19"
   description: "BGP 2-Byte and 4-Byte ASN support"
-  readme: ""
-  e
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
+  exec: " "
 test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
@@ -425,7 +425,7 @@ test: {
 test: {
   id: "RT-1.24"
   description: "BGP 2-byte and 4-byte ASN support with policy"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
   exec: " "
 }
 test: {
