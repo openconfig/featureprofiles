@@ -394,6 +394,11 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.19"
+  description: "BGP 2-Byte and 4-Byte ASN support"
+  readme: ""
+  e
+test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
