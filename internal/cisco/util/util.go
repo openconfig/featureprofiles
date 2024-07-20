@@ -571,11 +571,11 @@ func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
 }
 
 // GetLCSlotID returns the LC slot ID on the device for a location.
-func GetLCSlotID(lcloc string) uint8 {
+func GetLCSlotID(t *testing.T, lcloc string) uint8 {
 	lcSl := strings.Split(lcloc, "/")
 	lcslotID, err := strconv.Atoi(lcSl[1])
 	if err != nil {
-		panic(err)
+		t.Fatalf("error in int conversion %v", err)
 	}
 	return uint8(lcslotID)
 }

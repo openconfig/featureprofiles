@@ -49,7 +49,7 @@ func TestPerNPHashRotateVerifyAutoVal(t *testing.T) {
 	lcList = util.GetLCList(t, dut)
 	hashMap := getPerLCPerNPHashTable(t, dut)
 	for lck, npv := range hashMap {
-		lcSlot := uint32(util.GetLCSlotID(lck))
+		lcSlot := uint32(util.GetLCSlotID(t, lck))
 		rtrID = getOFARouterID(t, dut, lck)
 		for npuID, gotVal := range npv {
 			if want := verifyPerNPHashAutoValCalculation(t, lcSlot, uint32(npuID), rtrID); want != gotVal {
