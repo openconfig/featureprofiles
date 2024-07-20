@@ -563,14 +563,14 @@ func UniqueValues(t *testing.T, m map[string]string) []string {
 	return result
 }
 
-// getLCList returns a list of LCs on the device
+// GetLCList returns a list of LCs on the device
 func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
 	lcList := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 	t.Logf("List of linecard on device: %v", lcList)
 	return lcList
 }
 
-// getLCList returns the LC slot ID on the device for a location.
+// GetLCSlotID returns the LC slot ID on the device for a location.
 func GetLCSlotID(lcloc string) uint8 {
 	lcSl := strings.Split(lcloc, "/")
 	lcslotID, err := strconv.Atoi(lcSl[1])
@@ -580,7 +580,7 @@ func GetLCSlotID(lcloc string) uint8 {
 	return uint8(lcslotID)
 }
 
-// stringToInt converts int values in string format to int.
+// StringToInt converts int values in string format to int.
 func StringToInt(t *testing.T, intString string) int {
 	intVal, err := strconv.Atoi(intString)
 	if err != nil {
