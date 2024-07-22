@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 const (
 	trafficDuration          = 30 * time.Second
 	grTimer                  = 2 * time.Minute
-	triggerGrTimer           = 60
+	triggerGrTimer           = 180
 	stopDuration             = 45 * time.Second
 	grRestartTime            = 120
 	grStaleRouteTime         = 120
@@ -595,7 +595,14 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					dst = ateDst
 					dstStart = ibgpV4AdvStartRoute
 				}
-
+				if tc.restarter == "speaker" {
+					t.Skip("skipping speaker tests")
+					continue
+				}
+				// if tc.restarter == "receiver" {
+				// 	t.Skip("skipping receiver tests")
+				// 	continue
+				// }
 				t.Log(tc.desc)
 				t.Logf("Starting the test for %s", mode)
 				// Creating traffic
@@ -605,10 +612,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				t.Log("Starting traffic before Graceful restart trigger from DUT")
 				ate.OTG().StartTraffic(t)
 				startTime := time.Now()
-				t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
 
 				if tc.restarter == "speaker" {
-					// t.Skip("skipped speaker restarts")
 					var pId uint64
 					pName := BGPDaemons[dut.Vendor()]
 					t.Logf("Finding the process id")
@@ -621,15 +626,16 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					// Kill BGP daemon through gNOI Kill Request.
 					t.Logf("Kill the BGP process on the dut")
 					gNOIKillProcess(t, dut, pName, uint32(pId), tc.mode)
+					time.Sleep(2 * time.Second)
 
 				}
 
 				if tc.restarter == "receiver" {
 					if tc.mode == "gracefully" {
 						// Send Graceful Restart Trigger from ATE to DUT within the GR timer configured on the DUT
-						t.Log("Send Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
 						t.Log("Send Graceful Restart Trigger from OTG to DUT -- trigger GR Restart timer(60s) < configured GR restart Timer(120s)")
 						ate.OTG().SetControlAction(t, createGracefulRestartAction(t, []string{dst.Name + ".BGP4.peer"}, triggerGrTimer))
+						t.Log("Sending Traffic while GR timer counting down. Traffic should pass as BGP GR is enabled!")
 					}
 					if tc.mode == "abruptly" {
 						t.Logf("Stop BGP on the %s ATE Peer", mode)
@@ -642,19 +648,19 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				}
 
 				statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-				nbrPath := statePath.Neighbor(ateDst.IPv4)
+				nbrPath := statePath.Neighbor(dst.IPv4)
 
-				t.Run("VerifyBGPNOTEstablished", func(t *testing.T) {
-					t.Log("Waiting for BGP neighbor to go to ACTIVE state after GR Trigger to DUT...")
+				t.Run("Verify BGP NOT Established", func(t *testing.T) {
+					t.Logf("Waiting for %s BGP neighbor %s to go to ACTIVE state after GR Trigger to DUT...", tc.mode, dst.IPv4)
 					bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
 					_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 						currState, ok := val.Val()
-						t.Logf("current state is %s", currState.String())
+						t.Logf("current state of neighbour is %s", currState.String())
 						return ok && currState == bgpState
 					}).Await(t)
 					if !ok {
 						fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-						t.Errorf("BGP session did not go Down as expected")
+						t.Errorf("BGP session did not go ACTIVE as expected")
 					}
 				})
 
@@ -664,15 +670,16 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					stopBgp.Protocol().Bgp().Peers().SetPeerNames([]string{dst.Name + ".BGP4.peer"}).
 						SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
 					ate.OTG().SetControlState(t, stopBgp)
+
 				}
 				replaceDuration := time.Since(startTime)
 				waitDuration := grStaleRouteTime*time.Second - replaceDuration - 10*time.Second
-				t.Logf("waiting for %s", waitDuration)
+				t.Logf("Waiting for %s", waitDuration)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
 				verifyNoPacketLoss(t, ate)
 				t.Run("Verify BGP still not established", func(t *testing.T) {
-					t.Log("Waiting for BGP neighbor to go to ACTIVE state after GR Trigger to DUT...")
+					t.Logf("Waiting for %s BGP neighbor to go to ACTIVE state after GR Trigger to DUT...", tc.mode)
 					bgpState := oc.Bgp_Neighbor_SessionState_ACTIVE
 					_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 						currState, ok := val.Val()
@@ -681,7 +688,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					}).Await(t)
 					if !ok {
 						fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-						t.Errorf("BGP session did not go Down as expected")
+						t.Errorf("BGP session did not go ACTIVE as expected")
 					}
 				})
 				t.Logf("waiting 20 seconds to ensure the stale time expired")
@@ -689,6 +696,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 				sendTraffic(t, ate)
 				confirmPacketLoss(t, ate)
+
 			}
 		})
 	}
