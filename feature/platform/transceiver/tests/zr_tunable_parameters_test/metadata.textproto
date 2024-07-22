@@ -14,3 +14,13 @@ platform_exceptions: {
     missing_zr_optical_channel_tunable_parameters_telemetry: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    optical_channel_oper_mode_telemetry_unsupported: true
+    optical_channel_target_output_power_unsupported: true
+    optical_channel_frequency_value_unsupported: true
+  }
+}
