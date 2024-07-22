@@ -161,7 +161,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-
+	time.Sleep(time.Minute)
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
@@ -217,6 +217,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
+	time.Sleep(time.Minute)
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
@@ -260,6 +261,7 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)
+	time.Sleep(time.Minute)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
 }

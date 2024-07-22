@@ -21,10 +21,10 @@ Each LAG bundle below is made up of 2x100G ports.
 
 ```mermaid
 graph LR;
-A[ATE1:LAG1] <-- IBGP+IS-IS --> B[LAG1:DUT];
-C[DUT:LAG2] <-- IBGP+IS-IS --> D[LAG1:ATE2];
-E[DUT:LAG3] <-- IBGP+IS-IS --> F[LAG2:ATE2];
-G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
+A[ATE1:LAG1] <-- IS-IS --> B[LAG1:DUT];
+C[DUT:LAG2] <-- IS-IS --> D[LAG1:ATE2];
+E[DUT:LAG3] <-- IS-IS --> F[LAG2:ATE2];
+G[DUT:LAG4] <-- IS-IS --> H[LAG3:ATE2];
 ```
 
 ## Procedure
@@ -47,20 +47,16 @@ In the topology above,
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style
         set to WIDE_METRIC
 
-*   Configure IPv4 and IPv6 IBGP peering between both ATEs and the DUT using
-    their loopback addresses for both IPv4 and IPv6 address families.
-
-    *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config
 
 *   Attach a network with an IPv4 and an IPv6 prefix to ATE2 and have it
-    advertise these prefixes over its IBGP peering with the DUT. The DUT in turn
-    should advertise these prefixes over its IBGP peering with ATE1
+    advertise these prefixes over its ISIS peering with the DUT. The DUT in turn
+    should advertise these prefixes with ATE1
 
     *   Please use `IPv4 prefix = 100.0.1.0/24` and `IPv6 prefix =
         2001:db8:64:64::/64`
 
 *   Similarly, attach a different network to ATE1 with IPv4 and IPv6 prefixes
-    and advertise the same over its IBGP peering with the DUT.
+    and advertise the same over ISIS with the DUT.
 
     *   Please use `IPv4 prefix = 100.0.2.0/24` and `IPv6 prefix =
         2001:db8:64:65::/64`
@@ -85,11 +81,11 @@ In the topology above,
 ### Verification
 
 *   Ensure that the DUT has learnt the routes for prefixes 100.0.1.0/24 and
-    2001:db8:64:64::/64 over IBGP. Following paths
+    2001:db8:64:64::/64 over ISIS. Following paths
 
     *   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address
 
-*   Ensure that the DUT has learnt routes to the IPv4 and IPv6 loopback
+*   Ensure that the DUT has learnt routes to the IPv4 and IPv6
     addresses of ATE2. It is expected that these prefixes are reachable via 3
     different Next-Hop addresses corresponding to the LAG1, LAG2 and LAG3
     interfaces on ATE2.
@@ -156,10 +152,6 @@ into leaves: /routing-policy/defined-sets/prefix-sets/prefix-set:
 ```yaml
 paths:
   ## Config Paths ##
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/afi-safi-name:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/safi-name:
   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
@@ -176,8 +168,6 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
     value: ACCEPT_ROUTE
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
 
   ## State Paths ##
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
