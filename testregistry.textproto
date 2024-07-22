@@ -765,6 +765,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.9"
+  description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
@@ -774,12 +780,6 @@ test: {
   id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9"
-  description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
 test: {
@@ -1186,6 +1186,36 @@ test: {
 test: {
   id: "TUN-2.5"
   description: "GUE Fragmentation"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.6"
+  description: "MPLSoUDP Encap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.7"
+  description: "MPLSoUDP Decap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.8"
+  description: "ECMP hashing based on outer header of MPLSoUSP packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing for GUE flows with IPv4 and IPv6 payload"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.10"
+  description: "ECMP hashing based on outer and Inner header for GRE packets"
   readme: ""
   exec: " "
 }
