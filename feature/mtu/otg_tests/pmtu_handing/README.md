@@ -64,8 +64,6 @@ paths:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
-    /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor:
-      platform_type: [ "INTEGRATED_CIRCUIT" ]
 
 
 rpcs:
@@ -76,6 +74,9 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
+
+The device may support some vendor proprietary leafs to count MTU exceeded packets which are dropped due to control plane policing rules in the `components/component/integrated-circuit/pipeline-counters/control-plane-traffic/vendor` tree.  
+Implementation should add code with a switch statement to expose these counters, if they exist.
 
 ## Required DUT platform
 
