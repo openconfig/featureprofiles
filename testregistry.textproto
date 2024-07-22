@@ -1203,19 +1203,55 @@ test: {
 }
 test: {
   id: "TUN-2.8"
-  description: "ECMP hashing based on outer header of MPLSoUSP packets"
+  description: "ECMP hashing based on outer header of MPLSoUDP packets"
   readme: ""
   exec: " "
 }
 test: {
   id: "TUN-2.9"
-  description: "ECMP hashing for GUE flows with IPv4 and IPv6 payload"
+  description: "ECMP hashing for GUE flows with IPv4 and IPv6 outer and inner headers"
   readme: ""
   exec: " "
 }
 test: {
   id: "TUN-2.10"
   description: "ECMP hashing based on outer and Inner header for GRE packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.11"
+  description: "Filter based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.12"
+  description: "Filter based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.13"
+  description: "Interface based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.14"
+  description: "Interface based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.15"
+  description: "Interface based GUE encapsulation with IPv4 outer header"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.16"
+  description: "Interface based GUE encapsulation with IPv6 outer header"
   readme: ""
   exec: " "
 }
