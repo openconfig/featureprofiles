@@ -393,7 +393,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	dstBgp6PeerRoutes.Addresses().Add().SetAddress(ibgpV6AdvStartRoute).SetPrefix(advertisedRoutesv6Prefix).SetCount(routeCount)
 
 	ate.OTG().PushConfig(t, config)
-	ate.OTG().StartProtocols(t)
+	// ate.OTG().StartProtocols(t)
 	t.Log("Pushing config to ATE and starting protocols...")
 
 }
@@ -516,22 +516,22 @@ func TestBGPPGracefulRestart(t *testing.T) {
 		mode      string
 		desc      string
 	}{{
-		name:      "RestartDUTSpeakerGracefully",
+		name:      "RT-1.4.2 Restart DUT Speaker Gracefully",
 		restarter: "speaker",
 		mode:      "gracefully",
 		desc:      "RT-1.4.2 Restarting DUT speaker whose BGP process was killed gracefully",
 	}, {
-		name:      "RestartDUTSpeakerAbruptly",
+		name:      "RT-1.4.3 Restart DUT Speaker Abruptly",
 		restarter: "speaker",
 		mode:      "abruptly",
 		desc:      "RT-1.4.3 Restarting DUT speaker whose BGP process was killed abruptly",
 	}, {
-		name:      "RestartReceiverGracefully",
+		name:      "RT-1.4.4 Restart Receiver Gracefully",
 		restarter: "receiver",
 		mode:      "gracefully",
 		desc:      "RT-1.4.4 DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed",
 	}, {
-		name:      "RestartReceiverAbruptly",
+		name:      "RT-1.4.5 Restart Receiver Abruptly",
 		restarter: "receiver",
 		mode:      "abruptly",
 		desc:      "RT-1.4.5 DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly",
@@ -541,8 +541,11 @@ func TestBGPPGracefulRestart(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		ate := ondatra.ATE(t, "ate")
 
-		// Configure interface on the DUT
+		// ATE Configuration.
+		t.Log("Start ATE Config")
+		configureATE(t, ate)
 
+		// Configure interface on the DUT
 		t.Log("Start DUT interface Config")
 		configureDUT(t, dut)
 		configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
@@ -555,10 +558,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
-		// ATE Configuration.
-		t.Log("Start ATE Config")
-		configureATE(t, ate)
-
+		// Start protocols
+		ate.OTG().StartProtocols(t)
 		// Verify Port Status
 		t.Run("verify DUT Ports", func(t *testing.T) {
 			t.Log("Verifying port status")
@@ -657,7 +658,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 					}
 				})
 
-				if tc.restarter == "receiver" {
+				if tc.restarter == "speaker" {
 					t.Logf("Stop BGP on the %s ATE Peer to delay the BGP reestablishment for a period longer than the stale routes timer", mode)
 					stopBgp := gosnappi.NewControlState()
 					stopBgp.Protocol().Bgp().Peers().SetPeerNames([]string{dst.Name + ".BGP4.peer"}).
