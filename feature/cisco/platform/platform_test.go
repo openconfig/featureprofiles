@@ -892,7 +892,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -954,7 +954,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			})
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -1016,7 +1016,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
@@ -1059,7 +1059,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
 				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "UPDATE", path)
+				defer observer.RecordYgot(t, "DELETE", path)
 				gnmi.Delete(t, dut, path.Config())
 				verifyDelete(t, dut, componentName)
 			})
