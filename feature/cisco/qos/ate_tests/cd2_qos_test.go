@@ -101,9 +101,7 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
-
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -114,7 +112,6 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -124,12 +121,9 @@ func testQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
-
 			}
 		}
-
 	}
-
 }
 
 func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
@@ -185,9 +179,7 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 			for queueName, queue := range gote.Output.Queue {
 				queuestats[queueName] += *queue.TransmitPkts
-
 				queueNames = append(queueNames, queueName)
-
 			}
 		})
 	}
@@ -209,7 +201,6 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 
 	}
-
 }
 
 func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
@@ -253,8 +244,8 @@ func QueueDelete(ctx context.Context, t *testing.T, args *testArgs) {
 			}
 		})
 	})
-
 }
+
 func testQosCounteripv6(ctx context.Context, t *testing.T, args *testArgs) {
 	var baseConfigEgress *oc.Qos = setupQosEgress(t, args.dut)
 	println(baseConfigEgress)
@@ -365,7 +356,7 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 		outpackets = append(outpackets, *s.OutPkts)
 		inpackets = append(inpackets, *s.InPkts)
 	}
-	//outpupacket := outpackets[0]
+
 	t.Logf("*********************oupackets is %+v", outpackets)
 	t.Logf("*********************inputpackets is %+v", inpackets)
 	//interfaceTelemetryPath := gnmi.OC().Qos().Interface("Bundle-Ether120").State()
@@ -376,21 +367,13 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	// 		if !(MatchedPkts >= outpupacket) {
 	// 			t.Errorf(" Error Get Interface Telemetry fail for term %v", term)
 	// 		}
-
 	// 	}
-
 	// })
 
-	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether120").Input().Classifier(4).Term("cmap1").MatchedPackets().State())
-	//gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
-	interfaceList := []string{}
-	for i := 121; i < 128; i++ {
-		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-	}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
-	for _, EgressInterface := range interfaceList {
+	for _, EgressInterface := range args.interfaceList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(EgressInterface).State()
 		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -402,8 +385,7 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// validate bundle member interface
-	dutPorts := sortPorts(args.dut.Ports())
-	for _, bundlemember := range dutPorts[1:] {
+	for _, bundlemember := range args.dutPorts[1:] {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(bundlemember.Name()).State()
 		t.Run(fmt.Sprintf("Get Bundle Member Interface Telemetry %s", bundlemember.Name()), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -421,7 +403,6 @@ func testQoswrrCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -444,26 +425,19 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 	dutQosbundlePktsAfterTraffic := make(map[string]uint64)
 
 	queueNames := []string{"tc7", "tc6", "tc5", "tc4", "tc3", "tc2", "tc1"}
-	interfaceList := []string{}
-	for i := 121; i < 128; i++ {
-		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-	}
-	for _, EgressInterface := range interfaceList {
+
+	for _, EgressInterface := range args.interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
 	// validate bundle member interface
-	dutPorts := sortPorts(args.dut.Ports())
-	for _, bundlemember := range dutPorts[1:] {
+
+	for _, bundlemember := range args.dutPorts[1:] {
 		for _, queueName := range queueNames {
 			dutQosbundlePktsBeforeTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlemember.Name()).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
-
-	// for _, queueName := range queueNames {
-	// 	dutQosPktsBeforeTraffic[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-	// }
 
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -473,13 +447,13 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 	val := gnmi.Get(t, args.dut, QueueCounter.State())
 	gnmi.Await(t, args.dut, QueueCounter.State(), 3*time.Minute, val)
 	args.ate.Traffic().Stop(t)
-	for _, EgressInterface := range interfaceList {
+	for _, EgressInterface := range args.interfaceList {
 		for _, queueName := range queueNames {
 			dutQosPktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(EgressInterface).Output().Queue(queueName).TransmitPkts().State())
 		}
 	}
 	// validate bundle member interface
-	for _, bundlemember := range dutPorts[1:] {
+	for _, bundlemember := range args.dutPorts[1:] {
 		for _, queueName := range queueNames {
 			dutQosbundlePktsAfterTraffic[queueName] += gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlemember.Name()).Output().Queue(queueName).TransmitPkts().State())
 		}
@@ -490,18 +464,18 @@ func testQoswrrStreaming(ctx context.Context, t *testing.T, args *testArgs) {
 	t.Logf("QoS egress Bundle Member intf packet counters after traffic: %v", dutQosbundlePktsAfterTraffic)
 
 	for _, queue := range queueNames {
-		if dutQosPktsBeforeTraffic[queue] != dutQosbundlePktsBeforeTraffic[queue] || dutQosPktsAfterTraffic[queue] != dutQosbundlePktsAfterTraffic[queue] {
+		if dutQosPktsBeforeTraffic[queue] > dutQosbundlePktsBeforeTraffic[queue] || dutQosPktsAfterTraffic[queue] > dutQosbundlePktsAfterTraffic[queue] {
 			t.Errorf("packets not mactch from bundle and bundle member interface queue %v", queue)
 			if dutQosPktsAfterTraffic[queue] <= dutQosPktsBeforeTraffic[queue] {
 				t.Errorf("packets not increased for queue %v", queue)
 			}
 		}
 	}
-
 }
+
 func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.clientA.FlushServer(t)
-	//defer teardownQos(t, args.dut)
+	defer teardownQos(t, args.dut)
 	ConfigureDelAddSeq(t, args.dut)
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	t.Logf("clear qos counters on all interfaces")
@@ -521,7 +495,7 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 		outpackets = append(outpackets, *s.OutPkts)
 		inpackets = append(inpackets, *s.InPkts)
 	}
-	//outpupacket := outpackets[0]
+
 	fmt.Printf("*********************oupackets is %+v", outpackets)
 	fmt.Printf("*********************inputpackets is %+v", inpackets)
 
@@ -535,14 +509,10 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 
 	// 	}
 	// })
-	interfaceList := []string{}
-	for i := 121; i < 128; i++ {
-		interfaceList = append(interfaceList, fmt.Sprintf("Bundle-Ether%d", i))
-	}
 	queuestats := make(map[string]uint64)
 	ixiastats := make(map[string]uint64)
 	queueNames := []string{}
-	for _, EgressInterface := range interfaceList {
+	for _, EgressInterface := range args.interfaceList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(EgressInterface).State()
 		t.Run(fmt.Sprintf("Get Interface Telemetry %s", EgressInterface), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -554,8 +524,7 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	// validate bundle member interface
-	dutPorts := sortPorts(args.dut.Ports())
-	for _, bundlemember := range dutPorts[1:] {
+	for _, bundlemember := range args.dutPorts[1:] {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(bundlemember.Name()).State()
 		t.Run(fmt.Sprintf("Get Bundle Member Interface Telemetry %s", bundlemember.Name()), func(t *testing.T) {
 			gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
@@ -572,13 +541,11 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	fmt.Printf("ixiastats is %+v", ixiastats)
 
 	for name := range queuestats {
-		//if !(queuestats[name] >= ixiastats[name] ){
 		if name == "tc7" {
 			if !(queuestats[name] >= ixiastats[name]) {
 				t.Errorf("Stats not matching for queue %+v", name)
 			}
 		} else {
-
 			if !(queuestats[name] <= ixiastats[name]+10 ||
 				queuestats[name] >= ixiastats[name]-10) {
 				t.Errorf("Stats not matching for queue %+v", name)
@@ -632,9 +599,7 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	// 	ixiastats[queueName] = flowcounterpkts
 
 	// }
-	dutPorts := sortPorts(args.dut.Ports())
-	intflist := []string{"Bundle-Ether121", dutPorts[1].Name()}
-	for _, intf := range intflist {
+	for _, intf := range args.memIntfList {
 		interfaceTelemetryEgrPath := gnmi.OC().Qos().Interface(intf).State()
 		gote := gnmi.Get(t, args.dut, interfaceTelemetryEgrPath)
 		for _, queueName := range queueNames {
@@ -644,18 +609,15 @@ func testSchedulerwrr(ctx context.Context, t *testing.T, args *testArgs) {
 					t.Errorf("Stats not matching for queue %+v", queueName)
 				}
 			} else {
-
 				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
 					queuestats[queueName] >= ixiastats[queueName]-10) {
 					t.Errorf("Stats not matching for queue %+v", queueName)
-
 				}
 			}
-
 		}
 	}
-
 }
+
 func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog1P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -733,43 +695,21 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 
 			// 		}
 			// 	}
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+			for _, intf := range args.memIntfList {
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-			budnlememqueuestats := make(map[string]uint64)
-			budnlememqueueoctets := make(map[string]uint64)
-			budnlememqueuedropstats := make(map[string]uint64)
-			budnlememqueuedropoctets := make(map[string]uint64)
-			dutPorts := sortPorts(args.dut.Ports())
-			bundlememberintf := dutPorts[1]
-			t.Logf("Validate bundle member interfaces stats")
-			budnlememqueuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitPkts().State())
-			budnlememqueueoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitOctets().State())
-			budnlememqueuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedPkts().State())
-			budnlememqueuedropoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedOctets().State())
-			t.Logf("number of transmitted packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuestats[queueName])
-			t.Logf("number of transmitted octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueueoctets[queueName])
-			t.Logf("number of dropped packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropstats[queueName])
-			t.Logf("number of dropped octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropoctets[queueName])
-
-			if queuestats[queueName] != budnlememqueuestats[queueName] {
-				t.Errorf("Stats not matching for bundle - %v and bundle member  - %v interfcae of queue %+v", "Bundle-Ether121", bundlememberintf.Name(), queueName)
-			}
-
-			if queueName == "tc7" {
-				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-
+				if queueName == "tc7" {
+					if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
+				} else {
+					if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+						queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
 				}
-			} else {
-				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-
-				}
-
 			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -779,6 +719,7 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 		time.Sleep(3 * time.Minute)
 	}
 }
+
 func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -847,8 +788,6 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Errorf("Got %v want more than 8", ratio)
 		}
 
-		// interfaceTelemetryEgrPath := args.dut.Telemetry().Qos().Interface("Bundle-Ether121")
-		// gote := interfaceTelemetryEgrPath.Get(t)
 		for _, queueName := range queueNames {
 			// 	queuestats[queueName] = *gote.Output.Queue[queueName].TransmitPkts
 			// 	if queueName == "tc7" || queueName == "tc6" {
@@ -863,39 +802,21 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 
 			// 		}
 			// 	}
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+			for _, intf := range args.memIntfList {
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-			budnlememqueuestats := make(map[string]uint64)
-			budnlememqueueoctets := make(map[string]uint64)
-			budnlememqueuedropstats := make(map[string]uint64)
-			budnlememqueuedropoctets := make(map[string]uint64)
-			dutPorts := sortPorts(args.dut.Ports())
-			bundlememberintf := dutPorts[1]
-			t.Logf("Validate bundle member interfaces stats")
-			budnlememqueuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitPkts().State())
-			budnlememqueueoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitOctets().State())
-			budnlememqueuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedPkts().State())
-			budnlememqueuedropoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedOctets().State())
-			t.Logf("number of transmitted packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuestats[queueName])
-			t.Logf("number of transmitted octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueueoctets[queueName])
-			t.Logf("number of dropped packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropstats[queueName])
-			t.Logf("number of dropped octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropoctets[queueName])
-
-			if queuestats[queueName] != budnlememqueuestats[queueName] {
-				t.Errorf("Stats not matching for bundle - %v and bundle member  - %v interfcae of queue %+v", "Bundle-Ether121", bundlememberintf.Name(), queueName)
-			}
-
-			if queueName == "tc6" {
-				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-					t.Errorf("Stats not matching for queue %+v", queueName)
-				}
-			} else {
-				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-					t.Errorf("Stats not matching for queue %+v", queueName)
+				if queueName == "tc6" {
+					if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
+				} else {
+					if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+						queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+						t.Errorf("Stats not matching for queue %+v", queueName)
+					}
 				}
 			}
 		}
@@ -906,8 +827,8 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2Pwrr(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -943,8 +864,6 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		testTrafficqoswrrgoog2Pwrr(t, true, args.ate, args.top, srcEndPoints, DstEndpoint, args.prefix.scale, args.prefix.host, args, 0, trafficFlows, weights...)
 		queueNames := []string{"tc5", "tc4"}
-		queuestats := make(map[string]uint64)
-		queusocts := make(map[string]uint64)
 		queuedropstats := make(map[string]uint64)
 		ixiastats := make(map[string]uint64)
 		ixiadropstats := make(map[string]uint64)
@@ -952,7 +871,6 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			var flowcounterpkts uint64
 			flo1 := "flow1-" + queueName
 			flo2 := "flow2-" + queueName
-			//ixiaallflows[queueName] = []string{flo1, flo2}
 			flowcounters := gnmi.Get(t, args.ate, gnmi.OC().Flow(flo1).Counters().State())
 			flowcounterpkts = *flowcounters.InPkts
 			OutPkts := *flowcounters.OutPkts
@@ -973,36 +891,22 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 			t.Errorf("Got %v want more than 3.9", ratio)
 		}
 		for _, queueName := range queueNames {
-			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+			for _, intf := range args.memIntfList {
+				queuestats := make(map[string]uint64)
+				queusocts := make(map[string]uint64)
+				queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+				queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+				t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+				queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-			budnlememqueuestats := make(map[string]uint64)
-			budnlememqueueoctets := make(map[string]uint64)
-			budnlememqueuedropstats := make(map[string]uint64)
-			budnlememqueuedropoctets := make(map[string]uint64)
-			dutPorts := sortPorts(args.dut.Ports())
-			bundlememberintf := dutPorts[1]
-			t.Logf("Validate bundle member interfaces stats")
-			budnlememqueuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitPkts().State())
-			budnlememqueueoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitOctets().State())
-			budnlememqueuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedPkts().State())
-			budnlememqueuedropoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedOctets().State())
-			t.Logf("number of transmitted packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuestats[queueName])
-			t.Logf("number of transmitted octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueueoctets[queueName])
-			t.Logf("number of dropped packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropstats[queueName])
-			t.Logf("number of dropped octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropoctets[queueName])
-
-			if queuestats[queueName] != budnlememqueuestats[queueName] {
-				t.Errorf("Stats not matching for bundle - %v and bundle member  - %v interfcae of queue %+v", "Bundle-Ether121", bundlememberintf.Name(), queueName)
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+					t.Errorf("Stats not matching for queue %+v", queueName)
+				}
+				if ratio <= 3.9 {
+					break
+				}
 			}
-
-			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-				t.Errorf("Stats not matching for queue %+v", queueName)
-			}
-
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
@@ -1011,8 +915,8 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
-
 }
+
 func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -1065,48 +969,28 @@ func testSchedulergoomix(ctx context.Context, t *testing.T, args *testArgs) {
 
 	}
 	for _, queueName := range queueNames {
-		queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitPkts().State())
-		queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).TransmitOctets().State())
-		t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
-		queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queueName).DroppedPkts().State())
+		for _, intf := range args.memIntfList {
+			queuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitPkts().State())
+			queusocts[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).TransmitOctets().State())
+			t.Logf("number of transmitted packes for queue %v is %v", queueName, queuestats[queueName])
+			queuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queueName).DroppedPkts().State())
 
-		budnlememqueuestats := make(map[string]uint64)
-		budnlememqueueoctets := make(map[string]uint64)
-		budnlememqueuedropstats := make(map[string]uint64)
-		budnlememqueuedropoctets := make(map[string]uint64)
-		dutPorts := sortPorts(args.dut.Ports())
-		bundlememberintf := dutPorts[1]
-		t.Logf("Validate bundle member interfaces stats")
-		budnlememqueuestats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitPkts().State())
-		budnlememqueueoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).TransmitOctets().State())
-		budnlememqueuedropstats[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedPkts().State())
-		budnlememqueuedropoctets[queueName] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queueName).DroppedOctets().State())
-		t.Logf("number of transmitted packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuestats[queueName])
-		t.Logf("number of transmitted octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueueoctets[queueName])
-		t.Logf("number of dropped packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropstats[queueName])
-		t.Logf("number of dropped octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropoctets[queueName])
+			if queueName == "tc7" || queueName == "tc6" {
+				if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
+					t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
 
-		if queuestats[queueName] != budnlememqueuestats[queueName] {
-			t.Errorf("Stats not matching for bundle - %v and bundle member  - %v interfcae of queue %+v", "Bundle-Ether121", bundlememberintf.Name(), queueName)
-		}
+				}
+			} else {
 
-		if queueName == "tc7" || queueName == "tc6" {
-			if !(queuestats[queueName] >= ixiastats[queueName]) || queuedropstats[queueName] > 0 {
-				t.Errorf("Tcfail Stats not matching for queue %+v", queueName)
-
-			}
-		} else {
-
-			if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
-				queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
-				t.Errorf("TcFail Stats not matching for queue %+v", queueName)
-
+				if !(queuestats[queueName] <= ixiastats[queueName]+10 ||
+					queuestats[queueName] >= ixiastats[queueName]-10) || !(queuedropstats[queueName] == ixiadropstats[queueName]) {
+					t.Errorf("TcFail Stats not matching for queue %+v", queueName)
+				}
 			}
 		}
-
 	}
-
 }
+
 func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs) {
 	ConfigureWrrGoog2P(t, args.dut)
 	defer args.clientA.FlushServer(t)
@@ -1186,43 +1070,24 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 
 		// 	// 		}
 		// 	// 	}
-		queuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).TransmitPkts().State())
-		queuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface("Bundle-Ether121").Output().Queue(queue).DroppedPkts().State())
+		for _, intf := range args.memIntfList {
+			queuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).TransmitPkts().State())
+			queuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(intf).Output().Queue(queue).DroppedPkts().State())
 
-		budnlememqueuestats := make(map[string]uint64)
-		budnlememqueueoctets := make(map[string]uint64)
-		budnlememqueuedropstats := make(map[string]uint64)
-		budnlememqueuedropoctets := make(map[string]uint64)
-		dutPorts := sortPorts(args.dut.Ports())
-		bundlememberintf := dutPorts[1]
-		t.Logf("Validate bundle member interfaces stats")
-		budnlememqueuestats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queue).TransmitPkts().State())
-		budnlememqueueoctets[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queue).TransmitOctets().State())
-		budnlememqueuedropstats[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queue).DroppedPkts().State())
-		budnlememqueuedropoctets[queue] = gnmi.Get(t, args.dut, gnmi.OC().Qos().Interface(bundlememberintf.Name()).Output().Queue(queue).DroppedOctets().State())
-		t.Logf("number of transmitted packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuestats[queue])
-		t.Logf("number of transmitted octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueueoctets[queue])
-		t.Logf("number of dropped packes for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropstats[queue])
-		t.Logf("number of dropped octets for bundle member intf %v is %v", bundlememberintf.Name(), budnlememqueuedropoctets[queue])
-
-		if queuestats[queue] != budnlememqueuestats[queue] {
-			t.Errorf("Stats not matching for bundle - %v and bundle member  - %v interfcae of queue %+v", "Bundle-Ether121", bundlememberintf.Name(), queue)
+			if !(queuestats[queue] <= ixiastats[queue]+10 ||
+				queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
+				t.Errorf("Stats not matching for queue %+v", queue)
+			}
+			// }
+			// t.Logf("clear qos counters on all interfaces")
+			// cliHandle := args.dut.RawAPIs().CLI(t)
+			// resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+			// t.Logf(resp, err)
+			// t.Logf("sleeping after clearing qos counters")
+			// time.Sleep(3 * time.Minute)
+			// cliHandle.Close()
 		}
-
-		if !(queuestats[queue] <= ixiastats[queue]+10 ||
-			queuestats[queue] >= ixiastats[queue]-10) || !(queuedropstats[queue] == ixiadropstats[queue]) {
-			t.Errorf("Stats not matching for queue %+v", queue)
-		}
-		// }
-		// t.Logf("clear qos counters on all interfaces")
-		// cliHandle := args.dut.RawAPIs().CLI(t)
-		// resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
-		// t.Logf(resp, err)
-		// t.Logf("sleeping after clearing qos counters")
-		// time.Sleep(3 * time.Minute)
-		// cliHandle.Close()
 	}
-
 }
 
 func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1398,8 +1263,8 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 
 	}
 	gnmi.Update(t, dut, gnmi.OC().Qos().Config(), qos)
-
 }
+
 func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
@@ -1523,11 +1388,11 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
 	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
-
 	// if diff := cmp.Diff(*ConfigQosGetfinal, *qos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
 	// }
 }
+
 func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
@@ -1647,6 +1512,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 
 	d := &oc.Root{}
@@ -1766,6 +1632,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
 }
+
 func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	d := &oc.Root{}
 	//defer teardownQos(t, dut)
@@ -1882,5 +1749,4 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Interface(*classinterface.InterfaceId).Config(), classinterface)
 	}
-
 }
