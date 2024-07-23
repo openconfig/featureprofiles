@@ -64,22 +64,43 @@ affect the traffic (make before break).
 
 ```yaml
 paths:
+  # base acl paths
+  /acl/acl-sets/acl-set/config/name:
+  /acl/acl-sets/acl-set/config/type:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/config/description:
+  
+  # ipv4 address match
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address-prefix-set:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/protocol:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address-prefix-set:
 
+  # icmpv4 match
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/icmpv4/config/type:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/icmpv4/config/code:
+
+  # ipv6 address match
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/destination-address-prefix-set:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/protocol:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv6/config/source-address-prefix-set:
 
-  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set:
-  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries:
-  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry:
+  # paths for tcp/udp port and port-range
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/source-port-set:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/destination-port-set:
 
-  /acl/interfaces/interface/egress-acl-sets/egress-acl-set:
-  /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries:
-  /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry:
+  # paths needed to match IP fragments
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/detail-mode:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-detail-match-mode:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-tcp-flags:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/builtin-detail:
 
+  # state paths for management port and ACL counters
   /interfaces/interface/state/management:
   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets:
   /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets:
