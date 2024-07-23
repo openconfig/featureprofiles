@@ -37,7 +37,7 @@ At the start of each of the following scenarios, ensure:
 Unless otherwise specified, all the tests below should use traffic with
 `dscp_encap_a_1` referenced int he VRF selection policy.
 
-### TODO: Test-1
+### Test-1
 
 Tests that traceroute with TTL=1 for a packet that would match the VRF
 selection policy for encap has target_egress_port set based on the
@@ -51,7 +51,7 @@ encap VRF.
 The distribution of packets should have target_egress_port set with port2 1.56% of
 the time, port3 4.68%, port4 18.75% and port6 75%.
 
-### TODO: Test-2
+### Test-2
 
 Tests that traceroute with TTL=1 for a packet that would match the VRF
 selection policy for default has target_egress_port set based on the
@@ -63,7 +63,7 @@ default VRF.
 target_egress_port should be dut port 8.
 
 
-### TODO: Test-3
+### Test-3
 
 Tests that a packet punted due to TTL=1 for a packet that would
 otherwise hit a transit VRF has target_egress_port set based on that
@@ -78,15 +78,15 @@ transit VRF.
    target_egress_port metadata set.  target_egress_port should be set
    to on DUT port-2, port-3, and port-4 per the heirarchical weight.
 
-### TODO: Test-4 (TBD)
+### Test-4 (TBD)
 
 Tests that traceroute respects transit FRR.
 
-### TODO: Test-5 (TBD)
+### Test-5 (TBD)
 
 Tests that traceroute respects transit FRR when the backup is also unviable.
 
-### TODO: Test-6
+### Test-6
 
 Tests that traceroute respects decap rules.
 
@@ -133,15 +133,15 @@ Tests that traceroute respects decap rules.
 6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are punted correctly.
 
 
-### TODO: Test-7 (TBD)
+### Test-7 (TBD)
 
 Encap failure cases (TBD on confirmation)
 
-### TODO: Test-8 (TBD)
+### Test-8 (TBD)
 
 Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.
 
-### TODO: Test-9, decap the encap
+### Test-9, decap the encap
 
 1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
