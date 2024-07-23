@@ -394,6 +394,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.19"
+  description: "BGP 2-Byte and 4-Byte ASN support"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.2"
   description: "BGP Policy & Route Installation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
@@ -420,7 +426,7 @@ test: {
 test: {
   id: "RT-1.24"
   description: "BGP 2-byte and 4-byte ASN support with policy"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
   exec: " "
 }
 test: {
@@ -759,6 +765,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.9"
+  description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
@@ -768,12 +780,6 @@ test: {
   id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9"
-  description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
 test: {
@@ -1180,6 +1186,72 @@ test: {
 test: {
   id: "TUN-2.5"
   description: "GUE Fragmentation"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.6"
+  description: "MPLSoUDP Encap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.7"
+  description: "MPLSoUDP Decap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.8"
+  description: "ECMP hashing based on outer header of MPLSoUDP packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing for GUE flows with IPv4 and IPv6 outer and inner headers"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.10"
+  description: "ECMP hashing based on outer and Inner header for GRE packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.11"
+  description: "Filter based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.12"
+  description: "Filter based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.13"
+  description: "Interface based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.14"
+  description: "Interface based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.15"
+  description: "Interface based GUE encapsulation with IPv4 outer header"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.16"
+  description: "Interface based GUE encapsulation with IPv6 outer header"
   readme: ""
   exec: " "
 }
