@@ -197,7 +197,7 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		ipv4StaticRouteNextHop.Preference = ygot.Uint32(104)
 	}
-	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString("192.168.1.6"))
+	ipv4StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
 
 	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("2024:db8:128:128::/64")
 	if !deviations.UseVendorNativeTagSetConfig(dut) {
@@ -212,79 +212,28 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		ipv6StaticRouteNextHop.Preference = ygot.Uint32(106)
 	}
-	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString("2001:DB8::6"))
+	ipv6StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
 
 	gnmi.Replace(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
 }
 
-func configureDUTRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	dutOcRoot := &oc.Root{}
-	rp := dutOcRoot.GetOrCreateRoutingPolicy()
-
-	ds := rp.GetOrCreateDefinedSets()
-	v4PrefixSet := ds.GetOrCreatePrefixSet("fp-ipv4-prefix")
-	v4PrefixSet.GetOrCreatePrefix("192.168.1.4/30", "exact")
-	v6PrefixSet := ds.GetOrCreatePrefixSet("fp-ipv6-prefix")
-	v6PrefixSet.GetOrCreatePrefix("2001:db8::4/126", "exact")
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().Config(), ds)
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 
 	// permit all policy
+	rp := dutOcRoot.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition("permit-all")
 	stmt, err := pdef.AppendNewStatement("accept")
 	if err != nil {
 		t.Fatalf("failed creating new policy statement, err: %s", err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
-	// allow port2 nw policy
-	pdef1 := rp.GetOrCreatePolicyDefinition("allow-port2-nw")
-	stmt1, err := pdef1.AppendNewStatement("allow-port2-nw-v4")
-	if err != nil {
-		t.Fatalf("failed creating new policy statement, err: %s", err)
-	}
-	stmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	stmt1ConditionsPrefixes := stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
-	stmt1ConditionsPrefixes.SetPrefixSet("fp-ipv4-prefix")
-
-	stmt2, err := pdef1.AppendNewStatement("allow-port2-nw-v6")
-	if err != nil {
-		t.Fatalf("failed creating new policy statement, err: %s", err)
-	}
-	stmt2.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	stmt2ConditionsPrefixes := stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
-	stmt2ConditionsPrefixes.SetPrefixSet("fp-ipv6-prefix")
-
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-	// table connection for connected to bgp
-	batchSet := &gnmi.SetBatch{}
-	dni := deviations.DefaultNetworkInstance(dut)
-	srcProtocol := oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED
-	dstProtocol := oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	addressFamily := oc.Types_ADDRESS_FAMILY_IPV4
-	tableConn := dutOcRoot.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProtocol, dstProtocol, addressFamily)
-	if !deviations.SkipSettingDisableMetricPropagation(dut) {
-		tableConn.SetDisableMetricPropagation(false)
-	}
-	tableConn.SetImportPolicy([]string{"allow-port2-nw"})
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProtocol, dstProtocol, addressFamily).Config(), tableConn)
-
-	addressFamily = oc.Types_ADDRESS_FAMILY_IPV6
-	tableConn1 := dutOcRoot.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProtocol, dstProtocol, addressFamily)
-	tableConn1.SetImportPolicy([]string{"allow-port2-nw"})
-	gnmi.BatchUpdate(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProtocol, dstProtocol, addressFamily).Config(), tableConn1)
-
-	batchSet.Set(t, dut)
-}
-
-func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-
-	dutOcRoot := &oc.Root{}
+	// setup BGP
 	networkInstance := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	networkInstanceProtocolBgp := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	networkInstanceProtocolBgp.SetEnabled(true)
@@ -364,7 +313,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	configureDUTRoutingPolicy(t, dut)
 	configureDUTStatic(t, dut)
 	configureDUTBGP(t, dut)
 }
