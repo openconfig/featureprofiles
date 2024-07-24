@@ -37,7 +37,7 @@ const (
 )
 
 func testTraffic(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, top *ondatra.ATETopology, srcEndPoint *ondatra.Interface, allPorts map[string]*ondatra.Interface, scale int, hostIP string, args *testArgs, dscp uint8, weights ...float64) {
-	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49}
+	dscpList := []uint8{1, 9, 17, 25, 33, 41, 49, 1}
 	ondatraFlowList := []*ondatra.Flow{}
 	for _, dscp := range dscpList {
 
@@ -336,20 +336,24 @@ func testTrafficqoswrr(t *testing.T, expectPass bool, ate *ondatra.ATEDevice, to
 	// srcmacaddress := []string{"00:16:01:00:00:01", "00:17:01:00:00:01"}
 	trafficFlows := map[string]*trafficData{
 
-		"flow1-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[0]},
-		"flow1-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[0]},
-		"flow1-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[0]},
-		"flow1-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[0]},
-		"flow1-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[0]},
-		"flow1-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[0]},
-		"flow1-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[0]},
-		"flow2-tc7": {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[1]},
-		"flow2-tc6": {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[1]},
-		"flow2-tc5": {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[1]},
-		"flow2-tc4": {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[1]},
-		"flow2-tc3": {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[1]},
-		"flow2-tc2": {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[1]},
-		"flow2-tc1": {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[1]},
+		"flow1-tc7":      {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[0]},
+		"flow1-tc6":      {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[0]},
+		"flow1-tc5":      {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[0]},
+		"flow1-tc4":      {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[0]},
+		"flow1-tc3":      {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[0]},
+		"flow1-tc2":      {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[0]},
+		"flow1-tc1":      {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[0]},
+		"flow1-SYSTEM":   {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "SYSTEM", srcendpoint: srcEndPoints[0]},
+		"flow2-tc7":      {frameSize: 1000, trafficRate: 1, dscp: 56, queue: "tc7", srcendpoint: srcEndPoints[1]},
+		"flow2-tc6":      {frameSize: 1000, trafficRate: 1, dscp: 48, queue: "tc6", srcendpoint: srcEndPoints[1]},
+		"flow2-tc5":      {frameSize: 1000, trafficRate: 18, dscp: 33, queue: "tc5", srcendpoint: srcEndPoints[1]},
+		"flow2-tc4":      {frameSize: 1000, trafficRate: 18, dscp: 25, queue: "tc4", srcendpoint: srcEndPoints[1]},
+		"flow2-tc3":      {frameSize: 1000, trafficRate: 18, dscp: 17, queue: "tc3", srcendpoint: srcEndPoints[1]},
+		"flow2-tc2":      {frameSize: 1000, trafficRate: 18, dscp: 9, queue: "tc2", srcendpoint: srcEndPoints[1]},
+		"flow2-tc1":      {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "tc1", srcendpoint: srcEndPoints[1]},
+		"flow2-SYSTEM":   {frameSize: 1000, trafficRate: 18, dscp: 1, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
+		"flow2-default":  {frameSize: 1000, trafficRate: 18, dscp: 20, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
+		"flow2-default1": {frameSize: 1000, trafficRate: 18, dscp: 0, queue: "SYSTEM", srcendpoint: srcEndPoints[1]},
 	}
 	for trafficID, data := range trafficFlows {
 

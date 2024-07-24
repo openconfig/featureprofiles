@@ -16,6 +16,7 @@ package qos_test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -310,4 +311,12 @@ func addBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+// sortPorts sorts the given slice of ports by the testbed port ID in ascending order.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
 }
