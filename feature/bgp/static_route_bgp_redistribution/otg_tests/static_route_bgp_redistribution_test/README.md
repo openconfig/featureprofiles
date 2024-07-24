@@ -77,97 +77,9 @@
     *   Set a tag on the ```ipv6-route``` to 60
         *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag
 
+
 ### RT-1.27.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
-#### Redistribute IPv4 static routes to BGP with metric propogation diabled
----
-##### Configure redistribution 
-*   Redistribute ```ipv4-route``` to BGP
-*   Set address-family to ```IPV4```  
-    *   /network-instances/network-instance/table-connections/table-connection/config/address-family
-*   Configure source protocol to ```STATIC```
-    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
-*   Configure destination protocol to ```BGP```
-    *   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol
-*   Configure default import policy to ```ACCEPT_ROUTE```
-    *   /network-instances/network-instance/table-connections/table-connection/config/default-import-policy
-*   Disable metric propogation by setting it to ```true```
-    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
-##### Verification
-*   Verify the address-family is set to ```IPV4```
-    *   /network-instances/network-instance/table-connections/table-connection/state/address-family
-*   Verify source protocol is set to ```STATIC```
-    *   /network-instances/network-instance/table-connections/table-connection/state/src-protocol
-*   Verify destination protocol is set to ```BGP```
-    *   /network-instances/network-instance/table-connections/table-connection/state/dst-protocol
-*   Verify default import policy is set to ```ACCEPT_ROUTE```
-    *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
-*   Verify disable metric propogation is set to ```true```
-    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED either having no value (missing) or ```0``` but not ```104```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
-### RT-1.27.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
-#### Redistribute IPv4 static routes to BGP with metric propogation enabled
----
-##### Configure static route metric to be copied to MED
-*   Enable metric propogation by setting disable-metric-propagation to ```false```
-    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
-##### Verification
-*   Verify disable metric propogation is now ```false```
-    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED of ```104```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
-### RT-1.27.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
-#### Redistribute IPv6 static routes to BGP with metric propogation diabled
----
-##### Configure redistribution
-*   Set address-family to ```IPV6```  
-    *   /network-instances/network-instance/table-connections/table-connection/config/address-family
-*   Configure source protocol to ```STATIC```
-    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
-*   Configure destination protocol to ```BGP```
-    *   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol
-*   Configure default import policy to ```ACCEPT_ROUTE```
-    *   /network-instances/network-instance/table-connections/table-connection/config/default-import-policy
-*   Disable metric propogation by setting it to ```true```
-    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
-##### Verification
-*   Verify the address-family is set to ```IPV6```
-    *   /network-instances/network-instance/table-connections/table-connection/state/address-family
-*   Verify source protocol is set to ```STATIC```
-    *   /network-instances/network-instance/table-connections/table-connection/state/src-protocol
-*   Verify destination protocol is set to ```BGP```
-    *   /network-instances/network-instance/table-connections/table-connection/state/dst-protocol
-*   Verify default import policy is set to ```ACCEPT_ROUTE```
-    *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
-*   Verify disable metric propogation is set to ```true```
-    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with MED either having no value (missing) or ```0``` but not ```106```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
-### RT-1.27.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
-#### Redistribute IPv6 static routes to BGP with metric propogation enabled
----
-##### Configure static route metric to be copied to MED
-*   Enable metric propogation by setting it to ```false```
-    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
-##### Verification
-*   Verify disable metric propogation is now ```false```
-    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
-##### Validate test results
-*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with MED ```106```
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-
-### RT-1.27.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
-#### Redistribute IPv4 and IPv6 static routes to BGP with default-import-policy set to reject
+#### Redistribute IPv4 static routes to BGP with default-import-policy set to reject
 ---
 ##### Configure default policy to reject routes
 *   Configure default import policy to ```REJECT_ROUTE```
@@ -176,11 +88,10 @@
 *   Verify default import policy is set to ```REJECT_ROUTE```
     *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
 ##### Validate test results
-*   Validate that the ATE does not receives the redistributed static route ```ipv4-route``` and ```ipv6-route```
+*   Validate that the ATE does not receives the redistributed static route ```ipv4-route```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
 
-### RT-1.27.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv4 static routes to BGP matching a prefix using a route-policy
 ---
 ##### Configure a route-policy
@@ -234,7 +145,35 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
 *   Validate that the traffic is received on ATE port-2
 
-### RT-1.27.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+#### Redistribute IPv4 static routes to BGP with metric propogation diabled
+---
+##### Configure redistribution 
+*   Disable metric propogation by setting it to ```true```
+    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
+##### Verification
+*   Verify disable metric propogation is set to ```true```
+    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED either having no value (missing) or ```0``` but not ```104```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+
+### RT-1.27.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+#### Redistribute IPv4 static routes to BGP with metric propogation enabled
+---
+##### Configure static route metric to be copied to MED
+*   Enable metric propogation by setting disable-metric-propagation to ```false```
+    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
+##### Verification
+*   Verify disable metric propogation is now ```false```
+    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv4-route``` with MED of ```104```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+
+### RT-1.27.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv4 static routes to BGP with AS-PATH prepend
 ---
 ##### Configure BGP actions to prepend AS
@@ -252,7 +191,7 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
 
-### RT-1.27.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv4 static routes to BGP with MED set to ```1000```
 ---
 ##### Configure BGP actions to set MED
@@ -266,7 +205,7 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 
-### RT-1.27.9 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.7 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv4 static routes to BGP with Local-Preference set to ```100```
 ---
 ##### Configure BGP actions to set local-pref
@@ -280,7 +219,7 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/local-pref
 
-### RT-1.27.10 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv4 static routes to BGP with community set to ```64512:100```
 ---
 ##### Configure a community-set
@@ -302,7 +241,7 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/communities/community/state/index
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
 
-### RT-1.27.12 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.9 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribution of IPv4 static routes to BGP that does not match a conditional tag should not happen
 ---
 ##### Configure a tag-set with incorrect tag value to validate that the route is not redistributed
@@ -328,7 +267,7 @@
 *   Verify that the ATE does not receives the redistributed static route ```ipv4-route```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
 
-### RT-1.27.13 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.10 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribution of IPv4 static routes to BGP that matches a conditional tag should happen
 ---
 ##### Configure a tag-set with correct tag value to validate that the route is redistributed
@@ -343,7 +282,7 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
 *   Validate that the traffic is received on ATE port-2
 
-### RT-1.27.14 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+### RT-1.27.11 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute a NULL IPv4 static routes to BGP with a next-hop configured through route-policy
 ---
 ##### Configure a NULL static route
@@ -365,7 +304,23 @@
 *   Initiate traffic from ATE port-3 to the DUT and destined to ```ipv4-drop-network``` i.e. ```192.168.20.0/24```
 *   Validate that the traffic is received on ATE port-2
 
-### RT-1.27.15 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+
+
+### RT-1.27.12 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+#### Redistribute IPv6 static routes to BGP with default-import-policy set to reject
+---
+##### Configure default policy to reject routes
+*   Configure default import policy to ```REJECT_ROUTE```
+    *   /network-instances/network-instance/table-connections/table-connection/config/default-import-policy
+##### Verification
+*   Verify default import policy is set to ```REJECT_ROUTE```
+    *   /network-instances/network-instance/table-connections/table-connection/state/default-import-policy
+##### Validate test results
+*   Validate that the ATE does not receives the redistributed static route ```ipv4-route``` and ```ipv6-route```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+
+### RT-1.27.13 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv6 static routes to BGP matching a prefix using a route-policy
 ---
 ##### Configure a route-policy
@@ -418,6 +373,35 @@
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
+
+
+### RT-1.27.14 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+#### Redistribute IPv6 static routes to BGP with metric propogation diabled
+---
+##### Disable metric propogation
+*   Disable metric propogation by setting it to ```true```
+    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
+##### Verification
+*   Verify disable metric propogation is set to ```true```
+    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with MED either having no value (missing) or ```0``` but not ```106```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
+
+### RT-1.27.15 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
+#### Redistribute IPv6 static routes to BGP with metric propogation enabled
+---
+##### Configure static route metric to be copied to MED
+*   Enable metric propogation by setting it to ```false```
+    *   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
+##### Verification
+*   Verify disable metric propogation is now ```false```
+    *   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation
+##### Validate test results
+*   Validate that the ATE receives the redistributed static route ```ipv6-route``` with MED ```106```
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
+    *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 
 ### RT-1.27.16 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute IPv6 static routes to BGP with AS-PATH prepend

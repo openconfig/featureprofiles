@@ -99,7 +99,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 				if ntpServer == nil {
 					t.Errorf("Missing NTP server from NTP state: %s", address)
 				}
-				if got, want := testCase.vrf, ntpServer.GetNetworkInstance(); want != "" && got != want {
+				if got, want := ntpServer.GetNetworkInstance(), testCase.vrf; want != "" && got != want {
 					t.Errorf("Incorrect NTP Server network instance for address %s: got %s, want %s", address, got, want)
 				}
 			}
