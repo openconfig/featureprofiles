@@ -24,6 +24,7 @@ platform_exceptions:  {
   }
   deviations:  {
     isis_level_enabled:  true
+    gribi_unresolvable_nexthops_unsupported: true
   }
 }
 platform_exceptions:  {
