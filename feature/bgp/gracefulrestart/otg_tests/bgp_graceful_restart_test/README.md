@@ -64,7 +64,7 @@ B -- IBGP --> C[Port2:ATE];
 **RT-1.4.6: Test support for RFC8538 compliance by letting Hold-time expire**
 
 RFC-8538 builds on RFC4724 by adding Graceful restart support for scenarios when the BGP holdtime expires. In order to simulate holdtime expiry, please install an ACL on DUT that drops BGP packets from the Peer (i.e. ATE). Also this time, configure the stale-routes-timer to be longer than the hold-timer. Start traffic and ensure that the packets are,
-*   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Stop traffic somtime after the holdtime expires but before the stale-routes-timer expires and confirm that there was zero packet loss.
+*   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Stop traffic sometime after the holdtime expires but before the stale-routes-timer expires and confirm that there was zero packet loss.
 *   Once the stale-routes-timer expires, start traffic again and confirm that there is 100% packet loss. Stop traffic.
 *   Remove the ACL on DUT:Port1 and allow BGP to be reestablished. Start traffic again between ATE port1 and ATE port2. This time ensure that there is zero packet loss. Stop traffic again.
 *   Repeat the same process above for the IBGP peering between DUT:Port2 and the ATE:Port2
