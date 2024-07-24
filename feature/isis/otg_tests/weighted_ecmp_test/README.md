@@ -144,7 +144,7 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 
         *   /interfaces/interface/state/counters/in-pkts
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
