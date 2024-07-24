@@ -227,7 +227,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	}
 }
 
-// CertzRotate function to request the client certificate rotation.
+// CertzRotate function to request the client certificate rotation and returns true on successful rotation.
 func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
@@ -280,7 +280,7 @@ func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzC
 	return true
 }
 
-// ServerCertzRotate function to request the server certificate rotation.
+// ServerCertzRotate function to request the server certificate rotation and returns true on successful rotation.
 func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, ctx context.Context, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
@@ -289,7 +289,7 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false,
+		ForceOverwrite: false
 		SslProfileId:   profileID,
 		RotateRequest:  rotateRequest}
 	rotateRequestClient, err := certzClient.Rotate(context.Background())
@@ -402,7 +402,7 @@ func CertCleanup(dirPath string) error {
 	return err
 }
 
-// ReadDecodeServerCertificate function to read and decode server certificates to extract the SAN
+// ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName.
 func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san string) {
 	sc, err := os.ReadFile(serverCertzFile)
 	if err != nil {
