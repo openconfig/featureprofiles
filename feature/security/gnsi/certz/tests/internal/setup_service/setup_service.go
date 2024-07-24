@@ -201,9 +201,10 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		trust = append(trust, p)
 	}
+	//a valid check for trust not empty
 	if len(trust) == 0 {
-                 return &certzpb.CertificateChain{}
-        } else len(trust) > 0 {
+		return &certzpb.CertificateChain{}
+	} else {
 		var prevCert *certzpb.CertificateChain
 		var bundleToReturn *certzpb.CertificateChain
 		for i := len(trust) - 1; i >= 0; i-- {
@@ -289,7 +290,7 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false
+		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  rotateRequest}
 	rotateRequestClient, err := certzClient.Rotate(context.Background())

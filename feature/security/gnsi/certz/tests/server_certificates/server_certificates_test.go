@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"os"
 	"testing"
-	"time"
 
 	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
