@@ -140,3 +140,15 @@ BGP conifguration:
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+  gnoi:
+    system.System.KillProcess:
+```
