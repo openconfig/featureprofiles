@@ -201,7 +201,9 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		trust = append(trust, p)
 	}
-	if len(trust) > 0 {
+	if len(trust) == 0 {
+                 return &certzpb.CertificateChain{}
+        } else len(trust) > 0 {
 		var prevCert *certzpb.CertificateChain
 		var bundleToReturn *certzpb.CertificateChain
 		for i := len(trust) - 1; i >= 0; i-- {
@@ -223,7 +225,6 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		return bundleToReturn
 	}
-	return &certzpb.CertificateChain{}
 }
 
 // CertzRotate function to request the client certificate rotation.

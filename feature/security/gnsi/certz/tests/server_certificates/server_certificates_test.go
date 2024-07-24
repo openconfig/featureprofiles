@@ -67,7 +67,6 @@ func TestMain(m *testing.M) {
 // TestServerCertTcTwo tests the server certificates from a set of one CA are able to be validated and
 // used for authentication to a device when used by a client connecting to each
 // gRPC service.
-
 func TestServerCert(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -221,7 +220,6 @@ func TestServerCert(t *testing.T) {
 			}
 			batch.Set(t, dut)
 			t.Logf("%s:replaced gNMI config with new ssl profile successfully.", tc.desc)
-			time.Sleep(10 * time.Second)
 
 			// Verification check of the new connection with the newly rotated certificates.
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
