@@ -11,20 +11,22 @@ Test Record Response Truncation boolean is set
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = (openconfig-system.system-global-state.boot-time - 24 hours)
 - Verify that RecordResponse.history_istruncated = true.  It should be true because there should be no records in the history equal to nor pre-dating this RecordRequest.timestamp.
 
-## Config Parameter
-### Prefix:
-/gnsi/acctz/v1/Acctz/RecordSubscribe
+## OpenConfig Path and RPC Coverage
 
-### Parameter:
-RecordRequest.timestamp!=0
-RecordResponse.service_request = CommandService
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Coverage
-### Prefix:
-Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+TODO(OCRPC): Record may not be complete
 
-## Protocol/RPC
-gnsi.acctz.v1
+```yaml
+paths:
+    ### Prefix:
+    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+rpcs:
+  gnsi:
+    acctz.v1.Acctz.RecordSubscribe:
+      "RecordRequest.timestamp!=0": true
+      "RecordResponse.service_request = CommandService": true
+```
 
 ## Minimum DUT
 vRX

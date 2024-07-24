@@ -62,10 +62,10 @@ The directory tree is organized as follows:
 *   `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
-*   `feature/experimental` contains new features and tests which are not yet
-    categorized or not confirmed to pass on any hardware platform or software
-    release. When the test is deemed more mature, it is moved to the `feature/`
-    directory.
+*   `feature/experimental` contains tests which have automation which is
+    not confirmed to pass on any hardware platform or software release.
+    When the test automation is passing against at least one DUT,
+    it is moved to the `feature/` directory.
 *   `internal/` contains packages used by feature profile tests.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
@@ -96,7 +96,7 @@ allowed file types, please file an issue for discussion.
 ## Test Suite Organization
 
 Test suites should be placed in subdirectories formatted like
-`feature/<featurename>/[<sub-feature>/]<tests|ate_tests|otg_tests|kne_tests>/<test_name>/<test_name>.go`.
+`feature/<featurename>/[<sub-feature>/]<tests|otg_tests|kne_tests>/<test_name>/<test_name>.go`.
 For example:
 
 *   `feature/interface/` is the collection of interface feature profiles.
@@ -107,7 +107,8 @@ For example:
 *   `feature/interface/singleton/feature.textproto` - defines the singleton
     interface feature profile in machine readable format.
 *   `feature/interface/singleton/ate_tests/` contains the singleton interfaces
-    test suite using ATE traffic generation API.
+    test suite using ATE traffic generation API.  Note, use of the ATE API is
+    deprecated and should not be used for any new test development.
 *   `feature/interface/singleton/otg_tests/` contains the singleton interfaces
     test suite using OTG traffic generation API.
 *   `feature/interface/singleton/kne_tests/` contains the singleton interfaces
@@ -177,7 +178,7 @@ were discovered when implementing the code.
 ## Test Structure
 
 Generally, a Feature Profiles ONDATRA test has the following stages: configure
-DUT, configure ATE, generate and verify traffic, verify telemetry. The
+DUT, configure OTG, generate and verify traffic, verify telemetry. The
 configuration stages should be factored out to their own functions, and any
 subtests should be run under `t.Run` so the test output clearly reflects which
 parts of the test passed and which parts failed.
@@ -189,13 +190,13 @@ occurred.
 ```
 func TestFoo(t *testing.T) {
   configureDUT(t) // calls t.Fatal() on error.
-  configureATE(t) // calls t.Fatal() on error.
+  configureOTG(t) // calls t.Fatal() on error.
   t.Run("Traffic", func(t *testing.T) { ... })
   t.Run("Telemetry", func(t *testing.T) { ... })
 }
 ```
 
-In the above example, `configureDUT` and `configureATE` should not be subtests,
+In the above example, `configureDUT` and `configureOTG` should not be subtests,
 otherwise they could be skipped when someone specifies a test filter. The
 "Traffic" and "Telemetry" subtests will both run even if there is a fatal
 condition during `t.Run()`.
@@ -219,7 +220,7 @@ func TestTableDriven(t *testing.T) {
     t.Run(c.name, func(t *testing.T) {
       t.Log("Description: ", c.desc)
       configureDUT(t, /* parameterized by c */)
-      configureATE(t, /* parameterized by c */)
+      configureOTG(t, /* parameterized by c */)
       t.Run("Traffic", func(t *testing.T) { ... })
       t.Run("Telemetry", func(t *testing.T) { ... })
     })
@@ -432,8 +433,6 @@ To contribute a pull request:
     [GitHub Quickstart](https://docs.github.com/en/get-started/quickstart)
     guide.
 
-    *   New contributions should be in the feature/experimental directory.
-
 1.  When opening a pull request, use a descriptive title and detail. See
     [Pull Request Title](#pull-request-title) below.
 
@@ -480,7 +479,7 @@ preferred format is:
 ```
     * (M) internal/fptest/*
       - Add a helper for referencing a keychain from other modules.
-    * (M) feature/experimental/isis/ate_tests/base_adjacencies_test
+    * (M) feature/isis/otg_tests/base_adjacencies_test
       - Fix testing of hello-authentication to reference a specific
         keychain.
       - Fix authentication of *SNP packets, referencing a keychain

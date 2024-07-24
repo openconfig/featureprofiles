@@ -102,13 +102,19 @@ certificates:
 
    5) Validate that the connection is properly torn down by the DUT.
    
-## Config Parameter Coverage
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-## Protocol/RPC Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-None
+TODO(OCRPC): Record may not be correct or complete
+
+```yaml
+rpcs:
+  gnsi:
+    certz.v1.Certz.GetProfileList:
+```
+
 
 ## Minimum DUT Platform Requirement
 

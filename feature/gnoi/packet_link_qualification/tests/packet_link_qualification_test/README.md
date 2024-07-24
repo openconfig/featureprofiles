@@ -83,6 +83,17 @@ between 2 DUTs.
         *   Ensure that RPC status code is 0 for succuss.
         *   Packets sent count matches with packets received.
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   None
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+rpcs:
+  gnoi:
+    packet_link_qualification.LinkQualification.Capabilities:
+    packet_link_qualification.LinkQualification.Create:
+    packet_link_qualification.LinkQualification.Delete:
+    packet_link_qualification.LinkQualification.Get:
+    packet_link_qualification.LinkQualification.List:
+```

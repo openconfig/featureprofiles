@@ -39,7 +39,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    deprecated_vlan_id: true
     interface_enabled: true
     default_network_instance: "default"
   }

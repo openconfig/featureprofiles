@@ -108,9 +108,9 @@ var (
 	}
 
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: 30,
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: 30,
 	}
 
 	atePort2DummyIP = attrs.Attributes{

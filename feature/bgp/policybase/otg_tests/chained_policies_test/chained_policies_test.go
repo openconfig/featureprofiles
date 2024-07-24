@@ -17,6 +17,7 @@ package chained_policies_test
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,8 +33,6 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
-
-// go through OKRs
 
 const (
 	ipv4PrefixLen     = 30
@@ -263,23 +262,32 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	}
 	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
-	if operation == "set" {
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		}
 	}
-
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policy.SetImportPolicy([]string{v4PrefixPolicy, v4LPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if !deviations.DefaultImportExportPolicy(dut) {
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	batch.Set(t, dut)
+	policy.SetImportPolicy([]string{v4PrefixPolicy, v4LPPolicy})
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+		batch.Set(t, dut)
+	}
 }
 
 func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -287,23 +295,41 @@ func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	importPolicies := policy.GetImportPolicy()
-	if len(importPolicies) != 2 {
-		t.Errorf("ImportPolicy = %v, want %v", importPolicies, []string{v4PrefixPolicy, v4LPPolicy})
+	if !deviations.FlattenPolicyWithMultipleStatements(dut) {
+		if len(importPolicies) != 2 {
+			t.Errorf("ImportPolicy = %v, want %v", importPolicies, []string{v4PrefixPolicy, v4LPPolicy})
+		}
 	}
-
 	if !deviations.BGPRibOcPathUnsupported(dut) {
 		bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
 		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
 		found := false
 		for k, lr := range locRib.Route {
-			if lr.GetPrefix() == advertisedIPv41.address {
+			prefixAddr := strings.Split(lr.GetPrefix(), "/")
+			t.Logf("Route: %v, lr.GetPrefix() -> %v, advertisedIPv41.address: %s, prefixAddr[0]: %s", k, lr.GetPrefix(), advertisedIPv41.address, prefixAddr[0])
+			if prefixAddr[0] == advertisedIPv41.address {
 				found = true
-				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
-				attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
-				if attrSet == nil || attrSet.GetLocalPref() != localPref {
-					t.Errorf("No local pref found for prefix %s", advertisedIPv41.address)
+				if !deviations.SkipCheckingAttributeIndex(dut) {
+					t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
+					attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+					if attrSet == nil || attrSet.GetLocalPref() != localPref {
+						t.Errorf("No local pref found for prefix %s", advertisedIPv41.address)
+					}
+					break
+				} else {
+					attrSetList := gnmi.GetAll[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSetAny().State())
+					foundLP := false
+					for _, attrSet := range attrSetList {
+						if attrSet.GetLocalPref() == localPref {
+							foundLP = true
+							t.Logf("Found local pref %d for prefix %s", attrSet.GetLocalPref(), advertisedIPv41.address)
+							break
+						}
+					}
+					if !foundLP {
+						t.Errorf("No local pref found for prefix %s", advertisedIPv41.address)
+					}
 				}
-				break
 			}
 		}
 
@@ -324,30 +350,55 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
 
-	pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
+	if deviations.FlattenPolicyWithMultipleStatements(dut) {
+		stmt2, err := pdef1.AppendNewStatement(v4MedStatement)
+		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
+		}
+	} else {
+		pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
+		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v4MedStatement, err)
+		}
 	}
-	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	if operation == "set" {
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		}
 	}
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policy.SetExportPolicy([]string{v4ASPPolicy, v4MedPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if !deviations.DefaultImportExportPolicy(dut) {
+		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	batch.Set(t, dut)
+	if deviations.FlattenPolicyWithMultipleStatements(dut) {
+		policy.SetExportPolicy([]string{v4ASPPolicy})
+	} else {
+		policy.SetExportPolicy([]string{v4ASPPolicy, v4MedPolicy})
+	}
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+		batch.Set(t, dut)
+	}
+	time.Sleep(time.Second * 60)
 }
 
 func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -355,20 +406,22 @@ func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	exportPolicies := policy.GetExportPolicy()
-	if len(exportPolicies) != 2 {
-		t.Errorf("ExportPolicy = %v, want %v", exportPolicies, []string{v4PrefixPolicy, v4LPPolicy})
+	if !deviations.FlattenPolicyWithMultipleStatements(dut) {
+		if len(exportPolicies) != 2 {
+			t.Errorf("ExportPolicy = %v, want %v", exportPolicies, []string{v4ASPPolicy, v4MedPolicy})
+		}
 	}
-
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort1.BGP4.peer").UnicastIpv4PrefixAny().State())
 	found := false
 	for _, bgpPrefix := range bgpPrefixes {
 		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v42Route &&
 			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v4RoutePrefix {
 			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, v42Route)
+			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), v42Route)
 			if bgpPrefix.GetMultiExitDiscriminator() != med {
 				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			}
+			t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			asPaths := bgpPrefix.AsPath
 			for _, ap := range asPaths {
 				count := 0
@@ -384,7 +437,6 @@ func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 			break
 		}
 	}
-
 	if !found {
 		t.Errorf("No Route found for prefix %s", v42Route)
 	}
@@ -417,23 +469,34 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
-	if operation == "set" {
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		}
 	}
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policy.SetImportPolicy([]string{v6PrefixPolicy, v6LPPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if !deviations.DefaultImportExportPolicy(dut) {
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	batch.Set(t, dut)
+	policy.SetImportPolicy([]string{v6PrefixPolicy, v6LPPolicy})
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+		batch.Set(t, dut)
+	}
+	time.Sleep(time.Second * 60)
 }
 
 func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -441,25 +504,42 @@ func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	importPolicies := policy.GetImportPolicy()
-	if len(importPolicies) != 2 {
-		t.Errorf("ImportPolicy = %v, want %v", importPolicies, []string{v6PrefixPolicy, v6LPPolicy})
+	if !deviations.FlattenPolicyWithMultipleStatements(dut) {
+		if len(importPolicies) != 2 {
+			t.Errorf("ImportPolicy = %v, want %v", importPolicies, []string{v6PrefixPolicy, v6LPPolicy})
+		}
 	}
 	if !deviations.BGPRibOcPathUnsupported(dut) {
 		bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Rib()
 		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
 		found := false
 		for k, lr := range locRib.Route {
-			if lr.GetPrefix() == advertisedIPv61.address {
+			prefixAddr := strings.Split(lr.GetPrefix(), "/")
+			if prefixAddr[0] == advertisedIPv61.address {
 				found = true
 				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
-				attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
-				if attrSet == nil || attrSet.GetLocalPref() != localPref {
-					t.Errorf("No local pref found for prefix %s", advertisedIPv61.address)
+				if !deviations.SkipCheckingAttributeIndex(dut) {
+					attrSet := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSet(lr.GetAttrIndex()).State())
+					if attrSet == nil || attrSet.GetLocalPref() != localPref {
+						t.Errorf("No local pref found for prefix %s", advertisedIPv61.address)
+					}
+					break
+				} else {
+					attrSetList := gnmi.GetAll[*oc.NetworkInstance_Protocol_Bgp_Rib_AttrSet](t, dut, bgpRIBPath.AttrSetAny().State())
+					foundLP := false
+					for _, attrSet := range attrSetList {
+						if attrSet.GetLocalPref() == localPref {
+							foundLP = true
+							t.Logf("Found local pref %d for prefix %s", attrSet.GetLocalPref(), advertisedIPv61.address)
+							break
+						}
+					}
+					if !foundLP {
+						t.Errorf("No local pref found for prefix %s", advertisedIPv61.address)
+					}
 				}
-				break
 			}
 		}
-
 		if !found {
 			t.Errorf("No Route found for prefix %s", advertisedIPv61.address)
 		}
@@ -477,30 +557,54 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
 
-	pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
-	stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", v6MedStatement, err)
+	if deviations.FlattenPolicyWithMultipleStatements(dut) {
+		stmt2, err := pdef1.AppendNewStatement(v6MedStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6MedStatement, err)
+		}
+		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
+	} else {
+		pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
+		stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", v6MedStatement, err)
+		}
+		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 	}
-	stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-	if operation == "set" {
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
+		}
 	}
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	policy.SetExportPolicy([]string{v6ASPPolicy, v6MedPolicy})
-	if operation == "set" {
-		gnmi.BatchReplace(batch, path.Config(), policy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, path.Config())
+	if !deviations.DefaultImportExportPolicy(dut) {
+		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
-	batch.Set(t, dut)
+	if deviations.FlattenPolicyWithMultipleStatements(dut) {
+		policy.SetExportPolicy([]string{v6ASPPolicy})
+	} else {
+		policy.SetExportPolicy([]string{v6ASPPolicy, v6MedPolicy})
+	}
+	if deviations.SkipSettingStatementForPolicy(dut) {
+		gnmi.Update(t, dut, path.Config(), policy)
+	} else {
+		if operation == "set" {
+			gnmi.BatchReplace(batch, path.Config(), policy)
+		} else if operation == "delete" {
+			gnmi.BatchDelete(batch, path.Config())
+		}
+		batch.Set(t, dut)
+	}
+	time.Sleep(time.Second * 60)
 }
 
 func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -508,8 +612,10 @@ func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
 	exportPolicies := policy.GetExportPolicy()
-	if len(exportPolicies) != 2 {
-		t.Errorf("ExportPolicy = %v, want %v", exportPolicies, []string{v6PrefixPolicy, v6LPPolicy})
+	if !deviations.FlattenPolicyWithMultipleStatements(dut) {
+		if len(exportPolicies) != 2 {
+			t.Errorf("ExportPolicy = %v, want %v", exportPolicies, []string{v6ASPPolicy, v6MedPolicy})
+		}
 	}
 
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort1.BGP6.peer").UnicastIpv6PrefixAny().State())
@@ -519,6 +625,7 @@ func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v6RoutePrefix {
 			found = true
 			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, v62Route)
+			t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			if bgpPrefix.GetMultiExitDiscriminator() != med {
 				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			}
@@ -537,7 +644,6 @@ func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 			break
 		}
 	}
-
 	if !found {
 		t.Errorf("No Route found for prefix %s", v62Route)
 	}
@@ -624,27 +730,60 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	if deviations.DefaultImportExportPolicy(td.dut) {
+		t.Logf("Configuring default route-policy for BGP on DUT")
+		rp := root.GetOrCreateRoutingPolicy()
+		pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
+		stmt, err := pdef.AppendNewStatement("20")
+		if err != nil {
+			t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		}
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		gnmi.Update(t, td.dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	}
 	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
 	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
 	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
 	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
+	pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	nV41.SetPeerAs(ateAS1)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV41.PeerGroup = ygot.String(peerGrpNamev4)
+	if deviations.DefaultImportExportPolicy(td.dut) {
+		afisafiv41 := nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afisafiv41.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
+		afisafiv41.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	}
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(ateAS2)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42.PeerGroup = ygot.String(peerGrpNamev4)
-
+	if deviations.DefaultImportExportPolicy(td.dut) {
+		afisafiv42 := nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		afisafiv42.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
+		afisafiv42.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	}
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nV61.SetPeerAs(ateAS1)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV61.PeerGroup = ygot.String(peerGrpNamev6)
+	if deviations.DefaultImportExportPolicy(td.dut) {
+		afisafiv61 := nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		afisafiv61.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
+		afisafiv61.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	}
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(ateAS2)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62.PeerGroup = ygot.String(peerGrpNamev6)
+	if deviations.DefaultImportExportPolicy(td.dut) {
+		afisafiv62 := nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		afisafiv62.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
+		afisafiv62.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	}
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
 	// configure eBGP on OTG port1

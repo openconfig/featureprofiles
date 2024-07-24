@@ -84,3 +84,12 @@ Validate 400ZR modules report correct inventory information.
 *   /platform/components/component/state/mfg-date
 *   /platform/components/component/state/hardware-version
 *   /platform/components/component/state/firmware-version
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

@@ -35,21 +35,22 @@ for multi-transaction logins.  For example, unreachable TACACS+ server(s).
 		- all other fields should be omitted.
 	- task_ids might be populate with platform-specific information
 
+## OpenConfig Path and RPC Coverage
 
-## Config Parameter
-### Prefix:
-/gnsi/acctz/v1/Acctz/RecordSubscribe
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-### Parameter:
-RecordRequest.timestamp!=0
-Record.service_request = CommandService
+TODO(OCRPC): Record may not be complete
 
-## Telemetry Coverage
-### Prefix:
-Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
-
-## Protocol/RPC
-gnsi.acctz.v1
+```yaml
+paths:
+    ### Prefix:
+    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+rpcs:
+  gnsi:
+    acctz.v1.Acctz.RecordSubscribe:
+        "RecordRequest.timestamp!=0": true
+        "RecordResponse.service_request = CommandService": true
+```
 
 ## Minimum DUT
 vRX

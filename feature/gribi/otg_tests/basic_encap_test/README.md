@@ -387,3 +387,35 @@ this test we’ll focus on tunnel traffic identification using
 ## Required DUT platform
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml 
+paths:
+  ## Config paths
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/post-decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
+
+  ## State paths
+  /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Modify:
+    gRIBI.Flush:    
+```

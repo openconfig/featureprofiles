@@ -1,3 +1,17 @@
+// Copyright © 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package ocrpcs contains utilities related to ocrpcs.proto.
 package ocrpcs
 
@@ -46,7 +60,11 @@ func cloneAPIRepo(downloadPath, api string) (string, error) {
 	return repoPath, nil
 }
 
-func readAllRPCs(downloadPath, api string) (map[string]struct{}, error) {
+// Read returns all RPCs for the given OpenConfig API.
+//
+//   - downloadPath specifies the folder to download the associated OpenConfig
+//     repo in order to allow for proto file parsing.
+func Read(downloadPath, api string) (map[string]struct{}, error) {
 	repoPath, err := cloneAPIRepo(downloadPath, api)
 	if err != nil {
 		return nil, err
@@ -97,7 +115,7 @@ func ValidateRPCs(downloadPath string, protocols map[string]*rpb.OCProtocol) (ui
 	var errs errlist.List
 	errs.Separator = "\n"
 	for api, protocol := range protocols {
-		rpcs, err := readAllRPCs(downloadPath, api)
+		rpcs, err := Read(downloadPath, api)
 		if err != nil {
 			return 0, err
 		}

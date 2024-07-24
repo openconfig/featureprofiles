@@ -82,7 +82,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -105,7 +105,7 @@ rpcs:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -150,7 +150,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -187,7 +187,7 @@ rpcs:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -246,7 +246,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -493,7 +493,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -516,7 +516,7 @@ rpcs:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:

@@ -4,7 +4,7 @@ name: "nokia-srlinux-dut"
 nodes: {
     name: "dut"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"

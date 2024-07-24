@@ -38,3 +38,16 @@ Validate gRIBI scaling requirements.
         *   Validate that the entries are installed as FIB_PROGRAMMED
 *   TODO: Add flows destinating to IPBlocks and ensure ATEPort2 receives it with
     no loss
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```

@@ -11,6 +11,16 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    skip_setting_allow_multiple_as: true
+    skip_afi_safi_path_for_bgp_multiple_as: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    multipath_unsupported_neighbor_or_afisafi: true
   }
 }
 platform_exceptions: {
@@ -37,3 +47,4 @@ platform_exceptions: {
   }
 }
 tags: TAGS_DATACENTER_EDGE
+

@@ -16,23 +16,24 @@ Ensure Interface mode can be set to loopback mode and can be added as part of st
 *   Validate that port-1 operational status is “UP”.
 *   Validate on DUT that LAG interface status is “UP”.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/loopback-mode
-*   /interfaces/interface/ethernet/config/port-speed
-*   /interfaces/interface/ethernet/config/duplex-mode
-*   /interfaces/interface/ethernet/config/aggregate-id
-*   /interfaces/interface/aggregation/config/lag-type
-*   /interfaces/interface/aggregation/config/min-links
+The below YAML defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+```yaml
+openconfig_paths:
+  ## Config paths
+    /interfaces/interface/config/loopback-mode:
+    /interfaces/interface/ethernet/config/port-speed:
+    /interfaces/interface/ethernet/config/duplex-mode:
+    /interfaces/interface/ethernet/config/aggregate-id:
+    /interfaces/interface/aggregation/config/lag-type:
+    /interfaces/interface/aggregation/config/min-links:
 
-*   /interfaces/interface/state/loopback-mode
+  ## Telemetry paths
+    /interfaces/interface/state/loopback-mode:
 
-## Protocol/RPC Parameter Coverage
-
-None
-
-## Minimum DUT Platform Requirement
-
-vRX
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:

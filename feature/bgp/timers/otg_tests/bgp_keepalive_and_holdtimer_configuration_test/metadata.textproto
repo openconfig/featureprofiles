@@ -21,6 +21,7 @@ platform_exceptions: {
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    bgp_explicit_prefix_limit_received: true
   }
 }
 platform_exceptions: {

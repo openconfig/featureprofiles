@@ -54,13 +54,26 @@ https://www.oiforum.com/wp-content/uploads/CMIS5p0_Third_Party_Spec.pdf
         any invalid string values like "nil" or "-inf".
     *   Reported temperature value must always be of type decimal64. 
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /interfaces/interface/config/enabled
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+    ## Config Paths ##
+    /interfaces/interface/config/enabled:
+    ## State Paths ##
+    /components/component/state/temperature/instant:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/state/temperature/min:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/state/temperature/max:
+        platform_type: [ "TRANSCEIVER" ]
+    /components/component/state/temperature/avg:
+        platform_type: [ "TRANSCEIVER" ]
+    
+rpcs:
+    gnmi:
+        gNMI.Subscribe:
+```
 
-*   /platform/components/component/state/temperature/instant
-*   /platform/components/component/state/temperature/min
-*   /platform/components/component/state/temperature/max
-*   /platform/components/component/state/temperature/avg

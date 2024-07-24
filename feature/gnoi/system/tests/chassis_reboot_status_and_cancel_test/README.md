@@ -21,7 +21,15 @@ Validate gNOI RPC can get reboot status and cancel the reboot
     *   Issue Cancel reboot request RPC to chassis.
     *   Validate that the reboot status is no longer active.
     
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-*   None
+```yaml
+rpcs:
+  gnoi:
+    system.System.CancelReboot:
+    system.System.Reboot:
+    system.System.RebootStatus:
+```
+

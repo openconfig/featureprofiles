@@ -1,11 +1,12 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
+
 uuid: "61f4c5b2-e188-4cc8-9b8b-c744660db2f0"
 plan_id: "RT-7.4"
 description: "BGP Policy AS Path Set and Community Set"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+tags: [TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -21,3 +22,17 @@ platform_exceptions: {
     bgp_conditions_match_community_set_unsupported: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    bgp_conditions_match_community_set_unsupported: true
+    skip_setting_statement_for_policy: true
+    default_import_export_policy: true
+    community_member_regex_unsupported: true
+    default_route_policy_unsupported: true
+  }
+}
+

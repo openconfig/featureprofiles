@@ -12,20 +12,22 @@ Test RecordSubscribe for records since a non-zero timestamp
 - Call gnsi.acctz.v1.Acctz.RecordSubscribe with RecordRequest.timestamp = to the timestamp retained in the previous step.
 - Verify, as in the [ACCTZ-1.1 - Record Subscribe Full](../RecordSubscribeFull) test, that accurate accounting records are returned for the second and subsequent commands run in that test, and that a record is NOT returned for the first command (ie: with the same timestamp as in the request).
 
-## Config Parameter
-### Prefix:
-/gnsi/acctz/v1/Acctz/RecordSubscribe
+## OpenConfig Path and RPC Coverage
 
-### Parameter:
-RecordRequest.timestamp!=0
-RecordResponse.service_request = GrpcService
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Coverage
-### Prefix:
-Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+TODO(OCRPC): Record may not be complete
 
-## Protocol/RPC
-gnsi.acctz.v1
+```yaml
+paths:
+    ### Prefix:
+    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+rpcs:
+  gnsi:
+    acctz.v1.Acctz.RecordSubscribe:
+      "RecordRequest.timestamp!=0": true
+      "RecordResponse.service_request = GrpcService": true
+```
 
 ## Minimum DUT
 vRX

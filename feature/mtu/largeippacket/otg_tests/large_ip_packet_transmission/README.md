@@ -19,19 +19,24 @@ IPv4 and IPv6 packet sizes are sent over them.
 * Assert ATE reports packets sent and received count are the same, indicating no fragmentation, and 
   successful transit.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-* /interfaces/interface[name=*]/config/mtu:
-* /interfaces/interface[name=*]/subinterfaces/subinterface[index=*]/ipv4/config/mtu:
-* /interfaces/interface[name=*]/subinterfaces/subinterface[index=*]/ipv6/config/mtu:
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /interfaces/interface/config/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
 
-No configuration coverage, validates success by checking flow statistics between ATE ports.
+  ## State Paths ##
+  # No coverage, validates success by checking flow statistics between ATE ports.
 
-## Protocol/RPC Parameter coverage
-
-N/A
+rpcs:
+  gnmi:
+    gNMI.Set:
+```
 
 ## Minimum DUT platform requirement
 

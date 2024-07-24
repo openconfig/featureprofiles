@@ -28,3 +28,12 @@ Validate 400ZR optics module reports correct firmware version.
 ## Telemetry Parameter coverage
 
     *  /platform/components/component/state/firmware-version
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

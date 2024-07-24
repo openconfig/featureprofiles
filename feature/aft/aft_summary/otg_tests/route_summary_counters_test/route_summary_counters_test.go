@@ -131,14 +131,12 @@ func TestRouteSummaryWithISIS(t *testing.T) {
 	}).Await(t)
 
 	dni := deviations.DefaultNetworkInstance(ts.DUT)
-	ipv4Entry := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State())
-	if ipv4Entry == 0 {
-		t.Errorf("ipv4 BGP entries, got: %d, want: %d", ipv4Entry, prefixesCount)
+	if got, ok := gnmi.Await(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
+		t.Errorf("ipv4 isis entries, got: %d, want: %d", got, prefixesCount)
 	}
 
-	ipv6Entry := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State())
-	if ipv6Entry == 0 {
-		t.Errorf("ipv6 BGP entries, got: %d, want: %d", ipv6Entry, prefixesCount)
+	if got, ok := gnmi.Await(t, ts.DUT, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
+		t.Errorf("ipv6 isis entries, got: %d, want: %d", got, prefixesCount)
 	}
 }
 
@@ -218,14 +216,12 @@ func TestRouteSummaryWithBGP(t *testing.T) {
 
 			dni := deviations.DefaultNetworkInstance(dut)
 			if tc.dut.ipv4 {
-				ipv4Entry := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State())
-				if ipv4Entry == 0 {
-					t.Errorf("ipv4 BGP entries, got: %d, want: %d", ipv4Entry, prefixesCount)
+				if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
+					t.Errorf("ipv4 BGP entries, got: %d, want: %d", got, prefixesCount)
 				}
 			} else {
-				ipv6Entry := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State())
-				if ipv6Entry == 0 {
-					t.Errorf("ipv4 BGP entries, got: %d, want: %d", ipv6Entry, prefixesCount)
+				if got, ok := gnmi.Await(t, dut, gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), 1*time.Minute, uint64(prefixesCount)).Val(); !ok {
+					t.Errorf("ipv4 BGP entries, got: %d, want: %d", got, prefixesCount)
 				}
 			}
 		})

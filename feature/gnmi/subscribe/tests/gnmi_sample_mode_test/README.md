@@ -39,3 +39,18 @@ Test to validate basic gNMI streaming telemetry works with `SAMPLE` mode.
 *   Configure ISIS on Port 1 in Default Network Instance.
 
 *   Verify that ISIS telemetry is streamed within the next 5 samples.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+TODO(OCPATHS): Add paths
+
+```yaml
+paths:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+      SAMPLE: true
+```

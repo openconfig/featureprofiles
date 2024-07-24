@@ -122,47 +122,52 @@ using the `replace` option
 *   Generate ICMP echo (ping) sourced from the ```ateNet``` network destined towards the DUT loopback1 IPv6 address
 *   Validate ICMP echo-reply is received by the ATE on Port-1 or Port-2
 
-## Config parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/config/name
-*   /network-instances/network-instance/config/route-distinguisher
-*   /network-instances/network-instance/interfaces/interface/config/interface
-*   /interfaces/interface/config/name
-*   /interfaces/interface/config/type
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length
-*   /network-instances/network-instance/protocols/protocol/global/config/as
-*   /network-instances/network-instance/protocols/protocol/global/config/router-id
-*   /network-instances/network-instance/protocols/protocol/neighbor/config/peer-as
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   /network-instances/network-instance/table-connections/table-connection/config/address-family
-*   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
-*   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol
-*   /network-instances/network-instance/table-connections/table-connection/config/default-export-policy
-*   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation
-*   /routing-policy/policy-definitions/policy-definition/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-## Telemetry parameter coverage
+```yaml
+paths:
+  ## Config paths
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/route-distinguisher:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
+  /network-instances/network-instance/table-connections/table-connection/config/address-family:
+  /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/default-import-policy:
+  /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference:
 
-*   NA
+  ## State paths: N/A
 
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Set (replace)
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
 
 ## Required DUT platform
 

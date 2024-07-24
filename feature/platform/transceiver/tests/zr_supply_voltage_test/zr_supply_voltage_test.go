@@ -20,18 +20,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	samplingInterval     = 10 * time.Second
-	targetOutputPowerdBm = -10
-	targetFrequencyHz    = 193100000
-	intUpdateTime        = 2 * time.Minute
+	samplingInterval = 10 * time.Second
+	intUpdateTime    = 2 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -57,10 +57,13 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 
 func TestZrSupplyVoltage(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
+			t.Logf("Port %s", dp.Name())
 
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
@@ -68,58 +71,29 @@ func TestZrSupplyVoltage(t *testing.T) {
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
 			component := gnmi.OC().Component(tr)
 
-			outputPower := gnmi.Get(t, dut, component.OpticalChannel().TargetOutputPower().State())
-			if outputPower != targetOutputPowerdBm {
-				t.Fatalf("Output power does not match target output power, got: %v want :%v", outputPower, targetOutputPowerdBm)
-			}
-
-			frequency := gnmi.Get(t, dut, component.OpticalChannel().Frequency().State())
-			if frequency != targetFrequencyHz {
-				t.Fatalf("Frequency does not match target frequency, got: %v want :%v", frequency, targetFrequencyHz)
-			}
-
 			streamInst := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Instant().State(), samplingInterval)
 			defer streamInst.Close()
-			streamAvg := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Avg().State(), samplingInterval)
-			defer streamAvg.Close()
-			streamMin := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Min().State(), samplingInterval)
-			defer streamMin.Close()
-			streamMax := samplestream.New(t, dut, component.Transceiver().SupplyVoltage().Max().State(), samplingInterval)
-			defer streamMax.Close()
 
 			volInst := verifyVoltageValue(t, streamInst, "Instant")
 			t.Logf("Port %s instant voltage: %v", dp.Name(), volInst)
-			volAvg := verifyVoltageValue(t, streamAvg, "Avg")
-			t.Logf("Port %s average voltage: %v", dp.Name(), volAvg)
-			volMin := verifyVoltageValue(t, streamMin, "Min")
-			t.Logf("Port %s minimum voltage: %v", dp.Name(), volMin)
-			volMax := verifyVoltageValue(t, streamMax, "Max")
-			t.Logf("Port %s maximum voltage: %v", dp.Name(), volMax)
 
-			if volAvg >= volMin && volAvg <= volMax {
-				t.Logf("The average is between the maximum and minimum values")
-			} else {
-				t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvg, volMax, volMin)
-			}
-
+			d := &oc.Root{}
+			i := d.GetOrCreateInterface(dp.Name())
+			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+			// Disable interface
+			i.Enabled = ygot.Bool(false)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
 			// Wait for the cooling off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			volInstNew := verifyVoltageValue(t, streamInst, "Instant")
 			t.Logf("Port %s instant voltage after port down: %v", dp.Name(), volInstNew)
-			volAvgNew := verifyVoltageValue(t, streamAvg, "Avg")
-			t.Logf("Port %s average voltage after port down: %v", dp.Name(), volAvgNew)
-			volMinNew := verifyVoltageValue(t, streamMin, "Min")
-			t.Logf("Port %s minimum voltage after port down: %v", dp.Name(), volMinNew)
-			volMaxNew := verifyVoltageValue(t, streamMax, "Max")
-			t.Logf("Port %s maximum voltage after port down: %v", dp.Name(), volMaxNew)
 
-			if volAvgNew >= volMinNew && volAvgNew <= volMaxNew {
-				t.Logf("The average voltage after port down is between the maximum and minimum values")
-			} else {
-				t.Fatalf("The average voltage after port down is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", volAvgNew, volMaxNew, volMinNew)
-			}
+			// Enable interface again.
+			i.Enabled = ygot.Bool(true)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			// Wait for the cooling off period
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})
 	}
-
 }

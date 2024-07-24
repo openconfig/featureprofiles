@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "619040ac-21a0-403f-b38e-6d5d0aed433a"
+plan_id: "RT-1.53"
+description: "prefix-list test"
+testbed: TESTBED_DUT

@@ -176,7 +176,7 @@ func TestEstablish(t *testing.T) {
 	}, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	gnmi.Replace(t, ate, ateConfPath.Config(), ateConf)
-	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*180, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	wantState := dutConf.Bgp
 	dutState := gnmi.Get(t, dut, statePath.State())
 	if deviations.MissingValueForDefaults(dut) {

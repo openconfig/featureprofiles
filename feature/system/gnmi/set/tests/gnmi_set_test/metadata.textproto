@@ -22,6 +22,7 @@ platform_exceptions: {
   }
   deviations: {
     skip_static_nexthop_check: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {

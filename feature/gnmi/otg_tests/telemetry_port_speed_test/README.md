@@ -20,19 +20,27 @@ Validate port speed telemetry used by controller infrastructure.
     *   Turn ports sequentially up at the ATE, and determine that the effective
         speed is increased as expected.
 
-## Config Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-TBD
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter Coverage
+TODO(OCPATHS): Config paths TBD
 
-/interfaces/interface/state/oper-status
-/interfaces/interface/ethernet/state/port-speed
-/interfaces/interface/aggregation/state/lag-speed
+```yaml
+paths:
+  ## Config Paths ##
+  # TBD
 
-## Protocol/RPC Parameter Coverage
+  ## State Paths ##
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/aggregation/state/lag-speed:
 
-No new protocol coverage.
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
+
 
 ## Minimum DUT platform requirement
 

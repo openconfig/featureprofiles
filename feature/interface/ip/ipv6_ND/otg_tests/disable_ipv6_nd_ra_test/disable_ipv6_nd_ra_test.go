@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package topology_test configures just the ports on DUT and ATE,
-// assuming that DUT port i is connected to ATE i.  It detects the
-// number of ports in the testbed and can be used with the 2, 4, 12
-// port variants of the atedut testbed.
-
 package disable_ipv6_nd_ra_test
 
 import (
@@ -38,7 +33,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// Reserving the testbed and running tests
+// Reserving the testbed and running tests.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -81,7 +76,7 @@ var (
 	}
 )
 
-// configureDUT configures port1 and port2 of the DUT.
+// Configures port1 and port2 of the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
@@ -92,7 +87,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
 }
 
-// configInterfaceDUT configures the given DUT interface.
+// Configures the given DUT interface.
 func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i.Description = ygot.String(a.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -117,7 +112,7 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-// configureOTG configures OTG interfaces to send and recieve ipv6 packets
+// Configures OTG interfaces to send and recieve ipv6 packets.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
@@ -138,12 +133,14 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Logf("OTG configuration completed!")
 	topo.Flows().Clear().Items()
 	ate.OTG().PushConfig(t, topo)
+	time.Sleep(10 * time.Second)
 	t.Logf("starting protocols... ")
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
 }
 
-// Verifies that desired parameters are set with required value on the device - Change the function Name verifyRATelemetry
+// Verifies that desired parameters are set with required value on the device.
 func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
 	telemetryTimeIntervalQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
@@ -167,7 +164,7 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// captureTrafficStats Captures traffic statistics and verifies for the loss
+// Captures traffic statistics and verifies for the loss.
 func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ipv6Solicitation bool, waitTime uint8) {
 	otg := ate.OTG()
 	otg.StartProtocols(t)
@@ -193,7 +190,7 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 	validatePackets(t, f.Name())
 }
 
-// To detect if the routerAdvertisement packet is found in the captured packets
+// To detect if the routerAdvertisement packet is found in the captured packets.
 func validatePackets(t *testing.T, fileName string) {
 	t.Logf("Reading pcap file from : %v", fileName)
 	handle, err := pcap.OpenOffline(fileName)

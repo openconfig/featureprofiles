@@ -355,3 +355,57 @@
 ## Required DUT platform
 
 * FFF
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml 
+paths:
+  ## Config paths
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-level:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
+  /network-instances/network-instance/table-connections/table-connection/config/address-family:
+  /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+
+  ## State paths
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/state/set-level:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/prefix-set:
+  /network-instances/network-instance/table-connections/table-connection/state/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/address-family:
+  /network-instances/network-instance/table-connections/table-connection/state/src-protocol:
+  /network-instances/network-instance/table-connections/table-connection/state/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

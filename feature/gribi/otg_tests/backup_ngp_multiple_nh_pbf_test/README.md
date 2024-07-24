@@ -32,21 +32,18 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 *   Disable ATE port-3. Ensure that traffic for the destination is received at
     ATE port-4.
 
-## Config Parameter coverage
-
-*   No new configuration covered.
-
-## Telemetry Parameter coverage
-
-*   No new telemetry covered.
-
-## Protocol/RPC Parameter coverage
-
-*   gRIBI:
-    *   Modify
-        *   ModifyRequest
-            *   NextHopGroup
-                *   backup_nexthop_group
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 

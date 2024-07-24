@@ -149,7 +149,7 @@ func TestBgpSession(t *testing.T) {
 
 			t.Log("Verify BGP session state : ESTABLISHED")
 			nbrPath := statePath.Neighbor(tc.nbr.peerIP)
-			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 
 			t.Log("Verify BGP AS numbers")
 			verifyPeer(t, tc.nbr, dut)

@@ -5,3 +5,13 @@ uuid:  "7e0251e4-8c5c-4dff-9683-8c21c817816c"
 plan_id:  "TRANSCEIVER-12"
 description:  "Telemetry: 400ZR Transceiver Supply Voltage streaming."
 testbed:  TESTBED_DUT_400ZR
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+  }
+}

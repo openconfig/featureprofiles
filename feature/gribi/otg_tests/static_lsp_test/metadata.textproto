@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "021610e4-9b59-48c2-a9b9-2f204fa4c2a7"
+plan_id:  "TE-9.2"
+description:  "MPLS based forwarding Static LSP"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+  }
+}

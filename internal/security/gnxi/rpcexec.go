@@ -507,7 +507,7 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 	}
 	_, err = gnsiCStream.Recv()
 	// invalid policy is expected since the empty policy is not allowed
-	if strings.Contains(err.Error(), "invalid policy") {
+	if strings.Contains(err.Error(), "invalid policy") || status.Code(err) == codes.InvalidArgument {
 		return nil
 	}
 	return err

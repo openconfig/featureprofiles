@@ -104,7 +104,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 rpcs:
   gnmi:
@@ -177,7 +177,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 ` + "```" + `
 		`,
@@ -200,7 +200,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 rpcs:
 ` + "```" + `
 
@@ -224,7 +224,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 ` + "```" + `
 
@@ -341,13 +341,19 @@ func TestParseYAML(t *testing.T) {
 		wantErr     bool
 	}{{
 		desc: "good",
-		inYAML: `paths:
+		inYAML: `
+paths:
   # interface configuration
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: [
+      "CHASSIS",
+      "CONTROLLER_CARD",
+      "LINECARD",
+      "FABRIC",
+    ]
 
 rpcs:
   gnmi:
@@ -368,6 +374,24 @@ ocpaths: {
   name: "/components/component/state/name"
   ocpath_constraint: {
     platform_type: "CHASSIS"
+  }
+}
+ocpaths: {
+  name: "/components/component/state/name"
+  ocpath_constraint: {
+    platform_type: "CONTROLLER_CARD"
+  }
+}
+ocpaths: {
+  name: "/components/component/state/name"
+  ocpath_constraint: {
+    platform_type: "FABRIC"
+  }
+}
+ocpaths: {
+  name: "/components/component/state/name"
+  ocpath_constraint: {
+    platform_type: "LINECARD"
   }
 }
 ocpaths: {
@@ -405,7 +429,7 @@ oc_protocols: {
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 `,
 		wantErr: true,
 	}, {
@@ -458,7 +482,7 @@ paths:
   /interfaces/interface/config/enabled:
   # name of chassis component
   /components/component/state/name:
-    platform_type: "CHASSIS"
+    platform_type: ["CHASSIS"]
 
 
 
@@ -513,6 +537,94 @@ oc_protocols: {
   }
 }
 `),
+	}, {
+		desc: "platform_type-wrong-type",
+		inYAML: `
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: "CHASSIS",
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
+  gnoi:
+      healthz.Healthz.Get:
+      healthz.Healthz.List:
+      healthz.Healthz.Acknowledge:
+      healthz.Healthz.Artifact:
+      healthz.Healthz.Check:
+      bgp.BGP.ClearBGPNeighbor:
+`,
+		wantErr: true,
+	}, {
+		desc: "platform_type-wrong-element-type",
+		inYAML: `
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: [
+      "CHASSIS",
+      42,
+      "LINECARD",
+      "FABRIC",
+    ]
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
+  gnoi:
+      healthz.Healthz.Get:
+      healthz.Healthz.List:
+      healthz.Healthz.Acknowledge:
+      healthz.Healthz.Artifact:
+      healthz.Healthz.Check:
+      bgp.BGP.ClearBGPNeighbor:
+`,
+		wantErr: true,
+	}, {
+		desc: "platform_type-duplicate-element",
+		inYAML: `
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # name of chassis component
+  /components/component/state/name:
+    platform_type: [
+      "CHASSIS",
+      "LINECARD",
+      "FABRIC",
+      "LINECARD",
+    ]
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
+  gnoi:
+      healthz.Healthz.Get:
+      healthz.Healthz.List:
+      healthz.Healthz.Acknowledge:
+      healthz.Healthz.Artifact:
+      healthz.Healthz.Check:
+      bgp.BGP.ClearBGPNeighbor:
+`,
+		wantErr: true,
 	}}
 
 	for _, tt := range tests {

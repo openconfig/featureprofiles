@@ -182,12 +182,12 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	// Disable or shut down the interface on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
-	// Verify with interfaces in down state both optics are streaming uint 0
-	// value for frequency.
+	// Verify with interfaces in down state both optics are still streaming
+	// configured value for frequency.
 	// Verify for the TX output power with interface in down state a decimal64
 	// value of -40 dB is streamed.
 	t.Run("Telemetry during interface disabled", func(t *testing.T) {
-		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, 0, -40)
+		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, -40)
 	})
 	// Re-enable the interfaces on the DUT.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)

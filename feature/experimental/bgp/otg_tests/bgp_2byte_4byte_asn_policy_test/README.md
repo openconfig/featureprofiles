@@ -32,3 +32,13 @@ BGP 2-Byte and 4-Byte ASN support with policy
 *   /global/config/as
 *   /neighbors/neighbor/config/peer-as
 *   /neighbors/neighbor/config/local-as
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
