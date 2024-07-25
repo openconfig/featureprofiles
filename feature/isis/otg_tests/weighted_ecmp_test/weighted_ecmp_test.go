@@ -163,7 +163,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[1], aggIDs[2], aggIDs[3])
+			weight = fmt.Sprintf(" router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n ")
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
@@ -198,6 +198,31 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		}
 	})
 
+	if deviations.WecmpAutoUnsupported(dut) {
+		var weight string
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			weight = fmt.Sprintf(" router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n ")
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, weight)
+	}
+
+	top.Flows().Clear()
+	if deviations.ISISLoopbackRequired(dut) {
+		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
+		ate.OTG().PushConfig(t, top)
+		t.Log(ate.OTG().GetConfig(t))
+		// Start protocol enables Te0/6/0/2/2 back up again
+		ate.OTG().StartProtocols(t)
+		VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
+		for _, agg := range []*aggPortData{agg1, agg2} {
+			bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		}
+	}
 	// Disable ATE2:Port1
 	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
 		p3 := dut.Port(t, "port3")
@@ -217,30 +242,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 	p3 := dut.Port(t, "port3")
 	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_DOWN)
-
-	if deviations.WecmpAutoUnsupported(dut) {
-		var weight string
-		switch dut.Vendor() {
-		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[1], aggIDs[2], aggIDs[3])
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
-		}
-		helpers.GnmiCLIConfig(t, dut, weight)
-	}
-
-	top.Flows().Clear()
-	if deviations.ISISLoopbackRequired(dut) {
-		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-		for _, agg := range []*aggPortData{agg1, agg2} {
-			bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-		}
-	}
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
