@@ -1104,3 +1104,8 @@ func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
 }
+
+// ExplicitDuplexModeRequired returns true if explicit duplex mode is required.
+func ExplicitDuplexModeRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitDuplexModeRequired()
+}
