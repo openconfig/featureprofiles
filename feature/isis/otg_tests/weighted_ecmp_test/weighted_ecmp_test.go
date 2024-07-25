@@ -208,12 +208,11 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		}
 		helpers.GnmiCLIConfig(t, dut, weight)
 	}
-
+	apply-weight ecmp-only bandwidth
 	top.Flows().Clear()
 	if deviations.ISISLoopbackRequired(dut) {
 		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
 		ate.OTG().PushConfig(t, top)
-		t.Log(ate.OTG().GetConfig(t))
 		// Start protocol enables Te0/6/0/2/2 back up again
 		ate.OTG().StartProtocols(t)
 		VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
