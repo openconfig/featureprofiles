@@ -208,7 +208,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		}
 		helpers.GnmiCLIConfig(t, dut, weight)
 	}
-	apply-weight ecmp-only bandwidth
 	top.Flows().Clear()
 	if deviations.ISISLoopbackRequired(dut) {
 		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
