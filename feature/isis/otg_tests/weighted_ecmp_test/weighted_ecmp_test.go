@@ -163,7 +163,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n ")
+			weight = "router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n "
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
@@ -202,7 +202,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		var weight string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n ")
+			weight = "router isis DEFAULT \n address-family ipv4 unicast \n apply-weight ecmp-only bandwidth \n address-family ipv6 unicast \n apply-weight ecmp-only bandwidth \n "
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
 		}
