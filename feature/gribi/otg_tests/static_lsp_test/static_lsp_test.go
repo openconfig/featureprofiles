@@ -7,20 +7,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
+	"google3/third_party/golang/gopacket/gopacket"
+	"google3/third_party/golang/gopacket/layers/layers"
+	"google3/third_party/golang/gopacket/pcap/pcap"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
 )
 
 const (
@@ -142,14 +142,18 @@ func configureOTG(t *testing.T) gosnappi.Config {
 // configureStaticLSP configures a static MPLS LSP with the provided parameters.
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
 	d := &oc.Root{}
-	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	dni := deviations.DefaultNetworkInstance(dut)
+	defPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Update(t, dut, defPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+	mplsCfg := d.GetOrCreateNetworkInstance(dni).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
 	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-
 }
 
 func createTrafficFlow(t *testing.T,
