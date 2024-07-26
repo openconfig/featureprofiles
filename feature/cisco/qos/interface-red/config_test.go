@@ -566,7 +566,6 @@ func TestQmRedWrrSetReplaceInterface(t *testing.T) {
 		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 		// 	t.Errorf("Config Input fail: \n%v", diff)
 		// }
-
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	//confignonprior.Update(t, schedulenonprior)
