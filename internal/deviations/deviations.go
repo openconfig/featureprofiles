@@ -1103,3 +1103,8 @@ func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpExplicitExtendedCommunityEnable(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExplicitExtendedCommunityEnable()
 }
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}
