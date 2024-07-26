@@ -88,8 +88,8 @@ func Test400ZRTunableFrequency(t *testing.T) {
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
 					}
-					
-					if ! deviations.OperationalModeUnsupported(dut){
+
+					if !deviations.OperationalModeUnsupported(dut) {
 						opticalChannel1Config.SetOperationalMode(dp16QAM)
 						opticalChannel2Config.SetOperationalMode(dp16QAM)
 					}
@@ -145,12 +145,12 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
 				}
-				
-				if ! deviations.OperationalModeUnsupported(dut){
+
+				if !deviations.OperationalModeUnsupported(dut) {
 					opticalChannel1Config.SetOperationalMode(dp16QAM)
 					opticalChannel2Config.SetOperationalMode(dp16QAM)
 				}
-				
+
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -184,12 +184,12 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
 	}
-	
-	if ! deviations.OperationalModeUnsupported(dut){
+
+	if !deviations.OperationalModeUnsupported(dut) {
 		opticalChannel1Config.SetOperationalMode(dp16QAM)
 		opticalChannel2Config.SetOperationalMode(dp16QAM)
 	}
-	
+
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -240,7 +240,7 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		avg := oc.GetCarrierFrequencyOffset().GetAvg()
 		min := oc.GetCarrierFrequencyOffset().GetMin()
 		max := oc.GetCarrierFrequencyOffset().GetMax()
-		if got, want := opm, uint16(dp16QAM); got != want && ! deviations.OperationalModeUnsupported(dut) {
+		if got, want := opm, uint16(dp16QAM); got != want && !deviations.OperationalModeUnsupported(dut) {
 			t.Errorf("Optical-Channel: operational-mode: got %v, want %v", got, want)
 		}
 		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
