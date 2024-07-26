@@ -75,7 +75,11 @@ var (
 	)
 
 	exTestNamesFlag = flag.String(
-		"exclude_test_names", "", "comma separated list of tests to exclude",
+		"exclude_test_names", "", "comma separated list of test groups to include",
+	)
+
+	exGroupNamesFlag = flag.String(
+		"exclude_group_names", "", "comma separated list of test groups to exclude",
 	)
 
 	pluginsFlag = flag.String(
@@ -142,6 +146,7 @@ var (
 	testNames          []string
 	groupNames         []string
 	excludeTestNames   []string
+	excludeGroupNames  []string
 	extraPlugins       []string
 	testbeds           []string
 	env                map[string]string
@@ -261,6 +266,10 @@ func init() {
 		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
 	}
 
+	if len(*exGroupNamesFlag) > 0 {
+		excludeGroupNames = strings.Split(*exGroupNamesFlag, ",")
+	}
+
 	if len(*pluginsFlag) > 0 {
 		extraPlugins = strings.Split(*pluginsFlag, ",")
 	}
@@ -364,15 +373,17 @@ func main() {
 		}
 	} else if len(groupNames) > 0 {
 		keptTests := map[string][]GoTest{}
-		for _, tg := range groupNames {
-			for i := range suite {
-				if _, ok := keptTests[suite[i].Name]; !ok {
-					keptTests[suite[i].Name] = []GoTest{}
-				}
-				for j := range suite[i].Tests {
-					for _, g := range suite[i].Tests[j].Groups {
+		for i := range suite {
+			if _, ok := keptTests[suite[i].Name]; !ok {
+				keptTests[suite[i].Name] = []GoTest{}
+			}
+		outer:
+			for j := range suite[i].Tests {
+				for _, g := range suite[i].Tests[j].Groups {
+					for _, tg := range groupNames {
 						if tg == g {
 							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+							continue outer
 						}
 					}
 				}
@@ -419,6 +430,35 @@ func main() {
 				}
 			} else {
 				excludedTests[strings.Split(t, " ")[0]] = true
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+	}
+
+	if len(excludeGroupNames) > 0 {
+		excludedTests := map[string]bool{}
+
+		for i := range suite {
+		out:
+			for j := range suite[i].Tests {
+				for _, g := range excludeGroupNames {
+					for _, tg := range suite[i].Tests[j].Groups {
+						if g == tg {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+							continue out
+						}
+					}
+				}
 			}
 		}
 

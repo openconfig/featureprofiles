@@ -283,6 +283,7 @@ tests:
     mustpass: true
     priority: 37
     pr: 2864
+    groups: [ancx]
   - name: RT-5.6 (Interface Loopback mode)
     path: feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate
     owners:
@@ -290,6 +291,7 @@ tests:
     mustpass: true
     priority: 38
     pr: 3015
+    groups: [ancx]
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
@@ -297,6 +299,7 @@ tests:
     mustpass: true
     priority: 38
     pr: 2805
+    groups: [ancx]
     otg_version:
       controller: 0.1.0-81
       hw: 0.13.2-2
@@ -307,6 +310,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 39
+    groups: [ancx]
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
     owners:
@@ -358,6 +362,7 @@ tests:
     priority: 35
     mustpass: true
     pr: 2805
+    groups: [ancx]
   - name: gNMI-1.13 (Telemetry Optics Power and Bias Current)
     path: feature/platform/tests/optics_power_and_bias_current_test
     owners:
@@ -428,6 +433,7 @@ tests:
     mustpass: true
     priority: 47
     skip: false
+    groups: [ancx]
   - name: RT-2.2 (IS-IS LSP Updates)
     path: feature/experimental/isis/otg_tests/lsp_updates_test
     owners:
@@ -436,6 +442,7 @@ tests:
     priority: 48
     skip: false 
     pr: 2963
+    groups: [ancx]
   - name: RT-2.1 (Base IS-IS Process and Adjacencies)
     path: feature/experimental/isis/otg_tests/base_adjacencies_test
     owners:
@@ -443,6 +450,7 @@ tests:
     mustpass: true
     priority: 49
     skip: false
+    groups: [ancx]
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
@@ -466,6 +474,7 @@ tests:
     mustpass: true
     priority: 53
     skip: false
+    groups: [ancx]
   - name: RT-1.4 (BGP Graceful Restart)
     path: feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test
     owners:
@@ -489,6 +498,7 @@ tests:
     skip: false
     priority: 6
     timeout: 4200
+    groups: [ancx]
   - name: RT-1.11 (BGP remove private AS)
     path: feature/experimental/bgp/ate_tests/bgp_remove_private_as
     owners:
@@ -523,6 +533,7 @@ tests:
     mustpass: false
     priority: 52
     timeout: 4200
+    groups: [ancx]
   - name: gNMI-1.4 (Telemetry Inventory)
     path: feature/platform/tests/telemetry_inventory_test
     owners:
@@ -672,6 +683,7 @@ tests:
     timeout: 2400
     priority: 65
     pr: 2552
+    groups: [ancx]
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: AUTHZFP (Authz Functional Tests with spiffe id)
@@ -709,6 +721,7 @@ tests:
     owners:
       - mananpat
     mustpass: true
+    groups: [ancx]
   - name: RT-1.23 (BGP AFI SAFI OC DEFAULTS)
     path: feature/experimental/bgp/otg_tests/bgp_afi_safi_defaults
     owners:
@@ -744,6 +757,30 @@ tests:
     owners:
       - mananpat
     mustpass: false
+  - name: RT-2.12 (Static route to IS-IS redistribution)
+    path: feature/isis/otg_tests/static_route_isis_redistribution
+    owners:
+      - mastarke
+    mustpass: true
+    groups: [ancx]
+  - name: RT-5.5 (Interface hold-times)
+    path: feature/interface/holdtime/otg_tests/holdtime_test
+    owners:
+      - mastarke
+    mustpass: true
+    groups: [ancx]
+  - name: RT-1.25 (Management network-instance default static route)
+    path: feature/staticroute/tests/static_route_test/static_route_test
+    owners:
+      - mastarke
+    mustpass: true
+    groups: [ancx]
+  - name: TE-9.2 (MPLS based forwarding Static LSP)
+    path: feature/gribi/otg_tests/static_lsp_test
+    owners:
+      - mastarke
+    mustpass: true
+    groups: [ancx]
   - name: TUN-1.9 (GRE inner packet DSCP)
     path: feature/experimental/tunnel/otg_tests/tunnel_acl_based_test
     owners:
