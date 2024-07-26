@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -250,21 +251,21 @@ func applyPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	policy.SetImportPolicy([]string{policyName})
 	gnmi.Replace(t, dut, path.Config(), policy)
 
-	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := niProto.GetOrCreateBgp()
-	bgpNbrV4 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
-	bgpNbrV4.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
-
 	// Apply ipv6 policy to bgp neighbour.
 	path = gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy = root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{policyName})
 	gnmi.Replace(t, dut, path.Config(), policy)
 
+	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	bgpNbrV4 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
+	bgpNbrV4.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
 	bgpNbrV6 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	bgpNbrV6.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
-
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
 
