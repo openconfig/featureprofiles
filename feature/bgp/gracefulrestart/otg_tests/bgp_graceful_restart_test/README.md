@@ -39,7 +39,8 @@ B -- IBGP --> C[Port2:ATE];
      *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified `stale-routes-time`. Before the stale routes timer expires, stop traffic and ensure that there is zero packet loss.
      *   After the stale routes timer expires, restart traffic and confirm that there is 100% packet loss.
 *   Stop traffic, revert ATE configuration to start accepting packets for BGP reestablishement from DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
-*   Conduct the above steps once for the EBGP peering and once for the IBGP peering
+*   Conduct the above steps once for the IBGP peering and once for the EBGP peering. 
+*   In the case of EBGP Peering the traffic will flow from ATE Port2 to ATE port 1 (towards the EBGP routes)
 
 
 **RT-1.4.3: Restarting DUT speaker whose BGP process was killed abruptly**
@@ -51,7 +52,9 @@ B -- IBGP --> C[Port2:ATE];
 *   Advertise prefixes between the ATE ports through the DUT. Send Graceful restart trigger from ATE port-1.
 *   Start traffic between ATE port-1 and ATE port-2 and prior to the expiry of `stale-routes-time`, stop traffic and ensure that there is zero packet loss.
 *   Restart traffic post the stale routes timer expiry. Ensure that the subject prefixes are withdrawn, and there is 100% traffic loss between ATE:Port1 and ATE:Port2.
-*   Repeat the above for the IBGP peering on ATE port2
+*   Repeat the above for the EBGP peering on ATE port1
+*   In the case of EBGP Peering the traffic will flow from ATE Port2 to ATE port 1 (towards the EBGP routes)
+
  
 **RT-1.4.5: DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly**
 *   Advertise prefixes between the ATE ports through the DUT. Use `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1.
@@ -59,7 +62,8 @@ B -- IBGP --> C[Port2:ATE];
      *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified `stale-routes-time`. Before the stale routes timer expires, stop traffic and ensure that there is zero packet loss.
      *   After the stale routes timer expires, restart traffic and confirm that there is 100% packet loss.
 *   Stop traffic, revert ATE configuration to start accepting/sending packets for BGP reestablishement from/to DUT and wait for the BGP session w/ ATE to be reestablished. Once established, restart traffic to ensure that packets are forwarded again between ATE port-1 and ATE port2 and there is zero packet loss.
-*   Conduct the above steps once for the IBGP peering between DUT:Port2 and ATE:Port2.
+*   Conduct the above steps once for the IBGP peering between DUT:Port2 and ATE:Port2 and once for the EBGP peering. 
+*   In the case of EBGP Peering the traffic will flow from ATE Port2 to ATE port 1 (towards the EBGP routes)
 
 **RT-1.4.6: Test support for RFC8538 compliance by letting Hold-time expire**
 
@@ -67,22 +71,22 @@ RFC-8538 builds on RFC4724 by adding Graceful restart support for scenarios when
 *   Forwarded between ATE port-1 and ATE port-2 for the duration of the specified stale routes time. Stop traffic sometime after the holdtime expires but before the stale-routes-timer expires and confirm that there was zero packet loss.
 *   Once the stale-routes-timer expires, start traffic again and confirm that there is 100% packet loss. Stop traffic.
 *   Remove the ACL on DUT:Port1 and allow BGP to be reestablished. Start traffic again between ATE port1 and ATE port2. This time ensure that there is zero packet loss. Stop traffic again.
-*   Repeat the same process above for the IBGP peering between DUT:Port2 and the ATE:Port2
+*   Repeat the same process above for the EBGP peering between DUT:Port1 and the ATE:Port1
 
 **RT-1.4.7: TODO (Send Soft Notification) Test support for RFC8538 compliance by sending a BGP Notification message to the peer**
 
 The origial RFC4724 had no coverage for Graceful restart process post send/receive of a Soft BGP notification message. Hence, even though the peers supported Graceful restart, they were expected to flush their FIB for the peering when a BGP Notification is received on the session. However with RFC8538, supporting peers should maintain their FIB even when they receive a Soft Notification. Folowing process to test,
 *   Advertise prefixes between the ATE ports, through the DUT. 
-*   Trigger BGP soft Notification to/from DUT Port1 towards ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41). Once the Notification is received and the TCP connection is reset, configure ATE Port1 to not send/accept any more TCP conenctions from the DUT:Port1 until the stale-routes-timer on the DUT expires. 
-     *   Start traffic from ATE Port1 towards ATE Port2 and stop the same right before the stale-routes-timer expires. Confirm there is zero packet loss.
+*   Trigger BGP soft Notification to/from DUT Port1 towards ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41). Once the Notification is received and the TCP connection is reset, configure ATE Port1 to not send/accept any more TCP connections from the DUT:Port1 until the stale-routes-timer on the DUT expires. 
+     *   Start traffic from ATE Port2 towards ATE Port1 and stop it right before the stale-routes-timer expires. Confirm there is zero packet loss.
      *   Once the stale-routes-timer expires, restart traffic. Expectations are that there is 100% packet loss. Stop traffic
 *   Revert ATE configurtion blocking TCP connection from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss.
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
 **RT-1.4.8: TODO (Receive Soft Notification) Test support for RFC8538 compliance by receiving a BGP Notification message from the peer**
 *   Advertise prefixes between the ATE ports, through the DUT. 
-*   Trigger BGP soft Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP conenctions from the DUT:Port1 until the stale-routes-timer on the DUT expires. 
-     *   Start traffic from ATE Port1 towards ATE Port2 and stop the same right before the stale-routes-timer expires. Confirm there is zero packet loss.
+*   Trigger BGP soft Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_Soft` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L41). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP connections from the DUT:Port1 until the stale-routes-timer on the DUT expires. 
+     *   Start traffic from ATE Port2 towards ATE Port1 and stop the same right before the stale-routes-timer expires. Confirm there is zero packet loss.
      *   Once the stale-routes-timer expires, restart traffic. Expectations are that there is 100% packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
@@ -90,16 +94,16 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
 
 **RT-1.4.9: TODO (Send hard Notification) Test support for RFC8538 compliance by sending a BGP Hard Notification message to the peer**
 *   Advertise prefixes between the ATE ports, through the DUT. 
-*   Trigger BGP hard Notification from DUT port1. Please use the `gNOI.ClearBGPNeighborRequest_hard` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L43). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP conenctions to/from the DUT:Port1.
-     *   Start traffic from ATE Port1 towards ATE Port2. Confirm there is zero packet loss. Stop traffic.
+*   Trigger BGP hard Notification from DUT port1. Please use the `gNOI.ClearBGPNeighborRequest_hard` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L43). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP connections to/from the DUT:Port1.
+     *   Start traffic from ATE Port2 towards ATE Port1. Confirm there is zero packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
 
 **RT-1.4.10: TODO (Receive hard Notification) Test support for RFC8538 compliance by receiving a BGP Hard Notification message from the peer**
 *   Advertise prefixes between the ATE ports, through the DUT. 
-*   Trigger BGP hard Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_hard` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L43). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP conenctions to/from the DUT:Port1.
-     *   Start traffic from ATE Port1 towards ATE Port2. Confirm there is zero packet loss. Stop traffic.
+*   Trigger BGP hard Notification from ATE port1. Please use the `gNOI.ClearBGPNeighborRequest_hard` message as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/bgp/bgp.proto#L43). Once the Notification is sent and the TCP connection is reset, configure ATE Port1 to not start/accept any more TCP connections to/from the DUT:Port1.
+     *   Start traffic from ATE Port2 towards ATE Port1. Confirm there is zero packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
 
