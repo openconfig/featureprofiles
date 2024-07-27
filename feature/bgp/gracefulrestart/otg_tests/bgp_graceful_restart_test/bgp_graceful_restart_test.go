@@ -518,6 +518,20 @@ func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uin
 	}
 }
 
+// gNOIBGPRequest sends soft or hard gnoi BGP notification
+func gNOIBGPRequest(t *testing.T, mode string) {
+	t.Helper()
+	if mode == "soft" {
+		// requestResponse := gnoi.Execute(t, dut, soft)
+		t.Logf("Got kill-terminate process response: \n\n")
+
+	}
+	if mode == "hard" {
+		// requestResponse := gnoi.Execute(t, dut, hard)
+		t.Logf("Got kill process response: \n\n")
+	}
+}
+
 func configACL(d *oc.Root, ateDstCIDR string) *oc.Acl_AclSet {
 	acl := d.GetOrCreateAcl().GetOrCreateAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	aclEntry10 := acl.GetOrCreateAclEntry(10)
@@ -580,6 +594,28 @@ func verifyBGPActive(t *testing.T, mode string, dst attrs.Attributes) {
 		t.Errorf("BGP session did not go ACTIVE as expected")
 	}
 }
+
+func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutDstIfName string) *oc.Acl_Interface {
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	dstCIDR := dst.IPv4 + "/32"
+	iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutDstIfName)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, dstCIDR))
+	aclConf := configACLInterface(iFace, dutDstIfName)
+	gnmi.Replace(t, dut, aclConf.Config(), iFace)
+	return iFace
+
+}
+
+func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutDstIfName string) {
+	d := &oc.Root{}
+	dut := ondatra.DUT(t, "dut")
+	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d))
+	aclPath := configACLInterface(iface, dutDstIfName)
+	gnmi.Replace(t, dut, aclPath.Config(), iface)
+
+}
+
 func TestBGPPGracefulRestart(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -654,7 +690,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 			var src, dst attrs.Attributes
 			var dstStart string
-			modes := []string{"EBGP", "IBGP"}
+			modes := []string{"IBGP", "EBGP"}
 			for _, mode := range modes {
 				if mode == "EBGP" {
 					src = ateDst
@@ -727,7 +763,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				}
 				replaceDuration := time.Since(startTime)
 				waitDuration := grStaleRouteTime*time.Second - replaceDuration - 10*time.Second
-				t.Logf("Waiting for %s", waitDuration)
+				t.Logf("Waiting for %s short of stale route time expiration", waitDuration)
 				time.Sleep(waitDuration)
 				ate.OTG().StopTraffic(t)
 				t.Run("Verify no Packet Loss for "+mode, func(t *testing.T) {
@@ -780,7 +816,7 @@ func TestBGPPGracefulRestart(t *testing.T) {
 
 		var src, dst attrs.Attributes
 		var dstStart, dutDstIfName string
-		modes := []string{"EBGP", "IBGP"}
+		modes := []string{"IBGP", "EBGP"}
 		for _, mode := range modes {
 			if mode == "EBGP" {
 				src = ateDst
@@ -799,13 +835,8 @@ func TestBGPPGracefulRestart(t *testing.T) {
 			configureFlow(t, ate, src, dst, dstStart)
 			checkBgpStatus(t, dut)
 
-			t.Log("Configure Acl to block BGP on port 179")
-			d := &oc.Root{}
-			dstCIDR := dst.IPv4 + "/32"
-			iFace := d.GetOrCreateAcl().GetOrCreateInterface(dutDstIfName)
-			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, dstCIDR))
-			aclConf := configACLInterface(iFace, dutDstIfName)
-			gnmi.Replace(t, dut, aclConf.Config(), iFace)
+			t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutDstIfName)
+			iFace := blockBGPTCP(t, dst, dutDstIfName)
 			startTime := time.Now()
 
 			ate.OTG().StartTraffic(t)
@@ -829,12 +860,118 @@ func TestBGPPGracefulRestart(t *testing.T) {
 				confirmPacketLoss(t, ate)
 			})
 
-			t.Log("Removing Acl on the interface to restore BGP")
-			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d))
-			aclPath := configACLInterface(iFace, dutDstIfName)
-			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+			t.Logf("Removing Acl on the dut interface %s to restore BGP", dutDstIfName)
+			unblockBGPTCP(t, iFace, dutDstIfName)
 
 		}
 	})
+
+	nextCases := []struct {
+		name         string
+		direction    string
+		notification string
+		desc         string
+	}{{
+		name:         "RT-1.4.7 Send Soft Notification",
+		direction:    "send",
+		notification: "soft",
+		desc:         "RT-1.4.7 Test support for RFC8538 compliance by sending a BGP Notification message to the peer",
+	}, {
+		name:         "RT-1.4.8 Receive Soft Notification",
+		direction:    "receive",
+		notification: "hard",
+		desc:         "RT-1.4.8 Test support for RFC8538 compliance by receiving a BGP Notification message from the peer",
+	}, {
+		name:         "RT-1.4.9 Send Hard Notification",
+		direction:    "send",
+		notification: "soft",
+		desc:         "RT-1.4.9 Test support for RFC8538 compliance by sending a BGP Hard Notification message to the peer",
+	}, {
+		name:         "RT-1.4.10 Receive Hard Notification",
+		direction:    "receive",
+		notification: "hard",
+		desc:         "RT-1.4.10 Test support for RFC8538 compliance by receiving a BGP Hard Notification message from the peer",
+	}}
+
+	for _, tc := range nextCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Skip()
+			dut := ondatra.DUT(t, "dut")
+			ate := ondatra.ATE(t, "ate")
+			// ATE Configuration.
+			t.Log("Start ATE Config")
+			configureATE(t, ate, 60)
+
+			var src, dst attrs.Attributes
+			var dstStart, dutDstIfName string
+			modes := []string{"EBGP", "IBGP"}
+			for _, mode := range modes {
+				if mode == "EBGP" {
+					src = ateDst
+					dst = ateSrc
+					dstStart = ebgpV4AdvStartRoute
+					dutDstIfName = dut.Port(t, "port1").Name()
+				}
+				if mode == "IBGP" {
+					src = ateSrc
+					dst = ateDst
+					dstStart = ibgpV4AdvStartRoute
+					dutDstIfName = dut.Port(t, "port2").Name()
+				}
+				t.Log(tc.desc)
+				t.Logf("Starting the test for %s", mode)
+				// Creating traffic
+				configureFlow(t, ate, src, dst, dstStart)
+				checkBgpStatus(t, dut)
+				// Starting traffic before clear BGP notifications
+				t.Log("Starting traffic before clear BGP notifications")
+				ate.OTG().StartTraffic(t)
+
+				if tc.direction == "send" {
+					// Sending BGP clear request
+					t.Logf("Sending Clear BGP Notification")
+					gNOIBGPRequest(t, tc.notification)
+					time.Sleep(2 * time.Second)
+				}
+				if tc.direction == "receive" {
+					// Receiving BGP clear request. Ate is sending
+					t.Logf("Receiving Clear BGP Notification. ATE is sending the notification")
+					customAction := gosnappi.NewControlAction()
+					if tc.notification == "soft" {
+						// to add the correct code and subcode
+						customAction.Protocol().Bgp().Notification().SetNames([]string{dst.Name + ".BGP4.peer"}).Custom().SetCode(1).SetSubcode(6)
+					}
+					if tc.notification == "hard" {
+						// to add the correct code and subcode
+						customAction.Protocol().Bgp().Notification().SetNames([]string{dst.Name + ".BGP4.peer"}).Custom().SetCode(6).SetSubcode(6)
+					}
+				}
+				t.Logf("Configure Acl to block BGP on port 179 on interface %s", dutDstIfName)
+				iFace := blockBGPTCP(t, dst, dutDstIfName)
+				startTime := time.Now()
+
+				replaceDuration := time.Since(startTime)
+				waitDuration := grStaleRouteTime*time.Second - replaceDuration - 10*time.Second
+				t.Logf("Waiting for %s short of stale route time expiration", waitDuration)
+				time.Sleep(waitDuration)
+				ate.OTG().StopTraffic(t)
+				t.Run("Verify no Packet Loss for "+mode, func(t *testing.T) {
+					verifyNoPacketLoss(t, ate)
+				})
+
+				waitDuration = grStaleRouteTime*time.Second - time.Since(startTime) + 30*time.Second
+				t.Logf("Waiting another %s seconds to ensure the stale time expired", waitDuration)
+				time.Sleep(waitDuration)
+
+				sendTraffic(t, ate)
+				t.Run("Confirm Packet Loss for "+mode, func(t *testing.T) {
+					confirmPacketLoss(t, ate)
+				})
+				t.Logf("Removing Acl on the dut interface %s to restore BGP", dutDstIfName)
+				unblockBGPTCP(t, iFace, dutDstIfName)
+
+			}
+		})
+	}
 
 }
