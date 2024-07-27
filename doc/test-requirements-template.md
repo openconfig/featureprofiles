@@ -27,22 +27,50 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 
 ## Procedure
 
-* Test environment setup
+### Test environment setup
   * Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
 
-* TestID-x.y.z - Name of subtest
+### TestID-x.y.z - Name of subtest
+  * Canonical OpenConfig Configuration
+
+An example OpenConfig configuration and/or RPC content should be specified here in YAML format.
+
+```yaml
+---
+openconfig-qos:
+  scheduler-policies:
+    - scheduler-policy: "rate-limit-1"
+      config:
+        name: "rate-limit-1"
+      schedulers:
+        - scheduler:
+          config:
+              type: ONE_RATE_TWO_COLOR
+          one-rate-three-color:
+            config:
+              cir: 1000000000           # 1Gbit/sec
+              bc: 10000                 # 10 kilobytes
+              queuing-behavior: POLICE
+            exceed-action:
+              config:
+                drop: TRUE
+```
+
   * Step 1
   * Step 2
   * Validation and pass/fail criteria
 
-* TestID-x.y.z - Name of subtest
+### TestID-x.y.z - Name of subtest
+  * Canonical OpenConfig configuration
   * Step 1
   * Step 2
   * Validation and pass/fail criteria
 
 ## OpenConfig Path and RPC Coverage
 
-This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+This yaml stanza defines the OC paths intended to be covered by this test.  OC paths used
+for test environment setup are not required to be listed here. This content is parsed by
+automation to derive the test coverage
 
 ```yaml
 paths:
