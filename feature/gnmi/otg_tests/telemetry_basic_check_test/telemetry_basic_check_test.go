@@ -15,7 +15,6 @@
 package telemetry_basic_check_test
 
 import (
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -920,58 +919,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func explicitP4RTNodes() map[string]string {
-	return map[string]string{
-		"port1": *args.P4RTNodeName1,
-		"port2": *args.P4RTNodeName2,
-	}
-}
-
-var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
-
-// inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
-func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
-	res := make(map[string]string)
-	for _, p := range dut.Ports() {
-		m := nokiaPortNameRE.FindStringSubmatch(p.Name())
-		if len(m) != 3 {
-			continue
-		}
-
-		fpc := m[1]
-		port, err := strconv.Atoi(m[2])
-		if err != nil {
-			t.Fatalf("Error generating P4RT Node Name: %v", err)
-		}
-		asic := 0
-		if port > 18 {
-			asic = 1
-		}
-		res[p.ID()] = fmt.Sprintf("SwitchChip%s/%d", fpc, asic)
-	}
-
-	if _, ok := res["port1"]; !ok {
-		res["port1"] = *args.P4RTNodeName1
-	}
-	if _, ok := res["port2"]; !ok {
-		res["port2"] = *args.P4RTNodeName2
-	}
-	return res
-}
-
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
-	if deviations.ExplicitP4RTNodeComponent(dut) {
-		switch dut.Vendor() {
-		case ondatra.NOKIA:
-			return inferP4RTNodesNokia(t, dut)
-		default:
-			return explicitP4RTNodes()
-		}
-	}
-
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
