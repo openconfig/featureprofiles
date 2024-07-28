@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"os"
 	"testing"
+	"time"
 
 	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -36,11 +37,12 @@ const (
 )
 
 var (
-	testProfile = "newprofile"
-	serverAddr  string
-	username    = "certzuser"
-	password    = "certzpasswd"
-	servers     []string
+	testProfile     = "newprofile"
+	serverAddr      string
+	username        = "certzuser"
+	password        = "certzpasswd"
+	servers         []string
+	expected_result bool
 )
 
 // createUser function to add an user in admin role.
@@ -71,36 +73,34 @@ func TestServerCert(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
 	if !createUser(t, dut, username, password) {
-		t.Fatalf("Failed to create certz user.")
+		t.Fatalf("%s: Failed to create certz user.", time.Now().String())
 	}
-
 	t.Logf("Validation of all services that are using gRPC before certz rotation.")
 	if !setupService.PreInitCheck(context.Background(), t, dut) {
-		t.Fatalf("Failed in the preInit checks.")
+		t.Fatalf("%s: Failed in the preInit checks.", time.Now().String())
 	}
 
 	ctx := context.Background()
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx)
 	if err != nil {
-		t.Fatalf("Failed to create gNSI Connection %v", err)
+		t.Fatalf("%s: Failed to create gNSI Connection %v", time.Now().String(), err)
 	}
-	t.Logf("Precheck:gNSI connection is successful %v", gnsiC)
+	t.Logf("%s Precheck:gNSI connection is successful %v", time.Now().String(), gnsiC)
 
-	t.Logf("Creation of test data.")
-	if setupService.CertGeneration(dirPath) != nil {
-		t.Fatalf("Failed to generate the testdata certificates.")
+	t.Logf("%s:Creation of test data.", time.Now().String())
+	if setupService.CertGeneration(t, dirPath) != nil {
+		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
 	}
-
 	certzClient := gnsiC.Certz()
-	t.Logf("Precheck:baseline ssl profile list")
+	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
-	t.Logf("Adding new empty ssl profile ID.")
+	t.Logf("%s:Adding new empty ssl profile ID.", time.Now().String())
 	addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile})
 	if err != nil {
-		t.Fatalf("Add profile request failed with %v!", err)
+		t.Fatalf("%s:Add profile request failed with %v! ", time.Now().String(), err)
 	}
-	t.Logf("AddProfileResponse: %v", addProfileResponse)
-	t.Logf("Getting the ssl profile list after new ssl profile addition.")
+	t.Logf("%s AddProfileResponse: %v", time.Now().String(), addProfileResponse)
+	t.Logf("%s: Getting the ssl profile list after new ssl profile addition.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
 
 	cases := []struct {
@@ -110,6 +110,7 @@ func TestServerCert(t *testing.T) {
 		trustBundleFile string
 		clientCertFile  string
 		clientKeyFile   string
+		mismatch        bool
 	}{
 		{
 			desc:            "Certz2.1:Load server certificate of rsa keytype with 1 CA configuration",
@@ -175,6 +176,24 @@ func TestServerCert(t *testing.T) {
 			clientCertFile:  dirPath + "ca-1000/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-ecdsa-a-key.pem",
 		},
+		{
+			desc:            "Certz2.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa server certificate from ca-01",
+			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
+			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
+			mismatch:        true,
+		},
+		{
+			desc:            "Certz2.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa server certificate from ca-01",
+			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
+			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
+			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
+			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
+			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
+			mismatch:        true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -189,27 +208,25 @@ func TestServerCert(t *testing.T) {
 
 			trustCertChain := setupService.CreateCertChainFromTrustBundle(tc.trustBundleFile)
 			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, trustCertChain, "cabundle")
-
 			cert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
 			if err != nil {
-				t.Fatalf("Failed to load  client cert: %v", err)
+				t.Fatalf("%s Failed to load  client cert: %v", time.Now().String(), err)
 			}
-
 			cacert := x509.NewCertPool()
 			cacertBytes, err := os.ReadFile(tc.trustBundleFile)
 			if err != nil {
-				t.Fatalf("Failed to read ca bundle :%v", err)
+				t.Fatalf("%s Failed to read ca bundle :%v", time.Now().String(), err)
 			}
 			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
-				t.Fatalf("Failed to parse %v", tc.trustBundleFile)
+				t.Fatalf("%s Failed to parse %v", time.Now().String(), tc.trustBundleFile)
 			}
 
 			certzClient := gnsiC.Certz()
 			success := setupService.CertzRotate(t, cacert, certzClient, cert, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
-				t.Fatalf("%s:Certz rotation failed.", tc.desc)
+				t.Fatalf("%s %s:Certz rotation failed.", time.Now().String(), tc.desc)
 			}
-			t.Logf("%s:Certz rotation completed!", tc.desc)
+			t.Logf("%s %s:Certz rotation completed!", time.Now().String(), tc.desc)
 
 			// Replace config with newly added ssl profile after successful rotate.
 			servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
@@ -218,20 +235,33 @@ func TestServerCert(t *testing.T) {
 				gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), testProfile)
 			}
 			batch.Set(t, dut)
-			t.Logf("%s:replaced gNMI config with new ssl profile successfully.", tc.desc)
+			t.Logf("%s %s:replaced gNMI config with new ssl profile successfully.", time.Now().String(), tc.desc)
 
-			// Verification check of the new connection with the newly rotated certificates.
-			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
-				if !setupService.PostValidationCheck(t, cacert, ctx, san, serverAddr, username, password, cert) {
-					t.Fatalf("%s postTestcase service validation failed after successful rotate.", tc.desc)
-				}
-				t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
-				t.Logf("PASS: %s successfully completed!", tc.desc)
-			})
+			switch tc.mismatch {
+			case true:
+				t.Run("Verification of new connection after mismatch trustbundle server certificate rotation", func(t *testing.T) {
+					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
+					if !result {
+						t.Fatalf("%s postTestcase service validation failed with mismatch trustbundle from ca-02 - got %v , want %v", tc.desc, result, expected_result)
+					}
+					t.Logf("postTestcase service validation done for mismatch trustbundle from ca-02!")
+					t.Logf("PASS: %s successfully completed!", tc.desc)
+				})
+			case false:
+				expected_result := true
+				t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
+					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
+					if !result {
+						t.Fatalf("%s postTestcase service validation failed after successful rotate -got %v, want %v .", tc.desc, result, expected_result)
+					}
+					t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
+					t.Logf("PASS: %s successfully completed!", tc.desc)
+				})
+			}
 		})
 	}
 	t.Logf("Cleanup of test data.")
-	if setupService.CertCleanup(dirPath) != nil {
+	if setupService.CertCleanup(t, dirPath) != nil {
 		t.Fatalf("could not run cert cleanup command.")
 	}
 }
