@@ -1,4 +1,18 @@
-package factoryreset
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package factory_reset_test
 
 import (
 	"context"
@@ -25,9 +39,8 @@ var (
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/tmp/",
 		ondatra.JUNIPER: "/var/tmp/",
+		ondatra.ARISTA:  "/mnt/flash/",
 	}
-	afterReset = false
-	fileName   = "devrandom.log"
 )
 
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
@@ -117,7 +130,7 @@ func gNOIPutFile(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients
 	}
 }
 
-func gNOIStatFile(t *testing.T, dut *ondatra.DUTDevice, fName string) {
+func gNOIStatFile(t *testing.T, dut *ondatra.DUTDevice, fName string, reset bool) {
 	dutVendor := dut.Vendor()
 	fullPath := filepath.Join(remoteFilePath[dutVendor], fName)
 	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
@@ -150,14 +163,14 @@ func gNOIStatFile(t *testing.T, dut *ondatra.DUTDevice, fName string) {
 		}
 	}
 	if isCreatedFile {
-		if !afterReset {
+		if !reset {
 			t.Logf("gNOI PUT successfully created file: %s", fullPath)
 		} else {
 			t.Errorf("gNOI PUT file was found after Factory Reset: %s", fullPath)
 		}
 	}
 	if !isCreatedFile {
-		if !afterReset {
+		if !reset {
 			t.Error("gNOI PUT file was never Created")
 		} else {
 			t.Logf("Did not find %s in the list of files", fullPath)
@@ -165,25 +178,47 @@ func gNOIStatFile(t *testing.T, dut *ondatra.DUTDevice, fName string) {
 	}
 }
 
-func factoryReset(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	gNOIPutFile(t, dut, gnoiClient, fileName)
-	gNOIStatFile(t, dut, fileName)
-	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
-	if err != nil {
-		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
-	}
-	t.Logf("Factory reset Response %v ", facRe)
-	time.Sleep(2 * time.Minute)
-	deviceBootStatus(t, dut)
-	afterReset = true
-	gNOIStatFile(t, dut, fileName)
-}
-
 func TestFactoryReset(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	factoryReset(t, dut)
+
+	testCases := []struct {
+		name      string
+		fileName  string
+		fileExist bool
+	}{
+		{
+			name:      "Random file",
+			fileName:  "devrandom.log",
+			fileExist: false,
+		},
+		{
+			name:      "Startup config",
+			fileName:  "startup-config",
+			fileExist: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			if err != nil {
+				t.Fatalf("Error dialing gNOI: %v", err)
+			}
+
+			if !tc.fileExist {
+				gNOIPutFile(t, dut, gnoiClient, tc.fileName)
+			}
+			gNOIStatFile(t, dut, tc.fileName, tc.fileExist)
+
+			res, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
+			if err != nil {
+				t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
+			}
+			t.Logf("Factory reset Response %v ", res)
+			time.Sleep(2 * time.Minute)
+
+			deviceBootStatus(t, dut)
+			gNOIStatFile(t, dut, tc.fileName, true)
+		})
+	}
 }
