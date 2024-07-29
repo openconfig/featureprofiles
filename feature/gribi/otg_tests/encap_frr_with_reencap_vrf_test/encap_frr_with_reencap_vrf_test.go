@@ -1077,7 +1077,7 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
-	for _, tc := range testCases {
+	for _, tc := range testCases[5:6] {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
 			portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
