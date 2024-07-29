@@ -14,6 +14,7 @@ platform_exceptions: {
     controller_card_cpu_utilization_unsupported: true
     fabric_drop_counter_unsupported: true
     qos_voq_drop_counter_unsupported: true
+    qos_inqueue_drop_counter_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION

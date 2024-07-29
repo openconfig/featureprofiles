@@ -12,13 +12,19 @@ Test how large payload is handled.
     2.  Verify that The appropriate boolean should be set; one of `CommandService.{cmd_istruncated,cmd_args_istruncated}` or `GrpcService.payload_istruncated`.
     3.  If an RPC, the contents of the payload field(s) is structured and must remain syntactically parsable.
 
-## Telemetry Coverage
+## OpenConfig Path and RPC Coverage
 
-Accounting does not currently support any telemetry; see <https://github.com/openconfig/gnsi/issues/97> where it might become /system/aaa/acctz/XXX
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Protocol/RPC
+TODO(OCRPC): Record may not be complete
 
-gnsi.acctz.v1
+```yaml
+paths:
+    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+rpcs:
+  gnsi:
+    acctz.v1.Acctz.RecordSubscribe:
+```
 
 ## Minimum DUT
 
