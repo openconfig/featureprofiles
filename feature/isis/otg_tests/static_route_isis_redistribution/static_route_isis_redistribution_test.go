@@ -478,6 +478,10 @@ func TestStaticToISISRedistribution(t *testing.T) {
 	}}
 
 	for _, tc := range cases {
+		if deviations.MatchTagSetConditionUnsupported(ts.DUT) && tc.TagSetCondition {
+			t.Skipf("Skipping test case %s due to match tag set condition not supported", tc.desc)
+		}
+
 		dni := deviations.DefaultNetworkInstance(ts.DUT)
 
 		t.Run(tc.desc, func(t *testing.T) {
