@@ -1098,3 +1098,8 @@ func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
 }
+
+// BgpExplicitExtendedCommunityEnable returns true if explicit extended community enable is needed
+func BgpExplicitExtendedCommunityEnable(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitExtendedCommunityEnable()
+}

@@ -35,6 +35,7 @@ platform_exceptions:  {
     skip_bgp_send_community_type: true
     bgp_extended_community_index_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
+    bgp_explicit_extended_community_enable: true
   }
 }
 tags:  TAGS_AGGREGATION

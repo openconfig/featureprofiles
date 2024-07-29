@@ -594,6 +594,8 @@ message Metadata {
     // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
     // Juniper: b/341130490
     bool qos_inqueue_drop_counter_unsupported = 207;
+    // Devices that need bgp extended community enable explicitly
+    bool bgp_explicit_extended_community_enable = 208;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35;

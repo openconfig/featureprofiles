@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -181,6 +182,9 @@ func TestBGPLinkBandwidth(t *testing.T) {
 	}
 	baseSetupConfigAndVerification(t, td)
 	configureExtCommunityRoutingPolicy(t, dut)
+	if deviations.BgpExplicitExtendedCommunityEnable(dut) {
+		enableExtCommunityCLIConfig(t, dut)
+	}
 	testCases := []testCase{
 		{
 			name:                     "Policy set not_match_100_set_linkbw_1M",
@@ -224,6 +228,17 @@ func TestBGPLinkBandwidth(t *testing.T) {
 	}
 }
 
+func enableExtCommunityCLIConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	var extCommunityEnableCLIConfig string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, cfgplugins.BGPPeerGroup1)
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'BgpExplicitExtendedCommunityEnable'", dut.Vendor())
+	}
+	helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
+}
+
 func applyPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	// Apply ipv4 policy to bgp neighbour.
 	root := &oc.Root{}
@@ -241,6 +256,17 @@ func applyPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	policy = root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{policyName})
 	gnmi.Replace(t, dut, path.Config(), policy)
+
+	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	bgpNbrV4 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
+	bgpNbrV4.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
+	bgpNbrV6 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
+	bgpNbrV6.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
 
 func validatPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
@@ -292,6 +318,10 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						}
 					}
 				default:
+					if len(bgpPrefix.ExtendedCommunity) == 0 {
+						t.Errorf("ERROR extended community is empty, expected %v", community)
+						return
+					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
@@ -359,6 +389,10 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						}
 					}
 				default:
+					if len(bgpPrefix.ExtendedCommunity) == 0 {
+						t.Errorf("ERROR extended community is empty, expected %v", community)
+						return
+					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")

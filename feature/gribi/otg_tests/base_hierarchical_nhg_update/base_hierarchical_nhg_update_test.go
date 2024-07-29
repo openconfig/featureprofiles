@@ -225,14 +225,14 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			fn:   testBaseHierarchialNHG,
 		},
 		{
-			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
-			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
-			fn:   testBaseHierarchialNHGwithVrfPolW,
-		},
-		{
 			name: "testImplementDrain",
 			desc: "Usecase for Implementing Drain test",
 			fn:   testImplementDrain,
+		},
+		{
+			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
+			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
+			fn:   testBaseHierarchialNHGwithVrfPolW,
 		},
 	}
 	// Configure the gRIBI client
@@ -284,6 +284,9 @@ func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *
 		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
 	}
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
+
+	// Remove interface from VRF-1.
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
