@@ -1103,3 +1103,8 @@ func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpExplicitExtendedCommunityEnable(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpExplicitExtendedCommunityEnable()
 }
+
+// MatchTagSetConditionUnsupported returns true if match tag set condition is not supported
+func MatchTagSetConditionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchTagSetConditionUnsupported()
+}

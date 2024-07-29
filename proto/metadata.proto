@@ -596,6 +596,8 @@ message Metadata {
     bool qos_inqueue_drop_counter_unsupported = 207;
     // Devices that need bgp extended community enable explicitly
     bool bgp_explicit_extended_community_enable = 208;
+    // devices that do not support match tag set condition
+    bool match_tag_set_condition_unsupported = 209;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35;
