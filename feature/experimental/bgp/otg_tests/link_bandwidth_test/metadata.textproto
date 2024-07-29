@@ -19,6 +19,23 @@ platform_exceptions:  {
     skip_setting_disable_metric_propagation:  true
     bgp_conditions_match_community_set_unsupported:  true
     bgp_extended_community_index_unsupported:  true
+    skip_bgp_send_community_type: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    bgp_extended_community_set_unsupported:  true
+    community_member_regex_unsupported: true
+    skip_setting_statement_for_policy: true
+    bgp_set_ext_community_set_refs_unsupported: true
+    bgp_delete_link_bandwidth_unsupported: true
+    skip_bgp_send_community_type: true
+    bgp_extended_community_index_unsupported: true
+    bgp_conditions_match_community_set_unsupported: true
+    bgp_explicit_extended_community_enable: true
   }
 }
 tags:  TAGS_AGGREGATION
