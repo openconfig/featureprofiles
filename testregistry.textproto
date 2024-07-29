@@ -272,6 +272,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "MPLS-1.1"
+  description: "MPLS label blocks: Static and MPLS-SR"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/label_block/README.md"
+  exec: " "
+}
+test: {
   id: "OC-1.1"
   description: "System Configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
@@ -340,6 +346,49 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.2"
+  description: "BGP Policy & Route Installation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.3"
+  description: "BGP Route Propagation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.4"
+  description: "BGP Graceful Restart"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.5"
+  description: "BGP Prefix Limit"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.7"
+  description: "Local BGP Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/tests/local_bgp_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.8"
+  description: "BGP Route Reflector test at scale"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.9"
+  description: "BGP Transport Parameters test"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.10"
   description: "RT-1.10: BGP Keepalive and Holdtimer configuration"
   readme: ""
@@ -382,9 +431,21 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.2"
-  description: "BGP Policy & Route Installation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/route_installation_test/README.md"
+  id: "RT-1.17"
+  description: "RT-1.17: BGP route-refresh capability"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.18"
+  description: "RT-1.18: Support for MP-BGP w/ Multiple AFI-SAFI Tuples on a single neighborship"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-1.19"
+  description: "BGP 2-Byte and 4-Byte ASN support"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
   exec: " "
 }
 test: {
@@ -408,7 +469,7 @@ test: {
 test: {
   id: "RT-1.24"
   description: "BGP 2-byte and 4-byte ASN support with policy"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
   exec: " "
 }
 test: {
@@ -442,12 +503,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.3"
-  description: "BGP Route Propagation"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/addpath/ate_tests/route_propagation_test/README.md"
-  exec: " "
-}
-test: {
   id: "RT-1.30"
   description: "BGP nested import/export policy attachment"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/nested_policies/README.md"
@@ -476,19 +531,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-1.4"
-  description: "BGP Graceful Restart"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/ate_tests/bgp_graceful_restart_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-1.5"
-  description: "BGP Prefix Limit"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/otg_tests/bgp_prefix_limit_test/README.md"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/prefixlimit/ate_tests/bgp_prefix_limit_test/README.md"
-  exec: " "
-}
-test: {
   id: "RT-1.51"
   description: "BGP multipath ECMP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
@@ -501,27 +543,57 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.53"
+  description: "Prefix-set test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/prefix_set/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.55"
   description: "BGP session mode (active/passive)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
   exec: " "
 }
 test: {
-  id: "RT-1.7"
-  description: "Local BGP Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/tests/local_bgp_test/README.md"
+  id: "RT-1.56"
+  description: "BGP extended Next-hop support (RFC 5549)"
+  readme: " "
   exec: " "
 }
 test: {
-  id: "RT-1.8"
-  description: "BGP Route Reflector test at scale"
-  readme: ""
+  id: "RT-1.57"
+  description: "Support [E|I]BGP updates for IPv6 NLRI (including ULA/64 address space) with IPv4 Next-hop."
+  readme: " "
   exec: " "
 }
 test: {
-  id: "RT-1.9"
-  description: "BGP Transport Parameters test"
-  readme: ""
+  id: "RT-1.58"
+  description: "Support for learning IPv6 ULA/64 address space over [E|I]BGP sessions"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-1.59"
+  description: "Support for configuring static IPv6 ULA/64 routes with higher administrative distance"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-1.60"
+  description: "ECMP hashing support for [E|I]BGP learnt ULA/64 address space"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-1.61"
+  description: "ECMP hashing support for statically confifgured ULA/64 address space"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-1.62"
+  description: "ECMP hash testing for [E|I]BGP learnt IPv6 NLRI (including ULA/64 address space) with IPv4 Next-hop."
+  readme: " "
   exec: " "
 }
 test: {
@@ -741,6 +813,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-7.9"
+  description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
@@ -750,12 +828,6 @@ test: {
   id: "RT-9"
   description: "Interface IPv6 ND RA disable"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9"
-  description: "Weighted-ECMP for IS-IS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
   exec: " "
 }
 test: {
@@ -1162,6 +1234,72 @@ test: {
 test: {
   id: "TUN-2.5"
   description: "GUE Fragmentation"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.6"
+  description: "MPLSoUDP Encap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.7"
+  description: "MPLSoUDP Decap"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.8"
+  description: "ECMP hashing based on outer header of MPLSoUDP packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.9"
+  description: "ECMP hashing for GUE flows with IPv4 and IPv6 outer and inner headers"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.10"
+  description: "ECMP hashing based on outer and Inner header for GRE packets"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.11"
+  description: "Filter based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.12"
+  description: "Filter based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.13"
+  description: "Interface based GUE decap with IPv4 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.14"
+  description: "Interface based GUE decap with IPv6 tunnel endpoints"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.15"
+  description: "Interface based GUE encapsulation with IPv4 outer header"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "TUN-2.16"
+  description: "Interface based GUE encapsulation with IPv6 outer header"
   readme: ""
   exec: " "
 }
