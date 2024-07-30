@@ -934,12 +934,10 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v6.TrafficClass().SetValue(dscp << 2)
 	}
 	udp := flow.Packet().Add().Udp()
-	// udp.SrcPort().SetValues(randRange(50001, 10000))
-	// udp.DstPort().SetValues(randRange(50001, 10000))
 	udpSrcPortRand := udp.SrcPort().Random()
-	udpSrcPortRand.SetMin(1).SetMax(50001).SetCount(1000).SetSeed(1)
+	udpSrcPortRand.SetMin(1).SetMax(50001).SetCount(10000).SetSeed(1)
 	udpDstPortRand := udp.DstPort().Random()
-	udpDstPortRand.SetMin(1).SetMax(50001).SetCount(1000).SetSeed(1)
+	udpDstPortRand.SetMin(1).SetMax(50001).SetCount(10000).SetSeed(1)
 
 	return flow
 }

@@ -339,18 +339,16 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		// tcp.SrcPort().SetValues((generateRandomPortList(1200)))
 		tcpSrcPortRand := tcp.SrcPort().Random()
-		tcpSrcPortRand.SetMin(1).SetMax(65534).SetCount(1200).SetSeed(1)
+		tcpSrcPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	} else {
-		tcp.SrcPort().Increment().SetStart(1).SetCount(1200)
+		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
-		// tcp.DstPort().SetValues(generateRandomPortList(1200))
 		tcpDstPortRand := tcp.DstPort().Random()
-		tcpDstPortRand.SetMin(1).SetMax(65534).SetCount(1200).SetSeed(1)
+		tcpDstPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	} else {
-		tcp.DstPort().Increment().SetStart(1).SetCount(1200)
+		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
 	}
 
 	flow.Size().SetFixed(200)
