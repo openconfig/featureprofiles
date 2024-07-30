@@ -59,7 +59,7 @@ const (
 	vrfEncapB          = "ENCAP_TE_VRF_B"
 	ipv4PrefixLen      = 30
 	ipv6PrefixLen      = 126
-	trafficDuration    = 30 * time.Second
+	trafficDuration    = 15 * time.Second
 	nhg10ID            = 10
 	nh201ID            = 201
 	nh202ID            = 202
