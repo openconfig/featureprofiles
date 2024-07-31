@@ -1,79 +1,51 @@
-package factoryreset
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package factory_reset_test
 
 import (
 	"context"
-	"fmt"
-	"path"
-	"strings"
+	"crypto/md5"
+	"crypto/rand"
+	"io"
+	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	frpb "github.com/openconfig/gnoi/factory_reset"
+	fpb "github.com/openconfig/gnoi/file"
+	"github.com/openconfig/gnoi/types"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/testt"
 )
 
 var (
-	filesCreated      = []string{}
-	fileCreateDevRand = "bash  dd if=/dev/urandom of=%s bs=1M count=2"
-	checkFileExists   = "bash [ -f \"%s\" ] && echo \"YES_exists\""
-	fileExists        = "YES_exists"
-	fileCreate        = "bash fallocate -l %dM %s"
+	remoteFilePath = map[ondatra.Vendor]string{
+		ondatra.CISCO:   "/misc/disk1/",
+		ondatra.NOKIA:   "/tmp/",
+		ondatra.JUNIPER: "/var/tmp/",
+		ondatra.ARISTA:  "/mnt/flash/",
+	}
 )
 
 const maxRebootTime = 40 // 40 mins wait time for the factory reset and sztp to kick in
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-type encryptionCommands struct {
-	EncryptionStatus     string
-	EncryptionActivate   string
-	EncryptionDeactivate string
-	DevicePaths          []string
-}
-
-var enCiscoCommands encryptionCommands
-
-// creating files before factory reset
-func createFiles(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
-	for _, folderPath := range devicePaths {
-		fPath := path.Join(folderPath, "devrandom.log")
-		dut.CLI().Run(t, fmt.Sprintf(fileCreateDevRand, fPath))
-		t.Log("Check if the file is created")
-		time.Sleep(30 * time.Second)
-		filesCreated = append(filesCreated, fPath)
-		fPath = path.Join(folderPath, ".devrandom.log")
-		dut.CLI().Run(t, fmt.Sprintf(fileCreateDevRand, fPath))
-
-		filesCreated = append(filesCreated, fPath)
-		fPath = path.Join(folderPath, "largeFile.log")
-		dut.CLI().Run(t, fmt.Sprintf(fileCreate, 100, fPath))
-
-		filesCreated = append(filesCreated, fPath)
-	}
-	for _, f := range filesCreated {
-		resp := dut.CLI().Run(t, fmt.Sprintf(checkFileExists, f))
-		t.Logf("%v", resp)
-		if !strings.Contains(resp, fileExists) {
-			t.Fatalf("Unable to Create a file object %s in device %s", f, dut.Name())
-		}
-	}
-
-}
-
-// checkFiles check if the files created are deleted from the device after factory reset
-func checkFiles(t *testing.T, dut *ondatra.DUTDevice) {
-	for _, f := range filesCreated {
-		resp := dut.CLI().Run(t, fmt.Sprintf(checkFileExists, f))
-		t.Logf(resp)
-		if strings.Contains(resp, fileExists) == true {
-			t.Fatalf("File %s not cleared by system Reset, in device %s", f, dut.Name())
-		}
-
-	}
 }
 
 func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
@@ -100,70 +72,153 @@ func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
 
-// performs factory reset
-func factoryReset(t *testing.T, dut *ondatra.DUTDevice, devicePaths []string) {
-	createFiles(t, dut, devicePaths)
+func gNOIPutFile(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, fName string) {
+	dutVendor := dut.Vendor()
+	fullPath := filepath.Join(remoteFilePath[dutVendor], fName)
+	stream, err := gnoiClient.File().Put(context.Background())
+	t.Logf("Attempting to send gNOI File Put here: %v", fullPath)
+	if err != nil {
+		t.Fatalf("Failed to create stream channel: %v", err)
+	}
+	defer stream.CloseSend()
+	h := md5.New()
+	fPutOpen := &fpb.PutRequest_Open{
+		Open: &fpb.PutRequest_Details{
+			RemoteFile:  fullPath,
+			Permissions: 744,
+		},
+	}
+	err = stream.Send(&fpb.PutRequest{
+		Request: fPutOpen,
+	})
+	if err != nil {
+		t.Fatalf("Stream failed to send PutRequest: %v", err)
+	}
+
+	b := make([]byte, 64*1024)
+	n, err := rand.Read(b)
+	if err != nil && err != io.EOF {
+		t.Fatalf("Error reading bytes: %v", err)
+	}
+	h.Write(b[:n])
+	req := &fpb.PutRequest{
+		Request: &fpb.PutRequest_Contents{
+			Contents: b[:n],
+		},
+	}
+	err = stream.Send(req)
+	if err != nil {
+		t.Fatalf("Stream failed to send Req: %v", err)
+	}
+
+	hashReq := &fpb.PutRequest{
+		Request: &fpb.PutRequest_Hash{
+			Hash: &types.HashType{
+				Method: types.HashType_MD5,
+				Hash:   h.Sum(nil),
+			},
+		},
+	}
+	err = stream.Send(hashReq)
+	if err != nil {
+		t.Fatalf("Stream failed to send hash: %v", err)
+	}
+
+	_, err = stream.CloseAndRecv()
+	if err != nil {
+		t.Fatalf("Problem closing the stream: %v", err)
+	}
+}
+
+func gNOIStatFile(t *testing.T, dut *ondatra.DUTDevice, fName string, reset bool) {
+	dutVendor := dut.Vendor()
+	fullPath := filepath.Join(remoteFilePath[dutVendor], fName)
 	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
 	if err != nil {
 		t.Fatalf("Error dialing gNOI: %v", err)
 	}
-	facRe, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
-	if err != nil {
-		t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
+	if _, ok := remoteFilePath[dutVendor]; !ok {
+		t.Fatalf("Please add support for vendor %v in var remoteFilePath ", dutVendor)
 	}
-	t.Logf("Factory reset Response %v ", facRe)
-	time.Sleep(2 * time.Minute)
-	deviceBootStatus(t, dut)
-	dutNew := ondatra.DUT(t, "dut")
-	checkFiles(t, dutNew)
-	t.Log("Factory reset successfull")
+
+	in := &fpb.StatRequest{
+		Path: remoteFilePath[dutVendor],
+	}
+	statResp, err := gnoiClient.File().Stat(context.Background(), in)
+	if err != nil {
+		t.Fatalf("Error fetching stat path %v for the created file on DUT. %v", remoteFilePath[dutVendor], err)
+	}
+
+	if len(statResp.GetStats()) == 0 {
+		t.Log("gNOI STAT did not find any files")
+	}
+
+	r := regexp.MustCompile(fName)
+	var isCreatedFile bool
+
+	for _, fileStats := range statResp.GetStats() {
+		isCreatedFile = r.MatchString(fileStats.GetPath()) && (fileStats.GetSize() == uint64(64*1024))
+		if isCreatedFile {
+			break
+		}
+	}
+	if isCreatedFile {
+		if !reset {
+			t.Logf("gNOI PUT successfully created file: %s", fullPath)
+		} else {
+			t.Errorf("gNOI PUT file was found after Factory Reset: %s", fullPath)
+		}
+	}
+	if !isCreatedFile {
+		if !reset {
+			t.Error("gNOI PUT file was never Created")
+		} else {
+			t.Logf("Did not find %s in the list of files", fullPath)
+		}
+	}
 }
 
 func TestFactoryReset(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		enCiscoCommands = encryptionCommands{EncryptionStatus: "show disk-encryption status", EncryptionActivate: "disk-encryption activate", EncryptionDeactivate: "disk-encryption deactivate", DevicePaths: []string{"/misc/disk1"}}
-		t.Logf("Cisco commands for disk encryption %v ", enCiscoCommands)
-	default:
-		t.Fatalf("Disk Encryption commands is missing for %v ", dut.Vendor().String())
+	testCases := []struct {
+		name      string
+		fileName  string
+		fileExist bool
+	}{
+		{
+			name:      "Random file",
+			fileName:  "devrandom.log",
+			fileExist: false,
+		},
+		{
+			name:      "Startup config",
+			fileName:  "startup-config",
+			fileExist: true,
+		},
 	}
 
-	showDiskEncryptionStatus := dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-	t.Logf("Disk encryption status %v", showDiskEncryptionStatus)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			if err != nil {
+				t.Fatalf("Error dialing gNOI: %v", err)
+			}
 
-	if strings.Contains(showDiskEncryptionStatus, "Not Encrypted") {
-		t.Log("Performing Factory reset without Encryption\n")
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-		t.Log("Stablise after factory reset\n")
-		time.Sleep(5 * time.Minute)
-		t.Log("Activate Encryption\n")
-		encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionActivate)
-		t.Logf("Sleep for 5 mins after disk-encryption activate")
-		time.Sleep(5 * time.Minute)
-		t.Logf("Device encryption acrivare: %v", encrypt)
-		deviceBootStatus(t, dut)
-		encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-		t.Logf("Show device encryption status: %v", encrypt)
-		t.Log("Wait for the system to stabilize\n")
-		time.Sleep(5 * time.Minute)
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-	} else {
-		t.Log("Performing Factory reset with Encryption\n")
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
-		t.Log("Stablise after factory reset\n")
-		time.Sleep(5 * time.Minute)
-		t.Log("Deactivate Encryption\n")
-		encrypt := dut.CLI().Run(t, enCiscoCommands.EncryptionDeactivate)
-		t.Logf("Device encrytion deactivate: %v", encrypt)
-		t.Logf("Sleep for 5 mins after disk-encryption deactivate")
-		time.Sleep(5 * time.Minute)
-		deviceBootStatus(t, dut)
-		encrypt = dut.CLI().Run(t, enCiscoCommands.EncryptionStatus)
-		t.Logf("Show device encrytion status: %v", encrypt)
-		t.Logf("Wait for the system to stabilize\n")
-		time.Sleep(5 * time.Minute)
-		factoryReset(t, dut, enCiscoCommands.DevicePaths)
+			if !tc.fileExist {
+				gNOIPutFile(t, dut, gnoiClient, tc.fileName)
+			}
+			gNOIStatFile(t, dut, tc.fileName, tc.fileExist)
+
+			res, err := gnoiClient.FactoryReset().Start(context.Background(), &frpb.StartRequest{FactoryOs: false, ZeroFill: false})
+			if err != nil {
+				t.Fatalf("Failed to initiate Factory Reset on the device, Error : %v ", err)
+			}
+			t.Logf("Factory reset Response %v ", res)
+			time.Sleep(2 * time.Minute)
+
+			deviceBootStatus(t, dut)
+			gNOIStatFile(t, dut, tc.fileName, true)
+		})
 	}
 }
