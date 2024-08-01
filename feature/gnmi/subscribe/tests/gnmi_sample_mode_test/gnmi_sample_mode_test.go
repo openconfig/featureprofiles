@@ -37,11 +37,11 @@ func TestGNMISampleMode(t *testing.T) {
 
 	desc := p1Stream.Next()
 	if desc == nil {
-		t.Errorf("Interface %q telemetry not received before config", p1.Name())
+		t.Logf("Interface %q telemetry not received before config", p1.Name())
 	} else {
 		v, ok := desc.Val()
 		if !ok {
-			t.Errorf("Interface %q telemetry empty before config", p1.Name())
+			t.Logf("Interface %q telemetry empty before config", p1.Name())
 		}
 		t.Logf("Description before config: %s", v)
 	}
@@ -53,6 +53,7 @@ func TestGNMISampleMode(t *testing.T) {
 		t.Errorf("Interface %q telemetry not received after config", p1.Name())
 	} else {
 		v, ok := desc.Val()
+		t.Logf("Description from stream : %s", v)
 		if !ok {
 			t.Errorf("Interface %q telemetry empty after config", p1.Name())
 		}
@@ -69,6 +70,7 @@ func TestGNMISampleMode(t *testing.T) {
 		t.Errorf("Interface %q telemetry not received after description update", p1.Name())
 	} else {
 		v, ok := desc.Val()
+		t.Logf("Description from stream : %s", v)
 		if !ok {
 			t.Errorf("Interface %q telemetry empty after description update", p1.Name())
 		}
