@@ -92,7 +92,7 @@ func TestAdminDistance(t *testing.T) {
 		ts.MustAdjacency(t)
 	})
 
-	setupEBGPAndAdvertise(t, ts.DUT, ts)
+	setupEBGPAndAdvertise(t, ts)
 	t.Run("BGP Setup", func(t *testing.T) {
 		t.Log("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
@@ -250,7 +250,7 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, isV6 bool) {
 }
 
 // setupEBGPAndAdvertise setups eBGP on DUT port1 and ATE port1
-func setupEBGPAndAdvertise(t *testing.T, dut *ondatra.DUTDevice, ts *isissession.TestSession) {
+func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 
 	// setup eBGP on DUT port1 and iBGP on port2
