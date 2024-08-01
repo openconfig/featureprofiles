@@ -345,8 +345,6 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop/README.md"
   exec: " "
 }
-
-
 test: {
   id: "PF-1.2"
   description: "Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel"
