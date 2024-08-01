@@ -334,6 +334,9 @@ func TestMplsStaticLabel(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otgObj := ate.OTG()
 
+	if deviations.StaticLspConfigUnsupported(dut) {
+		t.Skipf("Skipping the testcase for unsupported device")
+	}
 	t.Run("configureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		configureDUT(t, dut)
