@@ -1577,3 +1577,63 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnpsi/otg_tests/sampling_test/README.md"
   exec: " "
 }
+test: {
+  id: "CNTR-1"
+  description: "Basic container lifecycle via `gnoi.Containerz`."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-1.1"
+  description: "Deploy and Start a Container"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-1.2"
+  description: "Retrieve a running container's logs."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-1.3"
+  description: "List the running containers on a DUT"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-1.4"
+  description: "Stop a container running on a DUT."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-2"
+  description: "Container network connectivity tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-2.1"
+  description: "Connect to container from external client."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-2.2"
+  description: "Connect to locally running service."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-2.3"
+  description: "Connect to a remote node."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
+test: {
+  id: "CNTR-2.4"
+  description: "Connect to another container on a local node"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
