@@ -153,7 +153,6 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 		SetRxNames([]string{fmt.Sprintf("%s.%s", ateDst.Name, ipv)})
 	ethHdr := flow.Packet().Add().Ethernet()
 	ethHdr.Src().SetValue(ateSrc.MAC)
-	//ethHdr.Dst().SetValue(ateDst.MAC)
 	flow.SetSize(gosnappi.NewFlowSize().SetFixed(flowSize))
 
 	switch ipv {
