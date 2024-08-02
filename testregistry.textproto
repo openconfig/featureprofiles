@@ -346,6 +346,18 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/lldp_packetout_test/README.md"
 }
 test: {
+  id: "PF-1.1"
+  description: "IPv4/IPv6 policy-forwarding to indirect NH matching DSCP/TC"
+  readme: "https://github.com/openconfig/featureprofiles/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.2"
+  description: "Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel"
+  readme: "https://github.com/openconfig/featureprofiles/feature/policy_forwarding/encapsulation/otg_tests/encap_gre_ipv4/README.md"
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
