@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"math/rand"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -74,20 +72,6 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 	configureFlow(t, bs)
 }
 
-func randRange(t *testing.T, start, end uint32, count int) []uint32 {
-	if count > int(end-start) {
-		t.Fatal("randRange: count greater than end-start.")
-	}
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result []uint32
-	for len(result) < count {
-		diff := end - start
-		randomValue := rand.Int31n(int32(diff)) + int32(start)
-		result = append(result, uint32(randomValue))
-	}
-	return result
-}
-
 func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
@@ -110,8 +94,6 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	v4.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(bs.ATEPorts[0].IPv4)
 	v4.Dst().Increment().SetCount(4).SetStep("0.0.0.1").SetStart(prefixesStart)
 	udp := flow.Packet().Add().Udp()
-	// udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
-	// udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 	udpSrcPortRand := udp.SrcPort().Random()
 	udpSrcPortRand.SetMin(34525).SetMax(65535).SetCount(500).SetSeed(1)
 	udpDstPortRand := udp.DstPort().Random()

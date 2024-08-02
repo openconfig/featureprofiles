@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -353,23 +352,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
-}
-
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
-}
-
-func generateRandomFlowLabelList(count int) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(1048575-1) + 1)
-	}
-	return a
 }
 
 func (tc *testCase) configureATE(t *testing.T) {

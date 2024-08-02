@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"math/rand"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -244,20 +242,6 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
-}
-
-func randRange(t *testing.T, start, end uint32, count int) []uint32 {
-	if count > int(end-start) {
-		t.Fatal("randRange: count greater than end-start.")
-	}
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result []uint32
-	for len(result) < count {
-		diff := end - start
-		randomValue := rand.Int31n(int32(diff)) + int32(start)
-		result = append(result, uint32(randomValue))
-	}
-	return result
 }
 
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV6 *ipAddr) []gosnappi.Flow {

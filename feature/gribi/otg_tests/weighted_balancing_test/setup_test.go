@@ -324,14 +324,12 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		// ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
 		ipSrcRand := ipv4.Src().Random()
 		ipSrcRand.SetMin(ateSrcNetFirstIP).SetMax("198.51.100.251").SetCount(ateSrcNetCount)
 	} else {
 		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		// ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
 		ipDstRand := ipv4.Dst().Random()
 		ipDstRand.SetMin(ateDstNetFirstIP).SetMax("203.0.113.251").SetCount(ateDstNetCount)
 	} else {
@@ -407,15 +405,6 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 		ys[i] = float64(x) / float64(sum)
 	}
 	return ys, sum
-}
-
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
 }
 
 // portWants converts the nextHop wanted weights to per-port wanted
