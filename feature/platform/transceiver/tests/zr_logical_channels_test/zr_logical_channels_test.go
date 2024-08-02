@@ -6,19 +6,25 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	targetOutputPower = -9
 	frequency         = 193100000
 	dp16QAM           = 1
+	samplingInterval  = 10 * time.Second
+	timeout           = 10 * time.Minute
+	otnIndex1         = uint32(4001)
+	otnIndex2         = uint32(4002)
+	ethernetIndex1    = uint32(40001)
+	ethernetIndex2    = uint32(40002)
 )
 
 var (
@@ -52,75 +58,35 @@ func Test400ZRLogicalChannels(t *testing.T) {
 
 	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
 	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
+	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Transceiver().State())
+	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(p2.Name()).Transceiver().State())
 
-	configureLogicalChannels(t, dut, 40000, 40001, oc1)
-	configureLogicalChannels(t, dut, 40002, 40003, oc2)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOTNChannel(t, dut, oc1, otnIndex1, ethernetIndex1)
+	cfgplugins.ConfigETHChannel(t, dut, p1.Name(), tr1, otnIndex1, ethernetIndex1)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOTNChannel(t, dut, oc2, otnIndex2, ethernetIndex2)
+	cfgplugins.ConfigETHChannel(t, dut, p2.Name(), tr2, otnIndex2, ethernetIndex2)
 
-	ethChan1 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(40000).State(), 10*time.Second)
+	ethChan1 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethernetIndex1).State(), samplingInterval)
 	defer ethChan1.Close()
-	validateEthernetChannelTelemetry(t, 40000, 40001, ethChan1)
-	cohChan1 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(40001).State(), 10*time.Second)
-	defer cohChan1.Close()
-	validateCoherentChannelTelemetry(t, 40001, oc1, cohChan1)
-	ethChan2 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(40002).State(), 10*time.Second)
+	ethChan2 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(ethernetIndex2).State(), samplingInterval)
 	defer ethChan2.Close()
-	validateEthernetChannelTelemetry(t, 40002, 40003, ethChan2)
-	cohChan2 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(40002).State(), 10*time.Second)
-	defer cohChan2.Close()
-	validateCoherentChannelTelemetry(t, 40003, oc2, cohChan2)
+	otnChan1 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex1).State(), samplingInterval)
+	defer otnChan1.Close()
+	otnChan2 := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex2).State(), samplingInterval)
+	defer otnChan2.Close()
+
+	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+
+	validateEthernetChannelTelemetry(t, otnIndex1, ethernetIndex1, ethChan1)
+	validateEthernetChannelTelemetry(t, otnIndex2, ethernetIndex2, ethChan2)
+	validateOTNChannelTelemetry(t, otnIndex1, ethernetIndex1, oc1, otnChan1)
+	validateOTNChannelTelemetry(t, otnIndex2, ethernetIndex2, oc2, otnChan2)
 }
 
-func configureLogicalChannels(t *testing.T, dut *ondatra.DUTDevice, ethernetChIdx, coherentChIdx uint32, opticalChannel string) {
-	t.Helper()
-	b := &gnmi.SetBatch{}
-
-	// Optical Channel and Tunable Parameters
-	gnmi.BatchReplace(b, gnmi.OC().Component(opticalChannel).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPower),
-		Frequency:         ygot.Uint64(frequency),
-		OperationalMode:   ygot.Uint16(dp16QAM),
-	})
-
-	// Ethernet Logical Channel
-	gnmi.BatchReplace(b, gnmi.OC().TerminalDevice().Channel(ethernetChIdx).Config(), &oc.TerminalDevice_Channel{
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
-		Description:        ygot.String("ETH Logical Channel"),
-		Index:              ygot.Uint32(ethernetChIdx),
-		RateClass:          oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
-		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: {
-				Index:          ygot.Uint32(1),
-				LogicalChannel: ygot.Uint32(coherentChIdx),
-				Description:    ygot.String("ETH to Coherent"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
-			},
-		},
-	})
-
-	// Coherent Logical Channel
-	gnmi.BatchReplace(b, gnmi.OC().TerminalDevice().Channel(coherentChIdx).Config(), &oc.TerminalDevice_Channel{
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
-		Description:        ygot.String("Coherent Logical Channel"),
-		Index:              ygot.Uint32(coherentChIdx),
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: {
-				Index:          ygot.Uint32(1),
-				OpticalChannel: ygot.String(opticalChannel),
-				Description:    ygot.String("Coherent to Optical"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-			},
-		},
-	})
-
-	b.Set(t, dut)
-}
-
-func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
+func validateEthernetChannelTelemetry(t *testing.T, otnChIdx, ethernetChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
 	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Ethernet Channel telemetry stream not received in last 10 seconds")
@@ -140,11 +106,6 @@ func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx
 			want: ethernetChIdx,
 		},
 		{
-			desc: "Admin State",
-			got:  ec.GetAdminState().String(),
-			want: oc.TerminalDevice_AdminStateType_ENABLED.String(),
-		},
-		{
 			desc: "Description",
 			got:  ec.GetDescription(),
 			want: "ETH Logical Channel",
@@ -155,38 +116,33 @@ func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET.String(),
 		},
 		{
-			desc: "Rate Class",
-			got:  ec.GetRateClass().String(),
-			want: oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G.String(),
-		},
-		{
 			desc: "Trib Protocol",
 			got:  ec.GetTribProtocol().String(),
 			want: oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE.String(),
 		},
 		{
 			desc: "Assignment: Index",
-			got:  ec.GetAssignment(1).GetIndex(),
-			want: uint32(1),
+			got:  ec.GetAssignment(0).GetIndex(),
+			want: uint32(0),
 		},
 		{
 			desc: "Assignment: Logical Channel",
-			got:  ec.GetAssignment(1).GetLogicalChannel(),
-			want: coherentChIdx,
+			got:  ec.GetAssignment(0).GetLogicalChannel(),
+			want: otnChIdx,
 		},
 		{
 			desc: "Assignment: Description",
-			got:  ec.GetAssignment(1).GetDescription(),
-			want: "ETH to Coherent",
+			got:  ec.GetAssignment(0).GetDescription(),
+			want: "ETH to OTN",
 		},
 		{
 			desc: "Assignment: Allocation",
-			got:  ec.GetAssignment(1).GetAllocation(),
+			got:  ec.GetAssignment(0).GetAllocation(),
 			want: float64(400),
 		},
 		{
 			desc: "Assignment: Type",
-			got:  ec.GetAssignment(1).GetAssignmentType().String(),
+			got:  ec.GetAssignment(0).GetAssignmentType().String(),
 			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 		},
 	}
@@ -199,14 +155,14 @@ func validateEthernetChannelTelemetry(t *testing.T, ethernetChIdx, coherentChIdx
 	}
 }
 
-func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
+func validateOTNChannelTelemetry(t *testing.T, otnChIdx uint32, ethChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
 	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
-		t.Fatalf("Coherent Channel telemetry stream not received in last 10 seconds")
+		t.Fatalf("OTN Channel telemetry stream not received in last 10 seconds")
 	}
 	cc, ok := val.Val()
 	if !ok {
-		t.Fatalf("Coherent Channel telemetry stream empty in last 10 seconds")
+		t.Fatalf("OTN Channel telemetry stream empty in last 10 seconds")
 	}
 	tcs := []struct {
 		desc string
@@ -214,19 +170,14 @@ func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, optica
 		want any
 	}{
 		{
-			desc: "Admin State",
-			got:  cc.GetAdminState().String(),
-			want: oc.TerminalDevice_AdminStateType_ENABLED.String(),
-		},
-		{
 			desc: "Description",
 			got:  cc.GetDescription(),
-			want: "Coherent Logical Channel",
+			want: "OTN Logical Channel",
 		},
 		{
 			desc: "Index",
 			got:  cc.GetIndex(),
-			want: coherentChIdx,
+			want: otnChIdx,
 		},
 		{
 			desc: "Logical Channel Type",
@@ -234,36 +185,61 @@ func validateCoherentChannelTelemetry(t *testing.T, coherentChIdx uint32, optica
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN.String(),
 		},
 		{
-			desc: "Assignment: Index",
+			desc: "Optical Channel Assignment: Index",
+			got:  cc.GetAssignment(0).GetIndex(),
+			want: uint32(0),
+		},
+		{
+			desc: "Optical Channel Assignment: Optical Channel",
+			got:  cc.GetAssignment(0).GetOpticalChannel(),
+			want: opticalChannel,
+		},
+		{
+			desc: "Optical Channel Assignment: Description",
+			got:  cc.GetAssignment(0).GetDescription(),
+			want: "OTN to Optical Channel",
+		},
+		{
+			desc: "Optical Channel Assignment: Allocation",
+			got:  cc.GetAssignment(0).GetAllocation(),
+			want: float64(400),
+		},
+		{
+			desc: "Optical Channel Assignment: Type",
+			got:  cc.GetAssignment(0).GetAssignmentType().String(),
+			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
+		},
+		{
+			desc: "Ethernet Assignment: Index",
 			got:  cc.GetAssignment(1).GetIndex(),
 			want: uint32(1),
 		},
 		{
-			desc: "Assignment: Optical Channel",
-			got:  cc.GetAssignment(1).GetOpticalChannel(),
-			want: opticalChannel,
+			desc: "Ethernet Assignment: Logical Channel",
+			got:  cc.GetAssignment(1).GetLogicalChannel(),
+			want: ethChIdx,
 		},
 		{
-			desc: "Assignment: Description",
+			desc: "Ethernet Assignment: Description",
 			got:  cc.GetAssignment(1).GetDescription(),
-			want: "Coherent to Optical",
+			want: "OTN to ETH",
 		},
 		{
-			desc: "Assignment: Allocation",
+			desc: "Ethernet Assignment: Allocation",
 			got:  cc.GetAssignment(1).GetAllocation(),
 			want: float64(400),
 		},
 		{
-			desc: "Assignment: Type",
+			desc: "Ethernet Assignment: Type",
 			got:  cc.GetAssignment(1).GetAssignmentType().String(),
-			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
+			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			if diff := cmp.Diff(tc.got, tc.want); diff != "" {
-				t.Errorf("Coherent Logical Channel: %s, diff (-got +want):\n%s", tc.desc, diff)
+				t.Errorf("OTN Logical Channel: %s, diff (-got +want):\n%s", tc.desc, diff)
 			}
 		})
 	}
