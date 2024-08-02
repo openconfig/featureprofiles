@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
@@ -171,6 +172,18 @@ func TestAdminDistance(t *testing.T) {
 	})
 }
 
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 func changeProtocolToIBGP(t *testing.T, ts *isissession.TestSession) {
 	root := &oc.Root{}
 	dni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
@@ -187,9 +200,11 @@ func changeProtocolToIBGP(t *testing.T, ts *isissession.TestSession) {
 
 func configurePort3(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
+	dc := gnmi.OC()
 
 	dp3 := ts.DUT.Port(t, "port3")
-	dutPort3.ConfigOCInterface(ts.DUTConf.GetOrCreateInterface(dp3.Name()), ts.DUT)
+	i3 := dutPort3.ConfigOCInterface(ts.DUTConf.GetOrCreateInterface(dp3.Name()), ts.DUT)
+	gnmi.Replace(t, ts.DUT, dc.Interface(i3.GetName()).Config(), i3)
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		fptest.AssignToNetworkInstance(t, ts.DUT, dp3.Name(), deviations.DefaultNetworkInstance(ts.DUT), 0)
 	}
@@ -268,6 +283,19 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	nV6.SetPeerAs(ateAS)
 	nV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV6.PeerGroup = ygot.String(peerGrpNamev6)
+
+	// Configure Import Allow-All policy
+	configureRoutePolicy(t, ts.DUT, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	pg1af4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	pg1af4.Enabled = ygot.Bool(true)
+
+	pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
+	pg1rpl4.SetImportPolicy([]string{"ALLOW"})
+
+	pg1af6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	pg1af6.Enabled = ygot.Bool(true)
+	pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
+	pg1rpl6.SetImportPolicy([]string{"ALLOW"})
 
 	gnmi.Update(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Config(), dni)
 
