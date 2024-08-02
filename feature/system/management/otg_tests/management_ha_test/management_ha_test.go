@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/schemaless"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -41,6 +43,7 @@ const (
 	prefixesCount = 1
 	pathID        = 1
 	defaultRoute  = "0:0:0:0:0:0:0:0"
+	ateNetPrefix  = "2001:0db8::192:0:3:1"
 )
 
 var (
@@ -80,7 +83,14 @@ func TestManagementHA1(t *testing.T) {
 		true,
 		true,
 	)
-	if deviations.SetNoPeerGroup(dut) {
+	if deviations.BgpAfiSafiInDefaultNiBeforeOtherNi(dut) {
+		g := bs.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().GetOrCreateGlobal()
+		g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	}
+	bgp := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp()
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+
+	if deviations.SetNoPeerGroup(dut) || deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
 		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().PeerGroup = nil
 		neighbors := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRF).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp().Neighbor
 		for _, neighbor := range neighbors {
@@ -193,7 +203,7 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	e1 := v6Flow.Packet().Add().Ethernet()
 	e1.Src().SetValues([]string{bs.ATEPorts[3].MAC})
 	v6 := v6Flow.Packet().Add().Ipv6()
-	v6.Src().SetValue(bs.ATEPorts[3].IPv6)
+	v6.Src().SetValue(ateNetPrefix)
 	v6.Dst().Increment().SetStart(prefixesStart).SetCount(1)
 	icmp1 := v6Flow.Packet().Add().Icmp()
 	icmp1.SetEcho(gosnappi.NewFlowIcmpEcho())
@@ -249,10 +259,13 @@ func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func createInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfNames []string) {
 	root := &oc.Root{}
-	for _, intfName := range intfNames {
+	for index, intfName := range intfNames {
 		i := root.GetOrCreateInterface(intfName)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i.Description = ygot.String(fmt.Sprintf("Port %s", strconv.Itoa(index+1)))
 		if intfName == netutil.LoopbackInterface(t, dut, 1) {
 			i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+			i.Description = ygot.String(fmt.Sprintf("Port %s", intfName))
 		}
 		si := i.GetOrCreateSubinterface(0)
 		si.Enabled = ygot.Bool(true)
@@ -315,7 +328,16 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
 	if deviations.TableConnectionsUnsupported(dut) {
-		stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
+		if deviations.RedisConnectedUnderEbgpVrfUnsupported(dut) && dut.Vendor() == ondatra.CISCO {
+			cliPath, err := schemaless.NewConfig[string]("", "cli")
+			if err != nil {
+				t.Fatalf("Failed to create CLI ygnmi query: %v", err)
+			}
+			cliCfg := getCiscoCLIRedisConfig("BGP", cfgplugins.DutAS, mgmtVRF)
+			gnmi.BatchUpdate(batchSet, cliPath, cliCfg)
+		} else {
+			stmt.GetOrCreateConditions().SetInstallProtocolEq(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED)
+		}
 		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		for _, neighbor := range []string{bs.ATEPorts[0].IPv6, bs.ATEPorts[1].IPv6} {
 			pathV6 := gnmi.OC().NetworkInstance(mgmtVRF).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(neighbor).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -395,4 +417,12 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 
 func lossPct(tx, rx float64) float64 {
 	return (math.Abs(tx-rx) * 100) / tx
+}
+
+func getCiscoCLIRedisConfig(instanceName string, as uint32, vrf string) string {
+	cfg := fmt.Sprintf("router bgp %d instance %s\n", as, instanceName)
+	cfg = cfg + fmt.Sprintf(" vrf %s\n", vrf)
+	cfg = cfg + "  address-family ipv6 unicast\n"
+	cfg = cfg + "   redistribute connected\n"
+	return cfg
 }
