@@ -1077,7 +1077,7 @@ func TestEncapFrr(t *testing.T) {
 			TestID:                 "teVrf111NoMatch",
 		},
 	)
-	for _, tc := range testCases[5:6] {
+	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
 			portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
@@ -1109,13 +1109,6 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "primaryBackupRoutingAll" {
-				// args.client.Modify().DeleteEntry(t,
-				// 	fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				// 		WithID(1000),
-				// 	fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				// 		WithID(1001),
-				// )
-
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1200).
@@ -1148,12 +1141,6 @@ func TestEncapFrr(t *testing.T) {
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf222NoMatch" {
-				args.client.Modify().DeleteEntry(t,
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1000),
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1001),
-				)
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1300).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
@@ -1172,10 +1159,6 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "teVrf111NoMatch" {
-				args.client.Modify().DeleteEntry(t,
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(101).AddNextHop(201, 1).AddNextHop(202, 3).WithBackupNHG(2001),
-				)
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.1").
