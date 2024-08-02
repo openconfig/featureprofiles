@@ -1,4 +1,4 @@
-# Trust Bundle
+## CERTZ-4: gNSI Trust Bundle
 
 ## Summary
 
