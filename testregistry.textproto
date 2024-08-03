@@ -203,6 +203,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "DP-1.15"
+  description: "Egress Strict Priority scheduler"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_strict_priority_scheduler_test/README.md"
+  exec: " "
+}
+test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
