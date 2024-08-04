@@ -30,6 +30,7 @@ Base BGP policy configuration and route installation.
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
 
 ## Telemetry Parameter Coverage
 
