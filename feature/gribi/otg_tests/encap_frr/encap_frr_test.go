@@ -1196,15 +1196,15 @@ func TestEncapFrr(t *testing.T) {
 			if tc.TestID == "primaryBackupRoutingAll" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1100).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1200).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1000).AddNextHop(1100, 1),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1101).WithDecapsulateHeader(fluent.IPinIP).
+						WithIndex(1201).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1001).AddNextHop(1101, 1),
+						WithID(1000).AddNextHop(1200, 1),
+					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithID(1001).AddNextHop(1201, 1),
 				)
 				if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
