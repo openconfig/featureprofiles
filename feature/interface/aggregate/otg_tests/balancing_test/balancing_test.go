@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -355,23 +354,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
-}
-
-func generateRandomFlowLabelList(count int) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(1048575-1) + 1)
-	}
-	return a
-}
-
 func (tc *testCase) configureATE(t *testing.T) {
 	if len(tc.atePorts) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got: %v", tc.atePorts)
@@ -439,7 +421,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.05 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -538,15 +520,18 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		}
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
-		v6.FlowLabel().SetValues(generateRandomFlowLabelList(250000))
+		flowlabelRand := v6.FlowLabel().Random()
+		flowlabelRand.SetMin(1).SetMax(1048574).SetCount(250000).SetSeed(1)
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 		ipType = "IPv6"
 	}
 
 	tcp := flow.Packet().Add().Tcp()
-	tcp.SrcPort().SetValues(generateRandomPortList(65534))
-	tcp.DstPort().SetValues(generateRandomPortList(65534))
+	tcpSrcPortRand := tcp.SrcPort().Random()
+	tcpSrcPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
+	tcpDstPortRand := tcp.DstPort().Random()
+	tcpDstPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 

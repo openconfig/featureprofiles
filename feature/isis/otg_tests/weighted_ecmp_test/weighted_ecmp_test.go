@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"math/rand"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -288,20 +286,6 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	otgutils.LogLAGMetrics(t, ate.OTG(), top)
 }
 
-func randRange(t *testing.T, start, end uint32, count int) []uint32 {
-	if count > int(end-start) {
-		t.Fatal("randRange: count greater than end-start.")
-	}
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result []uint32
-	for len(result) < count {
-		diff := end - start
-		randomValue := rand.Int31n(int32(diff)) + int32(start)
-		result = append(result, uint32(randomValue))
-	}
-	return result
-}
-
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV6 *ipAddr) []gosnappi.Flow {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
@@ -322,9 +306,10 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
-	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
-	udp.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
-
+	udpSrcPortRand := udp.SrcPort().Random()
+	udpSrcPortRand.SetMin(34525).SetMax(65535).SetCount(5000).SetSeed(1)
+	udpDstPortRand := udp.DstPort().Random()
+	udpDstPortRand.SetMin(49152).SetMax(65535).SetCount(5000).SetSeed(1)
 	fV6 := top.Flows().Add().SetName("flowV6")
 	if deviations.WeightedEcmpFixedPacketVerification(dut) {
 		fV6.Duration().FixedPackets().SetPackets(fixedPackets)
@@ -342,8 +327,10 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
-	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
-	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
+	udpv6SrcPortRand := udpv6.SrcPort().Random()
+	udpv6SrcPortRand.SetMin(35521).SetMax(65535).SetCount(5000).SetSeed(1)
+	udpv6DstPortRand := udpv6.DstPort().Random()
+	udpv6DstPortRand.SetMin(49152).SetMax(65535).SetCount(5000).SetSeed(1)
 
 	return []gosnappi.Flow{fV4, fV6}
 }
