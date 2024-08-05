@@ -15,6 +15,7 @@ platform_exceptions:  {
     interface_enabled:  true
     bgp_conditions_match_community_set_unsupported:  true
     bgp_actions_set_community_method_unsupported:  true
+    skip_bgp_send_community_type: true
   }
 }
 platform_exceptions:  {
@@ -22,8 +23,10 @@ platform_exceptions:  {
     vendor: ARISTA
   }
   deviations:  {
+    omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    bgp_conditions_match_community_set_unsupported: true
   }
 }
 tags:  TAGS_AGGREGATION
