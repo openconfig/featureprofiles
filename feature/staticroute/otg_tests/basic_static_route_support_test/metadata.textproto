@@ -39,4 +39,14 @@ platform_exceptions: {
 
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    ipv6_static_route_with_ipv4_nh_unsupported: true
+    skip_static_nexthop_check: true
+    isis_level_enabled: true
+  }
+}
 tags: TAGS_DATACENTER_EDGE

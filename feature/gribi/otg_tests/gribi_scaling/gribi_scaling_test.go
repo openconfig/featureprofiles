@@ -313,6 +313,8 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+	createFlow(t, ate, top, vrfConfigs[1])
+
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
@@ -323,7 +325,6 @@ func TestScaling(t *testing.T) {
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
 
-	createFlow(t, ate, top, vrfConfigs[1])
 	checkTraffic(t, ate, top)
 }
 
