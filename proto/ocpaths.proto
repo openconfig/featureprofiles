@@ -36,6 +36,11 @@ message OCPaths {
   // (https://github.com/openconfig/public) associated with the list of
   // OpenConfig paths.
   string version = 2;
+
+  // ocrpc is a gRPC path specification
+  // Format: <protocol>.<protopath>.<service>.<rpc>
+  // Example: gnoi.healthz.Healthz.Get
+  repeated string ocrpc = 3;
 }
 
 // OCPath is an individual OpenConfig path path.
