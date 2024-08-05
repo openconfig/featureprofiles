@@ -290,7 +290,10 @@ func testP4RTTelemetry(t *testing.T, args *testArgs) {
 	p1 := args.dut.Port(t, "port1")
 	p2 := args.dut.Port(t, "port2")
 	subscriptionDuration := 65 * time.Second
-	expectedSamples := 2
+	// The node-id(component) & id(interface) is a telemetery-event leaf, so target-defined subscription will return only one value
+	// interface "id" leaf reference: https://wwwin-opengrok.cisco.com/xr-dev/xref/customer-api/p4rt/lib/src/openconfig-p4rt.yang#95
+	// component "node-id: leaf reference: https://wwwin-opengrok.cisco.com/xr-dev/xref/customer-api/p4rt/lib/src/openconfig-p4rt.yang#140
+	expectedSamples := 1
 	configureP4RTDevice(t, args.dut, npu0, deviceID)
 
 	config := gnmi.OC().Interface(p1.Name()).Id()
