@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "TE-22.2"
+description: "gRIBI IPinIP encap of IPv6 Traffic"
+testbed: TESTBED_DUT_ATE_8LINKS
+tags: TAGS_DATACENTER_EDGE
