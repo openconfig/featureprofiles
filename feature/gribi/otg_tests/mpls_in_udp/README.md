@@ -330,7 +330,7 @@ paths:
   /qos/input-policies/input-policy/config/scheduler-policy:
 
   # qos interface config
-  /qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
+  #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
 
   # qos interface scheduler counters
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
@@ -343,11 +343,12 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
 
   # afts state paths set via gRIBI
-  /network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/src-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/ip-ttl:
-  /network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-udp-port:
-  /network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dscp:
+  # TODO: https://github.com/openconfig/public/pull/1153
+  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/src-ip:
+  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-ip:
+  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/ip-ttl:
+  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-udp-port:
+  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dscp:
 
 rpcs:
   gnmi:
