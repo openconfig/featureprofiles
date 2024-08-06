@@ -313,16 +313,16 @@ goal: pick some scale profile ~= 20,000 flows (inner packet destination ip prefi
 paths:
   # qos scheduler config
   /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/config/schedulers/scheduler/config/type:  # ONE_RATE_TWO_COLOR
-  /qos/scheduler-policies/scheduler-policy/config/schedulers/scheduler/one-rate-two-color/config/cir:
-  /qos/scheduler-policies/scheduler-policy/config/schedulers/scheduler/one-rate-two-color/config/bc:
-  /qos/scheduler-policies/scheduler-policy/config/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
-  /qos/scheduler-policies/scheduler-policy/config/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:  # ONE_RATE_TWO_COLOR
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
+  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
 
   # qos classifier config
-  /qos/classifers/classifer/config/name:
-  /qos/classifers/classifer/terms/term/config/id:
-  /qos/classifers/classifer/terms/term/conditions/ipv6/config/destination_address:
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/destination_address:
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
   /qos/input-policies/input-policy/config/name:
