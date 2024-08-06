@@ -945,6 +945,11 @@ test: {
   id: "TE-17.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md"
 }
+test {
+  id: "TE-18.1"
+  description: "MPLS in UDP Encapsulation with QoS scheduler"
+  readme: ""
+}
 test: {
   id: "TE-2.1"
   description: "gRIBI IPv4 Entry"
