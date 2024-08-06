@@ -35,3 +35,11 @@ platform_exceptions: {
     weighted_ecmp_fixed_packet_verification: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
