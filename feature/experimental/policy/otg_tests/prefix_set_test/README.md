@@ -82,7 +82,7 @@ the DUT in one gnmi.Set using the `replace` option
         seq 80 permit 173.41.128.0/20
         seq 90 permit 173.42.128.0/20
         seq 100 permit 173.43.128.0/20
-  ```
+     ```
 *   Perform octa restart or reboot the device.
 *   Send a gNMI SET request that contains additional prefixes within the same
     prefix-set, TAG_3_IPV4.
