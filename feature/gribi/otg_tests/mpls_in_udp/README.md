@@ -301,11 +301,29 @@ network_instances {
 
 TODO: Move to separate README
 
-goal: pick some scale profile ~= 20,000 flows (inner packet destination ip prefixes)
+Scale targets:
 
 * 20,000 ip destinations
 * 1,000 vlans
-* 1,000 policers
+* 1,000 policer rates
+* 'n' token buckets / policer instantiations
+
+For example, "scale profile A" could be:
+
+* 20 ip destinations * 1,000 vlans = 20,000 'flows'
+* Each ingress vlan has 10 policers = 10,000 'token buckets'
+* The 20 ip destinations are split evenly between the policers
+* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+
+For example, "scale profile B" could be:
+
+* 200 ip destinations * 100 vlans = 20,000 'flows'
+* Each ingress vlan has 4 policers = 4,000 'token buckets'
+* The 200 ip destinations are split evenly between the policers
+* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
+
+
+Note that inner IP address space is reused / overlapping between network-instances.
 
 #### OpenConfig Path and RPC Coverage
 
