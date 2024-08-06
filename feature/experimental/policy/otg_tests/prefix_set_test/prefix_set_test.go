@@ -15,6 +15,7 @@
 package prefix_set_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -100,20 +101,36 @@ func TestPrefixSet(t *testing.T) {
 func TestPrefixSetWithCLIConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	prefixSetConfig := `
-	ip prefix-list TAG_3_IPV4
-	  seq 10 permit 10.240.31.48/28
-   	  seq 20 permit 10.244.187.32/28
-   	  seq 30 permit 173.36.128.0/20
-   	  seq 40 permit 173.37.128.0/20
-	  seq 50 permit 173.38.128.0/20
-	  seq 60 permit 173.39.128.0/20
-	  seq 70 permit 173.40.128.0/20
-	  seq 80 permit 173.41.128.0/20
-	  seq 90 permit 173.42.128.0/20
-	  seq 100 permit 173.43.128.0/20
-	`
-	helpers.GnmiCLIConfig(t, dut, prefixSetConfig)
+	helpers.GnmiCLIConfig(t, dut, `
+		ip prefix-list TAG_3_IPV4
+			seq 10 permit 10.240.31.48/28
+			seq 20 permit 10.244.187.32/28
+			seq 30 permit 173.36.128.0/20
+			seq 40 permit 173.37.128.0/20
+			seq 50 permit 173.38.128.0/20
+			seq 60 permit 173.39.128.0/20
+			seq 70 permit 173.40.128.0/20
+			seq 80 permit 173.41.128.0/20
+			seq 90 permit 173.42.128.0/20
+			seq 100 permit 173.43.128.0/20
+		`,
+	)
+	helpers.GnmiCLIConfig(t, dut, `
+		management api gnmi
+   		transport grpc default
+   		operation set persistence
+		`,
+	)
+	ctx := context.Background()
+	cli := dut.RawAPIs().CLI(t)
+	cmd := "agent Octa terminate"
+	res, err := cli.RunCommand(ctx, "agent Octa terminate")
+	if err != nil {
+		t.Errorf("error executing command %q:\n%v", cmd, err)
+	}
+	if res.Error() != "" {
+		t.Errorf("error executing command %q:\n%v", cmd, res.Error())
+	}
 
 	dutOcRoot := &oc.Root{}
 	rp := dutOcRoot.GetOrCreateRoutingPolicy()
