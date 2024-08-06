@@ -325,9 +325,9 @@ paths:
   /qos/classifiers/classifier/terms/term/conditions/ipv6/config/destination-address:
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
-  /qos/input-policies/input-policy/config/name:
-  /qos/input-policies/input-policy/config/classifier:
-  /qos/input-policies/input-policy/config/scheduler-policy:
+  # /qos/input-policies/input-policy/config/name:
+  # /qos/input-policies/input-policy/config/classifier:
+  # /qos/input-policies/input-policy/config/scheduler-policy:
 
   # qos interface config
   #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
