@@ -36,9 +36,11 @@ outer_ip-ttl =        "64"
 
 The gRIBI client should send this proto message to the DUT to create AFT
 entries.  See [OC PR in progress](https://github.com/openconfig/public/pull/1153)
-for the new OC AFT model nodes needed for this.
+for the new OC AFT model nodes needed for this.  The
+[gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
+will be generated from the afts tree.
 
-TODO: Create gRIBI proto.
+TODO: Update gRIBI protobuf.
 
 ```proto
 network_instances: {
@@ -303,25 +305,24 @@ TODO: Move to separate README
 
 Scale targets:
 
-* 20,000 ip destinations
+* 20,000 IPv4/IPv6 destinations
 * 1,000 vlans
 * 1,000 policer rates
-* 'n' token buckets / policer instantiations
+* 20,000 token buckets / policer instantiations
 
 For example, "scale profile A" could be:
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
 * Each ingress vlan has 10 policers = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the policers
+* The 20 ip destinations are split evenly between the 10 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
 For example, "scale profile B" could be:
 
 * 200 ip destinations * 100 vlans = 20,000 'flows'
 * Each ingress vlan has 4 policers = 4,000 'token buckets'
-* The 200 ip destinations are split evenly between the policers
+* The 200 ip destinations are split evenly between the 4 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
-
 
 Note that inner IP address space is reused / overlapping between network-instances.
 
@@ -381,4 +382,5 @@ rpcs:
 ```
 
 ## Required DUT platform
-  * FFF
+
+* FFF
