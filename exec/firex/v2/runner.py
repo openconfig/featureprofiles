@@ -899,7 +899,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     if reserved_testbed.get('sim', False):
         sim_out_dir = os.path.join(testbed_logs_dir, 'bringup_success')
         pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
-        check_output(f'/auto/tftpboot-ottawa/b4/tblock/.venv/bin/python {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
+        python_bin = _get_venv_python_bin(ws)
+        check_output(f'python_bin {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         sim_port_redir = _sim_get_port_redir(testbed_logs_dir)
         if 'ate_gui' in sim_port_redir:
