@@ -29,9 +29,7 @@ paths:
 
   ## State Paths ##
   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
-  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-subtype:
   /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
-  /lldp/interfaces/interface/neighbors/neighbor/state/port-id-subtype:
   /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
   /lldp/interfaces/interface/state/name:
   /lldp/state/chassis-id:
