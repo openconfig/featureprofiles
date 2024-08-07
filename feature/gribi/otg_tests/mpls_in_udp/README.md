@@ -235,7 +235,9 @@ openconfig-qos:
           config:
             id: "match_1_dest_A"
           conditions:
-            next-hop-group: "nhg_A"           # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
+            next-hop-group:
+                config:
+                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
     - classifer: “dest_B”
       config:
         name: “dest_B”
@@ -244,7 +246,9 @@ openconfig-qos:
           config:
             id: "match_1_dest_B"
           conditions:
-            next-hop-group: "nhg_B"           # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
+            next-hop-group:
+                config:
+                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
 
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
     - input-policy: "limit_group_A_2Gb"
@@ -382,7 +386,7 @@ paths:
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
-  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/destination-address:
+  /qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name:
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
   # /qos/input-policies/input-policy/config/name:
