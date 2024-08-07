@@ -1481,8 +1481,8 @@ test: {
 }
 test: {
   id: "gNMI-1.19"
-  description: "gNMI ConfigPush after Control Card switchover"
-  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_controll_card_switchover/README.md"
+  description: "gNMI ConfigPush, ConfigPull after Control Card switchover"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/platform/controllercard/tests/SetRequest_GetRequest_controll_card_switchover/README.md"
   exec: " "
 }
 test: {
