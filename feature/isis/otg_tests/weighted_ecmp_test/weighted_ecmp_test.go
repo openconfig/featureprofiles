@@ -181,6 +181,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	startTraffic(t, ate, top)
+	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
@@ -242,6 +243,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 
 	startTraffic(t, ate, top)
+	time.Sleep(time.Minute)
 
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
@@ -512,7 +514,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
-	if deviations.ISISLoopbackRequired(dut) {
+	if !deviations.ISISLoopbackRequired(dut) {
 		configureStaticRouteToATELoopbacks(t, dut)
 	}
 	configureRoutingPolicy(t, dut)
