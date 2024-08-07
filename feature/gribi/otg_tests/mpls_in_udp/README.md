@@ -15,14 +15,17 @@ TODO: Add smaller READMEs for aft next hop counters, one for PF rules, one for p
 
 TODO: Complete test environment setup steps
 
-inner_ipv6_dst = "2001:aa:bb::1/128"
+inner_ipv6_dst_A = "2001:aa:bb::1/128"
+inner_ipv6_dst_B = "2001:aa:bb::2/128"
 inner_ipv6_default = "::/0"
 
-ipv4_inner_dst = "10.5.1.1/32"
+ipv4_inner_dst_A = "10.5.1.1/32"
+ipv4_inner_dst_B = "10.5.1.2/32"
 ipv4_inner_default = "0.0.0.0/0"
 
 outer_ipv6_src =      "2001:f:a:1::0"
-outer_ipv6_dst =      "2001:f:c:e::1"
+outer_ipv6_dst_A =    "2001:f:c:e::1"
+outer_ipv6_dst_B =    "2001:f:c:e::2"
 outer_ipv6_dst_def =  "2001:1:1:1::0"
 outer_dst_udp_port =  "5555"
 outer_dscp =          "26"
@@ -46,75 +49,119 @@ TODO: Update gRIBI protobuf.
 network_instances: {
   network_instance: {
     afts {
+      #
+      # entries used for "group_A"
       ipv6_unicast {
         ipv6_entry {
-          prefix: "inner_ipv6_dst"   # this is an IPv6 match rule for the origin/inner packet.
-          next_hop_group: 123
+          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
+          next_hop_group: 100
         }
       }
       ipv4_unicast {
         ipv4_entry {
-          prefix: "ipv4_inner_dst"   # this is an IPv4 match rule for the origin/inner packet.
-          next_hop_group: 123
+          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
+          next_hop_group: 100
         }
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_name: "clusterA"  # OC model says it's system assigned for telemetry, should we let gRIBI assign this?
-          id: 123
+          next_hop_group_name: "nhg_A"  # OC model says it's system assigned for telemetry, we want to let gRIBI assign this.
+          id: 100
           next_hops {            # reference to a next-hop
             next_hop: {
-              index: 456
+              index: 100
             }
           }
         }
       }
       next_hops {
         next_hop {
-          index: 456
-          network_instance: "DEFAULT"
+          index: 100
+          network_instance: "group_A"
           encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
           mpls_in_udp {
             src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst"
-            pushed_mpls_label_stack: [42,]
+            dst_ip: "outer_ipv6_dst_A"
+            pushed_mpls_label_stack: [100,]
             dst_udp_port: "outer_dst_udp_port"
             ip_ttl: "outer_ip-ttl"
             dscp: "outer_dscp"
           }
         }
-      }                  # definition of the next-hop
+      }
+      #
+      # entries used for "group_B"
       ipv6_unicast {
         ipv6_entry {
-          prefix: "inner_ipv6_default"   # this is the match rule for the origin/inner packet for the default route.
+          prefix: "inner_ipv6_dst_B"
+          next_hop_group: 200
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_B"
+          next_hop_group: 200
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_name: "nhg_A"  # OC model says it's system assigned for telemetry, we want to let gRIBI assign this.
+          id: 200
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
+          mpls_in_udp {
+            src_ip: "outer_ipv6_src"
+            dst_ip: "outer_ipv6_dst_B"
+            pushed_mpls_label_stack: [200,]
+            dst_udp_port: "outer_dst_udp_port"
+            ip_ttl: "outer_ip-ttl"
+            dscp: "outer_dscp"
+          }
+        }
+      }
+      #
+      # entries used for default route encapsulation
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_default"
           next_hop_group: 1
         }
       }
       ipv4_unicast {
         ipv4_entry {
-          prefix: "ipv4_inner_default"   # this is the match rule for the origin/inner packet for the default route.
+          prefix: "ipv4_inner_default"
           next_hop_group: 1
         }
       }
       next_hop_groups {
         next_hop_group {
           id: 1
-          next_hop_group_name: "DEFAULT"  # OC model says it's system assigned for telemetry, should we let gRIBI assign this?
+          next_hop_group_name: "DEFAULT"
           next_hops:
             next_hop: {
               index: 1
             }
         }
       }
-      next_hops {     # definition of the next-hop used for packets matching a default/fallback IP
+      next_hops {
         next_hop {
-          index: 456
+          index: 1
           network_instance: "DEFAULT"
           encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
           mpls_in_udp {
             src_ip: "outer_ipv6_src"
             dst_ip: "outer_ipv6_dst_def"
-            pushed_mpls_label_stack: [100, ]
+            pushed_mpls_label_stack: [42, ]
             dst_udp_port: 5555
             ip_ttl: 64
             dscp: 26
@@ -128,13 +175,15 @@ network_instances: {
 
 * Send traffic from ATE port 1 to DUT port 1
 * Validate afts next hop counters
-* Validate ATE port 2 receives MPLS-IN-UDP packets
+* Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+  * Validate MPLS label is set
 
 ### TE-18.1.2 Policer attached to interface via gNMI
 
 * Generate config for 2 scheduler polices with an input rate limit.  Apply
   to DUT port 1.
-* Generate config for 2 classifiers which match on destination IP addresses.
+* Generate config for 2 classifiers which match on next-hop-group.
 * Generate config for 2 input policies which map the scheduler and classifers
   together.
 * Generate config for applying the input policies to a vlan.
@@ -186,16 +235,7 @@ openconfig-qos:
           config:
             id: "match_1_dest_A"
           conditions:
-            ipv6:
-              config:
-                destination_address: "2001:aa:bb::/128"  # use case requires individual host
-        - term:
-          config:
-            id: "match_2_dest_A"
-          conditions:
-            ipv4:
-              config:
-                destination_address: "10.1.2.3/32"  # use case requires individual host
+            next-hop-group: "nhg_A"           # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
     - classifer: “dest_B”
       config:
         name: “dest_B”
@@ -204,26 +244,17 @@ openconfig-qos:
           config:
             id: "match_1_dest_B"
           conditions:
-            ipv6:
-              config:
-                destination_address: "2001:cc:dd::/128"
-        - term:
-          config:
-            id: "match_2_dest_B"
-          conditions:
-            ipv4:
-              config:
-                destination_address: "10.2.3.4/32"
+            next-hop-group: "nhg_B"           # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
 
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
-    - input-policy: "limit_dest_A_2Gb"
+    - input-policy: "limit_group_A_2Gb"
       config:
-        name: "limit_dest_A_2Gb"
+        name: "limit_group_A_2Gb"
         classifer: "dest_A"
         scheduler-policy: "limit_2Gb"
-    - input-policy: "limit_dest_B_1Gb"
+    - input-policy: "limit_dest_group_B_1Gb"
       config:
-        name: "limit_dest_B_1Gb"
+        name: "limit_dest_group_B_1Gb"
         classifer: "dest_B"
         scheduler-policy: "limit_1Gb"
 
@@ -235,9 +266,19 @@ openconfig-qos:
     input:
       config:
         policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_vms_to_clusterA_2Gb,
-          limit_vms_to_clusterB_1Gb
+          limit_dest_group_A_2Gb
         ]
+  interfaces:                  # this is repeated per subinterface (vlan)
+    - interface: "PortChannel1"
+      interface-ref:
+        config:
+          subinterface: 200
+    input:
+      config:
+        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
+          limit_dest_group_B_1Gb
+        ]
+
 ```
 
 * Send traffic
