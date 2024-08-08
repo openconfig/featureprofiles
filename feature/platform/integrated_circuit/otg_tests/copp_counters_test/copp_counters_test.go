@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 }
 
 func getSubsriptionSlice() []*gnmipb.Subscription {
-	filesList := []string{"./OC_Paths_Trap_d.txt", "./OC_Paths_LPTS_d.txt"}
+	filesList := []string{"./OC_Paths_Trap.txt", "./OC_Paths_LPTS.txt"}
 	// filesList := []string{"./OC_Paths_LPTS_alt.txt"}
 
 	var lines []string
