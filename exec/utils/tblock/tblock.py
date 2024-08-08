@@ -84,11 +84,13 @@ def _get_testbed(id, json_output=False):
 def _trylock_helper(tb):
     if tb.get('sim', False):
         return True
+    if not os.getlogin() in allowed_users:
+        return False
     lock_file = os.path.join(ldir, tb['hw'])
     return _lockfile(lock_file)
 
 def _release_helper(tb):
-    if not tb.get('sim', False):
+    if not tb.get('sim', False) and os.getlogin() in allowed_users:
         lock_file = os.path.join(ldir, tb['hw'])
         if os.path.exists(lock_file):
             os.remove(lock_file)
@@ -148,6 +150,7 @@ if __name__ == "__main__":
     main_parser.add_argument('testbeds_file', type=lambda x: _is_valid_file(main_parser, x), help='path to testbeds.yaml file')
     main_parser.add_argument('locks_dir', type=str, help='path to locks directory')
     main_parser.add_argument('-j', '--json', action='store_true', default=False, help='json output')
+
     command_subparser = main_parser.add_subparsers(title='command', dest='command')
     command_subparser.required = True
 
@@ -162,6 +165,13 @@ if __name__ == "__main__":
     release_parser.add_argument('id', help='testbed id')
 
 args = main_parser.parse_args()
+
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+allowed_users = []
+with open(os.path.join(__location__, 'users.txt')) as fp:
+    allowed_users = [line.rstrip() for line in fp]
 
 ldir = args.locks_dir
 if not os.path.exists(ldir):
