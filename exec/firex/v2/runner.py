@@ -14,7 +14,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
-from helper import CommandFailed, remote_exec
+from helper import CommandFailed, remote_exec, scp_to_remote
 from getpass import getuser
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -57,25 +57,34 @@ whitelist_arguments([
     'collect_dut_info'
 ])
 
-def _get_go_root_path(ws=None):
+def _get_user_nobackup_path(ws=None):
     p = os.path.join('/nobackup', getuser())
     if os.access(p, os.W_OK | os.X_OK):
         return p
     return ws
         
 def _get_go_path():
-    return os.path.join(_get_go_root_path(), 'go')
+    return os.path.join(_get_user_nobackup_path(), 'go')
 
 def _get_go_bin_path():
     return os.path.join(_get_go_path(), 'bin')
+
+def _get_venv_path(ws=None):
+    return os.path.join(_get_user_nobackup_path(ws), 'b4_firex_venv')
+
+def _get_venv_python_bin(ws):
+    return os.path.join(_get_venv_path(ws), 'bin', 'python')
+
+def _get_venv_pip_bin(ws):
+    return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
     PATH = "{}:{}".format(
         os.path.dirname(GO_BIN), os.environ["PATH"]
     )
 
-    gorootpath = _get_go_root_path(ws)
-    gocache = os.path.join(gorootpath, '.gocache')
+    nobackup_path = _get_user_nobackup_path(ws)
+    gocache = os.path.join(nobackup_path, '.gocache')
     os.makedirs(gocache, exist_ok=True)
 
     return {
@@ -83,6 +92,7 @@ def _get_go_env(ws=None):
         'GOCACHE': gocache,
         'GOTMPDIR': gocache,
         'GOROOT': '/auto/firex/sw/go',
+        'GOPROXY': "https://proxy.golang.org,direct",
         'PATH': PATH
     }
 
@@ -112,12 +122,12 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port):
+def _otg_docker_compose_template(control_port, gnmi_port, version):
     return f"""
 version: "2"
 services:
   controller:
-    image: ghcr.io/open-traffic-generator/keng-controller:firex
+    image: ghcr.io/open-traffic-generator/keng-controller:{version["controller"]}
     restart: always
     ports:
       - "{control_port}:40051"
@@ -138,7 +148,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   layer23-hw-server:
-    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:firex
+    image: ghcr.io/open-traffic-generator/keng-layer23-hw-server:{version["hw"]}
     restart: always
     command:
       - "dotnet"
@@ -153,7 +163,7 @@ services:
         max-file: "10"
         mode: "non-blocking"
   gnmi-server:
-    image: ghcr.io/open-traffic-generator/otg-gnmi-server:firex
+    image: ghcr.io/open-traffic-generator/otg-gnmi-server:{version["gnmi"]}
     restart: always
     ports:
       - "{gnmi_port}:50051"
@@ -172,12 +182,12 @@ services:
         mode: "non-blocking"
 """
 
-def _write_otg_docker_compose_file(docker_file, reserved_testbed):
+def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
     if not 'otg' in reserved_testbed:
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port']))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_version))
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -222,6 +232,30 @@ def _sim_get_mgmt_ips(testbed_logs_dir):
         if "xr_mgmt_ip" in entry:
             mgmt_ips[dut] = entry["xr_mgmt_ip"]
     return mgmt_ips
+
+def _sim_get_port_redir(testbed_logs_dir):
+    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
+    with open(vxr_ports_file, "r") as fp:
+        try:
+            vxr_ports = yaml.safe_load(fp)
+        except yaml.YAMLError:
+            logger.warning("Failed to parse vxr ports file...")
+            return
+    
+    devices = {}
+    for d, e in vxr_ports.items():
+        devices[d] = {
+            'host': vxr_ports[d]['HostAgent'],
+            'ports': {}
+        }
+        for k, v in e.items():
+            try:
+                if k.startswith('redir'):
+                    devices[d]['ports'][int(k[5:])] = v
+                elif k.startswith('xr_redir'):
+                    devices[d]['ports'][int(k[8:])] = v
+            except: continue
+    return devices
 
 def _sim_get_data_ports(testbed_logs_dir):
     vxr_conf_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-config.yaml")
@@ -375,13 +409,13 @@ def _get_testbed_by_id(internal_fp_repo_dir, testbed_id):
             return tb
     raise Exception(f'Testbed {testbed_id} not found')
 
-def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
+def _trylock_testbed(ws, internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     try:
         testbed = _get_testbed_by_id(internal_fp_repo_dir, testbed_id)
         if testbed.get('sim', False): 
             return testbed
 
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j lock {testbed_id}')
         if output['status'] == 'ok':
@@ -391,25 +425,25 @@ def _trylock_testbed(internal_fp_repo_dir, testbed_id, testbed_logs_dir):
     except:
         return None
 
-def _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds):
+def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     logger.print('Reserving testbed...')
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            reserved_testbed = _trylock_testbed(internal_fp_repo_dir, t, testbed_logs_dir)
+            reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
-        time.sleep(5)
+        time.sleep(random.randint(5,60))
     logger.print(f'Reserved testbed {reserved_testbed["id"]}')
     return reserved_testbed
 
-def _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
+def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed):
     if reserved_testbed.get('sim', False): 
         return True
             
     id = reserved_testbed['id']
     logger.print(f'Releasing testbed {id}')
     try:
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         tblock = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/tblock/tblock.py')
         output = _check_json_output(f'{python_bin} {tblock} {_get_testbeds_file(internal_fp_repo_dir)} {_get_locks_dir(testbed_logs_dir)} -j release {id}')
         if output['status'] != 'ok':
@@ -440,11 +474,11 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
                     repo_branch=internal_fp_repo_branch,
                     repo_rev=internal_fp_repo_rev,
                     target_dir=internal_fp_repo_dir)
-        c |= CreatePythonVirtEnv.s(internal_fp_repo_dir=internal_fp_repo_dir)
+        c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
-    reserved_testbed = _reserve_testbed(testbed_logs_dir, internal_fp_repo_dir, testbeds)
+    reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
     if not reserved_testbed:
         raise Exception(f'Could not reserve testbed')
     
@@ -489,7 +523,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
     try:
         result = self.enqueue_child_and_get_results(c)
     except Exception as e:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
         raise e
 
     return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
@@ -506,7 +540,7 @@ def CleanupTestbed(self, ws, testbed_logs_dir,
             block=True
         )
     elif reserved_testbed:
-        _release_testbed(testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
 
 def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
@@ -550,6 +584,7 @@ def b4_chain_provider(ws, testsuite_id,
 
     chain = InjectArgs(ws=ws,
                     testsuite_id=testsuite_id,
+                    test_log_directory_path=test_log_directory_path,
                     internal_fp_repo_dir=internal_fp_repo_dir,
                     reserved_testbed=reserved_testbed,
                     test_repo_dir=test_repo_dir,
@@ -578,7 +613,9 @@ def b4_chain_provider(ws, testsuite_id,
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-    if 'otg' in test_path and not reserved_testbed.get('sim', False) :
+    if 'otg' in test_path:
+        if reserved_testbed.get('sim', False):
+            chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
         chain |= BringupIxiaController.s()
 
@@ -594,7 +631,7 @@ def b4_chain_provider(ws, testsuite_id,
             for k, v in pt.items():
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
-    if 'otg' in test_path and not reserved_testbed.get('sim', False):
+    if 'otg' in test_path:
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
 
@@ -645,6 +682,9 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
     if os.path.exists(reserved_testbed['testbed_info_file']):
         shutil.copyfile(reserved_testbed['testbed_info_file'],
             os.path.join(test_log_directory_path, "testbed_info.txt"))
+    
+    with open(reserved_testbed['test_list_file'], "a+") as fp:
+        fp.write(f'{test_name}\n')
     
     go_args = ''
     test_args = test_args or ''
@@ -716,7 +756,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             timestamp=start_timestamp,
             core_check=core_check_only,
             collect_tech=not core_check_only,
-            run_cmds=not core_check_only,
+            run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
         
@@ -785,7 +825,9 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         return
 
     otg_info = reserved_testbed['otg']
-
+    controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
+    gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
+    
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
@@ -807,20 +849,19 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
             parts = p['name'].split('/')
             p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1]) 
 
-        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port'])
+        ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
         ate['options'] = {
             'username': 'admin',
             'password': 'admin'
         }
-
         ate['otg'] = {
-            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=otg_info['controller_port']),
+            'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
             'insecure': True,
             'timeout': 200
         }
 
         ate['gnmi'] = {
-            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=otg_info['gnmi_port']),
+            'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
             'skip_verify': True,
             'timeout': 60
         }
@@ -852,7 +893,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
-    otg_docker_compose_file = os.path.join(testbed_logs_dir, f'otg-docker-compose.yml')
+    testbed_test_list_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_tests_list.txt')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
     if reserved_testbed.get('sim', False):
@@ -860,8 +901,22 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         pyvxr_generator = _resolve_path_if_needed(internal_fp_repo_dir, os.path.join('exec', 'utils', 'pyvxr', 'generate_bindings.py'))
         check_output(f'python3 {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
+        sim_port_redir = _sim_get_port_redir(testbed_logs_dir)
+        if 'ate_gui' in sim_port_redir:
+            e = sim_port_redir['ate_gui']
+            reserved_testbed['otg'] = {
+                'host': e['host'],
+                'port': e['ports'][22],
+                'username': 'admin',
+                'password': 'admin',
+                'controller_port': 3389,
+                'controller_port_redir': e['ports'][3389],
+                'gnmi_port': 11009,
+                'gnmi_port_redir': e['ports'][11009]
+            }
+        
+        data_ports = _sim_get_data_ports(testbed_logs_dir)            
         mgmt_ips = _sim_get_mgmt_ips(testbed_logs_dir)
-        data_ports = _sim_get_data_ports(testbed_logs_dir)
         
         if not type(reserved_testbed['baseconf']) is dict:
             reserved_testbed['baseconf'] = {
@@ -872,7 +927,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         reserved_testbed['ondatra_baseconf_path'] = {}
         for dut, conf in reserved_testbed['baseconf'].items():
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+            ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
             reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
         
@@ -903,7 +958,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             f'testbed_{reserved_testbed["id"]}_info.txt')
         install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_install.lock')
-
+        testbed_test_list_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_tests_list.txt')
+        
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])        
         tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
@@ -916,12 +973,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         if type(reserved_testbed['baseconf']) is dict:
             for dut, conf in reserved_testbed['baseconf'].items():
                 baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-                ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
+                ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}_{dut}.conf')
                 shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)            
                 check_output("sed -i 's|id: \"" + dut + "\"|id: \"" + dut + "\"\\nconfig:{\\ngnmi_set_file:\"" + ondatra_baseconf_path + "\"\\n  }|g' " + ondatra_binding_path)
         else:
             baseconf_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['baseconf'])
-            ondatra_baseconf_path = os.path.join(ws, f'ondatra_{ondatra_files_suffix}.conf')
+            ondatra_baseconf_path = os.path.join(testbed_logs_dir, f'ondatra_{ondatra_files_suffix}.conf')
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)    
             check_output(f"sed -i 's|$BASE_CONF_PATH|{ondatra_baseconf_path}|g' {ondatra_binding_path}")
 
@@ -938,18 +995,17 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
-    reserved_testbed['otg_docker_compose_file'] = otg_docker_compose_file
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
-
+    reserved_testbed['test_list_file'] = testbed_test_list_file
+    
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
-    _write_otg_docker_compose_file(otg_docker_compose_file, reserved_testbed)
     return reserved_testbed
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
 def SoftwareUpgrade(self, ws, lineup, efr, internal_fp_repo_dir, testbed_logs_dir, 
                     reserved_testbed, images, image_url=None, force_install=False):
-    if not force_install and os.path.exists(reserved_testbed['install_lock_file']):
+    if os.path.exists(reserved_testbed['install_lock_file']):
         return
     
     logger.print("Performing Software Upgrade...")
@@ -1030,7 +1086,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
 def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir, 
                       timestamp=1, core_check=False, collect_tech=False,
                       run_cmds=False, split_files_per_dut=False, custom_tech="", custom_cmds=""):
@@ -1074,7 +1130,9 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
 
             r = re.compile(r'core\b', re.IGNORECASE)        
             for dut in duts:
-                arr = os.listdir(os.path.join(out_dir, dut))
+                dutDir = os.path.join(out_dir, dut)
+                if not os.path.exists(dutDir): continue
+                arr = os.listdir(dutDir)
                 dut_core_files = list(filter(lambda x: r.search(str(x)), arr))
                 core_files.extend([f'{l} on dut "{dut}"' for l in dut_core_files])
         return core_files
@@ -1249,6 +1307,19 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
+def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
+    repo = git.Repo(test_repo_dir)
+    remote = repo.remote()
+    if not internal_test:
+        try:
+            remote = repo.remote("b4test")
+        except:
+            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
+            remote.fetch()
+    remote.repo.git.checkout(f'{remote.name}/otg_sim_opt', 'internal/otgutils/arp.go')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
 def GoTidy(self, ws, repo):
     env = dict(os.environ)
     env.update(_get_go_env(ws))
@@ -1267,29 +1338,32 @@ def InstallGoDelve(self, ws, internal_fp_repo_dir):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed])
-def CreatePythonVirtEnv(self, internal_fp_repo_dir):
+def CreatePythonVirtEnv(self, ws, internal_fp_repo_dir):
     logger.print("Creating python venv...")
     requirements = [
         os.path.join(internal_fp_repo_dir, 'exec/utils/tblock/requirements.txt'),
         os.path.join(internal_fp_repo_dir, 'exec/utils/ixia/requirements.txt')
     ]
     
-    venv_path = os.path.join(internal_fp_repo_dir, 'venv')
-    venv_pip_bin = os.path.join(venv_path, 'bin', 'pip')
-    venv_python_bin = os.path.join(venv_path, 'bin', 'python')
+    venv_path = _get_venv_path(ws)
+    venv_pip_bin = _get_venv_pip_bin(ws)
+    venv_python_bin = _get_venv_python_bin(ws)
 
-    if os.path.exists(venv_python_bin): 
-        return
-        
-    logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
-    logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
-     
+    if not os.path.exists(venv_python_bin): 
+        logger.print(check_output(f'{PYTHON_BIN} -m venv {venv_path}'))
+    
+    try:
+        logger.print(check_output(f'{venv_pip_bin} install -r {" -r ".join(requirements)}'))
+    except Exception as e:
+        check_output(f'rm -rf {venv_path}')
+        raise e
+
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
     logger.print("Releasing ixia ports...")
     try:
-        python_bin = os.path.join(internal_fp_repo_dir, 'venv/bin/python')
+        python_bin = _get_venv_python_bin(ws)
         ixia_release_bin = _resolve_path_if_needed(internal_fp_repo_dir, 'exec/utils/ixia/release_ports.py')
         logger.print(
             check_output(f'{python_bin} {ixia_release_bin} {binding_file}')
@@ -1299,18 +1373,43 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, binding_file):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def BringupIxiaController(self, reserved_testbed):
+def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_version={
+    "controller": "1.3.0-2",
+    "hw": "1.3.0-4",
+    "gnmi": "1.13.15",
+}):
     # TODO: delete this line
     logger.print(f"reserved_testbed [{reserved_testbed}]")
     pname = reserved_testbed["id"].lower()
-    docker_file = reserved_testbed["otg_docker_compose_file"]
+    docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
+    reserved_testbed['otg_docker_compose_file'] = docker_file
+    _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version)
+
+    conn_args = {}
+    if 'username' in reserved_testbed['otg']:
+        conn_args['username'] = reserved_testbed['otg']['username']
+        conn_args['password'] = reserved_testbed['otg']['password']
+    if 'port' in reserved_testbed['otg']:
+        conn_args['port'] = reserved_testbed['otg']['port']
+    
+    # sim has no access to /auto/
+    if reserved_testbed.get('sim', False):
+        docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+        scp_to_remote(reserved_testbed['otg']['host'], docker_file, docker_file_on_remote, **conn_args)
+        docker_file = docker_file_on_remote
+
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+    remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def CollectIxiaLogs(self, reserved_testbed, out_dir):
     logger.print("Collecting OTG logs...")
+    # sim has no access to /auto/
+    if reserved_testbed.get('sim', False):
+        logger.print("Not supported on sim...skipping")
+        return
+    
     try:
         otg_log_collector_bin = "/auto/tftpboot-ottawa/b4/bin/otg_log_collector"
         pname = reserved_testbed["id"].lower()
@@ -1324,8 +1423,26 @@ def CollectIxiaLogs(self, reserved_testbed, out_dir):
 def TeardownIxiaController(self, reserved_testbed):
     pname = reserved_testbed["id"].lower()
     docker_file = reserved_testbed["otg_docker_compose_file"]
-    cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
-    remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+
+    conn_args = {}
+    if 'username' in reserved_testbed['otg']:
+        conn_args['username'] = reserved_testbed['otg']['username']
+        conn_args['password'] = reserved_testbed['otg']['password']
+    if 'port' in reserved_testbed['otg']:
+        conn_args['port'] = reserved_testbed['otg']['port']
+
+    if 'otg_docker_compose_file' in reserved_testbed:
+        pname = reserved_testbed["id"].lower()
+        docker_file = reserved_testbed["otg_docker_compose_file"]
+
+        # sim has no access to /auto/
+        if reserved_testbed.get('sim', False):
+            docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+            docker_file = docker_file_on_remote
+
+        cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
+        del reserved_testbed["otg_docker_compose_file"]
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))

@@ -90,6 +90,8 @@ options {
 
 duts {
   id: "dut1"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   name: "DUT1"  # Change this to the device hostname.
 
   # Options inherited by all protocols on this device unless
@@ -122,75 +124,94 @@ duts {
   ports {
     id: "port1"
     name: "HundredGigE0/0/0/4"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port2"
     name: "HundredGigE0/6/0/4"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port3"
     name: "HundredGigE0/6/0/5" # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port4"
     name: "HundredGigE0/6/0/24"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port5"
     name: "HundredGigE0/6/0/25"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port6"
     name: "HundredGigE0/0/0/18"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port7"
     name: "HundredGigE0/0/0/19"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
    id: "port8"
    name: "HundredGigE0/0/0/34"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
    id: "port9"
    name: "HundredGigE0/6/0/32"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
    id: "dut1_ate_port1"
    name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port2"
    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port3"
    name: "TenGigE0/6/0/2/2"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port4"
    name: "TenGigE0/6/0/2/3"  # Change this to the actual port name.
-  }    
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port5"
    name: "TenGigE0/6/0/2/1"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port6"
    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port7"
    name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }
   ports {
    id: "dut1_ate_port8"
    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
-  }         
+   speed: S_10GB  
+  }   
 }
 
 duts {
   id: "dut2"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   name: "DUT2"  # Change this to the device hostname.
 
   options {
@@ -223,71 +244,88 @@ duts {
   ports {
     id: "port1"
     name: "HundredGigE0/7/0/1"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port2"
     name: "HundredGigE0/7/0/4"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port3"
     name: "HundredGigE0/7/0/5" # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port4"
     name: "HundredGigE0/7/0/24"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port5"
     name: "HundredGigE0/7/0/25"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port6"
     name: "HundredGigE0/7/0/0"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
     id: "port7"
     name: "HundredGigE0/7/0/18"  # Change this to the actual port name.
+    speed: S_100GB   
   }
   ports {
    id: "port8"
    name: "HundredGigE0/7/0/34"  # Change this to the actual port name.
+   speed: S_100GB   
   }
   ports {
    id: "port9"
    name: "HundredGigE0/7/0/32"  # Change this to the actual port name.
+   speed: S_100GB   
   }
   ports {
    id: "dut2_ate_port1"
    name: "TenGigE0/7/0/12/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port2"
    name: "TenGigE0/7/0/30/3"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port3"
    name: "TenGigE0/7/0/12/2"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port4"
    name: "TenGigE0/7/0/12/3"  # Change this to the actual port name.
-  }    
+   speed: S_10GB  
+  }      
   ports {
    id: "dut2_ate_port5"
    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port6"
    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port7"
    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
-  }  
+   speed: S_10GB  
+  }   
   ports {
    id: "dut2_ate_port8"
    name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
-  }        
+   speed: S_10GB  
+  }       
 }
 
 ates {
@@ -310,65 +348,81 @@ ates {
   ports {
     id: "dut1_ate_port1"
     name: "7/3"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port2"
     name: "7/7"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port3"
     name: "7/5"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port4"
     name: "7/6"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port5"
     name: "7/4" # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port6"
     name: "7/8"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut1_ate_port7"
     name: "7/11"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
    id: "dut1_ate_port8"
    name: "7/12"  # Change this to the actual port name.
+    speed: S_10GB  
   }
     ports {
     id: "dut2_ate_port1"
     name: "9/9"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port2"
     name: "9/16"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port3"
     name: "9/11"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port4"
     name: "9/12"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port5"
     name: "9/13" # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port6"
     name: "9/14"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "dut2_ate_port7"
     name: "9/15"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
    id: "dut2_ate_port8"
    name: "9/10"  # Change this to the actual port name.
-  }
+   speed: S_10GB  
+  }   
 }

@@ -745,8 +745,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
 						break
 					}
-					parentType := gnmi.Get(t, dut, gnmi.OC().Component(parent).Type().State())
-					if parentType == componentType["Chassis"] {
+					pLoookup := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).Type().State())
+					parentType, present := pLoookup.Val()
+					if present && parentType == componentType["Chassis"] {
 						t.Logf("Component %s Parent: Found chassis component in the hierarchy tree of component", cName)
 						break
 					}

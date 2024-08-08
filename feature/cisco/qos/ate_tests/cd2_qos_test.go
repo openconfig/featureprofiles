@@ -1213,7 +1213,6 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	}
-
 }
 
 func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {

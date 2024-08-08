@@ -249,16 +249,16 @@ duts {
 # ipv4 address 5.78.18.191 255.255.0.0
 #!
 
-# telnet 10.85.84.46 2011
-# telnet 10.85.84.46 2012
+# telnet 10.85.84.53 2005
+# telnet 10.85.84.53 2006
 
 ##Exec server:
 #ssh ott2lab-as3
 
 ## Consoe server:
-# telnet 10.85.84.46
-# Pass1: roZes!23
-# Pass2: roZes!23
+# telnet 10.85.84.53
+# Pass1: lab
+# Pass2: lab
 
 # Username: cafyauto
 # Password: cisco123

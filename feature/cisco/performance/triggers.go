@@ -1,4 +1,3 @@
-// Abstract Trigger Space to have Routines that could be re-usable for any Test Suite
 package performance
 
 import (
@@ -29,10 +28,6 @@ type ProcessState struct {
 	PlacementState string `json:"placement-state"`
 }
 
-func RestartEmsd(t *testing.T, dut *ondatra.DUTDevice) error {
-	return RestartProcess(t, dut, "emsd")
-}
-
 func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) error {
 
 	psInit := getProcessState(t, dut, processName)
@@ -50,7 +45,7 @@ func RestartProcess(t *testing.T, dut *ondatra.DUTDevice, processName string) er
 		return err
 	}
 	if resp == nil {
-		t.Error("")
+		t.Error("Response is nil")
 	}
 
 	psFinal := getProcessState(t, dut, processName)
@@ -76,13 +71,14 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 		t.Fatalf("Reboot failed %v", err)
 	}
 	startReboot := time.Now()
+	time.Sleep(5 * time.Second)
 	const maxRebootTime = 30
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
-		time.Sleep(15 * time.Second)
+		time.Sleep(1 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
@@ -96,6 +92,8 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
+	// gnmi.Await(t, dut, gnmi.OC().Component(dut.Device.Name()).OperStatus().State(), time.Minute*30, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
+
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 	return nil
 }
@@ -164,5 +162,10 @@ func ReloadLineCards(t *testing.T, dut *ondatra.DUTDevice) error {
 	wg.Wait()
 	t.Log("All linecards successfully relaunched")
 
+	return nil
+}
+
+func GNMIBigSetRequest(t *testing.T, dut *ondatra.DUTDevice, set *gnmi.SetBatch, numLeaves int) error {
+	BatchSet(t, dut, set, numLeaves)
 	return nil
 }

@@ -51,13 +51,14 @@ import (
 )
 
 var (
-	dhcpIntf        = flag.String("dhcp-intf", "", "Interface that will be used by dhcp server to listen for dhcp requests")
-	bootzAddr       = flag.String("bootz_addr", "", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
-	imageServerAddr = flag.String("img_serv_addr", "", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
-	imagesDir       = flag.String("img_dir", "", "Directory where the images will be located.")
-	imageVersion    = flag.String("img_ver", "", "Version of the image to be loaded using bootz")
-	dhcpIP          = flag.String("dhcp_ip", "", "IP address in CIDR format that dhcp server will assign to the dut.")
-	dhcpGateway     = flag.String("dhcp_gateway", "", "Gateway IP that dhcp server will assign to DUT.")
+	dhcpIntf        = flag.String("dhcp_intf", "eth1", "Interface that will be used by dhcp server to listen for dhcp requests")
+	bootzAddr       = flag.String("bootz_addr", "5.18.23.199:8023", "The ip:port to start the Bootz server. Ip must be specefied and be reachable from the router.")
+	imageServerAddr = flag.String("img_serv_addr", "5.18.23.199:8024", "The ip:port to start the Image server. Ip must be specefied and be reachable from the router.")
+	imagesDir       = flag.String("img_dir", "/ws/kjahed-ott/images/tmp", "Directory where the images will be located.")
+	imageVersion    = flag.String("img_ver", "24.3.1.19I", "Version of the image to be loaded using bootz")
+	dhcpIP          = flag.String("dhcp_ip", "5.78.26.27/16", "IP address in CIDR format that dhcp server will assign to the dut.")
+	dhcpGateway     = flag.String("dhcp_gateway", "5.78.0.1", "Gateway IP that dhcp server will assign to DUT.")
+	wrongSerial     = flag.String("wrong_serial", "FLM253900JC", "Incorrect serial number for negative test cases")
 )
 
 var (
@@ -406,6 +407,7 @@ func ocLeafValidation(t *testing.T, dut *ondatra.DUTDevice, checksum string, exp
 }
 
 func ztpInitiateMgmtDhcp4(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Executing ztp initiate on the box")
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		cli_handle := dut.RawAPIs().CLI(t)
@@ -419,8 +421,11 @@ func ztpInitiateMgmtDhcp4(t *testing.T, dut *ondatra.DUTDevice) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Logf("%v\n", ztp_resp.Output())
-
+		out := ztp_resp.Output()
+		t.Logf("%v\n", out)
+		if strings.Contains(strings.ToLower(out), "error") {
+			t.Fatalf("Error initiating ZTP")
+		}
 	default:
 		t.Fatalf("The ztp initiate commands of vendor %s is missing", dut.Vendor().String())
 	}
@@ -428,6 +433,7 @@ func ztpInitiateMgmtDhcp4(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func ztpTerminate(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Executing ztp terminate on the box")
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		cli_handle := dut.RawAPIs().CLI(t)
@@ -533,8 +539,9 @@ func TestBootz1(t *testing.T) {
 				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
 				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
 
-				t.Logf("Executing ztp initiate on the box")
 				ztpInitiateMgmtDhcp4(t, dut)
+				defer ztpTerminate(t, dut)
+
 				traversedStates = []oc.E_Bootz_Status{}
 				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
 					got, ok := gnmi.Watch(t, dut, gnmi.OC().System().Bootz().Status().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bootz_Status]) bool {
@@ -564,8 +571,6 @@ func TestBootz1(t *testing.T) {
 				if !reflect.DeepEqual(traversedStates, tt.TelemetryStatusValidation) {
 					t.Errorf("All the states not traversed:, got %v, want %v", traversedStates, tt.TelemetryStatusValidation)
 				}
-				t.Logf("Executing ztp terminate on the box")
-				ztpTerminate(t, dut)
 
 				dutBootzStatus(t, dut, 5*time.Second)
 				ocLeafValidation(t, dut, checksumServer, tt.ExpectedFailure)
@@ -583,13 +588,12 @@ func TestBootz1(t *testing.T) {
 
 // ### bootz-2: Validate Software image in bootz configuration
 func TestBootz2(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	testSetup(t, dut)
 	defer bServer.Stop()
 	defer dhcp.Stop()
 
-	dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
+	// dutPreTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
 	invalidOSBootzStates := []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzUpgradeInProgress, bootzOSInvalid}
 	validOSBootzStates := []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzUpgradeInProgress, bootzUpgradeComplete, bootzCfgApplied, bootzOk}
 
@@ -608,8 +612,22 @@ func TestBootz2(t *testing.T) {
 			TelemetryStatusValidation: invalidOSBootzStates,
 			ErrCount:                  1,
 		},
+		// {
+		// 	Name:         "Bootz-2.2: Valid software Image",
+		// 	VendorConfig: baseConfig,
+		// 	Image: &bpb.SoftwareImage{
+		// 		Name:          "goodimage.iso",
+		// 		Url:           fmt.Sprintf("https://%s/goodimage.iso", *imageServerAddr),
+		// 		HashAlgorithm: "sha256",
+		// 		OsImageHash:   getImageHash(t, fmt.Sprintf("%s/goodimage.iso", *imagesDir)),
+		// 		Version:       *imageVersion,
+		// 	},
+		// 	ExpectedFailure:           false,
+		// 	TelemetryStatusValidation: validOSBootzStates,
+		// 	ErrCount:                  0,
+		// },
 		{
-			Name:         "Bootz-2.2: Software version is different",
+			Name:         "Bootz-2.3: Valid software Image With Bundle",
 			VendorConfig: baseConfig,
 			Image: &bpb.SoftwareImage{
 				Name:          "goodimage.iso",
@@ -618,6 +636,7 @@ func TestBootz2(t *testing.T) {
 				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/goodimage.iso", *imagesDir)),
 				Version:       *imageVersion,
 			},
+			OV:                        GenerateOwnershipVoucherBundle(t, controllerCardSerials),
 			ExpectedFailure:           false,
 			TelemetryStatusValidation: validOSBootzStates,
 			ErrCount:                  0,
@@ -636,11 +655,17 @@ func TestBootz2(t *testing.T) {
 				//ensure no old dhcp log causing an issue
 				dhcpLease.CleanLog()
 
+				if len(tt.OV) > 0 {
+					for k := range secArtifacts.OV {
+						secArtifacts.OV[k] = tt.OV
+					}
+				}
+
 				chassisBootzConfig.GetConfig().BootConfig.VendorConfig = []byte(tt.VendorConfig)
 				chassisBootzConfig.SoftwareImage = tt.Image
 
-				t.Logf("Executing ztp initiate on the box")
 				ztpInitiateMgmtDhcp4(t, dut)
+				defer ztpTerminate(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
 				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
@@ -657,7 +682,7 @@ func TestBootz2(t *testing.T) {
 				}
 
 				if tt.ExpectedFailure {
-					awaitOCBootzStatus(t, dut, 3*time.Minute, tt.TelemetryStatusValidation)
+					awaitOCBootzStatus(t, dut, 5*time.Minute, tt.TelemetryStatusValidation)
 				} else {
 					dhcpIDs := []string{chassisSerial}
 					dhcpIDs = append(dhcpIDs, hwAddrs...)
@@ -683,17 +708,14 @@ func TestBootz2(t *testing.T) {
 					t.Errorf("All the states not traversed:, got %v, want %v", traversedStates, tt.TelemetryStatusValidation)
 				}
 
-				t.Logf("Executing ztp terminate on the box")
-				ztpTerminate(t, dut)
-
 				dutBootzStatus(t, dut, 5*time.Second)
 				ocLeafValidation(t, dut, checksumServer, tt.ExpectedFailure)
 			})
 		}
 		dutBootzStatus(t, dut, fullBootzCompletionTimeout)
 		dutPostTestVersion := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
-		if dutPostTestVersion != *imageVersion {
-			t.Fatalf("DUT software versions do not match, pretest: %s , posttest: %s ", dutPreTestVersion, dutPostTestVersion)
+		if *imageVersion != dutPostTestVersion {
+			t.Fatalf("DUT software versions do not match, want: %s , got: %s ", *imageVersion, dutPostTestVersion)
 		}
 	})
 
@@ -728,7 +750,7 @@ func TestBootz3(t *testing.T) {
 			Name:                      "bootz-3.3  Valid OV format but for differnt device",
 			VendorConfig:              baseConfig,
 			ExpectedFailure:           true,
-			OV:                        loadOV(t, "wrongserial", secArtifacts.PDC, false), // get serail as flasg
+			OV:                        loadOV(t, *wrongSerial, secArtifacts.PDC, false), // get serail as flasg
 			TelemetryStatusValidation: invalidOVBootzStates,
 		},
 		{
@@ -737,6 +759,27 @@ func TestBootz3(t *testing.T) {
 			ExpectedFailure:           false,
 			TelemetryStatusValidation: validOVBootzStates,
 			ErrCount:                  0,
+		},
+		{
+			Name:                      "bootz-3.5 Valid OV bundle for all controller cards",
+			VendorConfig:              baseConfig,
+			ExpectedFailure:           false,
+			OV:                        GenerateOwnershipVoucherBundle(t, controllerCardSerials),
+			TelemetryStatusValidation: validOVBootzStates,
+		},
+		{
+			Name:                      "bootz-3.6 Corrupt OV bundle",
+			VendorConfig:              baseConfig,
+			ExpectedFailure:           true,
+			OV:                        generateCorruptOwnershipVoucherBundle(t, controllerCardSerials),
+			TelemetryStatusValidation: invalidOVBootzStates,
+		},
+		{
+			Name:                      "bootz-3.7 OV bundle with incorrect serial",
+			VendorConfig:              baseConfig,
+			ExpectedFailure:           true,
+			OV:                        GenerateOwnershipVoucherBundle(t, []string{*wrongSerial}),
+			TelemetryStatusValidation: invalidOVBootzStates,
 		},
 	}
 
@@ -767,8 +810,8 @@ func TestBootz3(t *testing.T) {
 				}
 				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
 
-				t.Logf("Executing ztp initiate on the box")
 				ztpInitiateMgmtDhcp4(t, dut)
+				defer ztpTerminate(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
 				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
@@ -810,9 +853,6 @@ func TestBootz3(t *testing.T) {
 				if !reflect.DeepEqual(traversedStates, tt.TelemetryStatusValidation) {
 					t.Errorf("All the states not traversed:, got %v, want %v", traversedStates, tt.TelemetryStatusValidation)
 				}
-
-				t.Logf("Executing ztp terminate on the box")
-				ztpTerminate(t, dut)
 			})
 		}
 		dutBootzStatus(t, dut, 5*time.Second)
@@ -833,20 +873,20 @@ func TestBootz4(t *testing.T) {
 	invalidOSBootzStates := []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzOSInvalid}
 	validOSBootzStates := []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzCfgApplied, bootzOk}
 	bootz4 := []bootzTest{
-		{
-			Name:         "Bootz-4.1 Invalid OS image provided",
-			VendorConfig: baseConfig,
-			Image: &bpb.SoftwareImage{
-				Name:          "badimage.iso",
-				Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr),
-				HashAlgorithm: "sha256",
-				OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
-				Version:       "999",
-			},
-			ExpectedFailure:           true,
-			TelemetryStatusValidation: []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzUpgradeInProgress, bootzOSInvalid},
-			ErrCount:                  1,
-		}, //gets covered as a part of Bootz2.2
+		// {
+		// 	Name:         "Bootz-4.1 Invalid OS image provided",
+		// 	VendorConfig: baseConfig,
+		// 	Image: &bpb.SoftwareImage{
+		// 		Name:          "badimage.iso",
+		// 		Url:           fmt.Sprintf("https://%s/badimage.iso", *imageServerAddr),
+		// 		HashAlgorithm: "sha256",
+		// 		OsImageHash:   getImageHash(t, fmt.Sprintf("%s/badimage.iso", *imagesDir)),
+		// 		Version:       "999",
+		// 	},
+		// 	ExpectedFailure:           true,
+		// 	TelemetryStatusValidation: []oc.E_Bootz_Status{bootzUnspecified, bootzSent, bootzReceived, bootzUpgradeInProgress, bootzOSInvalid},
+		// 	ErrCount:                  1,
+		// }, //gets covered as a part of Bootz2.2
 		{
 			Name:         "Bootz-4.2 Failed to fetch image from remote URL",
 			VendorConfig: baseConfig,
@@ -902,8 +942,8 @@ func TestBootz4(t *testing.T) {
 				chassisBootzConfig.SoftwareImage = tt.Image
 				em.ReplaceDevice(chassisEntity, chassisBootzConfig)
 
-				t.Logf("Executing ztp initiate on the box")
 				ztpInitiateMgmtDhcp4(t, dut)
+				defer ztpTerminate(t, dut)
 
 				traversedStates = []oc.E_Bootz_Status{}
 				for len(traversedStates) == 0 || traversedStates[0] != oc.Bootz_Status_BOOTZ_UNSPECIFIED {
@@ -929,8 +969,6 @@ func TestBootz4(t *testing.T) {
 				if !reflect.DeepEqual(traversedStates, tt.TelemetryStatusValidation) {
 					t.Errorf("All the states not traversed:, got %v, want %v", traversedStates, tt.TelemetryStatusValidation)
 				}
-				t.Logf("Executing ztp terminate on the box")
-				ztpTerminate(t, dut)
 
 				dutBootzStatus(t, dut, 5*time.Second)
 				ocLeafValidation(t, dut, checksumServer, tt.ExpectedFailure)

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/client"
@@ -544,4 +545,46 @@ func SliceEqual(a, b []string) bool {
 	}
 
 	return true
+}
+
+// UniqueValues returns a list of all unique values from a given input map.
+func UniqueValues(t *testing.T, m map[string]string) []string {
+	seen := make(map[string]bool) // a set of seen values
+	var result []string           // a slice to hold unique values
+
+	for _, value := range m {
+		if _, ok := seen[value]; !ok {
+			// If the value hasn't been seen yet, add it to the result slice
+			result = append(result, value)
+			// And mark it as seen
+			seen[value] = true
+		}
+	}
+	return result
+}
+
+// GetLCList returns a list of LCs on the device
+func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
+	lcList := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	t.Logf("List of linecard on device: %v", lcList)
+	return lcList
+}
+
+// GetLCSlotID returns the LC slot ID on the device for a location.
+func GetLCSlotID(t *testing.T, lcloc string) uint8 {
+	lcSl := strings.Split(lcloc, "/")
+	lcslotID, err := strconv.Atoi(lcSl[1])
+	if err != nil {
+		t.Fatalf("error in int conversion %v", err)
+	}
+	return uint8(lcslotID)
+}
+
+// StringToInt converts int values in string format to int.
+func StringToInt(t *testing.T, intString string) int {
+	intVal, err := strconv.Atoi(intString)
+	if err != nil {
+		t.Fatalf("error in int conversion %v", err)
+	}
+	return intVal
 }

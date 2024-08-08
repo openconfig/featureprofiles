@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -456,6 +457,11 @@ func finalizeAccountRequest(t *testing.T, stream credz.Credentialz_RotateAccount
 	if err != nil {
 		t.Fatalf("Stream send finalize failed : " + err.Error())
 	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			log.Exit("Failed, finalize Rotation is cancelled", err)
+		}
+	}
 	log.Infof("Finalize Request done")
 }
 
@@ -473,6 +479,12 @@ func finalizeHostRequest(t *testing.T, stream credz.Credentialz_RotateHostParame
 	if err != nil {
 		fmt.Println("Credz:  Stream send finalize failed : " + err.Error())
 	}
+	if _, err = stream.Recv(); err != nil {
+		if err != io.EOF {
+			log.Exit("Failed, finalize Rotation is cancelled", err)
+		}
+	}
+	log.Infof("Finalize Request done")
 }
 
 func rotateHostParametersRequest(t *testing.T, stream credz.Credentialz_RotateHostParametersClient, aareq credz.AllowedAuthenticationRequest) {
@@ -828,8 +840,6 @@ func TestCredentialz_2(t *testing.T) {
 	rotateHostParametersRequest(t, hostParamStream, aareq)
 	finalizeHostRequest(t, hostParamStream)
 	hostParamStream.CloseSend()
-	time.Sleep(2 * time.Second)
-
 	var akreq credz.AuthorizedKeysRequest
 
 	credentialsData := createAccountCredentials(filePath, accountName)
@@ -843,7 +853,6 @@ func TestCredentialz_2(t *testing.T) {
 	roatateAccountCredentialsRequest(t, stream, akreq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	sshPasswordParams := sshPasswordParams{
 		user:     accountName,
@@ -852,7 +861,9 @@ func TestCredentialz_2(t *testing.T) {
 
 	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
-
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("Set Password as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePwd []credz.AuthenticationType
 		authTypePwd = append(authTypePwd, credz.AuthenticationType_AUTHENTICATION_TYPE_PASSWORD)
@@ -867,7 +878,7 @@ func TestCredentialz_2(t *testing.T) {
 		}
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
-		time.Sleep(2 * time.Second)
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err != nil {
 			t.Fatalf("Error in establishing SSH connection with password: %v", err.Error())
@@ -896,6 +907,11 @@ func TestCredentialz_2(t *testing.T) {
 
 	})
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
+	}
 	t.Run("set Pubkey as authentication type and check ssh with password and pubkey", func(t *testing.T) {
 		var authTypePubkey []credz.AuthenticationType
 		authTypePubkey = append(authTypePubkey, credz.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY)
@@ -906,8 +922,7 @@ func TestCredentialz_2(t *testing.T) {
 		log.Infof("Aollowed Authentication request type PubKey")
 		rotateHostParametersRequest(t, hostParamStream, aareq)
 		finalizeHostRequest(t, hostParamStream)
-		time.Sleep(2 * time.Second)
-
+		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err == nil {
 			t.Fatalf("Establishing SSH connection with password which is not expected")
@@ -938,6 +953,11 @@ func TestCredentialz_2(t *testing.T) {
 
 	aareq = credz.AllowedAuthenticationRequest{
 		AuthenticationTypes: authTypes,
+	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("failed to get stream: %v", err)
 	}
 	log.Infof("Aollowed Authentication request type Password, PubKey and KBDInteractive")
 	rotateHostParametersRequest(t, hostParamStream, aareq)
@@ -989,7 +1009,6 @@ func TestCredentialz_3(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -999,6 +1018,7 @@ func TestCredentialz_3(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1031,9 +1051,15 @@ func TestCredentialz_3(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
+	defer hostParamStream.CloseSend()
+
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
+	hostParamStream.CloseSend()
 
 	t.Run("Client Based Authentication", func(t *testing.T) {
 		errCount := 0
@@ -1150,7 +1176,7 @@ func TestCredentialz_4(t *testing.T) {
 	roatateAccountCredentialsRequest(t, stream, akreq)
 
 	finalizeAccountRequest(t, stream)
-
+	stream.CloseSend()
 	t.Run("PublicKey Based Authentication", func(t *testing.T) {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1178,6 +1204,12 @@ func TestCredentialz_4(t *testing.T) {
 		Version:   "1.1",
 		CreatedOn: 123}
 	akreqForNeg.Credentials = append(akreqForNeg.Credentials, &credentials)
+
+	stream, err = gnsiC.Credentialz().RotateAccountCredentials(context.Background())
+	defer stream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 
 	log.Infof("Removing all authorized keys from user")
 	roatateAccountCredentialsRequest(t, stream, akreqForNeg)
@@ -1309,8 +1341,7 @@ func TestCredentialz_5(t *testing.T) {
 	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	caPubkey, err := os.ReadFile(fmt.Sprintf("%s/ca.pub", filePath))
 	if err != nil {
 		t.Fatalf("Error in reading ca Pubkey file: %v", err.Error())
@@ -1320,9 +1351,14 @@ func TestCredentialz_5(t *testing.T) {
 		Version:         "1.1",
 		CreatedOn:       123}
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
-
+	hostParamStream.CloseSend()
 	err = createGrantFileWithClientName(hibaGenPath, grantsFile, idKeyPairs)
 	if err != nil {
 		t.Fatalf("Error creating grants file with client name: %v", err.Error())
@@ -1345,10 +1381,14 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq := credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(1),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	out, err := createSSHClientWithCmd(tartgetIP, tartgetPort, fmt.Sprintf("%s/%s-cert.pub", usersFilePath, accountName),
 		fmt.Sprintf("%s/%s", usersFilePath, accountName), accountName)
 	if err != nil {
@@ -1363,8 +1403,14 @@ func TestCredentialz_5(t *testing.T) {
 	pcreq = credz.AuthorizedPrincipalCheckRequest{
 		Tool: credz.AuthorizedPrincipalCheckRequest_Tool(0),
 	}
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForprincipalCheck(t, hostParamStream, pcreq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 }
 
 func TestPubkeyWithHA(t *testing.T) {
@@ -1486,7 +1532,6 @@ func TestExpiredHostCert(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1496,6 +1541,7 @@ func TestExpiredHostCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1528,6 +1574,11 @@ func TestExpiredHostCert(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
 		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
@@ -1585,7 +1636,6 @@ func TestExpiredClientCert(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1595,6 +1645,7 @@ func TestExpiredClientCert(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1627,10 +1678,14 @@ func TestExpiredClientCert(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
 	hostParamStream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	errCount := 0
 	for i := 0; i < len(clientKeyNames); i++ {
@@ -1708,7 +1763,6 @@ func TestClientCertWithHA(t *testing.T) {
 	roatateAccountCredentialsRequestUser(t, stream, authUsrReq)
 	finalizeAccountRequest(t, stream)
 	stream.CloseSend()
-	time.Sleep(2 * time.Second)
 
 	hostParamStream, err := gnsiC.Credentialz().RotateHostParameters(context.Background())
 	defer hostParamStream.CloseSend()
@@ -1718,6 +1772,7 @@ func TestClientCertWithHA(t *testing.T) {
 
 	rotateHostParametersRequestForSshCAPubKey(t, hostParamStream, caPubkeyReq)
 	finalizeHostRequest(t, hostParamStream)
+	hostParamStream.CloseSend()
 
 	for i := 0; i < len(clientKeyNames); i++ {
 		_, authUsr := filepath.Split(clientKeyNames[i])
@@ -1750,10 +1805,14 @@ func TestClientCertWithHA(t *testing.T) {
 	}
 	skreq.AuthArtifacts = authArtifacts
 
+	hostParamStream, err = gnsiC.Credentialz().RotateHostParameters(context.Background())
+	defer hostParamStream.CloseSend()
+	if err != nil {
+		t.Fatalf("	failed to get stream: %v", err)
+	}
 	rotateHostParametersRequestForServerKeys(t, hostParamStream, skreq)
 	finalizeHostRequest(t, hostParamStream)
-	time.Sleep(2 * time.Second)
-
+	hostParamStream.CloseSend()
 	sshVerification := func() {
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {

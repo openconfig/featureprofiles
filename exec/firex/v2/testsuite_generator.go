@@ -40,6 +40,7 @@ type GoTest struct {
 	PreTests        []GoTest `yaml:"pre_tests"`
 	PostTests       []GoTest `yaml:"post_tests"`
 	Groups          []string
+	OTGVersion      map[string]string `yaml:"otg_version"`
 }
 
 // FirexTest represents a single firex test suite
@@ -74,7 +75,11 @@ var (
 	)
 
 	exTestNamesFlag = flag.String(
-		"exclude_test_names", "", "comma separated list of tests to exclude",
+		"exclude_test_names", "", "comma separated list of test groups to include",
+	)
+
+	exGroupNamesFlag = flag.String(
+		"exclude_group_names", "", "comma separated list of test groups to exclude",
 	)
 
 	pluginsFlag = flag.String(
@@ -141,6 +146,7 @@ var (
 	testNames          []string
 	groupNames         []string
 	excludeTestNames   []string
+	excludeGroupNames  []string
 	extraPlugins       []string
 	testbeds           []string
 	env                map[string]string
@@ -221,6 +227,12 @@ var (
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
             {{- end }}
+            {{- if $.Test.OTGVersion }}
+            otg_version:
+                controller: {{ index $.Test.OTGVersion "controller" }}
+                hw: {{ index $.Test.OTGVersion "hw" }}
+                gnmi: {{ index $.Test.OTGVersion "gnmi" }}
+            {{- end }}
             smart_sanity_exclude: True
     {{- if gt (len $.Test.PostTests) 0 }}
     fp_post_tests:
@@ -252,6 +264,10 @@ func init() {
 
 	if len(*exTestNamesFlag) > 0 {
 		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
+	}
+
+	if len(*exGroupNamesFlag) > 0 {
+		excludeGroupNames = strings.Split(*exGroupNamesFlag, ",")
 	}
 
 	if len(*pluginsFlag) > 0 {
@@ -357,15 +373,17 @@ func main() {
 		}
 	} else if len(groupNames) > 0 {
 		keptTests := map[string][]GoTest{}
-		for _, tg := range groupNames {
-			for i := range suite {
-				if _, ok := keptTests[suite[i].Name]; !ok {
-					keptTests[suite[i].Name] = []GoTest{}
-				}
-				for j := range suite[i].Tests {
-					for _, g := range suite[i].Tests[j].Groups {
+		for i := range suite {
+			if _, ok := keptTests[suite[i].Name]; !ok {
+				keptTests[suite[i].Name] = []GoTest{}
+			}
+		outer:
+			for j := range suite[i].Tests {
+				for _, g := range suite[i].Tests[j].Groups {
+					for _, tg := range groupNames {
 						if tg == g {
 							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+							continue outer
 						}
 					}
 				}
@@ -427,10 +445,39 @@ func main() {
 		}
 	}
 
+	if len(excludeGroupNames) > 0 {
+		excludedTests := map[string]bool{}
+
+		for i := range suite {
+		out:
+			for j := range suite[i].Tests {
+				for _, g := range excludeGroupNames {
+					for _, tg := range suite[i].Tests[j].Groups {
+						if g == tg {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+							continue out
+						}
+					}
+				}
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+	}
+
 	// adjust timeouts, priorities, & owners
 	for i := range suite {
 		if suite[i].Priority == 0 {
-			suite[i].Priority = 100000000
+			suite[i].Priority = 1000
 		}
 
 		for j := range suite[i].Tests {
@@ -447,7 +494,7 @@ func main() {
 			}
 
 			if suite[i].Tests[j].Priority == 0 {
-				suite[i].Tests[j].Priority = 100000000
+				suite[i].Tests[j].Priority = 1000
 			}
 
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
