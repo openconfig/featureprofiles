@@ -1,11 +1,13 @@
 # TE-18.1 MPLS in UDP Encapsulation with QoS scheduler
 
 Create AFT entries using gRIBI to match destination IP address in a
-network-instance.  Encapsulate the matching packets in MPLS in UDP.
-Configure a qos scheduler to rate limit / police traffic based on
-matching the destination IP address of a packet input to the DUT.
+network-instance.  Encapsulate the matching packets in MPLS in UDP. Configure
+a qos scheduler to rate limit / police traffic based on matching the
+destination IP address of a packet input to the DUT.
 
-TODO: Add smaller READMEs for aft next hop counters, one for PF rules, one for policer
+The MPLS in UDP encapsulation is expected to follow [rfc7510](https://datatracker.ietf.org/doc/html/rfc7510#section-3),
+but relaxing the requirement for a well-known destination UDP port.  gRIBI is
+expected to be able to set the destination UDP port.
 
 ## Topology
 
