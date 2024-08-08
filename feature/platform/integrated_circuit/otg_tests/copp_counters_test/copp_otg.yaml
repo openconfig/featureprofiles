@@ -1,0 +1,11 @@
+name: copp_otg
+owners: 
+  - liawalsh
+testbeds:
+  - 8201-1DUT
+tests:
+  - name: copp_otg
+    path: feature/platform/integrated_circuit/otg_tests/copp_counters_test
+    mustpass: true
+    internal: true
+    branch: liawalsh/copp_counters
