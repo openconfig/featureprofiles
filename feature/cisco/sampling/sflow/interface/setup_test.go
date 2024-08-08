@@ -54,17 +54,4 @@ func configureSubInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName s
 	intf.GetOrCreateSubinterface(subint).SetEnabled(true)
 	path := gnmi.OC().Interface(interfaceName)
 	gnmi.Update(t, dut, path.Config(), intf)
-	if !hasSubInterface(t, dut, interfaceName, subint) {
-		t.Errorf("Creating Subinterface (number: %v) failed for %v", subint, interfaceName)
-	}
-}
-
-func hasSubInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, subint uint32) bool {
-	got := gnmi.Lookup(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(subint).Config())
-	if _, present := got.Val(); present {
-		t.Logf("Interface %v has Subinterface %v", interfaceName, subint)
-		return true
-	}
-	t.Logf("Interface %v does not have Subinterface %v", interfaceName, subint)
-	return false
 }

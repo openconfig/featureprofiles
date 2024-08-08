@@ -118,10 +118,7 @@ func TestNameAtContainer(t *testing.T) {
 
 	interfaceName := "FourHundredGigE0/0/0/0"
 	var subInterfaceNumber uint32 = 1
-	if !hasSubInterface(t, dut, interfaceName, subInterfaceNumber) {
-		t.Logf("Interface %v does not have SubInterface, So creating SubInterface %v", interfaceName, subInterfaceNumber)
-		configureSubInterface(t, dut, interfaceName, subInterfaceNumber)
-	}
+	configureSubInterface(t, dut, interfaceName, subInterfaceNumber)
 
 	for _, input := range testNameInput {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/interfaces/interface/config/name using value %v", input), func(t *testing.T) {
