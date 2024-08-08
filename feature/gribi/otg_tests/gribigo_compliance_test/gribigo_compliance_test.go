@@ -16,8 +16,10 @@
 package gribigo_compliance_test
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"flag"
 
@@ -27,12 +29,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/compliance"
+	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -81,6 +86,14 @@ var (
 		IPv4Len: 31,
 	}
 )
+
+type testArgs struct {
+	ctx        context.Context
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	client     *fluent.GRIBIClient
+	electionID gribi.Uint128
+}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -177,6 +190,58 @@ func TestCompliance(t *testing.T) {
 			tt.In.Fn(c, t, opts...)
 		})
 	}
+	ctx := context.Background()
+	c := fluent.NewClient()
+	c.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
+		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
+	c.Start(ctx, t)
+	c.StartSending(ctx, t)
+	eID := gribi.BecomeLeader(t, c)
+	tcArgs := &testArgs{
+		ctx:        ctx,
+		client:     c,
+		dut:        dut,
+		ate:        ate,
+		electionID: eID,
+	}
+	testAdditionalCompliance(tcArgs, t)
+}
+
+// testAdditionalCompliance tests has additional compliance tests that are not covered by the compliance
+// test suite.
+func testAdditionalCompliance(tcArgs *testArgs, t *testing.T) {
+
+	tests := []struct {
+		desc string
+		fn   func(*testArgs, fluent.ProgrammingResult, testing.TB)
+	}{
+		{
+			desc: "Add IPv4 Entry with NHG which point to NH IP which doesn't resolved with in topology",
+			fn:   addNHGReferencingToUnresolvedNH,
+		},
+		{
+			desc: "Add IPv4 Entry with NHG which point to NH with Down port",
+			fn:   addNHGReferencingToDownPort,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			if err := gribi.FlushAll(tcArgs.client); err != nil {
+				t.Fatal(err)
+			}
+			tt.fn(tcArgs, fluent.InstalledInFIB, t)
+		})
+	}
+}
+
+func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, p *ondatra.Port, state bool) {
+	dc := gnmi.OC()
+	i := &oc.Interface{}
+	i.Enabled = ygot.Bool(state)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	i.Name = ygot.String(p.Name())
+	gnmi.Update(t, dut, dc.Interface(p.Name()).Config(), i)
+
 }
 
 // configureDUT configures port1-3 on the DUT.
@@ -224,4 +289,71 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	return top
+}
+
+// addNHGReferencingToUnresolvedNH tests a case where a nexthop group references a nexthop IP 1.0.0.1
+// that does not Resolved with in the topology
+func addNHGReferencingToUnresolvedNH(tcArgs *testArgs, wantACK fluent.ProgrammingResult, t testing.TB) {
+	t.Log("Flush existing gRIBI routes before test.")
+	if err := gribi.FlushAll(tcArgs.client); err != nil {
+		t.Fatal(err)
+	}
+	tcArgs.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(2000).WithIPAddress("1.0.0.1"),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(2000).AddNextHop(2000, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithPrefix("203.0.113.101/32").WithNextHopGroup(2000))
+
+	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 2*time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+	chk.HasResult(t, tcArgs.client.Results(t),
+		fluent.OperationResult().
+			WithNextHopGroupOperation(2000).
+			WithOperationType(constants.Add).
+			WithProgrammingResult(wantACK).
+			AsResult(),
+		chk.IgnoreOperationID())
+}
+
+// addNHGReferencingToDownPort tests a case where a nexthop group references to nexthop port that is down.
+// Entry must be expected to be installed in FIB.
+func addNHGReferencingToDownPort(tcArgs *testArgs, wantACK fluent.ProgrammingResult, t testing.TB) {
+	t.Log("Setting port2 to down...")
+	p := tcArgs.dut.Port(t, "port2")
+	t.Log("Flush existing gRIBI routes before test.")
+	if err := gribi.FlushAll(tcArgs.client); err != nil {
+		t.Fatal(err)
+	}
+	setDUTInterfaceWithState(t, tcArgs.dut, p, false)
+
+	tcArgs.client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(2000).WithInterfaceRef(p.Name()).WithIPAddress(atePort2.IPv4),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(2000).AddNextHop(2000, 1),
+		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithPrefix("203.0.113.100/32").WithNextHopGroup(2000),
+	)
+	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 2*time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
+	chk.HasResult(t, tcArgs.client.Results(t),
+		fluent.OperationResult().
+			WithIPv4Operation("203.0.113.100/32").
+			WithOperationType(constants.Add).
+			WithProgrammingResult(fluent.InstalledInFIB).
+			AsResult(),
+		chk.IgnoreOperationID(),
+	)
+}
+
+// awaitTimeout calls a fluent client Await, adding a timeout to the context.
+func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
+	t.Helper()
+	subctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Await(subctx, t)
 }

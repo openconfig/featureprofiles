@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a477c97d-c895-4af3-9c97-9327bf86d517"
+plan_id: "CNTR-1"
+description: "Basic container lifecycle via `gnoi.Containerz`."
+testbed: TESTBED_DUT_ATE_2LINKS

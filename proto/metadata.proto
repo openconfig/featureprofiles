@@ -598,6 +598,13 @@ message Metadata {
     bool bgp_explicit_extended_community_enable = 208;
     // devices that do not support match tag set condition
     bool match_tag_set_condition_unsupported = 209;
+    // peer_group_def_bgp_vrf_unsupported is set to true for devices that do not support peer group definition under bgp vrf configuration.
+    bool peer_group_def_ebgp_vrf_unsupported = 210;
+    // redis_uconnected_under_ebgp_vrf_unsupported is set to true for devices that do not support redistribution of connected routes under ebgp vrf configuration.
+    bool redis_connected_under_ebgp_vrf_unsupported = 211;
+    // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
+    // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
+    bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35;
