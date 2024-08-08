@@ -331,7 +331,7 @@ func addNHGReferencingToDownPort(tcArgs *testArgs, wantACK fluent.ProgrammingRes
 
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(2000).WithInterfaceRef(p.Name()).WithIPAddress(atePort2.IPv4),
+			WithIndex(2000).WithIPAddress(atePort2.IPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(2000).AddNextHop(2000, 1),
 		fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
