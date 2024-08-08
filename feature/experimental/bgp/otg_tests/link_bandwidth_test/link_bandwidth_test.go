@@ -661,7 +661,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			ref1.SetCommunitySet("regex_match_comm100_deviation2")
 		}
 	} else {
-		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
+		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 		ref1.SetCommunitySet("regex_match_comm100")
 		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	}
