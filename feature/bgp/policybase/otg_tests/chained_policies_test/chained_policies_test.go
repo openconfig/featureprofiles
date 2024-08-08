@@ -383,6 +383,17 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	if !deviations.DefaultImportExportPolicy(dut) {
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
+
+	//  As Per RFC 8212, Routes contained in an Adj-RIB-In associated with an EBGP peer
+	//  SHALL NOT be considered eligible in the Decision Process if no
+	//  explicit Import Policy has been applied.
+	importPolPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	eBGPPeerPolicy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	if !deviations.DefaultImportExportPolicy(dut) {
+		eBGPPeerPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+
+	}
+
 	if deviations.FlattenPolicyWithMultipleStatements(dut) {
 		policy.SetExportPolicy([]string{v4ASPPolicy})
 	} else {
@@ -390,11 +401,14 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	}
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, path.Config(), policy)
+		gnmi.Update(t, dut, importPolPath.Config(), eBGPPeerPolicy)
 	} else {
 		if operation == "set" {
 			gnmi.BatchReplace(batch, path.Config(), policy)
+			gnmi.BatchReplace(batch, importPolPath.Config(), eBGPPeerPolicy)
 		} else if operation == "delete" {
 			gnmi.BatchDelete(batch, path.Config())
+			gnmi.BatchDelete(batch, importPolPath.Config())
 		}
 		batch.Set(t, dut)
 	}
@@ -485,6 +499,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	if !deviations.DefaultImportExportPolicy(dut) {
 		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
+
 	policy.SetImportPolicy([]string{v6PrefixPolicy, v6LPPolicy})
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, path.Config(), policy)
@@ -589,6 +604,16 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	if !deviations.DefaultImportExportPolicy(dut) {
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
+
+	//  As Per RFC 8212, Routes contained in an Adj-RIB-In associated with an EBGP peer
+	//  SHALL NOT be considered eligible in the Decision Process if no
+	//  explicit Import Policy has been applied.
+	importPolPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	eBGPPeerPolicy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+	if !deviations.DefaultImportExportPolicy(dut) {
+		eBGPPeerPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	}
+
 	if deviations.FlattenPolicyWithMultipleStatements(dut) {
 		policy.SetExportPolicy([]string{v6ASPPolicy})
 	} else {
@@ -596,11 +621,14 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 	if deviations.SkipSettingStatementForPolicy(dut) {
 		gnmi.Update(t, dut, path.Config(), policy)
+		gnmi.Update(t, dut, importPolPath.Config(), eBGPPeerPolicy)
 	} else {
 		if operation == "set" {
 			gnmi.BatchReplace(batch, path.Config(), policy)
+			gnmi.BatchReplace(batch, importPolPath.Config(), eBGPPeerPolicy)
 		} else if operation == "delete" {
 			gnmi.BatchDelete(batch, path.Config())
+			gnmi.BatchDelete(batch, importPolPath.Config())
 		}
 		batch.Set(t, dut)
 	}
