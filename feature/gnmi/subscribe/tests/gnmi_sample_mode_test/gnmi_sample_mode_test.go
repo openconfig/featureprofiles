@@ -35,20 +35,9 @@ func TestGNMISampleMode(t *testing.T) {
 	p1Stream := samplestream.New(t, dut, gnmi.OC().Interface(p1.Name()).Description().State(), 10*time.Second)
 	defer p1Stream.Close()
 
-	desc := p1Stream.Next()
-	if desc == nil {
-		t.Logf("Interface %q telemetry not received before config", p1.Name())
-	} else {
-		v, ok := desc.Val()
-		if !ok {
-			t.Logf("Interface %q telemetry empty before config", p1.Name())
-		}
-		t.Logf("Description before config: %s", v)
-	}
-
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
-	desc = p1Stream.Next()
+	desc := p1Stream.Next()
 	if desc == nil {
 		t.Errorf("Interface %q telemetry not received after config", p1.Name())
 	} else {
