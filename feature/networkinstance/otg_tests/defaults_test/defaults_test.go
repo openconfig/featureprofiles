@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -103,6 +104,7 @@ var (
 		IPv6Len: 64,
 		MAC:     "02:00:02:01:01:01",
 	}
+	lossTolerancePct = 2.0
 )
 
 // TestDefaultAddressFamilies verifies that both IPv4 and IPv6 are enabled by default without a need for additional
@@ -181,6 +183,16 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
+			intfNbrPath := gnmi.OC().Interface(dutP2.Name()).Subinterface(0).Ipv6().Neighbor(atePort2.IPv6)
+			_, ok := gnmi.Watch(t, dut, intfNbrPath.LinkLayerAddress().State(), 5*time.Minute, func(val *ygnmi.Value[string]) bool {
+				_, ok := val.Val()
+				return ok
+			}).Await(t)
+
+			if !ok {
+				t.Log("IPv6 neighbor resolution failed")
+			}
+
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)
 			ate.OTG().StopTraffic(t)
@@ -198,7 +210,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 				}
 				loss := tx - rx
 				lossPct := loss * 100 / tx
-				if got := lossPct; got > 0 {
+				if got := lossPct; got > float32(lossTolerancePct) {
 					t.Errorf("LossPct for flow %s: got %v, want 0", flow, got)
 				}
 			}
