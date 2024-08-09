@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	iSystem "github.com/openconfig/featureprofiles/internal/system"
+	"github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
