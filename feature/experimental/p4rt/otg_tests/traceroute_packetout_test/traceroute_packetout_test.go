@@ -238,9 +238,9 @@ func TestPacketOut(t *testing.T) {
 
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
+	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-	otg.StartProtocols(t)
 
 	configureDeviceID(ctx, t, dut)
 
