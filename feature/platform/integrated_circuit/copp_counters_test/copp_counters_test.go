@@ -367,7 +367,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 	subList := getSubsriptionSlice()
 	
 	fmt.Println("Getting real counters")
-	realLeaf := gnmi.Get(t, dut, gnmi.OC().Component("0/0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
+	realLeaf := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
 	fmt.Println("Finished getting real counters")
 	
 	realLeafMap := map[string]uint64{
