@@ -21,19 +21,18 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	gnmic "github.com/openconfig/gnmic/pkg/api/path"
-	// "github.com/openconfig/lemming/gnmi/oc"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/gnmi"
+	oc "github.com/openconfig/ondatra/gnmi/oc"
 )
 
 type utilization struct {
@@ -42,6 +41,18 @@ type utilization struct {
 	upperThreshold      uint8
 	upperThresholdClear uint8
 }
+
+var (
+	fixedComponents = []string{
+		"0/RP0/CPU0-NPU0",
+	}
+
+	distributedComponents = []string{
+		"0/0/CPU0-NPU0",
+		"0/0/CPU0-NPU1",
+		"0/0/CPU0-NPU2",
+	}
+)
 
 func (u *utilization) percent() uint8 {
 	if u.used == 0 && u.free == 0 {
@@ -54,10 +65,31 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func getSubsriptionSlice() []*gnmipb.Subscription {
+func isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
+	t.Helper()
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+
+	distributed := false
+
+	for _, c := range components {
+		if t := c.GetType(); t == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+			distributed = true
+		}
+	}
+	return distributed
+}
+
+func getTestComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
+	t.Helper()
+	if isDistributed(t, dut) {
+		return distributedComponents
+	} else {
+		return fixedComponents
+	}
+}
+
+func getSubsriptionSlice(componentName string) []*gnmipb.Subscription {
 	filesList := []string{"./OC_Paths_Trap.txt", "./OC_Paths_LPTS.txt"}
-	// filesList := []string{"./OC_Paths_Trap_d.txt", "./OC_Paths_LPTS_d.txt"}
-	// filesList := []string{"./OC_Paths_LPTS_alt.txt"}
 
 	var lines []string
 	for _, entry := range filesList {
@@ -76,6 +108,7 @@ func getSubsriptionSlice() []*gnmipb.Subscription {
 	var subPaths []*gnmipb.Path
 
 	for _, line := range lines {
+		line = strings.Replace(line, "*", componentName, 1)
 		split := strings.SplitN(line, ":", 2)
 
 		path, _ := gnmic.ParsePath(split[1])
@@ -114,68 +147,73 @@ func TestCoppCounterPaths(t *testing.T) {
 
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
-	// gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
+	componentNames := getTestComponentNames(t, dut)
 
-	subList := getSubsriptionSlice()
+	for _, component := range componentNames {
+		t.Run(component, func(t *testing.T) {
 
-	for _, subEntry := range subList {
-		subClient, err := gnmiClient.Subscribe(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+			subList := getSubsriptionSlice(component)
 
-		subReq := &gnmipb.SubscribeRequest{
-			Request: &gnmipb.SubscribeRequest_Subscribe{
-				Subscribe: &gnmipb.SubscriptionList{
-					// Prefix:       &gnmipb.Path{},
-					Subscription: []*gnmipb.Subscription{subEntry},
-					Mode:         gnmipb.SubscriptionList_ONCE,
-					Encoding:     gnmipb.Encoding_PROTO,
-				},
-			},
-		}
-
-		subClient.Send(subReq)
-
-		for {
-			resp, err := subClient.Recv()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				t.Fatalf("error while reading response: %v", err)
-			} else {
-				origin := resp.GetUpdate().GetPrefix().GetOrigin()
-				prefixElems := resp.GetUpdate().GetPrefix().GetElem()
-				fmt.Printf("%s:", origin)
-				for i, elem := range prefixElems {
-					if i > 0 {
-						fmt.Print("/")
-					}
-					fmt.Printf("%s", elem.GetName())
+			for _, subEntry := range subList {
+				subClient, err := gnmiClient.Subscribe(context.Background())
+				if err != nil {
+					t.Fatal(err)
 				}
-				for i, upd := range resp.GetUpdate().GetUpdate() {
-					if i == 0 {
-						pathElems := upd.GetPath().GetElem()
-						for i, elem := range pathElems {
-							if i == len(pathElems)-1 {
-								break
-							}
+
+				subReq := &gnmipb.SubscribeRequest{
+					Request: &gnmipb.SubscribeRequest_Subscribe{
+						Subscribe: &gnmipb.SubscriptionList{
+							// Prefix:       &gnmipb.Path{},
+							Subscription: []*gnmipb.Subscription{subEntry},
+							Mode:         gnmipb.SubscriptionList_ONCE,
+							Encoding:     gnmipb.Encoding_PROTO,
+						},
+					},
+				}
+
+				subClient.Send(subReq)
+
+				for {
+					resp, err := subClient.Recv()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatalf("error while reading response: %v", err)
+					} else {
+						origin := resp.GetUpdate().GetPrefix().GetOrigin()
+						prefixElems := resp.GetUpdate().GetPrefix().GetElem()
+						fmt.Printf("%s:", origin)
+						for i, elem := range prefixElems {
 							if i > 0 {
 								fmt.Print("/")
 							}
 							fmt.Printf("%s", elem.GetName())
 						}
+						for i, upd := range resp.GetUpdate().GetUpdate() {
+							if i == 0 {
+								pathElems := upd.GetPath().GetElem()
+								for i, elem := range pathElems {
+									if i == len(pathElems)-1 {
+										break
+									}
+									if i > 0 {
+										fmt.Print("/")
+									}
+									fmt.Printf("%s", elem.GetName())
+								}
+							}
+							fmt.Printf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
+						}
 					}
-					fmt.Printf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
-				}
-			}
 
-		}
-		err = subClient.CloseSend()
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Println()
+				}
+				err = subClient.CloseSend()
+				if err != nil {
+					t.Fatal(err)
+				}
+				fmt.Println()
+			}
+		})
 	}
 }
 
@@ -196,11 +234,11 @@ func TestCoppCounterPaths(t *testing.T) {
 //
 // 	d1 := atePort1.AddToOTG(top, p1, &dutPort1)
 // 	d2 := atePort2.AddToOTG(top, p2, &dutPort2)
-// 	
+//
 // 	ate.Ports()
 //
 // 	ateP
-// 	
+//
 // 	return []gosnappi.Device{d1, d2}
 // }
 
@@ -215,13 +253,13 @@ func runTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 
 func configureOTGFlowSNMP(t *testing.T, config gosnappi.Config, dutPort ondatra.Port, atePort ondatra.Port) {
 	t.Helper()
-	
+
 	p1 := config.Ports().Add().SetName(atePort.ID()).SetLocation(atePort.Name())
-	
+
 	// Define a traffic flow
 	flow := config.Flows().Add().SetName("SNMP Traffic")
 	flow.TxRx().Port().SetTxName(p1.Name())
-		// .SetRxName(p1.Name())
+	// .SetRxName(p1.Name())
 	// Configure Ethernet layer
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue("00:0c:29:73:8b:9e")
@@ -234,28 +272,26 @@ func configureOTGFlowSNMP(t *testing.T, config gosnappi.Config, dutPort ondatra.
 	udp := flow.Packet().Add().Udp()
 	udp.SrcPort().SetValue(12345)
 	udp.DstPort().SetValue(162) // SNMP trap port
-	
-	
+
 	// Configure SNMP payload
 	snmp := flow.Packet().Add().Custom()
-	snmpPayload := 
-`0x30 0x81 0xc9 0x02 0x01 0x03 0x30 0x11 0x02 0x04 0x30 0xf6 0xf3 0xd9 0x02 0x03 0x00 0xff 0xe3 0x04 0x01 0x07 0x02 0x01 0x03 0x04 0x37 0x30 0x35 0x04 0x0d 0x80 0x00 0x1f 0x88 0x80 0x59 0xdc 0x48 0x61 0x45 0xa2 0x63 0x22 0x02 0x01 0x08 0x02 0x02 0x0a 0xb9 0x04 0x05 0x70 0x69 0x70 0x70 0x6f 0x04 0x0c 0x0d 0xe5 0x24 0x29 0xf9 0x86 0x68 0x6b 0xb0 0x72 0x5e 0xa8 0x04 0x08 0x00 0x00 0x00 0x01 0x03 0xd5 0x32 0x1e 0x04 0x78 0x74 0xa9 0xa8 0xf4 0x56 0x14 0x4a 0xef 0xc7 0x86 0x01 0x21 0xe3 0xfb 0xcf 0x8e 0xcc 0x9c 0x83 0xe6 0x8a 0x47 0x0e 0x99 0xfc 0x59 0x7b 0x07 0x15 0xcd 0x14 0xe3 0x10 0x1a 0xde 0xfd 0xe8 0x0c 0x8a 0x0b 0x3a 0x66 0xb4 0xe9 0xa0 0x03 0x4e 0x0f 0x35 0x7f 0xf2 0xc0 0xdf 0x15 0xde 0x5b 0x2e 0xc4 0x7c 0xa9 0xbc 0xb7 0x3f 0x11 0x70 0x02 0x0c 0x1e 0x8b 0x8c 0x08 0x07 0xf1 0x1c 0xaf 0xfd 0xe7 0x13 0xd5 0xab 0x68 0x1c 0x09 0xf8 0x88 0x99 0x01 0xe5 0xf9 0xe6 0xe1 0x1f 0xbf 0x66 0x65 0xd9 0x69 0x90 0x3e 0x7f 0x72 0x3a 0xcf 0x39 0x00 0x0a 0x2c 0x9f 0x59 0x1e 0x0f 0x7f 0x05 0xe3 0xa1 0x5f 0xf6 0x64 0xa7 0xa7`
-	
+	snmpPayload :=
+		`0x30 0x81 0xc9 0x02 0x01 0x03 0x30 0x11 0x02 0x04 0x30 0xf6 0xf3 0xd9 0x02 0x03 0x00 0xff 0xe3 0x04 0x01 0x07 0x02 0x01 0x03 0x04 0x37 0x30 0x35 0x04 0x0d 0x80 0x00 0x1f 0x88 0x80 0x59 0xdc 0x48 0x61 0x45 0xa2 0x63 0x22 0x02 0x01 0x08 0x02 0x02 0x0a 0xb9 0x04 0x05 0x70 0x69 0x70 0x70 0x6f 0x04 0x0c 0x0d 0xe5 0x24 0x29 0xf9 0x86 0x68 0x6b 0xb0 0x72 0x5e 0xa8 0x04 0x08 0x00 0x00 0x00 0x01 0x03 0xd5 0x32 0x1e 0x04 0x78 0x74 0xa9 0xa8 0xf4 0x56 0x14 0x4a 0xef 0xc7 0x86 0x01 0x21 0xe3 0xfb 0xcf 0x8e 0xcc 0x9c 0x83 0xe6 0x8a 0x47 0x0e 0x99 0xfc 0x59 0x7b 0x07 0x15 0xcd 0x14 0xe3 0x10 0x1a 0xde 0xfd 0xe8 0x0c 0x8a 0x0b 0x3a 0x66 0xb4 0xe9 0xa0 0x03 0x4e 0x0f 0x35 0x7f 0xf2 0xc0 0xdf 0x15 0xde 0x5b 0x2e 0xc4 0x7c 0xa9 0xbc 0xb7 0x3f 0x11 0x70 0x02 0x0c 0x1e 0x8b 0x8c 0x08 0x07 0xf1 0x1c 0xaf 0xfd 0xe7 0x13 0xd5 0xab 0x68 0x1c 0x09 0xf8 0x88 0x99 0x01 0xe5 0xf9 0xe6 0xe1 0x1f 0xbf 0x66 0x65 0xd9 0x69 0x90 0x3e 0x7f 0x72 0x3a 0xcf 0x39 0x00 0x0a 0x2c 0x9f 0x59 0x1e 0x0f 0x7f 0x05 0xe3 0xa1 0x5f 0xf6 0x64 0xa7 0xa7`
+
 	fmt.Println(snmpPayload)
 	snmp.SetBytes(snmpPayload)
 
 	// snmp := flow.Packet().Add().Snmpv2C()
 	// snmp.SetData(gosnappi.NewFlowSnmpv2C().Data())
-	
-	// Set transmission parameters
-	flow.Rate().SetPercentage(100)  // 100% line rate
-	flow.Duration().FixedPackets().SetPackets(10)  // Send 10 packets
-}
 
+	// Set transmission parameters
+	flow.Rate().SetPercentage(100)                // 100% line rate
+	flow.Duration().FixedPackets().SetPackets(10) // Send 10 packets
+}
 
 func TestCoppCounterPathsOTG(t *testing.T) {
 	t.Skip()
-	
+
 	dut := ondatra.DUT(t, "dut")
 
 	gnmiClient := dut.RawAPIs().GNMI(t)
@@ -265,33 +301,33 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 	top := gosnappi.NewConfig()
 	// devs := configureOTGPorts(t, ate, top)
 	// ports
-	
+
 	p1Dut := dut.Port(t, "port1")
 	// p2Dut := dut.Port(t, "port2")
-	
+
 	p1Ate := ate.Port(t, "port1")
 	// p2Ate := ate.Port(t, "port1")
-	
+
 	configureOTGFlowSNMP(t, top, *p1Dut, *p1Ate)
 
 	ate.OTG().PushConfig(t, top)
 
 	// t.Log(devs, p1Dut, p2Dut)
-	
+
 	ate.OTG().StartProtocols(t)
 	runTraffic(t, ate, top)
 	ate.OTG().StopProtocols(t)
 
 	// wait for gnmi to update
 	time.Sleep(30 * time.Second)
-	
+
 	// flow := top.Flows().Add()
 	// arp := flow.Packet().Add().Arp()
 	// OTG END
 
 	// gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
 
-	subList := getSubsriptionSlice()
+	subList := getSubsriptionSlice("0/RP0/CPU0-NPU0")
 
 	for _, subEntry := range subList {
 		subClient, err := gnmiClient.Subscribe(context.Background())
@@ -364,107 +400,135 @@ func TestAggregateCounterPaths(t *testing.T) {
 
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
-	subList := getSubsriptionSlice()
-	
-	fmt.Println("Getting real counters")
-	realLeaf := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
-	fmt.Println("Finished getting real counters")
-	
-	realLeafMap := map[string]uint64{
-		"queued": realLeaf.GetQueuedAggregate(), 
-		"queued-bytes": realLeaf.GetQueuedBytesAggregate(),
-		"dropped": realLeaf.GetDroppedAggregate(), 
-		"dropped-bytes": realLeaf.GetDroppedBytesAggregate(),
-	}
+	componentNames := getTestComponentNames(t, dut)
 
-	manualAggregation := map[string]uint64{
-		"queued": 0,
-		"queued-bytes": 0,
-		"dropped": 0,
-		"dropped-bytes": 0,
-	}
-	
-	fmt.Printf("%s\n%s\t\t%s\t\t%s\t%s\t\t\t\n",
-		"leaf-name",
-		"queued",
-		"queued-bytes",
-		"dropped",
-		"dropped-bytes",
-	)
-	
-	for _, subEntry := range subList {
-		subClient, err := gnmiClient.Subscribe(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, component := range componentNames {
+		t.Run(component, func(t *testing.T) {
 
-		subReq := &gnmipb.SubscribeRequest{
-			Request: &gnmipb.SubscribeRequest_Subscribe{
-				Subscribe: &gnmipb.SubscriptionList{
-					// Prefix:       &gnmipb.Path{},
-					Subscription: []*gnmipb.Subscription{subEntry},
-					Mode:         gnmipb.SubscriptionList_ONCE,
-					Encoding:     gnmipb.Encoding_PROTO,
-				},
-			},
-		}
+			subList := getSubsriptionSlice(component)
 
-		subClient.Send(subReq)
+			fmt.Println("Getting real counters")
+			realLeafBefore := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
+			fmt.Println("Finished getting real counters")
 
-		tempmap := map[string]uint64{}
-		var pathname string
-		
-		for {
-			resp, err := subClient.Recv()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				t.Fatalf("error while reading response: %v", err)
-			} else {
-				for i, upd := range resp.GetUpdate().GetUpdate() {
-					if i == 0 {
-						pathname = upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-2].GetName()
+			realLeafBeforeMap := map[string]uint64{
+				"queued":        realLeafBefore.GetQueuedAggregate(),
+				"queued-bytes":  realLeafBefore.GetQueuedBytesAggregate(),
+				"dropped":       realLeafBefore.GetDroppedAggregate(),
+				"dropped-bytes": realLeafBefore.GetDroppedBytesAggregate(),
+			}
+
+			manualAggregation := map[string]uint64{
+				"queued":        0,
+				"queued-bytes":  0,
+				"dropped":       0,
+				"dropped-bytes": 0,
+			}
+
+			fmt.Printf("%s\n%s\t\t%s\t\t%s\t%s\t\t\t\n",
+				"leaf-name",
+				"queued",
+				"queued-bytes",
+				"dropped",
+				"dropped-bytes",
+			)
+
+			for _, subEntry := range subList {
+				subClient, err := gnmiClient.Subscribe(context.Background())
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				subReq := &gnmipb.SubscribeRequest{
+					Request: &gnmipb.SubscribeRequest_Subscribe{
+						Subscribe: &gnmipb.SubscriptionList{
+							// Prefix:       &gnmipb.Path{},
+							Subscription: []*gnmipb.Subscription{subEntry},
+							Mode:         gnmipb.SubscriptionList_ONCE,
+							Encoding:     gnmipb.Encoding_PROTO,
+						},
+					},
+				}
+
+				subClient.Send(subReq)
+
+				tempmap := map[string]uint64{}
+				var pathname string
+
+				for {
+					resp, err := subClient.Recv()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						t.Fatalf("error while reading response: %v", err)
+					} else {
+						for i, upd := range resp.GetUpdate().GetUpdate() {
+							if i == 0 {
+								pathname = upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-2].GetName()
+							}
+							key := upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName()
+							val := upd.GetVal().GetUintVal()
+							tempmap[key] = val
+							manualAggregation[key] = manualAggregation[key] + val
+						}
 					}
-					key := upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName()
-					val := upd.GetVal().GetUintVal()
-					tempmap[key] = val
-					manualAggregation[key] = manualAggregation[key] + val
+				}
+				fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+					pathname,
+					tempmap["queued"],
+					tempmap["queued-bytes"],
+					tempmap["dropped"],
+					tempmap["dropped-bytes"],
+				)
+				err = subClient.CloseSend()
+				if err != nil {
+					t.Fatal(err)
 				}
 			}
-		}
-		fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
-			pathname,
-			tempmap["queued"],
-			tempmap["queued-bytes"],
-			tempmap["dropped"],
-			tempmap["dropped-bytes"],
-		)
-		err = subClient.CloseSend()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	
-	fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
-		"TOTAL",
-		manualAggregation["queued"],
-		manualAggregation["queued-bytes"],
-		manualAggregation["dropped"],
-		manualAggregation["dropped-bytes"],
-	)
 
-	fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
-		"WANT",
-		realLeafMap["queued"],
-		realLeafMap["queued-bytes"],
-		realLeafMap["dropped"],
-		realLeafMap["dropped-bytes"],
-	)
-	
-	if eq := reflect.DeepEqual(manualAggregation, realLeafMap); !eq {
-		t.Fatalf("manual calculation of aggregate counter leaves do not match real values.\ncalculated aggregation: %+v\nreal values: %+v", manualAggregation, realLeafMap)
-	}
+			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
+			
+			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+				"TOTAL",
+				manualAggregation["queued"],
+				manualAggregation["queued-bytes"],
+				manualAggregation["dropped"],
+				manualAggregation["dropped-bytes"],
+			)
 
+			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+				"LOWER BOUND",
+				realLeafBeforeMap["queued"],
+				realLeafBeforeMap["queued-bytes"],
+				realLeafBeforeMap["dropped"],
+				realLeafBeforeMap["dropped-bytes"],
+			)
+
+			realLeafAfterMap := map[string]uint64{
+				"queued":        realLeafAfter.GetQueuedAggregate(),
+				"queued-bytes":  realLeafAfter.GetQueuedBytesAggregate(),
+				"dropped":       realLeafAfter.GetDroppedAggregate(),
+				"dropped-bytes": realLeafAfter.GetDroppedBytesAggregate(),
+			}
+			
+			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+				"UPPER BOUND",
+				realLeafAfterMap["queued"],
+				realLeafAfterMap["queued-bytes"],
+				realLeafAfterMap["dropped"],
+				realLeafAfterMap["dropped-bytes"],
+			)
+
+			for key, value := range manualAggregation {
+				// if the calculated aggregate is not between the two queries of the aggregate leaves
+				if value < realLeafBeforeMap[key] || value > realLeafAfterMap[key] {
+					// then test fails
+					t.Fatalf("manual calculation of aggregate counter is not within acceptable bounds.\nlower bound: %+v\ncalculated aggregation: %+v\nreal values: %+v", realLeafBeforeMap, manualAggregation, realLeafAfterMap)
+				}
+			}
+			
+		})
+	}
 }
 
 func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, error) {
@@ -500,49 +564,3 @@ func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, e
 	}
 	return responseRawObj, nil
 }
-
-// func configureOTGFlows(t *testing.T,
-// 	top gosnappi.Config,
-// 	devs []gosnappi.Device) {
-// 	t.Helper()
-//
-// 	otgP1 := devs[0]
-// 	otgP2 := devs[1]
-//
-// 	srcV4 := otgP1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-// 	srcV6 := otgP1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-//
-// 	dst1V4 := otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-// 	dst1V6 := otgP2.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-//
-// 	v4F := top.Flows().Add()
-// 	v4F.SetName(v4Flow).Metrics().SetEnable(true)
-// 	v4F.TxRx().Device().SetTxNames([]string{srcV4.Name()}).SetRxNames([]string{dst1V4.Name()})
-//
-// 	v4FEth := v4F.Packet().Add().Ethernet()
-// 	v4FEth.Src().SetValue(atePort1.MAC)
-//
-// 	v4FIp := v4F.Packet().Add().Ipv4()
-// 	v4FIp.Src().SetValue(srcV4.Address())
-// 	v4FIp.Dst().Increment().SetStart(v4TrafficStart).SetCount(254)
-//
-// 	eth := v4F.EgressPacket().Add().Ethernet()
-// 	ethTag := eth.Dst().MetricTags().Add()
-// 	ethTag.SetName("MACTrackingv4").SetOffset(36).SetLength(12)
-//
-// 	v6F := top.Flows().Add()
-// 	v6F.SetName(v6Flow).Metrics().SetEnable(true)
-// 	v6F.TxRx().Device().SetTxNames([]string{srcV6.Name()}).SetRxNames([]string{dst1V6.Name()})
-//
-// 	v6FEth := v6F.Packet().Add().Ethernet()
-// 	v6FEth.Src().SetValue(atePort1.MAC)
-//
-// 	v6FIP := v6F.Packet().Add().Ipv6()
-// 	v6FIP.Src().SetValue(srcV6.Address())
-// 	v6FIP.Dst().Increment().SetStart(v6TrafficStart).SetCount(1)
-//
-// 	eth = v6F.EgressPacket().Add().Ethernet()
-// 	ethTag = eth.Dst().MetricTags().Add()
-// 	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
-//
-// }
