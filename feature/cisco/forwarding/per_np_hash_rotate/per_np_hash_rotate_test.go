@@ -18,15 +18,19 @@
 package per_np_hash_rotate_test
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
 	"testing"
 	"text/tabwriter"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -138,4 +142,29 @@ func TestExplicitNPHashRotateConfig(t *testing.T) {
 func TestAutoHashValRandomize(t *testing.T) {
 	//TODO
 	t.Skip()
+}
+
+func TestAutoHashValPostLCReload(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	lcList = util.GetLCList(t, dut)
+	rebootSubComponentRequest := &spb.RebootRequest{
+		Method: spb.RebootMethod_COLD,
+		// Subcomponents: []*tpb.Path{
+		// 	components.GetSubcomponentPath(hostCard, false),
+		// },
+	}
+	for _, lc := range lcList {
+		rebootSubComponentRequest.Subcomponents = append(rebootSubComponentRequest.Subcomponents, components.GetSubcomponentPath(lc, false))
+	}
+
+	t.Log("Reloading all linecards")
+	_, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+
+	time.Sleep(5 * time.Minute)
+	t.Log("Verify hash-rotate calculation across all LCs after reloading all linecards")
+	TestPerNPHashRotateVerifyAutoVal(t)
 }
