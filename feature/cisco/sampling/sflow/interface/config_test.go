@@ -118,6 +118,7 @@ func TestNameAtContainer(t *testing.T) {
 
 	interfaceName := "FourHundredGigE0/0/0/0"
 	var subInterfaceNumber uint32 = 1
+	t.Logf("Configuring subinterface:%v in Intf %v", subInterfaceNumber, interfaceName)
 	configureSubInterface(t, dut, interfaceName, subInterfaceNumber)
 
 	for _, input := range testNameInput {
