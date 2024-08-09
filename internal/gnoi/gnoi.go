@@ -21,7 +21,9 @@ import (
 	"testing"
 	"time"
 
+	iSystem "github.com/openconfig/featureprofiles/internal/system"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -29,34 +31,66 @@ import (
 )
 
 var (
-	ocAgentTerminationCmd = map[ondatra.Vendor]string{
-		ondatra.ARISTA: "agent Octa terminate",
+	gRIBIDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Gribi",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
+		ondatra.NOKIA:   "sr_grpc_server",
 	}
-	ocAgentDaemon = map[ondatra.Vendor]string{
+	ocAgentDaemons = map[ondatra.Vendor]string{
 		ondatra.ARISTA: "Octa",
+	}
+	p4rtDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "P4Runtime",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "p4-switch",
+		ondatra.NOKIA:   "sr_grpc_server",
+	}
+	routingDaemons = map[ondatra.Vendor]string{
+		ondatra.ARISTA:  "Bgp-main",
+		ondatra.CISCO:   "emsd",
+		ondatra.JUNIPER: "rpd",
+		ondatra.NOKIA:   "sr_bgp_mgr",
 	}
 )
 
-// TerminateOCAgent terminates the OpenConfig agent on the DUT.
-func TerminateOCAgent(t *testing.T, dut *ondatra.DUTDevice, waitForRestart bool) error {
+// Daemon is the type of the daemon on the device.
+type Daemon string
+
+const (
+	// GRIBI is the gRIBI daemon.
+	GRIBI Daemon = "GRIBI"
+	// OCAGENT is the OpenConfig agent daemon.
+	OCAGENT Daemon = "OCAGENT"
+	// P4RT is the P4RT daemon.
+	P4RT Daemon = "P4RT"
+	// ROUTING is the routing daemon.
+	ROUTING Daemon = "ROUTING"
+)
+
+// TerminateDaemon terminates the daemon on the DUT.
+func TerminateDaemon(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRestart bool) error {
 	t.Helper()
 
-	ctx := context.Background()
-	cli := dut.RawAPIs().CLI(t)
-
-	cmd, ok := ocAgentTerminationCmd[dut.Vendor()]
-	if !ok {
-		t.Errorf("No command found for vendor %v", dut.Vendor())
-	}
-	res, err := cli.RunCommand(ctx, cmd)
+	daemonName, err := GetProcessName(dut, daemon)
 	if err != nil {
-		return fmt.Errorf("error executing command %q: %v", cmd, err)
+		t.Fatalf("Daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
-	if res.Error() != "" {
-		return fmt.Errorf("error executing command %q: %v", cmd, res.Error())
+	pid, err := iSystem.FindProcessIDByName(t, dut, daemonName)
+	if err != nil {
+		t.Fatalf("Failed to find PID of process %v with unexpected err: %v", daemonName, err)
 	}
 
-	if ocAgent, ok := ocAgentDaemon[dut.Vendor()]; ok && waitForRestart {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	killProcessRequest := &spb.KillProcessRequest{
+		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Name:    daemonName,
+		Pid:     uint32(pid),
+		Restart: true,
+	}
+	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
+
+	if waitForRestart {
 		gnmi.WatchAll(
 			t,
 			dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
@@ -67,9 +101,31 @@ func TerminateOCAgent(t *testing.T, dut *ondatra.DUTDevice, waitForRestart bool)
 				if !ok {
 					return false
 				}
-				return val.GetName() == ocAgent
+				return val.GetName() == daemonName && val.GetPid() != pid
 			},
 		)
 	}
 	return nil
+}
+
+// GetProcessName returns the name of the daemon on the DUT based on the vendor.
+func GetProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
+	var daemonName string
+	var ok bool
+	switch daemon {
+	case GRIBI:
+		daemonName, ok = gRIBIDaemons[dut.Vendor()]
+	case OCAGENT:
+		daemonName, ok = ocAgentDaemons[dut.Vendor()]
+	case P4RT:
+		daemonName, ok = p4rtDaemons[dut.Vendor()]
+	case ROUTING:
+		daemonName, ok = routingDaemons[dut.Vendor()]
+	default:
+		return "", fmt.Errorf("Unsupported daemon type: %v for vendor %s", daemon, dut.Vendor().String())
+	}
+	if !ok {
+		return "", fmt.Errorf("Daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
+	}
+	return daemonName, nil
 }
