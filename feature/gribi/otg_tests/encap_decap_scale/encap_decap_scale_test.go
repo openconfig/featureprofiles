@@ -760,9 +760,6 @@ func createVrf(t *testing.T, dut *ondatra.DUTDevice, vrfs []string) {
 			i.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), i)
 		}
-		if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-			fptest.EnableGRIBIUnderNetworkInstance(t, dut, vrf)
-		}
 	}
 }
 
