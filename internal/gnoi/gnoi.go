@@ -31,26 +31,28 @@ import (
 )
 
 var (
-	gRIBIDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "Gribi",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_grpc_server",
-	}
-	ocAgentDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA: "Octa",
-	}
-	p4rtDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "P4Runtime",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "p4-switch",
-		ondatra.NOKIA:   "sr_grpc_server",
-	}
-	routingDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "Bgp-main",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_bgp_mgr",
+	daemonProcessNames = map[ondatra.Vendor]map[Daemon]string{
+		ondatra.ARISTA: {
+			GRIBI:   "Gribi",
+			OCAGENT: "Octa",
+			P4RT:    "P4Runtime",
+			ROUTING: "Bgp-main",
+		},
+		ondatra.CISCO: {
+			GRIBI:   "emsd",
+			P4RT:    "emsd",
+			ROUTING: "emsd",
+		},
+		ondatra.JUNIPER: {
+			GRIBI:   "rpd",
+			P4RT:    "p4-switch",
+			ROUTING: "rpd",
+		},
+		ondatra.NOKIA: {
+			GRIBI:   "sr_grpc_server",
+			P4RT:    "sr_grpc_server",
+			ROUTING: "sr_bgp_mgr",
+		},
 	}
 )
 
@@ -69,17 +71,14 @@ const (
 )
 
 // TerminateDaemon terminates the daemon on the DUT.
-func TerminateDaemon(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRestart bool) error {
+func TerminateDaemon(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRestart bool) {
 	t.Helper()
 
-	daemonName, err := GetProcessName(dut, daemon)
+	daemonName, err := FetchProcessName(dut, daemon)
 	if err != nil {
 		t.Fatalf("Daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
 	}
-	pid, err := iSystem.FindProcessIDByName(t, dut, daemonName)
-	if err != nil {
-		t.Fatalf("Failed to find PID of process %v with unexpected err: %v", daemonName, err)
-	}
+	pid := system.MustFindProcessIDByName(t, dut, daemonName)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	killProcessRequest := &spb.KillProcessRequest{
@@ -105,27 +104,17 @@ func TerminateDaemon(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitFo
 			},
 		)
 	}
-	return nil
 }
 
-// GetProcessName returns the name of the daemon on the DUT based on the vendor.
-func GetProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
-	var daemonName string
-	var ok bool
-	switch daemon {
-	case GRIBI:
-		daemonName, ok = gRIBIDaemons[dut.Vendor()]
-	case OCAGENT:
-		daemonName, ok = ocAgentDaemons[dut.Vendor()]
-	case P4RT:
-		daemonName, ok = p4rtDaemons[dut.Vendor()]
-	case ROUTING:
-		daemonName, ok = routingDaemons[dut.Vendor()]
-	default:
-		return "", fmt.Errorf("Unsupported daemon type: %v for vendor %s", daemon, dut.Vendor().String())
-	}
+// FetchProcessName returns the name of the daemon on the DUT based on the vendor.
+func FetchProcessName(dut *ondatra.DUTDevice, daemon Daemon) (string, error) {
+	daemons, ok := daemonProcessNames[dut.Vendor()]
 	if !ok {
-		return "", fmt.Errorf("Daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
+		return "", fmt.Errorf("unsupported vendor: %s", dut.Vendor().String())
 	}
-	return daemonName, nil
+	d, ok := daemons[daemon]
+	if !ok {
+		return "", fmt.Errorf("daemon %s not defined for vendor %s", daemon, dut.Vendor().String())
+	}
+	return d, nil
 }

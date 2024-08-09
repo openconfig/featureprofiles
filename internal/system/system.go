@@ -16,7 +16,6 @@
 package system
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/openconfig/ondatra"
@@ -24,15 +23,20 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-// FindProcessIDByName uses telemetry to find out the PID of a process
-func FindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) (uint64, error) {
+// MustFindProcessIDByName uses telemetry to find out the PID of a process.
+func MustFindProcessIDByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
 	t.Helper()
 
+	var pid uint64
 	pList := gnmi.GetAll[*oc.System_Process](t, dut, gnmi.OC().System().ProcessAny().State())
 	for _, proc := range pList {
 		if proc.GetName() == pName {
-			return proc.GetPid(), nil
+			pid = proc.GetPid()
+			break
 		}
 	}
-	return 0, fmt.Errorf("process '%s' not found", pName)
+	if pid == 0 {
+		t.Fatalf("process '%s' not found", pName)
+	}
+	return pid
 }

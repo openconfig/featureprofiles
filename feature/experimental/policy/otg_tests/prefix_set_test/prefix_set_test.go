@@ -126,8 +126,8 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 	v4PrefixSet.GetOrCreatePrefix("173.43.128.0/20", mskLen)
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).Config(), v4PrefixSet)
 	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).State())
-	if len(prefixSet.Prefix) != 10 {
-		t.Errorf("Prefix set has %v prefixes, want 10", len(prefixSet.Prefix))
+	if got, want := len(prefixSet.Prefix), 10; got != want {
+		t.Errorf("Prefix set has %v prefixes, want %v", got, want)
 	}
 
 	gnoi.TerminateDaemon(t, dut, gnoi.OCAGENT, true)
@@ -159,7 +159,7 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).Config(), v4PrefixSet)
 	prefixSet = gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).State())
-	if len(prefixSet.Prefix) != 22 {
-		t.Errorf("Prefix set has %v prefixes, want 22", len(prefixSet.Prefix))
+	if got, want := len(prefixSet.Prefix), 22; got != want {
+		t.Errorf("Prefix set has %v prefixes, want %v", got, want)
 	}
 }
