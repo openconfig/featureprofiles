@@ -253,6 +253,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
+  8818-18LC:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf    
 
   # OTG
   8201-32FH-FLM254306M8_OTG:
