@@ -646,13 +646,14 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	// DUT Configuration
-	t.Log("Start DUT interface Config")
-	configureDUT(t, dut)
 
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	conf := configureATE(t, ate)
+
+	// DUT Configuration
+	t.Log("Start DUT interface Config")
+	configureDUT(t, dut)
 
 	ate.OTG().StartProtocols(t)
 

@@ -231,13 +231,16 @@ func getTracerouteParameter(t *testing.T) PacketIO {
 func TestPacketOut(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
 
+	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")

@@ -170,7 +170,7 @@ func programTableEntry(client *p4rt_client.P4RTClient, delete bool) error {
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration time.Duration) int {
 	t.Helper()
 	for _, flow := range flows {
-		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
+		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxNames([]string{srcEndPoint.Name()})
 		flow.Metrics().SetEnable(true)
 		top.Flows().Append(flow)
 	}
@@ -624,13 +624,14 @@ func lldpParameter() PacketIO {
 }
 
 func TestP4rtPerformance(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	// Configure P4RT device-id

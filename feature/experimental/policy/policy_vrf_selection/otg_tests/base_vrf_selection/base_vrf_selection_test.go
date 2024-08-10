@@ -451,6 +451,11 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flows, passFlows []gosn
 }
 
 func TestVrfPolicy(t *testing.T) {
+	// Clear otg config
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -461,7 +466,6 @@ func TestVrfPolicy(t *testing.T) {
 	configVRFRoute(t, dut, prefixedAteDestIPv4VLAN10, vrfNH)
 
 	// Configure ATE
-	ate := ondatra.ATE(t, "ate")
 	allFlows := configureATE(t, ate)
 
 	tcs := []struct {

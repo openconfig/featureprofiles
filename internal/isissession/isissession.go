@@ -190,6 +190,14 @@ type TestSession struct {
 func New(t testing.TB) (*TestSession, error) {
 	t.Helper()
 	s := &TestSession{}
+	if ate, ok := ondatra.ATEs(t)["ate"]; ok {
+		s.ATE = ate
+		otg := s.ATE.OTG()
+
+		// otg configuration cleanup
+		s.ATETop = gosnappi.NewConfig()
+		otg.PushConfig(t, s.ATETop)
+	}
 	s.DUT = ondatra.DUT(t, "dut")
 	var err error
 	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI(t), ygnmi.WithTarget(s.DUT.ID()))

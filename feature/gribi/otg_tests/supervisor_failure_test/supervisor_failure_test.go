@@ -271,13 +271,14 @@ func TestSupFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT
-	configureDUT(t, dut)
-
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	// Configure the gRIBI client clientA

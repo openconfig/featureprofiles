@@ -95,12 +95,13 @@ type testArgs struct {
 func TestRouteRemovelViaFlush(t *testing.T) {
 	ctx := context.Background()
 
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
-
 	ate := ondatra.ATE(t, "ate")
 	ateTop := configureATE(t, ate)
 	ate.OTG().PushConfig(t, ateTop)
+
+	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	gribic := dut.RawAPIs().GRIBI(t)

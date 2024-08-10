@@ -248,16 +248,17 @@ func TestPacketIn(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
+	// Configure the ATE
+	ate := ondatra.ATE(t, "ate")
+	top := configureATE(t, ate)
+	ate.OTG().PushConfig(t, top)
+
 	// Configure the DUT
 	configureDUT(t, dut)
 
 	// Configure P4RT device-id and port-id
 	configureDeviceID(ctx, t, dut)
 
-	// Configure the ATE
-	ate := ondatra.ATE(t, "ate")
-	top := configureATE(t, ate)
-	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 
 	leader := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})

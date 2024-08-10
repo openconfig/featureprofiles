@@ -262,15 +262,16 @@ func TestLeaderFailover(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
-	// Configure the DUT.
-	t.Logf("Configure DUT")
-	configureDUT(t, dut)
-
 	// Configure the ATE.
 	t.Logf("Configure ATE")
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
+
+	// Configure the DUT.
+	t.Logf("Configure DUT")
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	t.Logf("Time check: %s", time.Since(start))

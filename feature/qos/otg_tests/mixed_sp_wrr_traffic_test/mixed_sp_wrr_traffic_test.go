@@ -104,6 +104,11 @@ func TestMain(m *testing.M) {
 //
 
 func TestMixedSPWrrTraffic(t *testing.T) {
+	// Clear otg config
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	ate.OTG().PushConfig(t, top)
+
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
@@ -118,11 +123,9 @@ func TestMixedSPWrrTraffic(t *testing.T) {
 	}
 
 	// Configure ATE interfaces.
-	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
-	top := gosnappi.NewConfig()
 
 	intf1.AddToOTG(top, ap1, &dutPort1)
 	intf2.AddToOTG(top, ap2, &dutPort2)

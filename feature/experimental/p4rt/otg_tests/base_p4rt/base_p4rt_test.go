@@ -301,10 +301,10 @@ func TestP4rtConnect(t *testing.T) {
 	for _, v := range nodes {
 		ports = append(ports, v)
 	}
-	configureDUT(t, dut, ports)
-
 	top := configureATE(t, ate, ports)
 	ate.OTG().PushConfig(t, top)
+
+	configureDUT(t, dut, ports)
 
 	// Setup two different clients for different FAPs
 	client1 := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})

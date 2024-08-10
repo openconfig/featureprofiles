@@ -275,12 +275,13 @@ func TestScaling(t *testing.T) {
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 
-	configureDUT(t, dut)
-
 	configureATE(t, top, ap1, 0, "src", atePort1.MAC, dutPort1.IPv4, atePort1.IPv4)
 	// subIntfIPs is a []string slice with ATE IPv4 addresses for all the subInterfaces
 	subIntfIPs := configureATESubIfs(t, top, ap2, dut)
 	ate.OTG().PushConfig(t, top)
+
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
 
 	// Connect gRIBI client to DUT referred to as gRIBI - using PRESERVE persistence and
