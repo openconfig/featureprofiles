@@ -17,7 +17,6 @@ package copp_counters_test
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -118,15 +117,6 @@ func getSubsriptionSlice(componentName string) []*gnmipb.Subscription {
 	return subs
 }
 
-func ParsePath(pathStr string) *gnmipb.Path {
-	split := strings.SplitN(pathStr, ":", 2)
-
-	path, _ := gnmic.ParsePath(split[1])
-	path.Origin = split[0]
-
-	return path
-}
-
 func TestCoppCounterPaths(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
@@ -149,7 +139,6 @@ func TestCoppCounterPaths(t *testing.T) {
 				subReq := &gnmipb.SubscribeRequest{
 					Request: &gnmipb.SubscribeRequest_Subscribe{
 						Subscribe: &gnmipb.SubscriptionList{
-							// Prefix:       &gnmipb.Path{},
 							Subscription: []*gnmipb.Subscription{subEntry},
 							Mode:         gnmipb.SubscriptionList_ONCE,
 							Encoding:     gnmipb.Encoding_PROTO,
@@ -202,31 +191,6 @@ func TestCoppCounterPaths(t *testing.T) {
 		})
 	}
 }
-
-// func configureDUTPorts(t *testing.T, dut *ondatra.DUTDevice) {
-// 	p1 := dut.Port(t, "port1")
-// 	p2 := dut.Port(t, "port2")
-// 	b := &gnmi.SetBatch{}
-// 	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-// 	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-// 	b.Set(t, dut)
-// }
-
-// func configureOTGPorts(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []gosnappi.Device {
-// 	t.Helper()
-//
-// 	p1 := ate.Port(t, "port1")
-// 	p2 := ate.Port(t, "port2")
-//
-// 	d1 := atePort1.AddToOTG(top, p1, &dutPort1)
-// 	d2 := atePort2.AddToOTG(top, p2, &dutPort2)
-//
-// 	ate.Ports()
-//
-// 	ateP
-//
-// 	return []gosnappi.Device{d1, d2}
-// }
 
 func runTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
@@ -334,11 +298,6 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 
 		subClient.Send(subReq)
 
-		// resp, _ := subClient.Recv()
-
-		// jsonOb, _ := json.MarshalIndent(resp, "", "\t")
-		// fmt.Println(string(jsonOb))
-
 		for {
 			resp, err := subClient.Recv()
 			if err == io.EOF {
@@ -428,7 +387,6 @@ func TestAggregateCounterPaths(t *testing.T) {
 				subReq := &gnmipb.SubscribeRequest{
 					Request: &gnmipb.SubscribeRequest_Subscribe{
 						Subscribe: &gnmipb.SubscriptionList{
-							// Prefix:       &gnmipb.Path{},
 							Subscription: []*gnmipb.Subscription{subEntry},
 							Mode:         gnmipb.SubscriptionList_ONCE,
 							Encoding:     gnmipb.Encoding_PROTO,
@@ -515,38 +473,4 @@ func TestAggregateCounterPaths(t *testing.T) {
 
 		})
 	}
-}
-
-func GetAllNativeModel(t testing.TB, dut *ondatra.DUTDevice, str string) (any, error) {
-
-	split := strings.Split(str, ":")
-	origin := split[0]
-	paths := strings.Split(split[1], "/")
-	pathelems := []*gnmipb.PathElem{}
-	for _, path := range paths {
-		pathelems = append(pathelems, &gnmipb.PathElem{Name: path})
-	}
-
-	req := &gnmipb.GetRequest{
-		Path: []*gnmipb.Path{
-			{
-				Origin: origin,
-				Elem:   pathelems,
-			},
-		},
-		Type:     gnmipb.GetRequest_ALL,
-		Encoding: gnmipb.Encoding_JSON_IETF,
-	}
-	var responseRawObj any
-	restartResp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
-	if err != nil {
-		return nil, fmt.Errorf("failed GNMI GET request on native model: \n%v", req)
-	} else {
-		jsonIetfData := restartResp.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
-		err = json.Unmarshal(jsonIetfData, &responseRawObj)
-		if err != nil {
-			return nil, fmt.Errorf("could not unmarshal native model GET json")
-		}
-	}
-	return responseRawObj, nil
 }
