@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
@@ -47,7 +48,9 @@ func TestPrefixSet(t *testing.T) {
 
 	// create a prefix-set with 2 prefixes
 	v4PrefixSet := ds.GetOrCreatePrefixSet(prefixSetA)
-	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix(pfx1, mskLen)
 	v4PrefixSet.GetOrCreatePrefix(pfx2, mskLen)
 
@@ -64,9 +67,12 @@ func TestPrefixSet(t *testing.T) {
 
 	// replace the prefix-set by replacing an existing prefix with new prefix
 	v4PrefixSet = ds.GetOrCreatePrefixSet(prefixSetA)
-	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix(pfx1, mskLen)
 	v4PrefixSet.GetOrCreatePrefix(pfx3, mskLen)
+	v4PrefixSet.DeletePrefix(pfx2, mskLen)
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).Config(), v4PrefixSet)
 	prefixSet = gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).State())
@@ -81,10 +87,13 @@ func TestPrefixSet(t *testing.T) {
 
 	// replace the prefix-set with 2 existing and a new prefix
 	v4PrefixSet = ds.GetOrCreatePrefixSet(prefixSetA)
-	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix(pfx1, mskLen)
 	v4PrefixSet.GetOrCreatePrefix(pfx3, mskLen)
 	v4PrefixSet.GetOrCreatePrefix(pfx4, mskLen)
+	v4PrefixSet.DeletePrefix(pfx2, mskLen)
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).Config(), v4PrefixSet)
 	prefixSet = gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetA).State())
