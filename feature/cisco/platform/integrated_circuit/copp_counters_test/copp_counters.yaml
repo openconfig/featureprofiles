@@ -5,7 +5,7 @@ testbeds:
   - 8201-1DUT
 tests:
   - name: copp_counters
-    path: feature/platform/integrated_circuit/copp_counters_test
+    path: feature/cisco/platform/integrated_circuit/copp_counters_test
     mustpass: true
     internal: true
     branch: liawalsh/copp_counters

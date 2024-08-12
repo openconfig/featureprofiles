@@ -35,13 +35,6 @@ import (
 	oc "github.com/openconfig/ondatra/gnmi/oc"
 )
 
-type utilization struct {
-	used                uint64
-	free                uint64
-	upperThreshold      uint8
-	upperThresholdClear uint8
-}
-
 var (
 	fixedComponents = []string{
 		"0/RP0/CPU0-NPU0",
@@ -53,13 +46,6 @@ var (
 		"0/0/CPU0-NPU2",
 	}
 )
-
-func (u *utilization) percent() uint8 {
-	if u.used == 0 && u.free == 0 {
-		return 0
-	}
-	return uint8(u.used * 100 / (u.used + u.free))
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
