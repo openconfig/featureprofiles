@@ -30,9 +30,20 @@ func getPolicyForwardingInterfaceConfig(t *testing.T, policyName, intf string) *
 	return pfCfg
 }
 
+// *ciscoFlags.DefaultNetworkInstance
+// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+func ConfigureDefaultNetworkInstance(t testing.TB, d *ondatra.DUTDevice) {
+	defNiPath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	gnmi.Update(t, d, defNiPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(*ciscoFlags.DefaultNetworkInstance),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+}
+
 // configbasePBR, creates class map, policy and configures under source interface
 func configbasePBR(t *testing.T, dut *ondatra.DUTDevice, networkInstance, iptype string, index uint32, protocol oc.E_PacketMatchTypes_IP_PROTOCOL, dscpset []uint8, opts ...*PBROptions) {
 	// pfpath := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).PolicyForwarding()
+
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	r := oc.NetworkInstance_PolicyForwarding_Policy_Rule{}
 	r.SequenceId = ygot.Uint32(index)
