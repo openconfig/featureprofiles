@@ -487,7 +487,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 			}
 
 			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
-			
+
 			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"TOTAL",
 				manualAggregation["queued"],
@@ -510,7 +510,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				"dropped":       realLeafAfter.GetDroppedAggregate(),
 				"dropped-bytes": realLeafAfter.GetDroppedBytesAggregate(),
 			}
-			
+
 			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"UPPER BOUND",
 				realLeafAfterMap["queued"],
@@ -526,7 +526,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 					t.Fatalf("manual calculation of aggregate counter is not within acceptable bounds.\nlower bound: %+v\ncalculated aggregation: %+v\nreal values: %+v", realLeafBeforeMap, manualAggregation, realLeafAfterMap)
 				}
 			}
-			
+
 		})
 	}
 }
