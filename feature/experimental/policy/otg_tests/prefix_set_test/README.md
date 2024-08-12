@@ -2,7 +2,9 @@
 
 ## Summary
 
--   Prefix list is updated and replaced correctly
+-   Prefix list is updated and replaced correctly after restarting the process
+    with supports gNOI to validate that internal state of OC agent is in sync
+    with the running configuration.
 
 ## Testbed type
 
@@ -67,7 +69,7 @@ the DUT in one gnmi.Set using the `replace` option
 
 ### RT-1.53.4 [TODO:https://github.com/openconfig/featureprofiles/issues/3306]
 
-### Add prefix-list from cli and then replace with gnmi
+### Create prefix list and replace with gnmi.
 
 *   Send a gNMI SET request that contains below prefixes under TAG_3_IPV4 prefix-set
     ```
@@ -82,7 +84,8 @@ the DUT in one gnmi.Set using the `replace` option
       173.42.128.0/20
       173.43.128.0/20
      ```
-*   Perform openconfig agent(e.g, Octa for Arista) restart or reboot the device.
+*   Validate that the prefix-list is created correctly with 10 prefixes.
+*   Use gNOI to kill the process supporting gNMI.
 *   Send a gNMI SET request that contains additional prefixes within the same
     prefix-set, TAG_3_IPV4.
     ```
@@ -109,6 +112,7 @@ the DUT in one gnmi.Set using the `replace` option
       173.48.128.0/20
       173.45.128.0/20
     ```
+*   Validate that the prefix-list is created correctly with 22 prefixes.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -135,6 +139,8 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
+  gnoi:
+    system.System.KillProcess:
 ```
 
 ## Required DUT platform
