@@ -32,6 +32,7 @@ import (
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -143,7 +144,10 @@ func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevi
 	gnmi.Replace(t, node, lldp.Enabled().Config(), lldpEnabled)
 
 	if lldpEnabled {
-		gnmi.Replace(t, node, lldp.Interface(p.Name()).Enabled().Config(), lldpEnabled)
+		gnmi.Replace(t, node, lldp.Interface(p.Name()).Config(), &oc.Lldp_Interface{
+			Name:    ygot.String(p.Name()),
+			Enabled: ygot.Bool(lldpEnabled),
+		})
 	}
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
