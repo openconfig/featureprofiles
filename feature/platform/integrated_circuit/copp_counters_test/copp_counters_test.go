@@ -408,7 +408,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 			subList := getSubsriptionSlice(component)
 
 			fmt.Println("Getting real counters")
-			realLeafBefore := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
+			realLeafBefore := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
 			fmt.Println("Finished getting real counters")
 
 			realLeafBeforeMap := map[string]uint64{
@@ -486,7 +486,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				}
 			}
 
-			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component("0/RP0/CPU0-NPU0").IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
+			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
 			
 			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"TOTAL",
