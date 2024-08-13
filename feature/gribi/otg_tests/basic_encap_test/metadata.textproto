@@ -15,6 +15,15 @@ platform_exceptions:  {
     interface_ref_interface_id_format:  true
     ttl_copy_unsupported:  true
     pf_require_match_default_rule:  true
+    pf_require_sequential_order_pbr_rules: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    ttl_copy_unsupported: true
   }
 }
 platform_exceptions:  {
@@ -25,7 +34,6 @@ platform_exceptions:  {
     static_protocol_name: "STATIC"
     gribi_mac_override_static_arp_static_route: true
     interface_enabled: true
-    ttl_copy_unsupported: true
     default_network_instance: "default"
     omit_l2_mtu: true
   }

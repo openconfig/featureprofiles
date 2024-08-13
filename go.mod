@@ -16,18 +16,19 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.3.0
+	github.com/openconfig/containerz v0.0.0-20240620162940-e0bf23af17d6
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.11.0
-	github.com/openconfig/gnoi v0.4.0
+	github.com/openconfig/gnoi v0.4.1-0.20240501161656-1d16819bab6a
 	github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c
-	github.com/openconfig/gnsi v1.4.0
+	github.com/openconfig/gnsi v1.4.5
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
 	github.com/openconfig/goyang v1.4.5
 	github.com/openconfig/gribi v1.0.0
 	github.com/openconfig/gribigo v0.0.0-20231213034307-d0abeba7f432
-	github.com/openconfig/kne v0.1.17
+	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.5.6
+	github.com/openconfig/ondatra v0.6.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
 	github.com/openconfig/ygnmi v0.11.1
@@ -35,17 +36,20 @@ require (
 	github.com/p4lang/p4runtime v1.4.0-rc.5.0.20220728214547-13f0d02a521e
 	github.com/pborman/uuid v1.2.1
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
+	github.com/spf13/cobra v1.8.0
+	github.com/spf13/pflag v1.0.5
+	github.com/spf13/viper v1.18.2
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
 	golang.org/x/text v0.14.0
 	google.golang.org/api v0.162.0
-	google.golang.org/grpc v1.63.0
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/grpc v1.63.2
+	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/klog/v2 v2.100.1
+	k8s.io/klog/v2 v2.120.1
 )
 
 require (
@@ -62,7 +66,7 @@ require (
 	cloud.google.com/go/iam v1.1.6 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
-	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.0.2 // indirect
+	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
@@ -72,6 +76,7 @@ require (
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/drivenets/cdnos-controller v1.7.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/envoyproxy/go-control-plane v0.12.0 // indirect
@@ -114,7 +119,9 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
-	github.com/open-traffic-generator/keng-operator v0.3.15 // indirect
+	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
+	github.com/openconfig/attestz v0.2.0 // indirect
+	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
@@ -132,9 +139,6 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/spf13/cobra v1.8.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.18.2 // indirect
 	github.com/srl-labs/srl-controller v0.6.1 // indirect
 	github.com/srl-labs/srlinux-scrapli v0.6.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
@@ -150,7 +154,7 @@ require (
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.19.0 // indirect
