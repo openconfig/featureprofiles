@@ -20,8 +20,8 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    policy_result_type_next_statement_unsupported: true
     bgp_rib_oc_path_unsupported: true
+    bgp_setmed_union_type_unsupported: true
   }
 }
 platform_exceptions: {

@@ -54,6 +54,7 @@ const (
 	initialLocalPrefValue       = 50
 	initialMEDValue             = 50
 	setMEDPolicy                = "med-policy"
+	setMEDIncreasePolicy        = "med-increase-policy"
 	matchStatement1             = "match-statement-1"
 	setPrependPolicy            = "prepend-policy"
 	testASN                     = 23456
@@ -227,12 +228,11 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
-		if strings.Contains(policyValue, "+") {
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
-		} else {
-			metric, _ := strconv.Atoi(policyValue)
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-		}
+		metric, _ := strconv.Atoi(policyValue)
+		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	case setMEDIncreasePolicy:
+		actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
@@ -455,7 +455,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
-		30*time.Second,
+		60*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			_, present := v.Val()
 			return present
@@ -635,7 +635,7 @@ func TestBGPPolicy(t *testing.T) {
 		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP increase MED Import Export Policy",
-		rpPolicy:        setMEDPolicy,
+		rpPolicy:        setMEDIncreasePolicy,
 		policyTypePort1: "",
 		policyValue:     "+100",
 		policyStatement: matchStatement1,
@@ -740,6 +740,10 @@ func TestBGPPolicy(t *testing.T) {
 			if tc.isDeletePolicy {
 				deleteBGPImportExportPolicy(t, dut, tc.deleteNbrv4, tc.deleteNbrv6, atePort2.IPv4, atePort2.IPv6)
 			}
+			if tc.rpPolicy == setMEDIncreasePolicy && deviations.BgpSetmedUnionTypeUnsupported(dut) {
+				t.Skip("BGP set med union is not supported in OC, skipping test.")
+			}
+
 			// Configure Routing Policy on the DUT.
 			configureASLocalPrefMEDPolicy(t, dut, tc.rpPolicy, tc.policyValue, tc.policyStatement, tc.asn)
 			if !deviations.DefaultRoutePolicyUnsupported(dut) {
