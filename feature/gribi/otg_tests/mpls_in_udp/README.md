@@ -131,45 +131,6 @@ network_instances: {
           }
         }
       }
-      #
-      # entries used for default route encapsulation
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_default"
-          next_hop_group: 1
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_default"
-          next_hop_group: 1
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 1
-          next_hop_group_name: "DEFAULT"
-          next_hops:
-            next_hop: {
-              index: 1
-            }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 1
-          network_instance: "DEFAULT"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_def"
-            pushed_mpls_label_stack: [42, ]
-            dst_udp_port: 5555
-            ip_ttl: 64
-            dscp: 26
-          }
-        }
-      }
     }
   }
 }
@@ -181,7 +142,50 @@ network_instances: {
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
 
-### TE-18.1.2 Policer attached to interface via gNMI
+### TE-18.1.2 Validate prefix match rule for MPLS in UDP encap using default route
+
+Canonical OpenConfig for policy forwarding, matching IP prefix with action
+encapsulate in GRE.
+
+```yaml
+openconfig-network-instance:
+  network-instances:
+    - network-instance: "group_A"
+      afts:
+        policy-forwarding:
+          policies:
+            policy: "default encap rule"
+              config: 
+                policy-id: "default encap rule"
+                type: PBR_POLICY
+              rules:
+                rule: 1
+                  config:
+                    sequence-id: 1
+                  ipv6:
+                    config:
+                      destination-address: "inner_ipv6_default"
+                  action:
+                    # TODO: add to OC model/PR in progress
+                    encapsulate-mpls-in-gre:
+                      targets:
+                        target: "default_dst_1"
+                          config:
+                            id: "default_dst_1"
+                            network-instance: "DEFAULT"
+                            source-ip: "outer_ipv6_src"
+                            destination-ip: "outer_ipv6_dst_def"
+                            ip-ttl: outer_ip-ttl
+                            dscp: outer_dscp
+```
+
+* Generate the policy forwarding configuration
+* Push the configuration to DUT using gnmi.Set with REPLACE option
+* Configure ATE port 1 with traffic flow which does not match any AFT next hop route
+* Generate traffic from ATE port 1 to ATE port 2
+* Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
+
+### TE-18.1.3 Policer attached to interface via gNMI
 
 * Generate config for 2 scheduler polices with an input rate limit.  Apply
   to DUT port 1.
@@ -301,7 +305,7 @@ openconfig-qos:
   * Increase traffic on flow to dest_B to 2Gbps
     * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
 
-### TE-18.1.3 - Decapsulation set by gRIBI
+### TE-18.1.4 - Decapsulation set by gRIBI
 
 This gRIBI content is used to perform MPLS in UDP decapsulation.
 
@@ -346,7 +350,7 @@ network_instances {
 }
 ```
 
-### TE-18.1.4 Scale
+### TE-18.1.5 Scale
 
 TODO: Move to separate README
 
@@ -388,7 +392,7 @@ paths:
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
-  /qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name:
+  #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
   # /qos/input-policies/input-policy/config/name:
