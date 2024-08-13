@@ -306,7 +306,7 @@ func deleteBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv
 	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ImportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv6_2.ExportPolicy().Config())
 
-  gnmi.BatchDelete(batchConfig, nbrPolPathv4.ImportPolicy().Config())
+	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ImportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv4.ExportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv6.ImportPolicy().Config())
 	gnmi.BatchDelete(batchConfig, nbrPolPathv6.ExportPolicy().Config())
