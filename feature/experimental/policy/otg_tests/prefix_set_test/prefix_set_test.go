@@ -114,6 +114,9 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 	rp := dutOcRoot.GetOrCreateRoutingPolicy()
 	ds := rp.GetOrCreateDefinedSets()
 	v4PrefixSet := ds.GetOrCreatePrefixSet(tag3IPv4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("10.244.187.32/28", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("173.36.128.0/20", mskLen)
@@ -134,6 +137,9 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 
 	v4PrefixSet = ds.GetOrCreatePrefixSet(tag3IPv4)
 	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix("173.49.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("173.46.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", mskLen)
