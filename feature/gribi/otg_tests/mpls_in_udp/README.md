@@ -354,28 +354,57 @@ network_instances {
 
 TODO: Move to separate README
 
-Scale targets:
+#### Scale targets
 
-* 20,000 IPv4/IPv6 destinations
-* 1,000 vlans
-* 1,000 policer rates
-* 20,000 token buckets / policer instantiations
+* Flow scale
+  * 20,000 IPv4/IPv6 destinations
+  * 1,000 vlans
+  * Inner IP address space should be reused for each network-instance.
+  * gRIBI client update rate `flow_r` = 1 update per second
+  * Each gRIBI update include ip entries in batches of `flow_q` = 200
+  * DUT packet forwarding updated within 1 second after adding entries
 
-For example, "scale profile A" could be:
+* Scheduler (policer) scale
+  * 1,000 policer rates
+  * 20,000 token buckets / scheduler instantiations
+  * Update schedulers at 1 per `sched_r` = 60 seconds
+  * Update schdulers in a batch of `sched_q` = 1,000
+  * Scheduler changes should take effect within `sched_r` / 2 time
+
+#### Scale profile A - many vlans
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
 * Each ingress vlan has 10 policers = 10,000 'token buckets'
 * The 20 ip destinations are split evenly between the 10 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
-For example, "scale profile B" could be:
+#### Scale profile B - many destinations, few vlans
 
 * 200 ip destinations * 100 vlans = 20,000 'flows'
 * Each ingress vlan has 4 policers = 4,000 'token buckets'
 * The 200 ip destinations are split evenly between the 4 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
-Note that inner IP address space is reused / overlapping between network-instances.
+#### Procedure - Flow Scale
+
+* For each scale profile, create the following subsets TE-18.1.5.n
+  * Configure ATE flows to send 100 pps per flow and wait for ARP
+  * Send traffic for q flows (destination IP prefixes) for 2 seconds
+  * At traffic start time, gRIBI client to send `flow_q` aft entries and their
+    related NHG and NH at rate `flow_r`
+  * Validate RIB_AND_FIB_ACK with FIB_PROGRAMMED is received from DUT within
+    1 second
+  * Measure packet loss.  Target packet loss <= 50%.
+  * Repeat adding 200 flows until 20,000 flows have been added
+  * Once reaching 20,000 flows, perform 1 iteration of modifying the first
+    `flow_q` flows to use different NH,NHG
+
+#### Procedure - Policer + Flow Scale
+
+* For each scale profile, create the following subsets TE-18.1.6.n
+  * Program all 20,000 flows
+  * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
+  * Verify packet loss changes for all flows within `sched_r` / 2 time
 
 #### OpenConfig Path and RPC Coverage
 
