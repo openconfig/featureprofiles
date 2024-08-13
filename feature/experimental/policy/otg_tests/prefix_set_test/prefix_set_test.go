@@ -136,7 +136,6 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 	gnoi.KillProcess(t, dut, gnoi.OCAGENT, true)
 
 	v4PrefixSet = ds.GetOrCreatePrefixSet(tag3IPv4)
-	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
 	if !deviations.SkipPrefixSetMode(dut) {
 		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
 	}
