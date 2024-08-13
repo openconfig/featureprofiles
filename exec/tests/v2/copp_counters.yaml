@@ -8,4 +8,5 @@ tests:
     path: feature/cisco/platform/integrated_circuit/copp_counters_test
     mustpass: true
     internal: true
+    timeout: 1800
     branch: master
