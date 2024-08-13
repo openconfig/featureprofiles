@@ -15,12 +15,11 @@
 package prefix_set_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -28,6 +27,7 @@ import (
 
 const (
 	prefixSetA = "PFX_SET_A"
+	tag3IPv4   = "TAG_3_IPV4"
 	pfx1       = "10.240.31.48/28"
 	pfx2       = "173.36.128.0/20"
 	pfx3       = "173.36.144.0/20"
@@ -107,48 +107,39 @@ func TestPrefixSet(t *testing.T) {
 	}
 }
 
-func TestPrefixSetWithCLIConfig(t *testing.T) {
+func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	cli := dut.RawAPIs().CLI(t)
-
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		helpers.GnmiCLIConfig(t, dut, `
-			ip prefix-list TAG_3_IPV4
-				seq 10 permit 10.240.31.48/28
-				seq 20 permit 10.244.187.32/28
-				seq 30 permit 173.36.128.0/20
-				seq 40 permit 173.37.128.0/20
-				seq 50 permit 173.38.128.0/20
-				seq 60 permit 173.39.128.0/20
-				seq 70 permit 173.40.128.0/20
-				seq 80 permit 173.41.128.0/20
-				seq 90 permit 173.42.128.0/20
-				seq 100 permit 173.43.128.0/20
-			`,
-		)
-		helpers.GnmiCLIConfig(t, dut, `
-			management api gnmi
-				transport grpc default
-				operation set persistence
-			`,
-		)
-		cmd := "agent Octa terminate"
-		res, err := cli.RunCommand(ctx, "agent Octa terminate")
-		if err != nil {
-			t.Errorf("error executing command %q:\n%v", cmd, err)
-		}
-		if res.Error() != "" {
-			t.Errorf("error executing command %q:\n%v", cmd, res.Error())
-		}
-	}
 
 	dutOcRoot := &oc.Root{}
 	rp := dutOcRoot.GetOrCreateRoutingPolicy()
 	ds := rp.GetOrCreateDefinedSets()
-	v4PrefixSet := ds.GetOrCreatePrefixSet("TAG_3_IPV4")
+	v4PrefixSet := ds.GetOrCreatePrefixSet(tag3IPv4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
+	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("10.244.187.32/28", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.36.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.37.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.38.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.39.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.40.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.41.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.42.128.0/20", mskLen)
+	v4PrefixSet.GetOrCreatePrefix("173.43.128.0/20", mskLen)
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).Config(), v4PrefixSet)
+	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).State())
+	if got, want := len(prefixSet.Prefix), 10; got != want {
+		t.Errorf("Prefix set has %v prefixes, want %v", got, want)
+	}
+
+	gnoi.KillProcess(t, dut, gnoi.OCAGENT, true)
+
+	v4PrefixSet = ds.GetOrCreatePrefixSet(tag3IPv4)
 	v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		v4PrefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	v4PrefixSet.GetOrCreatePrefix("173.49.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("173.46.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("10.240.31.48/28", mskLen)
@@ -172,9 +163,9 @@ func TestPrefixSetWithCLIConfig(t *testing.T) {
 	v4PrefixSet.GetOrCreatePrefix("173.48.128.0/20", mskLen)
 	v4PrefixSet.GetOrCreatePrefix("173.45.128.0/20", mskLen)
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").Config(), v4PrefixSet)
-	prefixSet := gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet("TAG_3_IPV4").State())
-	if len(prefixSet.Prefix) != 22 {
-		t.Errorf("Prefix set has %v prefixes, want 22", len(prefixSet.Prefix))
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).Config(), v4PrefixSet)
+	prefixSet = gnmi.Get[*oc.RoutingPolicy_DefinedSets_PrefixSet](t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(tag3IPv4).State())
+	if got, want := len(prefixSet.Prefix), 22; got != want {
+		t.Errorf("Prefix set has %v prefixes, want %v", got, want)
 	}
 }
