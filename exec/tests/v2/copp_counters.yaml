@@ -2,10 +2,10 @@ name: copp_counters
 owners: 
   - liawalsh
 testbeds:
-  - 8201-1DUT
+  - 8808-1DUT
 tests:
   - name: copp_counters
     path: feature/cisco/platform/integrated_circuit/copp_counters_test
     mustpass: true
     internal: true
-    branch: liawalsh/copp_counters
+    branch: master

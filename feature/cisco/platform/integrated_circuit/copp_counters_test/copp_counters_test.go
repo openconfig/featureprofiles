@@ -17,7 +17,6 @@ package copp_counters_test
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -73,14 +72,15 @@ func getTestComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 }
 
-func getSubsriptionSlice(componentName string) []*gnmipb.Subscription {
+func getSubscriptionSlice(t *testing.T, componentName string) []*gnmipb.Subscription {
+	t.Helper()
 	filesList := []string{"./OC_Paths_Trap.txt", "./OC_Paths_LPTS.txt"}
 
 	var lines []string
 	for _, entry := range filesList {
 		file, err := os.Open(entry)
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		defer file.Close()
 
@@ -110,7 +110,6 @@ func getSubsriptionSlice(componentName string) []*gnmipb.Subscription {
 				Origin: path.GetOrigin(),
 			},
 			Mode: gnmipb.SubscriptionMode_TARGET_DEFINED,
-			// SampleInterval: 1000000000,
 		})
 	}
 
@@ -128,7 +127,7 @@ func TestCoppCounterPaths(t *testing.T) {
 	for _, component := range componentNames {
 		t.Run(component, func(t *testing.T) {
 
-			subList := getSubsriptionSlice(component)
+			subList := getSubscriptionSlice(t, component)
 
 			for _, subEntry := range subList {
 				subClient, err := gnmiClient.Subscribe(context.Background())
@@ -157,12 +156,12 @@ func TestCoppCounterPaths(t *testing.T) {
 					} else {
 						origin := resp.GetUpdate().GetPrefix().GetOrigin()
 						prefixElems := resp.GetUpdate().GetPrefix().GetElem()
-						fmt.Printf("%s:", origin)
+						t.Logf("%s:", origin)
 						for i, elem := range prefixElems {
 							if i > 0 {
-								fmt.Print("/")
+								t.Log("/")
 							}
-							fmt.Printf("%s", elem.GetName())
+							t.Logf("%s", elem.GetName())
 						}
 						for i, upd := range resp.GetUpdate().GetUpdate() {
 							if i == 0 {
@@ -172,12 +171,12 @@ func TestCoppCounterPaths(t *testing.T) {
 										break
 									}
 									if i > 0 {
-										fmt.Print("/")
+										t.Log("/")
 									}
-									fmt.Printf("%s", elem.GetName())
+									t.Logf("%s", elem.GetName())
 								}
 							}
-							fmt.Printf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
+							t.Logf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
 						}
 					}
 
@@ -186,7 +185,6 @@ func TestCoppCounterPaths(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				fmt.Println()
 			}
 		})
 	}
@@ -228,7 +226,7 @@ func configureOTGFlowSNMP(t *testing.T, config gosnappi.Config, dutPort ondatra.
 	snmpPayload :=
 		`0x30 0x81 0xc9 0x02 0x01 0x03 0x30 0x11 0x02 0x04 0x30 0xf6 0xf3 0xd9 0x02 0x03 0x00 0xff 0xe3 0x04 0x01 0x07 0x02 0x01 0x03 0x04 0x37 0x30 0x35 0x04 0x0d 0x80 0x00 0x1f 0x88 0x80 0x59 0xdc 0x48 0x61 0x45 0xa2 0x63 0x22 0x02 0x01 0x08 0x02 0x02 0x0a 0xb9 0x04 0x05 0x70 0x69 0x70 0x70 0x6f 0x04 0x0c 0x0d 0xe5 0x24 0x29 0xf9 0x86 0x68 0x6b 0xb0 0x72 0x5e 0xa8 0x04 0x08 0x00 0x00 0x00 0x01 0x03 0xd5 0x32 0x1e 0x04 0x78 0x74 0xa9 0xa8 0xf4 0x56 0x14 0x4a 0xef 0xc7 0x86 0x01 0x21 0xe3 0xfb 0xcf 0x8e 0xcc 0x9c 0x83 0xe6 0x8a 0x47 0x0e 0x99 0xfc 0x59 0x7b 0x07 0x15 0xcd 0x14 0xe3 0x10 0x1a 0xde 0xfd 0xe8 0x0c 0x8a 0x0b 0x3a 0x66 0xb4 0xe9 0xa0 0x03 0x4e 0x0f 0x35 0x7f 0xf2 0xc0 0xdf 0x15 0xde 0x5b 0x2e 0xc4 0x7c 0xa9 0xbc 0xb7 0x3f 0x11 0x70 0x02 0x0c 0x1e 0x8b 0x8c 0x08 0x07 0xf1 0x1c 0xaf 0xfd 0xe7 0x13 0xd5 0xab 0x68 0x1c 0x09 0xf8 0x88 0x99 0x01 0xe5 0xf9 0xe6 0xe1 0x1f 0xbf 0x66 0x65 0xd9 0x69 0x90 0x3e 0x7f 0x72 0x3a 0xcf 0x39 0x00 0x0a 0x2c 0x9f 0x59 0x1e 0x0f 0x7f 0x05 0xe3 0xa1 0x5f 0xf6 0x64 0xa7 0xa7`
 
-	fmt.Println(snmpPayload)
+	t.Log(snmpPayload)
 	snmp.SetBytes(snmpPayload)
 
 	// snmp := flow.Packet().Add().Snmpv2C()
@@ -277,7 +275,7 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 
 	// gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().ControlPlaneTraffic()
 
-	subList := getSubsriptionSlice("0/RP0/CPU0-NPU0")
+	subList := getSubscriptionSlice(t, "0/RP0/CPU0-NPU0")
 
 	for _, subEntry := range subList {
 		subClient, err := gnmiClient.Subscribe(context.Background())
@@ -307,12 +305,12 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 			} else {
 				origin := resp.GetUpdate().GetPrefix().GetOrigin()
 				prefixElems := resp.GetUpdate().GetPrefix().GetElem()
-				fmt.Printf("%s:", origin)
+				t.Logf("%s:", origin)
 				for i, elem := range prefixElems {
 					if i > 0 {
-						fmt.Print("/")
+						t.Log("/")
 					}
-					fmt.Printf("%s", elem.GetName())
+					t.Logf("%s", elem.GetName())
 				}
 				for i, upd := range resp.GetUpdate().GetUpdate() {
 					if i == 0 {
@@ -322,12 +320,12 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 								break
 							}
 							if i > 0 {
-								fmt.Print("/")
+								t.Log("/")
 							}
-							fmt.Printf("%s", elem.GetName())
+							t.Logf("%s", elem.GetName())
 						}
 					}
-					fmt.Printf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
+					t.Logf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
 				}
 			}
 
@@ -336,7 +334,6 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println()
 	}
 }
 
@@ -350,11 +347,11 @@ func TestAggregateCounterPaths(t *testing.T) {
 	for _, component := range componentNames {
 		t.Run(component, func(t *testing.T) {
 
-			subList := getSubsriptionSlice(component)
+			subList := getSubscriptionSlice(t, component)
 
-			fmt.Println("Getting real counters")
+			t.Log("Getting real counters")
 			realLeafBefore := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
-			fmt.Println("Finished getting real counters")
+			t.Log("Finished getting real counters")
 
 			realLeafBeforeMap := map[string]uint64{
 				"queued":        realLeafBefore.GetQueuedAggregate(),
@@ -370,7 +367,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				"dropped-bytes": 0,
 			}
 
-			fmt.Printf("%s\n%s\t\t%s\t\t%s\t%s\t\t\t\n",
+			t.Logf("%s\n%s\t\t%s\t\t%s\t%s\t\t\t\n",
 				"leaf-name",
 				"queued",
 				"queued-bytes",
@@ -417,7 +414,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 						}
 					}
 				}
-				fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+				t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 					pathname,
 					tempmap["queued"],
 					tempmap["queued-bytes"],
@@ -432,7 +429,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 
 			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
 
-			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"TOTAL",
 				manualAggregation["queued"],
 				manualAggregation["queued-bytes"],
@@ -440,7 +437,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				manualAggregation["dropped-bytes"],
 			)
 
-			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"LOWER BOUND",
 				realLeafBeforeMap["queued"],
 				realLeafBeforeMap["queued-bytes"],
@@ -455,7 +452,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				"dropped-bytes": realLeafAfter.GetDroppedBytesAggregate(),
 			}
 
-			fmt.Printf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
 				"UPPER BOUND",
 				realLeafAfterMap["queued"],
 				realLeafAfterMap["queued-bytes"],
