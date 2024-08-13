@@ -23,16 +23,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gnps "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/gnoigo/system"
-	grps "github.com/openconfig/gribi/v1/proto/service"
+	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -87,13 +85,6 @@ var (
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
-	}
-
-	gRIBIDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "Gribi",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "rpd",
-		ondatra.NOKIA:   "sr_grpc_server",
 	}
 )
 
@@ -235,7 +226,7 @@ func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client, du
 	entries := getResponse.GetEntry()
 	var found bool
 	for _, entry := range entries {
-		v := entry.Entry.(*grps.AFTEntry_Ipv4)
+		v := entry.Entry.(*grpb.AFTEntry_Ipv4)
 		if prefix := v.Ipv4.GetPrefix(); prefix != "" {
 			if prefix == ateDstNetCIDR {
 				found = true
@@ -249,35 +240,11 @@ func verifyGRIBIGet(ctx context.Context, t *testing.T, clientA *gribi.Client, du
 	}
 }
 
-// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
-func gNOIKillProcess(ctx context.Context, t *testing.T, args *testArgs, pName string, pID uint32) {
-	killResponse := gnoi.Execute(t, args.dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
-	t.Logf("Got kill process response: %v\n\n", killResponse)
-}
-
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID uint64
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID = proc.GetPid()
-			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
-		}
-	}
-	return pID
-}
-
 func TestDUTDaemonFailure(t *testing.T) {
 
 	start := time.Now()
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-
-	// Check if vendor specific gRIBI daemon name has been added to gRIBIDaemons var
-	if _, ok := gRIBIDaemons[dut.Vendor()]; !ok {
-		t.Fatalf("Please add support for vendor %v in var gRIBIDaemons", dut.Vendor())
-	}
 
 	// Configure the DUT.
 	t.Logf("Configure DUT")
@@ -343,30 +310,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 	})
 
 	t.Run("KillGRIBIDaemon", func(t *testing.T) {
-
-		// Find the PID of gRIBI Daemon.
-		var pId uint64
-		pName := gRIBIDaemons[dut.Vendor()]
-		t.Run("FindGRIBIDaemonPid", func(t *testing.T) {
-
-			pId = findProcessByName(ctx, t, dut, pName)
-			if pId == 0 {
-				t.Fatalf("Couldn't find pid of gRIBI daemon '%s'", pName)
-			} else {
-				t.Logf("Pid of gRIBI daemon '%s' is '%d'", pName, pId)
-			}
-		})
-
-		// Kill gRIBI daemon through gNOI Kill Request.
-		t.Run("ExecuteGnoiKill", func(t *testing.T) {
-			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
-			// Until the models are brought in line, typecasting the uint64 to uint32.
-			gNOIKillProcess(ctx, t, args, pName, uint32(pId))
-
-			// Wait for a bit for gRIBI daemon on the DUT to restart.
-			time.Sleep(30 * time.Second)
-
-		})
+		gnoi.KillProcess(t, dut, gnoi.GRIBI, true)
 
 		t.Logf("Time check: %s", time.Since(start))
 

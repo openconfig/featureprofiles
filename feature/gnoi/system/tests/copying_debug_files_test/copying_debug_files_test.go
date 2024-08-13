@@ -19,11 +19,11 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/system"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
 )
 
 var (
@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 //   DUT
 //
 // Test notes:
-//. Note: Initiating checkin to experimental
+// Note: Initiating checkin to experimental
 //  - KillProcess system call is used to kill a process.
 //  - The healthz call needs to be modified to reflect the right component and its path.
 //
@@ -67,10 +67,14 @@ func TestCopyingDebugFiles(t *testing.T) {
 	if _, ok := processName[dut.Vendor()]; !ok {
 		t.Fatalf("Please add support for vendor %v in var processName", dut.Vendor())
 	}
+	pID := system.FindProcessIDByName(t, dut, processName[dut.Vendor()])
+	if pID == 0 {
+		t.Fatalf("process %v not found on device", processName[dut.Vendor()])
+	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
 		Name:    processName[dut.Vendor()],
-		Pid:     findProcessByName(context.Background(), t, dut, processName[dut.Vendor()]),
+		Pid:     uint32(pID),
 		Restart: true,
 	}
 	processKillResponse, err := gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
@@ -109,19 +113,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 	}
 }
 
-// findProcessByName uses telemetry to find out the PID of a process
-func findProcessByName(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) uint32 {
-	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	var pID uint32
-	for _, proc := range pList {
-		if proc.GetName() == pName {
-			pID = uint32(proc.GetPid())
-			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
-		}
-	}
-	return pID
-}
-
 func TestChassisComponentArtifacts(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -153,10 +144,10 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	t.Logf("Artifacts received for component %v: %v", componentName["name"], artifacts)
 	// Fetch artifact details by executing ArtifactRequest and passing the artifact ID along.
 	for _, artifact := range artifacts {
-		artId := artifact.GetId()
-		t.Logf("Executing ArtifactRequest for artifact ID %v", artId)
+		artID := artifact.GetId()
+		t.Logf("Executing ArtifactRequest for artifact ID %v", artID)
 		artReq := &hpb.ArtifactRequest{
-			Id: artId,
+			Id: artID,
 		}
 		// Verify that a valid response is received.
 		artRes, err := gnoiClient.Healthz().Artifact(context.Background(), artReq)
@@ -164,9 +155,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			t.Fatalf("Unexpected error on executing Healthz Artifact RPC: %v", err)
 		}
 		h1, err := artRes.Header()
-		t.Logf("Header of artifact %v: %v", artId, h1)
+		t.Logf("Header of artifact %v: %v", artID, h1)
 		if err != nil {
-			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artId, err)
+			t.Fatalf("Unexpected error when fetching the header of artifact %v: %v", artID, err)
 		}
 	}
 }
