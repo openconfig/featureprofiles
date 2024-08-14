@@ -2,7 +2,6 @@ package hiba_authentication
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
@@ -23,7 +21,6 @@ import (
 
 const (
 	username                 = "testuser"
-	password                 = "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj"
 	userPrivateKeyFilename   = "users/testuser"
 	userCertFilename         = "users/testuser-cert.pub"
 	dutPrivateKeyFilename    = "hosts/dut"
@@ -37,97 +34,18 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		roleData, err := json.Marshal([]any{
-			map[string]any{
-				"services": []string{"cli", "gnmi"},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		userData, err := json.Marshal([]any{
-			map[string]any{
-				"password": password,
-				"role":     []string{role},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		SetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": role}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: roleData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": username}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: userData,
-						},
-					},
-				},
-			},
-		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err = gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
-	}
-}
-
 func setupUser(t *testing.T, dut *ondatra.DUTDevice) {
 	auth := &oc.System_Aaa_Authentication{}
-	user := auth.GetOrCreateUser(username)
-
-	if deviations.SetNativeUser(dut) {
-		// probably all vendors need to handle this since the user should have a role attached to
-		// it allowing us to login via ssh/console/whatever
-		createNativeRole(t, dut, "credz-fp-test")
-	} else {
-		user.SetPassword(password)
-	}
-
+	auth.GetOrCreateUser(username)
 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), auth)
-
 }
 
 func setupDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// set only pub key auth for our test
 	setupAuthenticationTypes(t, dut)
 
-	// set the authorized principals thing
-	setupAuthorizedPrincipals(t, dut)
+	// setup hiba for authorized principals command
+	setupAuthorizedPrincipalsCommand(t, dut)
 }
 
 func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *credentialz.RotateHostParametersRequest) {
@@ -156,6 +74,9 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cr
 	if err != nil {
 		t.Fatalf("failed sending credentialz rotate host parameters finalize request, error: %s", err)
 	}
+
+	// brief sleep for finalize to get processed
+	time.Sleep(time.Second)
 }
 
 func setupAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice) {
@@ -172,7 +93,7 @@ func setupAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice) {
 	sendHostParametersRequest(t, dut, request)
 }
 
-func setupAuthorizedPrincipals(t *testing.T, dut *ondatra.DUTDevice) {
+func setupAuthorizedPrincipalsCommand(t *testing.T, dut *ondatra.DUTDevice) {
 	request := &credentialz.RotateHostParametersRequest{
 		Request: &credentialz.RotateHostParametersRequest_AuthorizedPrincipalCheck{
 			AuthorizedPrincipalCheck: &credentialz.AuthorizedPrincipalCheckRequest{
@@ -195,13 +116,6 @@ func loadCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		t.Fatalf("failed reading host signed certificate, error: %s", err)
 	}
 
-	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-
-	credzRotateClient, err := credzClient.RotateHostParameters(context.Background())
-	if err != nil {
-		t.Fatalf("failed fetching credentialz rotate host parameters client, error: %s", err)
-	}
-
 	request := &credentialz.RotateHostParametersRequest{
 		Request: &credentialz.RotateHostParametersRequest_ServerKeys{
 			ServerKeys: &credentialz.ServerKeysRequest{
@@ -217,24 +131,7 @@ func loadCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		},
 	}
 
-	err = credzRotateClient.Send(request)
-	if err != nil {
-		t.Fatalf("failed sending credentialz rotate host parameters request, error: %s", err)
-	}
-
-	_, err = credzRotateClient.Recv()
-	if err != nil {
-		t.Fatalf("failed receiving credentialz rotate host parameters request, error: %s", err)
-	}
-
-	err = credzRotateClient.Send(&credentialz.RotateHostParametersRequest{
-		Request: &credentialz.RotateHostParametersRequest_Finalize{
-			Finalize: request.GetFinalize(),
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed sending credentialz rotate host parameters finalize request, error: %s", err)
-	}
+	sendHostParametersRequest(t, dut, request)
 }
 
 func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
@@ -283,8 +180,7 @@ func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
 }
 
 func sshWithKey(t *testing.T, addr, dir string) error {
-	// ensure files are 0600 so ssh doesnt barf, git only cares about +x bit so just enforcing
-	// this lazily here
+	// ensure files are 0600 so ssh doesn't complain
 	err := os.Chmod(fmt.Sprintf("%s/%s", dir, userPrivateKeyFilename), 0o600)
 	if err != nil {
 		t.Fatalf("failed ensuring user private key file permissions, error: %s", err)
@@ -335,15 +231,28 @@ func sshWithKey(t *testing.T, addr, dir string) error {
 	return err
 }
 
-func assertSSHAuthFails(t *testing.T, _ *ondatra.DUTDevice, addr, dir string) {
+func assertSSHAuthFails(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) {
+	var startingRejectCounter uint64
+
+	if !deviations.SSHServerCountersUnsupported(dut) {
+		startingRejectCounter = getRejectTelemetry(t, dut)
+	}
+
 	err := sshWithKey(t, addr, dir)
 	if err == nil {
-		t.Fatal("dialing ssh succeeded, but we expected to fail")
+		t.Fatalf("dialing ssh succeeded, but we expected to fail")
+	}
+
+	if !deviations.SSHServerCountersUnsupported(dut) {
+		endingRejectCounter := getRejectTelemetry(t, dut)
+		if endingRejectCounter <= startingRejectCounter {
+			t.Fatalf("ssh server reject counter did not increment after unsuccessful login")
+		}
 	}
 }
 
 func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) {
-	// set the hiba host cert and also private key so its the hiba one we setup before the test
+	// set the hiba host cert and also private key so it's the hiba one we setup before the test
 	loadCertificate(t, dut, dir)
 
 	// set the trusted user ca
@@ -368,19 +277,23 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) 
 	if !deviations.SSHServerCountersUnsupported(dut) {
 		endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
 
-		if startingAcceptCounter-endingAcceptCounter < 1 {
-			t.Fatal("ssh server accept counter did not increment after successful login")
+		if endingAcceptCounter <= startingAcceptCounter {
+			t.Fatalf("ssh server accept counter did not increment after successful login")
 		}
 
 		if startingLastAcceptTime == endingLastAcceptTime {
-			t.Fatal("ssh server accept last timestamp did not update after successful login")
+			t.Fatalf("ssh server accept last timestamp did not update after successful login")
 		}
 	}
 }
 
+func getRejectTelemetry(t *testing.T, dut *ondatra.DUTDevice) uint64 {
+	sshCounters := gnmi.Get(t, dut, gnmi.OC().System().SshServer().Counters().State())
+	return sshCounters.GetAccessRejects()
+}
+
 func getAcceptTelemetry(t *testing.T, dut *ondatra.DUTDevice) (uint64, uint64) {
 	sshCounters := gnmi.Get(t, dut, gnmi.OC().System().SshServer().Counters().State())
-
 	return sshCounters.GetAccessAccepts(), sshCounters.GetLastAccessAccept()
 }
 
@@ -599,9 +512,6 @@ func TestCredentialz(t *testing.T) {
 
 	setupDUT(t, dut)
 
-	// quick sleep to let things percolate
-	time.Sleep(time.Second)
-
 	testCases := []struct {
 		name  string
 		testF func(t *testing.T, dut *ondatra.DUTDevice, addr, dir string)
@@ -630,7 +540,6 @@ func TestCredentialz(t *testing.T) {
 				},
 			},
 		}
-
 		sendHostParametersRequest(t, dut, request)
 
 		// also to remove the user ca so subsequent fail cases work
@@ -638,22 +547,22 @@ func TestCredentialz(t *testing.T) {
 			Request: &credentialz.RotateHostParametersRequest_SshCaPublicKey{
 				SshCaPublicKey: &credentialz.CaPublicKeyRequest{
 					SshCaPublicKeys: []*credentialz.PublicKey{},
-					Version:         "0",
-					CreatedOn:       uint64(time.Now().Unix()),
 				},
 			},
 		}
-
 		sendHostParametersRequest(t, dut, request)
 
-		// annnd the host key just to clean up all the things
-		credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-
-		credzRotateClient, err := credzClient.RotateHostParameters(context.Background())
-		if err != nil {
-			t.Fatalf("failed fetching credentialz rotate host parameters client, error: %s", err)
+		// clear hiba for authorized principals command
+		request = &credentialz.RotateHostParametersRequest{
+			Request: &credentialz.RotateHostParametersRequest_AuthorizedPrincipalCheck{
+				AuthorizedPrincipalCheck: &credentialz.AuthorizedPrincipalCheckRequest{
+					Tool: credentialz.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED,
+				},
+			},
 		}
+		sendHostParametersRequest(t, dut, request)
 
+		// and the host key just to clean up all the things
 		request = &credentialz.RotateHostParametersRequest{
 			Request: &credentialz.RotateHostParametersRequest_ServerKeys{
 				ServerKeys: &credentialz.ServerKeysRequest{
@@ -661,25 +570,7 @@ func TestCredentialz(t *testing.T) {
 				},
 			},
 		}
-
-		err = credzRotateClient.Send(request)
-		if err != nil {
-			t.Fatalf("failed sending credentialz rotate host parameters request, error: %s", err)
-		}
-
-		_, err = credzRotateClient.Recv()
-		if err != nil {
-			t.Fatalf("failed receiving credentialz rotate host parameters request, error: %s", err)
-		}
-
-		err = credzRotateClient.Send(&credentialz.RotateHostParametersRequest{
-			Request: &credentialz.RotateHostParametersRequest_Finalize{
-				Finalize: request.GetFinalize(),
-			},
-		})
-		if err != nil {
-			t.Fatalf("failed sending credentialz rotate host parameters finalize request, error: %s", err)
-		}
+		sendHostParametersRequest(t, dut, request)
 	})
 
 	for _, tt := range testCases {

@@ -10,7 +10,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    set_native_user: true
     ssh_server_counters_unsupported: true
   }
 }
