@@ -5,3 +5,11 @@ uuid: "619040ac-21a0-403f-b38e-6d5d0aed433a"
 plan_id: "RT-1.53"
 description: "prefix-list test"
 testbed: TESTBED_DUT
+platform_exceptions: {
+    platform: {
+      vendor: NOKIA
+    }
+    deviations: {
+      skip_prefix_set_mode: true
+    }
+  }

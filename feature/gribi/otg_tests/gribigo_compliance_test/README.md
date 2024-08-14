@@ -21,3 +21,22 @@ For each compliance test case in the test suite:
     *   If the case expects a t.Fatal result, use testt.ExpectFatal.
     *   If the case expects a t.Error result, use testt.ExpectError.
     *   Otherwise, call the test case function directly.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+    /interfaces/interface/config/enabled:
+
+
+rpcs:
+    gnmi:
+        gNMI.Subscribe:
+            ON_CHANGE: true
+
+    gnoi:
+        system.System.Reboot:
+
+```

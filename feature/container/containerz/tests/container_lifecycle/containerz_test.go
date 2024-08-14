@@ -1,4 +1,4 @@
-package container_lifecycle
+package container_lifecycle_test
 
 import (
 	"context"

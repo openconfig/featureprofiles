@@ -263,6 +263,7 @@ func incrementMAC(mac string, i int) (string, error) {
 
 func TestScaling(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	overrideScaleParams(dut)
 	ate := ondatra.ATE(t, "ate")
 
 	ctx := context.Background()
@@ -376,5 +377,14 @@ func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 
 	if lossPct > 1 {
 		t.Errorf("FAIL- Got %v%% packet loss for %s ; expected < 1%%", lossPct, "flow")
+	}
+}
+
+// overrideScaleParams allows to override the default scale parameters based on the DUT vendor.
+func overrideScaleParams(dut *ondatra.DUTDevice) {
+	if deviations.OverrideDefaultNhScale(dut) {
+		if dut.Vendor() == ondatra.CISCO {
+			*fpargs.V4TunnelCount = 3328
+		}
 	}
 }

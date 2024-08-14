@@ -34,6 +34,7 @@ platform_exceptions:  {
     vendor:  JUNIPER
   }
   deviations:  {
+    no_mix_of_tagged_and_untagged_subinterfaces:  true
     explicit_interface_ref_definition:  true
     gribi_decap_mixed_plen_unsupported:  true
   }
@@ -48,4 +49,3 @@ platform_exceptions:  {
     omit_l2_mtu: true
   }
 }
-

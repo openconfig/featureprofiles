@@ -197,7 +197,6 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 }
 
 type testArgs struct {
-	ctx        context.Context
 	client     *fluent.GRIBIClient
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
@@ -1111,18 +1110,17 @@ func TestEncapFrr(t *testing.T) {
 			if tc.TestID == "primaryBackupRoutingAll" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1200).
+						WithIndex(1200).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1201).
+						WithIndex(1201).WithDecapsulateHeader(fluent.IPinIP).
 						WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1000).AddNextHop(1200, 1),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1001).AddNextHop(1201, 1),
 				)
-				if err := awaitTimeout(args.ctx, t, args.client, 2*time.Minute); err != nil {
+				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 			}
@@ -1135,7 +1133,7 @@ func TestEncapFrr(t *testing.T) {
 					fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
 						WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 				)
-				if err := awaitTimeout(args.ctx, t, args.client, 2*time.Minute); err != nil {
+				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
@@ -1154,7 +1152,7 @@ func TestEncapFrr(t *testing.T) {
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1001).AddNextHop(1301, 1),
 				)
-				if err := awaitTimeout(args.ctx, t, args.client, 2*time.Minute); err != nil {
+				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 			}
@@ -1169,8 +1167,7 @@ func TestEncapFrr(t *testing.T) {
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(101).AddNextHop(201, 1).AddNextHop(202, 3).WithBackupNHG(2001),
 				)
-
-				if err := awaitTimeout(args.ctx, t, args.client, 2*time.Minute); err != nil {
+				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 			}
