@@ -20,6 +20,7 @@ package per_np_hash_rotate_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,11 +38,44 @@ const (
 	lbHashSeparationOffset = 7
 )
 
-// setperNPHashConfig configures per NP hash-rotate valie for a LC with
+// setperNPHashConfig configures per NP hash-rotate value for an LC with
 // cef platform load-balancing algorithm adjust <> instance <> location <>.
-func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int, lcLoc string) {
+func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int, lcLoc string, unconfig bool) {
 	t.Helper()
-	configCli := fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v", hashVal, npVal, lcLoc)
+	var configCli string
+	if unconfig {
+		configCli = configCli + "no "
+	}
+	configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v", hashVal, npVal, lcLoc)
+	config.TextWithGNMI(context.Background(), t, dut, configCli)
+}
+
+// setBulkperNPHashConfig configures per NP hash-rotate value for a list of LCs with
+// cef platform load-balancing algorithm adjust <> instance <> location <>.
+func setBulkPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, lcs []string, unconfig bool) {
+	t.Helper()
+	var configCli string
+
+	for _, lcLoc := range lcs {
+		for _, npVal := range []int{0, 1, 2} {
+			if unconfig {
+				configCli = configCli + "no "
+			}
+			configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v\n", rand.Intn(35), npVal, lcLoc)
+		}
+	}
+	config.TextWithGNMI(context.Background(), t, dut, configCli)
+}
+
+// setGlobalNPHashConfig configures per NP hash-rotate value for an LC with
+// cef platform load-balancing algorithm adjust <>.
+func setGlobalHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, unconfig bool) {
+	t.Helper()
+	var configCli string
+	if unconfig {
+		configCli = configCli + "no "
+	}
+	configCli = fmt.Sprintf("cef platform load-balancing algorithm adjust %v", hashVal)
 	config.TextWithGNMI(context.Background(), t, dut, configCli)
 }
 

@@ -31,10 +31,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -111,14 +115,14 @@ func TestExplicitNPHashRotateConfig(t *testing.T) {
 			name:    "Test perNP CLI config for 1 NP",
 			desc:    "Configure per-NP hash value on single NP0 for all LCs",
 			npval:   npList[:1],
-			hashval: rand.Intn(35),
+			hashval: rand.Intn(34) + 1, // 0 is not a valid value for hash-rotate
 			lcloc:   lcList,
 		},
 		{
 			name:    "Test perNP CLI config for All NPs",
 			desc:    "Configure per-NP hash value on All the NPs for all LCs",
 			npval:   npList,
-			hashval: rand.Intn(35),
+			hashval: rand.Intn(34) + 1, // 0 is not a valid value for hash-rotate
 			lcloc:   lcList,
 		},
 	}
@@ -127,7 +131,8 @@ func TestExplicitNPHashRotateConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, lc := range tc.lcloc {
 				for _, np := range tc.npval {
-					setPerNPHashConfig(t, dut, tc.hashval, np, lc)
+					setPerNPHashConfig(t, dut, tc.hashval, np, lc, false)
+					defer setPerNPHashConfig(t, dut, tc.hashval, np, lc, true)
 					if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(tc.hashval); got != want {
 						t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, tc.npval, got, want)
 					}
@@ -145,26 +150,142 @@ func TestAutoHashValRandomize(t *testing.T) {
 }
 
 func TestAutoHashValPostLCReload(t *testing.T) {
+	const linecardBoottime = 5 * time.Minute
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI(t)
 	lcList = util.GetLCList(t, dut)
-	rebootSubComponentRequest := &spb.RebootRequest{
-		Method: spb.RebootMethod_COLD,
-		// Subcomponents: []*tpb.Path{
-		// 	components.GetSubcomponentPath(hostCard, false),
-		// },
-	}
-	for _, lc := range lcList {
-		rebootSubComponentRequest.Subcomponents = append(rebootSubComponentRequest.Subcomponents, components.GetSubcomponentPath(lc, false))
+	ReloadLinecards(t, lcList)
+	t.Log("Verify hash-rotate calculation across all LCs after reloading all linecards")
+	TestPerNPHashRotateVerifyAutoVal(t)
+}
+
+func TestAutoHashValPostRouterReload(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	startTime := time.Now()
+	lcList = util.GetLCList(t, dut)
+
+	RebootDevice(t)
+	t.Logf("It took %v minutes to reboot router.", time.Now().Sub(startTime).Minutes())
+
+	t.Log("Verify hash-rotate calculation across all LCs after rebooting router")
+	TestPerNPHashRotateVerifyAutoVal(t)
+}
+
+func RebootDevice(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	const (
+		oneMinuteInNanoSecond = 6e10
+		oneSecondInNanoSecond = 1e9
+		pollingDelay          = 180 * time.Second
+		// Maximum reboot time is 900 seconds (15 minutes).
+		maxRebootTime = 900
+	)
+
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Message: "Reboot chassis with cold method gracefully",
+		Force:   false,
 	}
 
-	t.Log("Reloading all linecards")
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+	if err != nil {
+		t.Fatalf("Failed parsing current-datetime: %s", err)
+	}
+
+	t.Logf("Send reboot request: %v", rebootRequest)
+	startReboot := time.Now()
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+	t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	t.Logf("Wait for the device to gracefully complete system backup and start rebooting.")
+	time.Sleep(pollingDelay)
+
+	t.Logf("Check if router has booted by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+}
+
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
+}
+
+func ReloadLinecards(t *testing.T, lcList []string) {
+	const linecardBoottime = 5 * time.Minute
+	dut := ondatra.DUT(t, "dut")
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	rebootSubComponentRequest := &spb.RebootRequest{
+		Method:        spb.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{},
+	}
+
+	req := &spb.RebootStatusRequest{
+		Subcomponents: []*tpb.Path{},
+	}
+
+	for _, lc := range lcList {
+		rebootSubComponentRequest.Subcomponents = append(rebootSubComponentRequest.Subcomponents, components.GetSubcomponentPath(lc, false))
+		req.Subcomponents = append(req.Subcomponents, components.GetSubcomponentPath(lc, false))
+	}
+
+	t.Logf("Reloading linecards: %v", lcList)
+	startTime := time.Now()
 	_, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
 	if err != nil {
 		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
 	}
 
-	time.Sleep(5 * time.Minute)
-	t.Log("Verify hash-rotate calculation across all LCs after reloading all linecards")
-	TestPerNPHashRotateVerifyAutoVal(t)
+	rebootDeadline := startTime.Add(linecardBoottime)
+	for retry := true; retry; {
+		t.Log("Waiting for 10 seconds before checking linecard status.")
+		time.Sleep(10 * time.Second)
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			t.Fatalf("Unimplemented RebootStatus RPC: %v", err)
+		case err == nil:
+			retry = resp.GetActive()
+		default:
+			// any other error just sleep.
+		}
+	}
+	t.Logf("It took %v minutes to reboot linecards.", time.Now().Sub(startTime).Minutes())
 }
