@@ -17,4 +17,13 @@ platform_exceptions: {
     missing_hardware_resource_telemetry_before_config: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
 tags: TAGS_TRANSIT
