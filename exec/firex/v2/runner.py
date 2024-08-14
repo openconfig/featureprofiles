@@ -54,7 +54,8 @@ whitelist_arguments([
     'test_show_skipped',
     'test_repo_url',
     'sim_use_mtls',
-    'collect_dut_info'
+    'collect_dut_info',
+    'cflow_over_ssh'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -269,7 +270,7 @@ def _sim_get_data_ports(testbed_logs_dir):
     for dut, entry in vxr_conf.get('devices').items():
         data_ports[dut] = entry.get('data_ports', [])
     return data_ports
-            
+
 def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     gnmi_set = _gnmi_set_file_template(cli_lines)
     with open(gnmi_file, 'w') as gnmi:
@@ -574,6 +575,7 @@ def b4_chain_provider(ws, testsuite_id,
                         testbed=None,
                         sanitizer=None,
                         cflow=None,
+                        cflow_over_ssh=False,
                         **kwargs):
     
     if internal_test:
@@ -646,8 +648,10 @@ def b4_chain_provider(ws, testsuite_id,
             custom_tech="sanitizer",
         )
         
-    if cflow and testbed:
-        chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
+    if cflow:
+        if cflow_over_ssh: chain |= CollectCoverageDataOverSSH.s()
+        else: chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
+
     return chain
 
 # noinspection PyPep8Naming
@@ -1463,6 +1467,27 @@ def GenerateSimTestbedFile(self,
         testbed_connection_info=testbed_connection_info,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
+
+@app.task(base=FireX, bind=True)
+@returns('cflow_dat_dir')
+def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed, cflow_arguments=None):
+    if not cflow_arguments:
+        cflow_arguments = {}
+
+    cflow_date = cflow_arguments.get('arguments_dict', {}).get('cflow_date', 'no_date')
+    cflow_dat_dir = os.path.join(ws, 'cflow', cflow_date)
+    os.makedirs(cflow_dat_dir, exist_ok=True)
+    
+    c = CollectDebugFiles.s(
+        ws=ws,
+        internal_fp_repo_dir=internal_fp_repo_dir, 
+        reserved_testbed=reserved_testbed, 
+        out_dir=cflow_dat_dir,
+        collect_tech=True,
+        custom_tech="cflow",
+    )
+    self.enqueue_child_and_get_results(c)
+    return cflow_dat_dir
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
