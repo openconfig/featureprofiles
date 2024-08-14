@@ -164,14 +164,14 @@ var (
 		IPv4Len: 30,
 	}
 	dutPort2DummyIP = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
-		IPv4Len: 30,
+		Desc:       "dutPort2",
+		IPv4Sec:    "192.0.2.21",
+		IPv4LenSec: 30,
 	}
 	dutPort3DummyIP = attrs.Attributes{
-		Desc:    "dutPort3",
-		IPv4:    "192.0.2.41",
-		IPv4Len: 30,
+		Desc:       "dutPort3",
+		IPv4Sec:    "192.0.2.41",
+		IPv4LenSec: 30,
 	}
 	atePort2DummyIP = attrs.Attributes{
 		Desc:    "atePort2",
@@ -283,10 +283,15 @@ func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *
 	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
 		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
 	}
-	vrfpolicy.ConfigureVRFSelectionPolicyW(t, args.dut)
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
+
+	// Remove interface from VRF-1.
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
+	//Delete Policy-forwarding PolicyW from the ingress interface
+	vrfpolicy.DeletePolicyForwarding(t, args.dut, "port1")
 }
 
 // TE3.7 - case 1: testBaseHierarchialNHG.

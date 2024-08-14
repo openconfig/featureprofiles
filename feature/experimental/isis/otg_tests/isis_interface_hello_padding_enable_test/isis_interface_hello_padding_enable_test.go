@@ -110,9 +110,11 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
 	isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(3)
 
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if !deviations.ISISInterfaceAfiUnsupported(ts.DUT) {
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	}
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
-	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
 }
 
@@ -347,28 +349,42 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
+			if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
+				}
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
+			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SpfRuns().State()); got == 0 {
 				t.Errorf("FAIL- Not expecting spf runs counter to be 0, got %d, want non zero", got)
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State()); got != v4Route {
-				t.Errorf("FAIL- Expected v4 route not found in isis, got %v, want %v", got, v4Route)
+			_, ok := gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(v4Route).Prefix().State(), 1*time.Minute, v4Route).Val()
+			if !ok {
+				t.Errorf("FAIL- Couldn't find v4Route in dut LSP TLV")
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State()); got != v6Route {
-				t.Errorf("FAIL- Expected v6 route not found in isis, got %v, want %v", got, v6Route)
+			_, ok = gnmi.Await(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().Prefix(v6Route).Prefix().State(), 1*time.Minute, v6Route).Val()
+			if !ok {
+				t.Errorf("FAIL- Couldn't find v6Route in dut LSP TLV")
 			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route).State()).GetPrefix(); got != v4Route {
-				t.Errorf("FAIL- Expected v4 route not found in aft, got %v, want %v", got, v4Route)
+			ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv4Entry(v4Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				ipv4Entry, present := val.Val()
+				return present && ipv4Entry.GetPrefix() == v4Route
+			}).Await(t); !ok {
+				t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, v4Route)
 			}
-			if got := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.WithISIS().DUT)).Afts().Ipv6Entry(v6Route).State()).GetPrefix(); got != v6Route {
-				t.Errorf("FAIL- Expected v6 route not found in aft, got %v, want %v", got, v6Route)
+			ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).Afts().Ipv6Entry(v6Route)
+			if got, ok := gnmi.Watch(t, ts.DUT, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				ipv6Entry, present := val.Val()
+				return present && ipv6Entry.GetPrefix() == v6Route
+			}).Await(t); !ok {
+				t.Errorf("ipv6-entry/state/prefix got %v, want %s", got, v6Route)
 			}
 		})
 		t.Run("Traffic checks", func(t *testing.T) {
