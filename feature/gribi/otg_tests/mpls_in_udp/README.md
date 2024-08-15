@@ -1,11 +1,12 @@
-# TE-18.1 MPLS in UDP Encapsulation with QoS scheduler
+# TE-18.1 gRIBI MPLS in UDP Encapsulation with OC QoS scheduler
 
 Create AFT entries using gRIBI to match destination IP address in a
 network-instance.  Encapsulate the matching packets in MPLS in UDP. Configure
-a qos scheduler to rate limit / police traffic based on matching the
-destination IP address of a packet input to the DUT.
+a qos scheduler using gNMI to rate limit / police traffic based on matching
+the destination IP address of a packet input to the DUT.
 
-The MPLS in UDP encapsulation is expected to follow [rfc7510](https://datatracker.ietf.org/doc/html/rfc7510#section-3),
+The MPLS in UDP encapsulation is expected to follow
+[rfc7510](https://datatracker.ietf.org/doc/html/rfc7510#section-3),
 but relaxing the requirement for a well-known destination UDP port.  gRIBI is
 expected to be able to set the destination UDP port.
 
@@ -67,7 +68,7 @@ network_instances: {
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_name: "nhg_A"  # OC model says it's system assigned for telemetry, we want to let gRIBI assign this.
+          next_hop_group_id: "nhg_A"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
           id: 100
           next_hops {            # reference to a next-hop
             next_hop: {
@@ -107,7 +108,7 @@ network_instances: {
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_name: "nhg_A"  # OC model says it's system assigned for telemetry, we want to let gRIBI assign this.
+          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
           id: 200
           next_hops {            # reference to a next-hop
             next_hop: {
@@ -243,7 +244,7 @@ openconfig-qos:
           conditions:
             next-hop-group:
                 config:
-                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
+                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
     - classifer: “dest_B”
       config:
         name: “dest_B”
@@ -254,7 +255,7 @@ openconfig-qos:
           conditions:
             next-hop-group:
                 config:
-                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-name
+                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
 
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
     - input-policy: "limit_group_A_2Gb"
@@ -327,7 +328,7 @@ network_instances {
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_name: "Decap"  # OC model says it's system assigned for telemetry, should we let gRIBI assign this?
+          next_hop_group_id: "Decap"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
           id: 999
           next_hops {
             next_hop: {
@@ -350,61 +351,10 @@ network_instances {
 }
 ```
 
-### TE-18.1.5 Scale
+### TE-18.1.5 Rewrite inner packet TTL=2 if inner TTL=1
 
-TODO: Move to separate README
-
-#### Scale targets
-
-* Flow scale
-  * 20,000 IPv4/IPv6 destinations
-  * 1,000 vlans
-  * Inner IP address space should be reused for each network-instance.
-  * gRIBI client update rate `flow_r` = 1 update per second
-  * Each gRIBI update include ip entries in batches of `flow_q` = 200
-  * DUT packet forwarding updated within 1 second after adding entries
-
-* Scheduler (policer) scale
-  * 1,000 policer rates
-  * 20,000 token buckets / scheduler instantiations
-  * Update schedulers at 1 per `sched_r` = 60 seconds
-  * Update schdulers in a batch of `sched_q` = 1,000
-  * Scheduler changes should take effect within `sched_r` / 2 time
-
-#### Scale profile A - many vlans
-
-* 20 ip destinations * 1,000 vlans = 20,000 'flows'
-* Each ingress vlan has 10 policers = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 10 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
-
-#### Scale profile B - many destinations, few vlans
-
-* 200 ip destinations * 100 vlans = 20,000 'flows'
-* Each ingress vlan has 4 policers = 4,000 'token buckets'
-* The 200 ip destinations are split evenly between the 4 policers
-* Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
-
-#### Procedure - Flow Scale
-
-* For each scale profile, create the following subsets TE-18.1.5.n
-  * Configure ATE flows to send 100 pps per flow and wait for ARP
-  * Send traffic for q flows (destination IP prefixes) for 2 seconds
-  * At traffic start time, gRIBI client to send `flow_q` aft entries and their
-    related NHG and NH at rate `flow_r`
-  * Validate RIB_AND_FIB_ACK with FIB_PROGRAMMED is received from DUT within
-    1 second
-  * Measure packet loss.  Target packet loss <= 50%.
-  * Repeat adding 200 flows until 20,000 flows have been added
-  * Once reaching 20,000 flows, perform 1 iteration of modifying the first
-    `flow_q` flows to use different NH,NHG
-
-#### Procedure - Policer + Flow Scale
-
-* For each scale profile, create the following subsets TE-18.1.6.n
-  * Program all 20,000 flows
-  * Every `sched_r` interval use gnmi.Set to replace `sched_q` scheduler policies
-  * Verify packet loss changes for all flows within `sched_r` / 2 time
+* The DUT must re-write the ingress, innner packet TLL = 2, if the
+  incoming TTL = 1.
 
 #### OpenConfig Path and RPC Coverage
 
@@ -448,6 +398,7 @@ paths:
   #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/ip-ttl:
   #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-udp-port:
   #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dscp:
+  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
 
 rpcs:
   gnmi:
