@@ -247,12 +247,12 @@ func assertSSHAuthFails(t *testing.T, dut *ondatra.DUTDevice, addr, _ string) {
 	if !deviations.SSHServerCountersUnsupported(dut) {
 		endingRejectCounter, endingLastRejectTime := getRejectTelemetry(t, dut)
 
-		if startingRejectCounter-endingRejectCounter < 1 {
-			t.Fatal("ssh server reject counter did not increment after unsuccessful login")
+		if endingRejectCounter <= startingRejectCounter {
+			t.Fatalf("ssh server reject counter did not increment after unsuccessful login")
 		}
 
 		if startingLastRejectTime == endingLastRejectTime {
-			t.Fatal("ssh server reject last timestamp did not update after unsuccessful login")
+			t.Fatalf("ssh server reject last timestamp did not update after unsuccessful login")
 		}
 	}
 }
@@ -320,12 +320,12 @@ func assertSSHCertificateAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr
 	if !deviations.SSHServerCountersUnsupported(dut) {
 		endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
 
-		if startingAcceptCounter-endingAcceptCounter < 1 {
-			t.Fatal("ssh server accept counter did not increment after successful login")
+		if endingAcceptCounter <= startingAcceptCounter {
+			t.Fatalf("ssh server accept counter did not increment after successful login")
 		}
 
 		if startingLastAcceptTime == endingLastAcceptTime {
-			t.Fatal("ssh server accept last timestamp did not update after successful login")
+			t.Fatalf("ssh server accept last timestamp did not update after successful login")
 		}
 	}
 
