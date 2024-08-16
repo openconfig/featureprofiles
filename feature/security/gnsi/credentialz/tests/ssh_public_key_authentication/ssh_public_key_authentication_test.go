@@ -157,12 +157,12 @@ func assertAuthSucceeds(t *testing.T, dut *ondatra.DUTDevice, addr, dir string) 
 	if !deviations.SSHServerCountersUnsupported(dut) {
 		endingAcceptCounter, endingLastAcceptTime := getAcceptTelemetry(t, dut)
 
-		if startingAcceptCounter-endingAcceptCounter < 1 {
-			t.Fatal("ssh server accept counter did not increment after successful login")
+		if endingAcceptCounter <= startingAcceptCounter {
+			t.Fatalf("ssh server accept counter did not increment after successful login")
 		}
 
 		if startingLastAcceptTime == endingLastAcceptTime {
-			t.Fatal("ssh server accept last timestamp did not update after successful login")
+			t.Fatalf("ssh server accept last timestamp did not update after successful login")
 		}
 	}
 
