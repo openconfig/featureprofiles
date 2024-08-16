@@ -1,4 +1,4 @@
-# RT-1.35: ancx placeholder test
+# RT-1.35: Edge Aggregation placeholder test
 
 ## Summary
 This is a placeholder test to cover for all missing OCpaths required for edge aggregation that are not already covered in any FNT.
