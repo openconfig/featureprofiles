@@ -20,31 +20,42 @@ BGP Prefix Limit
     table by forwarding traffic to `prefix{0..n-1}` and `prefix{n}` where n is
     the maximum prefix limit configured.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-For prefixes:
+```yaml
+paths:
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/config/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/config/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/config/prevent-teardown
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/config/warning-threshold-pct
 
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
+   ## TODO: Telemetry Parameter coverage
+   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit-received/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit-received/state/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit-received/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/state/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit-received/state/warning-threshold-pct
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/last-prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/prefix-limit/state/prefix-limit-exceeded
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/max-prefixes
+   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv6-unicast/prefix-limit/state/prefix-limit-exceeded
 
-Parameters:
-
-*   afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes
-*   afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/restart-timer
-
-## Telemetry Parameter coverage
-
-*   TODO: afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/restart-timer
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/warning-threshold-pct
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/max-prefix-limit
-*   TODO:
-    afi-safis/afi-safi/ipv\[46\]-unicast/prefix-limit/state/prefix-limit-exceeded
-
-## Protocol/RPC Parameter coverage
-
-N/A
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
+```
 
 ## Minimum DUT platform requirement
 
