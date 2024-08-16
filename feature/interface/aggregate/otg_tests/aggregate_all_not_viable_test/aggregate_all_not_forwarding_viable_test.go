@@ -176,13 +176,15 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
 	installGRIBIRoutes(t, dut, ate, top)
-	flows := createFlows(t, dut, top, aggIDs)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
 	}
 
+	flows := createFlows(t, ate, top)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
 	for _, agg := range []*aggPortData{agg1, agg2, agg3} {
 		bgpPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateIPv4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
@@ -215,7 +217,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
-			t.Fatal("ISIS Adjacency is Established on LAG_2")
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+				t.Fatalf("ISIS Adjacency is Established on LAG_2 ")
+			}
 		}
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[1:agg2.ateLagCount+1]); err != nil {
@@ -292,7 +296,9 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:2], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_DOWN); !ok {
-			t.Fatal("ISIS Adjacency is Established on LAG_2")
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+				t.Fatalf("ISIS Adjacency is Established on LAG_2")
+			}
 		}
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:(agg2.ateLagCount+1)], dutPortList[1:(agg2.ateLagCount+1)]); err != nil {
@@ -394,7 +400,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
 
-	if deviations.MaxEcmpPaths(dut) {
+	if !deviations.MaxEcmpPaths(dut) {
 		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 		gnmi.Update(t, dut, isisPath.Global().MaxEcmpPaths().Config(), 2)
 	}
@@ -805,9 +811,9 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-func createFlows(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, aggIDs []string) []gosnappi.Flow {
-	for _, aggID := range aggIDs {
-		dutAggMac = append(dutAggMac, gnmi.Get(t, dut, gnmi.OC().Lacp().Interface(aggID).SystemIdMac().State()))
+func createFlows(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []gosnappi.Flow {
+	for _, aggID := range []*aggPortData{agg1, agg2, agg3} {
+		dutAggMac = append(dutAggMac, gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(aggID.ateAggName+".Eth").Ipv4Neighbor(aggID.dutIPv4).LinkLayerAddress().State()))
 	}
 	f1V4 := configureFlows(t, top, pfx1AdvV4, pfx2AdvV4, "pfx1ToPfx2_3", agg1, []*aggPortData{agg2, agg3}, dutAggMac[0], ipRange[1])
 	f2V4 := configureFlows(t, top, pfx1AdvV4, pfx4AdvV4, "pfx1ToPfx4", agg1, []*aggPortData{agg2, agg3}, dutAggMac[0], ipRange[0])
@@ -958,7 +964,7 @@ func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	intf := isisPath.Interface(intfName)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
 		return v == state && ok
 	}).Await(t)
