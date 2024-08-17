@@ -273,7 +273,13 @@ test: {
 }
 test: {
   id: "IC-1"
-  description: "Integrated Circuit Utilization and Thresholds"
+  description: "Test aggregate drop counters for control-plane traffic"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "IC-1.1"
+  description: "Test different drop counters for data-plane traffic"
   readme: ""
   exec: " "
 }
