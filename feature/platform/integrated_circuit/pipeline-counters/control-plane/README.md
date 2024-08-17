@@ -37,5 +37,5 @@ paths:
 rpcs:
   gnmi:
     gNMI.Subscribe:
-      on_change: true
+      sample_interval: 5000000000
 ```
