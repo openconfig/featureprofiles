@@ -126,6 +126,11 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 
 	fc := (len(fabrics) / 2) + 1
 	for _, f := range fabrics[:fc] {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Fabric Component %s is empty, hence skipping", f)
+			continue
+		}
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
@@ -134,6 +139,11 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 	ts2, tocs2, apct2 := getBackplaneCapacityCounters(t, dut, ics)
 
 	for _, f := range fabrics[:fc] {
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Fabric Component %s is empty, hence skipping", f)
+			continue
+		}
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
