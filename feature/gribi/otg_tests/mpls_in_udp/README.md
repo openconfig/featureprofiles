@@ -143,7 +143,7 @@ network_instances: {
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
 
-### TE-18.1.2 Validate prefix match rule for MPLS in UDP encap using default route
+### TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
 
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
 encapsulate in GRE.
@@ -178,6 +178,7 @@ openconfig-network-instance:
                             destination-ip: "outer_ipv6_dst_def"
                             ip-ttl: outer_ip-ttl
                             dscp: outer_dscp
+                            inner-ttl-min: 2
 ```
 
 * Generate the policy forwarding configuration
@@ -186,127 +187,7 @@ openconfig-network-instance:
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-### TE-18.1.3 Policer attached to interface via gNMI
-
-* Generate config for 2 scheduler polices with an input rate limit.  Apply
-  to DUT port 1.
-* Generate config for 2 classifiers which match on next-hop-group.
-* Generate config for 2 input policies which map the scheduler and classifers
-  together.
-* Generate config for applying the input policies to a vlan.
-* Use gnmi.Replace to push the config to the DUT.
-
-```yaml
----
-openconfig-qos:
-  scheduler-policies:
-    - scheduler-policy: "limit_2Gb"
-      config:
-        name: "limit_2Gb"
-      schedulers:
-        - scheduler: 0
-          config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
-          one-rate-two-color:
-            config:
-              cir: 2000000000           # 2Gbit/sec
-              bc: 100000                 # 100 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
-
-    - scheduler-policy: "limit_1Gb"
-      config:
-        name: "limit_1Gb"
-      schedulers:
-        - scheduler: 0
-          config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
-          one-rate-two-color:
-            config:
-              cir: 1000000000           # 1Gbit/sec
-              bc: 100000                # 100 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
-  classifers:
-    - classifer: “dest_A”
-      config:
-        name: “dest_A”
-      terms:
-        - term:   # repeated for address in destination A
-          config:
-            id: "match_1_dest_A"
-          conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-    - classifer: “dest_B”
-      config:
-        name: “dest_B”
-      terms:
-        - term:
-          config:
-            id: "match_1_dest_B"
-          conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-
-  input-policies:       # new OC subtree input-policies (/qos/input-policies)
-    - input-policy: "limit_group_A_2Gb"
-      config:
-        name: "limit_group_A_2Gb"
-        classifer: "dest_A"
-        scheduler-policy: "limit_2Gb"
-    - input-policy: "limit_dest_group_B_1Gb"
-      config:
-        name: "limit_dest_group_B_1Gb"
-        classifer: "dest_B"
-        scheduler-policy: "limit_1Gb"
-
-  interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
-        config:
-          subinterface: 100
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_A_2Gb
-        ]
-  interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
-        config:
-          subinterface: 200
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_B_1Gb
-        ]
-
-```
-
-* Send traffic
-  * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
-  * Send traffic from ATE port 1 to DUT for to dest_B and is conforming to
-    cir.
-  * Validate packets are received by ATE port 2.
-    * Validate qos interface scheduler counters
-    * Validate afts next hop counters
-  * Validate outer packet ipv6 flow label assignment
-    * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
-      * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
-      * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
-  * Increase traffic on flow to dest_B to 2Gbps
-    * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
-
-### TE-18.1.4 - Decapsulation set by gRIBI
+### TE-18.1.3 - Decapsulation set by gRIBI
 
 This gRIBI content is used to perform MPLS in UDP decapsulation.
 
@@ -351,10 +232,107 @@ network_instances {
 }
 ```
 
+* Push the gRIBIB the policy forwarding configuration
+* Push the configuration to DUT using gnmi.Set with REPLACE option
+* Configure ATE port 1 with traffic flow which does not match any AFT next hop route
+* Generate traffic from ATE port 1 to ATE port 2
+* Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
+
 ### TE-18.1.5 Rewrite inner packet TTL=2 if inner TTL=1
 
-* The DUT must re-write the ingress, innner packet TLL = 2, if the
-  incoming TTL = 1.
+* Perform mpls-in-udp encapsulation, but add a condition that the DUT must
+  re-write the ingress, innner packet TLL = 2, if the incoming TTL = 1.
+
+```proto
+network_instances: {
+  network_instance: {
+    afts {
+      #
+      # entries used for "group_A"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_id: "nhg_A"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          id: 100
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 100
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 100
+          network_instance: "group_A"
+          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
+          mpls_in_udp {
+            src_ip: "outer_ipv6_src"
+            dst_ip: "outer_ipv6_dst_A"
+            pushed_mpls_label_stack: [100,]
+            dst_udp_port: "outer_dst_udp_port"
+            ip_ttl: "outer_ip-ttl"
+            inner_ip_ttl_min: 2
+            dscp: "outer_dscp"
+          }
+        }
+      }
+      #
+      # entries used for "group_B"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_B"
+          next_hop_group: 200
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_B"
+          next_hop_group: 200
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          id: 200
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
+          mpls_in_udp {
+            src_ip: "outer_ipv6_src"
+            dst_ip: "outer_ipv6_dst_B"
+            pushed_mpls_label_stack: [200,]
+            dst_udp_port: "outer_dst_udp_port"
+            ip_ttl: "outer_ip-ttl"
+            inner_ip_ttl_min: 2
+            dscp: "outer_dscp"
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 #### OpenConfig Path and RPC Coverage
 
