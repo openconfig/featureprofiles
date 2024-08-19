@@ -1,4 +1,4 @@
-# TE-18.3 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# TE-18.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
 
 ## Summary
 
