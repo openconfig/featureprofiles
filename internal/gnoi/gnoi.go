@@ -71,8 +71,17 @@ const (
 	ROUTING Daemon = "ROUTING"
 )
 
+// signal type of termination request
+const (
+	SIG_TERM       = spb.KillProcessRequest_SIGNAL_TERM
+	SIG_KILL       = spb.KillProcessRequest_SIGNAL_KILL
+	SIG_HUP        = spb.KillProcessRequest_SIGNAL_HUP
+	SIG_ABORT      = spb.KillProcessRequest_SIGNAL_ABRT
+	SIG_UNSPECIFED = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
+)
+
 // KillProcess terminates the daemon on the DUT.
-func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRestart bool) {
+func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, signal spb.KillProcessRequest_Signal, restart bool, waitForRestart bool) {
 	t.Helper()
 
 	daemonName, err := FetchProcessName(dut, daemon)
@@ -86,10 +95,10 @@ func KillProcess(t *testing.T, dut *ondatra.DUTDevice, daemon Daemon, waitForRes
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	killProcessRequest := &spb.KillProcessRequest{
-		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
+		Signal:  signal,
 		Name:    daemonName,
 		Pid:     uint32(pid),
-		Restart: true,
+		Restart: restart,
 	}
 	gnoiClient.System().KillProcess(context.Background(), killProcessRequest)
 
