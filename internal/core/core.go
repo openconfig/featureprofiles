@@ -20,6 +20,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sync"
@@ -212,7 +213,7 @@ func registerAfter(_ *eventlis.AfterTestsEvent) error {
 	glog.Infof(msg)
 	ondatra.Report().AddSuiteProperty("validator.core.end", report)
 	if foundCores {
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 	return nil
 }

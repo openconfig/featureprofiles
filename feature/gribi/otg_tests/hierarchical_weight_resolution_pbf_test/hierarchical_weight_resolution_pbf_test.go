@@ -295,7 +295,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Replace(t, d, intfPath.Config(), i)
+	gnmi.Update(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
