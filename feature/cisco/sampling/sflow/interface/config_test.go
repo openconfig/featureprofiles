@@ -116,6 +116,11 @@ func TestNameAtContainer(t *testing.T) {
 	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
+	interfaceName := "FourHundredGigE0/0/0/0"
+	var subInterfaceNumber uint32 = 1
+	t.Logf("Configuring subinterface:%v in Intf %v", subInterfaceNumber, interfaceName)
+	configureSubInterface(t, dut, interfaceName, subInterfaceNumber)
+
 	for _, input := range testNameInput {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/interfaces/interface/config/name using value %v", input), func(t *testing.T) {
 			baseConfigSflow := baseConfig.Sflow

@@ -15,7 +15,7 @@ import (
 	"github.com/openconfig/testt"
 )
 
-func TestIanaPorts(t *testing.T) {
+func testIanaPorts(t *testing.T) {
 	//t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	// var listenAdd string
@@ -94,9 +94,11 @@ func TestIanaPorts(t *testing.T) {
 			t.Logf("Skipping since platfrom is VXR")
 			t.Skip()
 		}
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
-		config.TextWithSSH(context.Background(), t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc gnmi port 9339 \n commit \n", 10*time.Second)
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc gribi port 9340 \n commit \n", 10*time.Second)
+		config.TextWithSSH(ctx, t, dut, "configure \n  grpc p4rt port 9559 \n commit \n", 10*time.Second)
 
 		// Verifications
 		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())

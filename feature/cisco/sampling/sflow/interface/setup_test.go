@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -44,4 +45,13 @@ func setupSampling(t *testing.T, dut *ondatra.DUTDevice) *oc.Sampling {
 
 func teardownSampling(t *testing.T, dut *ondatra.DUTDevice, baseConfig *oc.Sampling) {
 	gnmi.Delete(t, dut, gnmi.OC().Sampling().Config())
+}
+
+func configureSubInterface(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, subint uint32) {
+	intf := &oc.Interface{Name: ygot.String(interfaceName)}
+	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	intf.Enabled = ygot.Bool(true)
+	intf.GetOrCreateSubinterface(subint).SetEnabled(true)
+	path := gnmi.OC().Interface(interfaceName)
+	gnmi.Update(t, dut, path.Config(), intf)
 }
