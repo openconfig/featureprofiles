@@ -52,19 +52,26 @@ func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int
 
 // setBulkperNPHashConfig configures per NP hash-rotate value for a list of LCs with
 // cef platform load-balancing algorithm adjust <> instance <> location <>.
-func setBulkPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, lcs []string, unconfig bool) {
-	t.Helper()
+func setBulkPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, lcs []string, unconfig bool) map[string][]int {
 	var configCli string
-
+	hashValMap := make(map[string][]int)
 	for _, lcLoc := range lcs {
 		for _, npVal := range []int{0, 1, 2} {
+			npHash := rand.Intn(34) + 1 //Random value between 1-35
 			if unconfig {
 				configCli = configCli + "no "
+			} else {
+				// populate hashValMap only when configuring, that is used for verification in caller function.
+				hashValMap[lcLoc] = append(hashValMap[lcLoc], npHash)
 			}
-			configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v\n", rand.Intn(35), npVal, lcLoc)
+			configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v\n", npHash, npVal, lcLoc)
 		}
 	}
 	config.TextWithGNMI(context.Background(), t, dut, configCli)
+	if unconfig {
+		return nil
+	}
+	return hashValMap
 }
 
 // setGlobalNPHashConfig configures per NP hash-rotate value for an LC with

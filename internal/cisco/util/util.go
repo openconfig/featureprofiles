@@ -19,13 +19,17 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygot/ytypes"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -587,4 +591,111 @@ func StringToInt(t *testing.T, intString string) int {
 		t.Fatalf("error in int conversion %v", err)
 	}
 	return intVal
+}
+
+// ReloadLinecards reloads linecards, passed as list in the argument, on the device.
+func ReloadLinecards(t *testing.T, lcList []string) {
+	const linecardBoottime = 5 * time.Minute
+	dut := ondatra.DUT(t, "dut")
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	rebootSubComponentRequest := &spb.RebootRequest{
+		Method:        spb.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{},
+	}
+
+	req := &spb.RebootStatusRequest{
+		Subcomponents: []*tpb.Path{},
+	}
+
+	for _, lc := range lcList {
+		rebootSubComponentRequest.Subcomponents = append(rebootSubComponentRequest.Subcomponents, components.GetSubcomponentPath(lc, false))
+		req.Subcomponents = append(req.Subcomponents, components.GetSubcomponentPath(lc, false))
+	}
+
+	t.Logf("Reloading linecards: %v", lcList)
+	startTime := time.Now()
+	_, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+
+	rebootDeadline := startTime.Add(linecardBoottime)
+	for retry := true; retry; {
+		t.Log("Waiting for 10 seconds before checking linecard status.")
+		time.Sleep(10 * time.Second)
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			t.Fatalf("Unimplemented RebootStatus RPC: %v", err)
+		case err == nil:
+			retry = resp.GetActive()
+		default:
+			// any other error just sleep.
+		}
+	}
+	t.Logf("It took %v minutes to reboot linecards.", time.Now().Sub(startTime).Minutes())
+}
+
+// RebootDevice reboots the device gracefully and waits for the device to come back up.
+func RebootDevice(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	const (
+		// Delay to allow router complete system backup and start rebooting
+		pollingDelay = 180 * time.Second
+		// Maximum reboot time is 900 seconds (15 minutes).
+		maxRebootTime = 900
+	)
+
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Message: "Reboot chassis with cold method gracefully",
+		Force:   false,
+	}
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+	if err != nil {
+		t.Fatalf("Failed parsing current-datetime: %s", err)
+	}
+
+	t.Logf("Send reboot request: %v", rebootRequest)
+	startReboot := time.Now()
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+	t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	t.Logf("Wait for the device to gracefully complete system backup and start rebooting.")
+	time.Sleep(pollingDelay)
+
+	t.Logf("Check if router has booted by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }
