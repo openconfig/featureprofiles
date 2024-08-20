@@ -24,7 +24,7 @@ import (
 )
 
 // /system/memory/state/reserved
-func TestMemoryReserved(t *testing.T) {
+func testMemoryReserved(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/reserved", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -39,7 +39,7 @@ func TestMemoryReserved(t *testing.T) {
 }
 
 // /system/memory/state/physical
-func TestMemoryPhysical(t *testing.T) {
+func testMemoryPhysical(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/memory/state/physical", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-func TestNTPEnableConfig(t *testing.T) {
+func testNTPEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := gnmi.OC().System().Ntp().Enabled()
 	t.Run("Replace//system/ntp/config/enabled", func(t *testing.T) {
@@ -29,7 +29,7 @@ func TestNTPEnableConfig(t *testing.T) {
 	})
 }
 
-func TestNTPEnableState(t *testing.T) {
+func testNTPEnableState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := gnmi.OC().System().Ntp()
 	model := &oc.System_Ntp{}

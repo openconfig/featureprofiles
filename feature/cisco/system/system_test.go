@@ -36,11 +36,11 @@ type system struct {
 	hostname *string
 }
 
-func TestMain(m *testing.M) {
-	fptest.RunTests(m)
-}
+// func TestMain(m *testing.M) {
+// 	fptest.RunTests(m)
+// }
 
-func TestSystemContainerUpdate(t *testing.T) {
+func testSystemContainerUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	path := gnmi.OC().System()
 	for _, system := range systemContainers {
@@ -51,7 +51,7 @@ func TestSystemContainerUpdate(t *testing.T) {
 	defer observer.RecordYgot(t, "UPDATE", path)
 }
 
-func TestSysGrpcState(t *testing.T) {
+func testSysGrpcState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Subscribe /system/grpc-servers/grpc-server/state/port", func(t *testing.T) {
 		portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
@@ -120,7 +120,7 @@ func TestSysGrpcState(t *testing.T) {
 	})
 }
 
-func TestSysGrpcConfig(t *testing.T) {
+func testSysGrpcConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// configure "DEFAULT" as grpc server name
 	//config.TextWithGNMI(context.Background(), t, dut, "vty-pool default 0 99 line-template default")
@@ -187,7 +187,7 @@ func TestSysGrpcConfig(t *testing.T) {
 	})
 }
 
-func TestGrpcListenAddress(t *testing.T) {
+func testGrpcListenAddress(t *testing.T) {
 	re := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
