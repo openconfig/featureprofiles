@@ -95,7 +95,7 @@ const (
 	ipv4EntryPrefixLen = 24
 	ipv6FlowIP         = "2015:aa8::1"
 	ipv6EntryPrefix    = "2015:aa8::"
-	ipv6EntryPrefixLen = 32
+	ipv6EntryPrefixLen = 64
 	ratioTunEncap1     = 0.25 // 1/4
 	ratioTunEncap2     = 0.75 // 3/4
 	ratioTunEncapTol   = 0.05 // 5/100
@@ -364,7 +364,7 @@ func TestBasicEncap(t *testing.T) {
 	}{
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -372,7 +372,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -380,7 +380,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:  fmt.Sprintf("Test3 IPinIP Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows: []gosnappi.Flow{faIPinIP.getFlow("ipv4in4", "ip4in4a1", dscpEncapA1),
 				faIPinIP.getFlow("ipv6in4", "ip6in4a1", dscpEncapA1),
 			},
@@ -390,7 +390,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4nm", dscpEncapNoMatch)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
@@ -791,7 +791,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	for idx, a := range []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4, dutPort5} {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO {
+		if p.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
 			e := intf.GetOrCreateEthernet()
 			e.AutoNegotiate = ygot.Bool(false)
 			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -918,6 +918,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV4 := flow.Packet().Add().Ipv4()
 			innerV4.Src().SetValue(innerV4SrcIP)
 			innerV4.Dst().SetValue(innerV4DstIP)
+			innerV4.Priority().Dscp().Phb().SetValue(dscp)
 		}
 
 		// add inner ipv6 headers
@@ -925,6 +926,7 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 			innerV6 := flow.Packet().Add().Ipv6()
 			innerV6.Src().SetValue(InnerV6SrcIP)
 			innerV6.Dst().SetValue(InnerV6DstIP)
+			innerV6.TrafficClass().SetValue(dscp << 2)
 		}
 	} else if flowType == "ipv6" {
 		v6 := flow.Packet().Add().Ipv6()
@@ -945,8 +947,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg := args.ate.OTG()
 	args.topo.Flows().Clear().Items()
 	args.topo.Flows().Append(flows...)
+
 	otg.PushConfig(t, args.topo)
 	otg.StartProtocols(t)
+
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv4")
+	otgutils.WaitForARP(t, args.ate.OTG(), args.topo, "IPv6")
+
 	if capture {
 		startCapture(t, args.ate)
 		defer stopCapture(t, args.ate)

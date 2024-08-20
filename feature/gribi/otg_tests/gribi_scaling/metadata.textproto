@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     interface_ref_interface_id_format: true
+    override_default_nh_scale: true
   }
 }
 platform_exceptions: {
@@ -20,7 +21,6 @@ platform_exceptions: {
   }
   deviations: {
     no_mix_of_tagged_and_untagged_subinterfaces: true
-    explicit_interface_ref_definition: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -40,7 +40,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    deprecated_vlan_id: true
     interface_enabled: true
     default_network_instance: "default"
     omit_l2_mtu: true
