@@ -27,8 +27,10 @@ import (
 const (
 	successUsername = "acctztestuser"
 	successPassword = "verysecurepassword"
+	successRoleName = "acctz-fp-test-success"
 	failUsername    = "bilbo"
 	failPassword    = "baggins"
+	failRoleName    = "acctz-fp-test-fail"
 	command         = "show version"
 	failCommand     = "show version"
 	shellCommand    = "uname -a"
@@ -49,8 +51,7 @@ type rpcRecord struct {
 	expectedAuthenStatus acctz.AuthnDetail_AuthnStatus
 	expectedAuthenCause  string
 	expectedIdentity     string
-	// see note in test, will be needed in the future
-	// expectedRole         string
+	expectedRole         string
 }
 
 type recordRequestResult struct {
@@ -63,12 +64,9 @@ func TestMain(m *testing.M) {
 }
 
 func createNativeRole(t testing.TB, dut *ondatra.DUTDevice) {
-	t.Helper()
+	var SetRequest *gpb.SetRequest
 	switch dut.Vendor() {
 	case ondatra.NOKIA:
-		successRoleName := "acctz-fp-test-success"
-		failRoleName := "acctz-fp-test-fail"
-
 		successRoleData, err := json.Marshal([]any{
 			map[string]any{
 				"services": []string{"cli"},
@@ -110,7 +108,7 @@ func createNativeRole(t testing.TB, dut *ondatra.DUTDevice) {
 			t.Fatalf("Error with json Marshal: %v", err)
 		}
 
-		SetRequest := &gpb.SetRequest{
+		SetRequest = &gpb.SetRequest{
 			Prefix: &gpb.Path{
 				Origin: "native",
 			},
@@ -177,12 +175,12 @@ func createNativeRole(t testing.TB, dut *ondatra.DUTDevice) {
 				},
 			},
 		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
 	default:
 		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+		t.Fatalf("Unexpected error configuring User: %v", err)
 	}
 }
 
@@ -291,8 +289,8 @@ func sendCLICommand(t *testing.T, addr string, port uint32) []rpcRecord {
 
 	time.Sleep(time.Second)
 
-	// of course this may not work for other vendors so probably we can have a switch here and pass
-	// the writer to func per vendor if neeeded
+	// this might not work for other vendors, so probably we can have a switch here and pass
+	// the writer to func per vendor if needed
 	_, err := w.Write([]byte(fmt.Sprintf("%s\n", command)))
 	if err != nil {
 		t.Fatalf("failed sending cli command, error: %s", err)
@@ -323,6 +321,7 @@ func sendCLICommand(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
+		expectedRole:         successRoleName,
 	})
 
 	return records
@@ -376,6 +375,7 @@ func sendCLICommandFail(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     failUsername,
+		expectedRole:         failRoleName,
 	})
 
 	return records
@@ -387,7 +387,8 @@ func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, addr string, port ui
 	shellUsername := successUsername
 	shellPassword := successPassword
 
-	if dut.Vendor() == ondatra.NOKIA {
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
 		// assuming linuxadmin is present and ssh'ing directly via this user gets us to shell
 		// straight away so this is easy button to trigger a shell record
 		shellUsername = "linuxadmin"
@@ -407,7 +408,7 @@ func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, addr string, port ui
 
 	startTime := time.Now()
 
-	// of course this may not work for other vendors so probably we can have a switch here and pass
+	// this might not work for other vendors, so probably we can have a switch here and pass
 	// the writer to func per vendor if needed
 	_, err := w.Write([]byte(fmt.Sprintf("%s\n", shellCommand)))
 	if err != nil {
@@ -471,19 +472,19 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	// https://github.com/openconfig/featureprofiles/issues/2637
 	// basically, just waiting to see what the "best"/"preferred" way is to get the v4/v6 of the
-	// dut -- for now we use this hacky work around because ssh isnt exposed in introspection anyway
+	// dut -- for now we use this hacky work around because ssh isn't exposed in introspection anyway
 	// so... we get what we can get.
 	addr := getDutAddr(t, dut)
 
 	var records []rpcRecord
 
-	// put enough time between the test starting a nd any prior events so we can easily know where
+	// put enough time between the test starting and any prior events so we can easily know where
 	// our records start
 	time.Sleep(5 * time.Second)
 
 	startTime := time.Now()
 
-	// suppose ssh could be not 22 in some cases but dont think this is exposed by introspect
+	// suppose ssh could be not 22 in some cases but don't think this is exposed by introspect
 	newRecords := sendCLICommand(t, addr, 22)
 	records = append(records, newRecords...)
 
@@ -582,7 +583,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
 		// some task ids may be tracked multiple times (for start/stop accounting). if we see two in
-		// a row that are the same task we know this is whats up and we can skip this record and
+		// a row that are the same task we know this is what's up and we can skip this record and
 		// continue
 		currentTaskID := resp.record.TaskIds[0]
 		if currentTaskID == lastTaskID {
@@ -592,18 +593,18 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		lastTaskID = currentTaskID
 
 		// -2 for a little breathing room since things may not be perfectly synced up time-wise
-		if records[recordIdx].startTime.Unix() < timestamp.Unix()-2 {
+		if records[recordIdx].startTime.Unix() > timestamp.Unix() {
 			t.Fatalf(
 				"record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d",
 				records[recordIdx].startTime.Unix(),
-				timestamp.Unix()-2,
+				timestamp.Unix(),
 			)
 		}
 
 		// done time (that we recorded when making the rpc) + 2 second for some breathing room
 		if records[recordIdx].doneTime.Unix()+2 < timestamp.Unix() {
 			t.Fatalf(
-				"record timestamp is after rpc start end timestamp, rpc end timestamp %d, record timestamp %d",
+				"record timestamp is after rpc end timestamp, rpc end timestamp %d, record timestamp %d",
 				records[recordIdx].doneTime.Unix()+2,
 				timestamp.Unix(),
 			)
@@ -625,7 +626,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// this channel check maybe should just go away entirely -- see:
 		// https://github.com/openconfig/gnsi/issues/98
 		// in case of nokia this is being set to the aaa session id just to have some hopefully
-		// useful info in this field to identify a "session" (even if it isnt necessarily ssh/grpc
+		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly)
 		if !records[recordIdx].succeeded {
 			if channelID != "aaa_session_id: 0" {
@@ -661,17 +662,16 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		}
 
 		if !records[recordIdx].succeeded {
-			// not a successful rpc so dont need to check anything else
+			// not a successful rpc so don't need to check anything else
 			recordIdx++
 
 			continue
 		}
 
-		t.Log("skipping 'role' check until ondatra and vendors catch up to jan2024 proto update...")
-		//role := resp.record.GetSessionInfo().GetUser().GetGroup()
-		//if records[recordIdx].expectedRole != role {
-		//	t.Fatalf("role not correct, got %q, want %q", role, records[recordIdx].expectedRole)
-		//}
+		role := resp.record.GetSessionInfo().GetUser().GetRole()
+		if records[recordIdx].expectedRole != role {
+			t.Fatalf("role not correct, got %q, want %q", role, records[recordIdx].expectedRole)
+		}
 
 		// verify the l4 bits align, this stuff is only set if auth is successful so do it down here
 		localAddr := resp.record.GetSessionInfo().GetLocalAddress()
