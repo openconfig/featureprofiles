@@ -768,19 +768,18 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
-		// -2 for a little breathing room since things may not be perfectly synced up time-wise
-		if records[recordIdx].startTime.Unix() < timestamp.Unix()-2 {
+		if records[recordIdx].startTime.Unix() > timestamp.Unix() {
 			t.Fatalf(
 				"record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d",
 				records[recordIdx].startTime.Unix(),
-				timestamp.Unix()-2,
+				timestamp.Unix(),
 			)
 		}
 
 		// done time (that we recorded when making the rpc) + 2 second for some breathing room
 		if records[recordIdx].doneTime.Unix()+2 < timestamp.Unix() {
 			t.Fatalf(
-				"record timestamp is after rpc start end timestamp, rpc end timestamp %d, record timestamp %d",
+				"record timestamp is after rpc end timestamp, rpc end timestamp %d, record timestamp %d",
 				records[recordIdx].doneTime.Unix()+2,
 				timestamp.Unix(),
 			)
