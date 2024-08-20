@@ -102,7 +102,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		grpcServiceRecord := resp.record.GetGrpcService()
 
 		if grpcServiceRecord.GetServiceType() != acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI {
-			// not our gnmi set, nothin to see here
+			// not our gnmi set, nothing to see here
 			continue
 		}
 
