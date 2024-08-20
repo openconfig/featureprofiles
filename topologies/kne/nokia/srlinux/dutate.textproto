@@ -1,8 +1,10 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
 name: "nokia-srlinux-dutate"
 nodes: {
     name: "dut"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"

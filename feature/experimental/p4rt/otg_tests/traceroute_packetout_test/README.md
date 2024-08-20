@@ -50,13 +50,23 @@ setting must not be interpreted as the actual egress port id.
 *   Validate:
 
     *   Traffic received over the appropriate ATE port.
+## OpenConfig Path and RPC Coverage
 
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
-## Protocol/RPC Parameter Coverage
+```yaml
+paths:
+  # config paths
+  /interfaces/interface/config/id:
+  /components/component/integrated-circuit/config/node-id:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  # state paths 
+  /interfaces/interface/state/id:
+  /components/component/integrated-circuit/state/node-id:
+    platform_type: ["INTEGRATED_CIRCUIT"]
 
-*  No new configuration covered.
-
-
-## Telemetry Parameter Coverage
-
-*  No new telemetry covered.
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
