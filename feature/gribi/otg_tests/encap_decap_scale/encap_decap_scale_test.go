@@ -457,46 +457,43 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	t.Helper()
 
 	flow1 := createFlow(&flowArgs{flowName: "flow1", isInnHdrV4: true,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: []uint32{dscpEncapA1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapA1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfAIPv4Enries, inHdrDscp: dscpEncapA1,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapA1,
 	})
 
 	flow2 := createFlow(&flowArgs{flowName: "flow2", isInnHdrV4: true,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfBIPv4Enries, inHdrDscp: []uint32{dscpEncapB1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapB1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfBIPv4Enries, inHdrDscp: dscpEncapB1,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapB1,
 	})
 
 	flow3 := createFlow(&flowArgs{flowName: "flow3", isInnHdrV4: true,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfCIPv4Enries, inHdrDscp: []uint32{dscpEncapC1},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapC1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfCIPv4Enries, inHdrDscp: dscpEncapC1,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapC1,
 	})
 
 	flow4 := createFlow(&flowArgs{flowName: "flow4", isInnHdrV4: true,
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: []uint32{dscpEncapD1},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapD1},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: encapVrfDIPv4Enries, inHdrDscp: dscpEncapD1,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapD1,
 	})
 
-	// Below v6 flows will fail due to ixia issue.
-	// https://github.com/open-traffic-generator/fp-testbed-juniper/issues/49
-
 	flow5 := createFlow(&flowArgs{flowName: "flow5", isInnHdrV4: false,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: []uint32{dscpEncapA2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapA2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfAIPv6Enries, inHdrDscp: dscpEncapA2,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapA2,
 	})
 
 	flow6 := createFlow(&flowArgs{flowName: "flow6", isInnHdrV4: false,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfBIPv6Enries, inHdrDscp: []uint32{dscpEncapB2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapB2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfBIPv6Enries, inHdrDscp: dscpEncapB2,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapB2,
 	})
 
 	flow7 := createFlow(&flowArgs{flowName: "flow7", isInnHdrV4: false,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfCIPv6Enries, inHdrDscp: []uint32{dscpEncapC2},
-		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapC2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfCIPv6Enries, inHdrDscp: dscpEncapC2,
+		outHdrSrcIP: ipv4OuterSrc111, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapC2,
 	})
 
 	flow8 := createFlow(&flowArgs{flowName: "flow8", isInnHdrV4: false,
-		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfDIPv6Enries, inHdrDscp: []uint32{dscpEncapD2},
-		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: []uint32{dscpEncapD2},
+		InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: encapVrfDIPv6Enries, inHdrDscp: dscpEncapD2,
+		outHdrSrcIP: ipv4OuterSrc222, outHdrDstIPs: decapEntries, outHdrDscp: dscpEncapD2,
 	})
 
 	flowList := []gosnappi.Flow{flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8}
@@ -507,6 +504,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	}
 
 	args.ate.OTG().PushConfig(t, args.top)
+	time.Sleep(30 * time.Second)
 	args.ate.OTG().StartProtocols(t)
 	// wait for glean adjacencies to be resolved
 	time.Sleep(240 * time.Second)
@@ -599,7 +597,8 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string) 
 func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, prefix string) {
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
-			WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP),
+			WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP).
+			WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut)),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 			WithID(nhgIndex).AddNextHop(nhIndex, 1),
 		fluent.IPv4Entry().WithNetworkInstance(niDecapTeVrf).
@@ -617,8 +616,8 @@ type flowArgs struct {
 	InnHdrSrcIPv6 string
 	InnHdrDstIPv6 []string
 	isInnHdrV4    bool
-	outHdrDscp    []uint32
-	inHdrDscp     []uint32
+	outHdrDscp    uint32
+	inHdrDscp     uint32
 }
 
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
@@ -638,22 +637,18 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIPHdr := flow.Packet().Add().Ipv4()
 	outerIPHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIPHdr.Dst().SetValues(flowValues.outHdrDstIPs)
-	outerIPHdr.Priority().Dscp().Phb().SetValues(flowValues.outHdrDscp)
+	outerIPHdr.Priority().Dscp().Phb().SetValue(flowValues.outHdrDscp)
 
 	if flowValues.isInnHdrV4 {
 		innerIPHdr := flow.Packet().Add().Ipv4()
 		innerIPHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 		innerIPHdr.Dst().SetValues(flowValues.InnHdrDstIP)
-		if len(flowValues.inHdrDscp) != 0 {
-			innerIPHdr.Priority().Dscp().Phb().SetValues(flowValues.inHdrDscp)
-		}
+		innerIPHdr.Priority().Dscp().Phb().SetValue(flowValues.inHdrDscp)
 	} else {
 		innerIpv6Hdr := flow.Packet().Add().Ipv6()
 		innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 		innerIpv6Hdr.Dst().SetValues(flowValues.InnHdrDstIPv6)
-		if len(flowValues.inHdrDscp) != 0 {
-			innerIpv6Hdr.TrafficClass().SetValues(flowValues.inHdrDscp)
-		}
+		innerIpv6Hdr.TrafficClass().SetValue(flowValues.inHdrDscp << 2)
 	}
 	return flow
 }
@@ -791,7 +786,7 @@ func configureInterfaceDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dut
 func createSubifDUT(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr string, ipv4SubintfPrefixLen int) *oc.Interface_Subinterface {
 	i := d.GetOrCreateInterface(dutPort.Name())
 	s := i.GetOrCreateSubinterface(index)
-	if vlanID != 0 && index != 0 {
+	if vlanID != 0 {
 		if deviations.DeprecatedVlanID(dut) {
 			s.GetOrCreateVlan().VlanId = oc.UnionUint16(vlanID)
 		} else {

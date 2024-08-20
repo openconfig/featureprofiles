@@ -225,14 +225,14 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			fn:   testBaseHierarchialNHG,
 		},
 		{
-			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
-			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
-			fn:   testBaseHierarchialNHGwithVrfPolW,
-		},
-		{
 			name: "testImplementDrain",
 			desc: "Usecase for Implementing Drain test",
 			fn:   testImplementDrain,
+		},
+		{
+			name: "testRecursiveIPv4EntrywithVRFSelectionPolW",
+			desc: "Usecase for NHG update in hierarchical resolution scenario with VRF Selection Policy W",
+			fn:   testBaseHierarchialNHGwithVrfPolW,
 		},
 	}
 	// Configure the gRIBI client
@@ -285,9 +285,14 @@ func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *
 	}
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 
+	// Remove interface from VRF-1.
+	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
+	p1 := args.dut.Port(t, "port1")
+	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
-	//Delete Policy-forwarding PolicyW from the ingress interface
+	// Delete Policy-forwarding PolicyW from the ingress interface
 	vrfpolicy.DeletePolicyForwarding(t, args.dut, "port1")
 }
 

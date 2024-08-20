@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/tools/internal/ocpaths"
 	"github.com/openconfig/featureprofiles/tools/internal/ocrpcs"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -77,6 +78,14 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+
+	if profile.GetSoftwareVersion() == "" {
+		log.Exitln("Software version must be specified")
+	}
+
+	if profile.GetHardwareName() == "" {
+		log.Exitln("HW name must be specified")
 	}
 
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {

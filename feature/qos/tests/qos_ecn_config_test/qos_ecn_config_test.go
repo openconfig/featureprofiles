@@ -302,46 +302,114 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 	dp := dut.Port(t, "port2")
 	queues := netutil.CommonTrafficQueues(t, dut)
 
+	ecnConfig := struct {
+		ecnEnabled                bool
+		dropEnabled               bool
+		minThreshold              uint64
+		maxThreshold              uint64
+		maxDropProbabilityPercent uint8
+		weight                    uint32
+	}{
+		ecnEnabled:                true,
+		dropEnabled:               false,
+		minThreshold:              uint64(80000),
+		maxThreshold:              uint64(80000),
+		maxDropProbabilityPercent: uint8(100),
+		weight:                    uint32(0),
+	}
+
+	queueMgmtProfile := q.GetOrCreateQueueManagementProfile("DropProfile")
+	queueMgmtProfile.SetName("DropProfile")
+	wred := queueMgmtProfile.GetOrCreateWred()
+	uniform := wred.GetOrCreateUniform()
+	uniform.SetEnableEcn(ecnConfig.ecnEnabled)
+	uniform.SetDrop(ecnConfig.dropEnabled)
+	wantMinThreshold := ecnConfig.minThreshold
+	wantMaxThreshold := ecnConfig.maxThreshold
+	if deviations.EcnSameMinMaxThresholdUnsupported(dut) {
+		wantMinThreshold = CiscoMinThreshold
+		wantMaxThreshold = CiscoMaxThreshold
+	}
+	uniform.SetMinThreshold(wantMinThreshold)
+	uniform.SetMaxThreshold(wantMaxThreshold)
+	uniform.SetMaxDropProbabilityPercent(ecnConfig.maxDropProbabilityPercent)
+	if !deviations.QosSetWeightConfigUnsupported(dut) {
+		uniform.SetWeight(ecnConfig.weight)
+	}
+
 	cases := []struct {
 		desc       string
 		queueName  string
 		ecnProfile string
 		scheduler  string
+		sequence   uint32
+		priority   oc.E_Scheduler_Priority
+		inputID    string
+		inputType  oc.E_Input_InputType
+		weight     uint64
 	}{{
 		desc:       "output-interface-BE1",
 		queueName:  queues.BE1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(1),
+		priority:   oc.Scheduler_Priority_UNSET,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(1),
 	}, {
 		desc:       "output-interface-BE0",
 		queueName:  queues.BE0,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(1),
+		priority:   oc.Scheduler_Priority_UNSET,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(4),
 	}, {
 		desc:       "output-interface-AF1",
 		queueName:  queues.AF1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(1),
+		priority:   oc.Scheduler_Priority_UNSET,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(8),
 	}, {
 		desc:       "output-interface-AF2",
 		queueName:  queues.AF2,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(1),
+		priority:   oc.Scheduler_Priority_UNSET,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(16),
 	}, {
 		desc:       "output-interface-AF3",
 		queueName:  queues.AF3,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(1),
+		priority:   oc.Scheduler_Priority_UNSET,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(32),
 	}, {
 		desc:       "output-interface-AF4",
 		queueName:  queues.AF4,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(0),
+		priority:   oc.Scheduler_Priority_STRICT,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(6),
 	}, {
 		desc:       "output-interface-NC1",
 		queueName:  queues.NC1,
 		ecnProfile: "DropProfile",
 		scheduler:  "scheduler",
+		sequence:   uint32(0),
+		priority:   oc.Scheduler_Priority_STRICT,
+		inputType:  oc.Input_InputType_QUEUE,
+		weight:     uint64(7),
 	}}
 
 	i := q.GetOrCreateInterface(dp.Name())
@@ -366,6 +434,14 @@ func testQoSOutputIntfConfig(t *testing.T, q *oc.Qos) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			qoscfg.SetForwardingGroup(t, dut, q, tc.queueName, tc.queueName)
+			s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+			s.SetSequence(tc.sequence)
+			s.SetPriority(tc.priority)
+			input := s.GetOrCreateInput(tc.queueName)
+			input.SetId(tc.queueName)
+			input.SetInputType(tc.inputType)
+			input.SetQueue(tc.queueName)
+			input.SetWeight(tc.weight)
 			output := i.GetOrCreateOutput()
 			schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 			schedulerPolicy.SetName(tc.scheduler)
