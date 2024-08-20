@@ -184,6 +184,7 @@ paths:
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/conditions/l2/config/destination-mac:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
