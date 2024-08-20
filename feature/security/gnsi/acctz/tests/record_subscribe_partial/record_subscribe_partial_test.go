@@ -36,6 +36,7 @@ import (
 const (
 	successUsername      = "acctztestuser"
 	successPassword      = "verysecurepassword"
+	userRole             = "acctz-fp-test"
 	failUsername         = "bilbo"
 	failPassword         = "baggins"
 	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
@@ -47,7 +48,7 @@ type rpcRecord struct {
 	doneTime             time.Time
 	rpcType              acctz.GrpcService_GrpcServiceType
 	rpcPath              string
-	rpcPayload           []string
+	rpcPayload           string
 	localIp              string
 	localPort            uint32
 	remoteIp             string
@@ -58,8 +59,7 @@ type rpcRecord struct {
 	expectedAuthenStatus acctz.AuthnDetail_AuthnStatus
 	expectedAuthenCause  string
 	expectedIdentity     string
-	// see note in test, will be needed in th future
-	//expectedRole         string
+	expectedRole         string
 }
 
 type recordRequestResult struct {
@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 }
 
 func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
-	t.Helper()
+	var SetRequest *gnmi.SetRequest
 	switch dut.Vendor() {
 	case ondatra.NOKIA:
 		roleData, err := json.Marshal([]any{
@@ -94,7 +94,7 @@ func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
 			t.Fatalf("Error with json Marshal: %v", err)
 		}
 
-		SetRequest := &gnmi.SetRequest{
+		SetRequest = &gnmi.SetRequest{
 			Prefix: &gnmi.Path{
 				Origin: "native",
 			},
@@ -141,12 +141,12 @@ func createNativeRole(t testing.TB, dut *ondatra.DUTDevice, role string) {
 				},
 			},
 		}
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring User: %v", err)
-		}
 	default:
 		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+		t.Fatalf("Unexpected error configuring User: %v", err)
 	}
 }
 
@@ -160,7 +160,7 @@ func setupUsers(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.SetNativeUser(dut) {
 		// probably all vendors need to handle this since the user should have a role attached to
 		// it allowing us to login via ssh/console/whatever
-		createNativeRole(t, dut, "acctz-fp-test")
+		createNativeRole(t, dut, userRole)
 	}
 }
 
@@ -229,7 +229,7 @@ func sendGNMIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 
 	startTime := time.Now()
 
-	// send a unsuccessful gnmi capabilities request (bad creds in context)
+	// send an unsuccessful gnmi capabilities request (bad creds in context)
 	_, err := gnmiClient.Capabilities(ctx, &gnmi.CapabilityRequest{})
 	if err != nil {
 		t.Logf("got expected error getting capabilities with no creds, error: %s", err)
@@ -268,7 +268,7 @@ func sendGNMIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		t.Fatalf("error fetching capabilities, error: %s", err)
 	}
 
-	// remote from the perspective of the router :)
+	// remote from the perspective of the router
 	// assuming that split/atoi will always work since we know we're fatal'ing out of the dial
 	// func if something is bad
 	addrParts := strings.Split(addrObj.String(), ":")
@@ -276,13 +276,11 @@ func sendGNMIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 	remotePort, _ := strconv.Atoi(addrParts[1])
 
 	records = append(records, rpcRecord{
-		startTime: startTime,
-		doneTime:  time.Now(),
-		rpcType:   acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
-		rpcPath:   gnmiCapabilitiesPath,
-		rpcPayload: []string{
-			payload.String(),
-		},
+		startTime:            startTime,
+		doneTime:             time.Now(),
+		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
+		rpcPath:              gnmiCapabilitiesPath,
+		rpcPayload:           payload.String(),
 		localIp:              addr,
 		localPort:            port,
 		remoteIp:             remoteAddr,
@@ -293,6 +291,7 @@ func sendGNMIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
+		expectedRole:         userRole,
 	})
 
 	return records
@@ -311,7 +310,7 @@ func sendGNOIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 
 	startTime := time.Now()
 
-	// send a unsuccessful (bad creds) gnoi system time request (bad creds in context), we dont
+	// send an unsuccessful (bad creds) gnoi system time request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request
 	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &system.PingRequest{
 		Destination: "127.0.0.1",
@@ -370,13 +369,11 @@ func sendGNOIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 	remotePort, _ := strconv.Atoi(addrParts[1])
 
 	records = append(records, rpcRecord{
-		startTime: startTime,
-		doneTime:  time.Now(),
-		rpcType:   acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-		rpcPath:   gnoiPingPath,
-		rpcPayload: []string{
-			payload.String(),
-		},
+		startTime:            startTime,
+		doneTime:             time.Now(),
+		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
+		rpcPath:              gnoiPingPath,
+		rpcPayload:           payload.String(),
 		localIp:              addr,
 		localPort:            port,
 		remoteIp:             remoteAddr,
@@ -387,6 +384,7 @@ func sendGNOIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
+		expectedRole:         userRole,
 	})
 
 	return records
@@ -405,7 +403,7 @@ func sendGRIBIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 
 	startTime := time.Now()
 
-	// send a unsuccessful (bad creds) gribi get request (bad creds in context), we dont
+	// send an unsuccessful (bad creds) gribi get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request
 	gribiGetClient, err := gribiClient.Get(
 		ctx,
@@ -428,7 +426,7 @@ func sendGRIBIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		doneTime:             time.Now(),
 		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 		rpcPath:              "/gribi.gRIBI/Get",
-		rpcPayload:           nil,
+		rpcPayload:           "",
 		localIp:              "",
 		localPort:            0,
 		remoteIp:             addr,
@@ -440,7 +438,7 @@ func sendGRIBIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedIdentity:     failUsername,
 	})
 
-	//send a successful gribi getrequest
+	// send a successful gribi get request
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
@@ -475,13 +473,11 @@ func sendGRIBIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 	remotePort, _ := strconv.Atoi(addrParts[1])
 
 	records = append(records, rpcRecord{
-		startTime: startTime,
-		doneTime:  time.Now(),
-		rpcType:   acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
-		rpcPath:   "/gribi.gRIBI/Get",
-		rpcPayload: []string{
-			payload.String(),
-		},
+		startTime:            startTime,
+		doneTime:             time.Now(),
+		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
+		rpcPath:              "/gribi.gRIBI/Get",
+		rpcPayload:           payload.String(),
 		localIp:              addr,
 		localPort:            port,
 		remoteIp:             remoteAddr,
@@ -492,6 +488,7 @@ func sendGRIBIRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
+		expectedRole:         userRole,
 	})
 
 	return records
@@ -522,7 +519,7 @@ func sendP4RTRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		doneTime:             time.Now(),
 		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 		rpcPath:              "/p4.v1.P4Runtime/Capabilities",
-		rpcPayload:           nil,
+		rpcPayload:           "",
 		localIp:              "",
 		localPort:            0,
 		remoteIp:             addr,
@@ -557,13 +554,11 @@ func sendP4RTRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 	remotePort, _ := strconv.Atoi(addrParts[1])
 
 	records = append(records, rpcRecord{
-		startTime: startTime,
-		doneTime:  time.Now(),
-		rpcType:   acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
-		rpcPath:   "/p4.v1.P4Runtime/Capabilities",
-		rpcPayload: []string{
-			payload.String(),
-		},
+		startTime:            startTime,
+		doneTime:             time.Now(),
+		rpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
+		rpcPath:              "/p4.v1.P4Runtime/Capabilities",
+		rpcPayload:           payload.String(),
 		localIp:              addr,
 		localPort:            port,
 		remoteIp:             remoteAddr,
@@ -574,6 +569,7 @@ func sendP4RTRPCs(t *testing.T, addr string, port uint32) []rpcRecord {
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
+		expectedRole:         userRole,
 	})
 
 	return records
@@ -621,7 +617,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 	var records []rpcRecord
 
-	// put enough time between the test starting a nd any prior events so we can easily know where
+	// put enough time between the test starting and any prior events so we can easily know where
 	// our records start
 	time.Sleep(5 * time.Second)
 
@@ -629,7 +625,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 
 	// https://github.com/openconfig/featureprofiles/issues/2637
 	// basically, just waiting to see what the "best"/"preferred" way is to get the v4/v6 of the
-	// dut -- for now we just use introspection buuuuut, that wont get us v4 and v6 it will just get
+	// dut -- for now we just use introspection but, that won't get us v4 and v6 it will just get
 	// us whatever is configured in binding, so while the test asks for v4 and v6, we'll just be
 	// doing it for whatever we get
 	gnmiAddr, gnmiPort := getServiceTarget(t, dut, introspect.GNMI)
@@ -758,7 +754,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		serviceType := resp.record.GetGrpcService().GetServiceType()
 
 		if serviceType == acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI {
-			// not checkin gnsi things since.... were already using gnsi to get these records :)
+			// not checking gnsi things since.... we're already using gnsi to get these records :)
 			continue
 		}
 
@@ -799,18 +795,14 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 			t.Fatalf("service path not correct, got %q, want %q", servicePath, records[recordIdx].rpcPath)
 		}
 
-		if len(records[recordIdx].rpcPayload) > 0 {
+		if records[recordIdx].rpcPayload != "" {
 			// it seems like it *could* truncate payloads so that may come up at some point
 			// which would obviously make this comparison not work, but for the simple rpcs in
-			// this test that probably shouldnt be happening
-			servicePayload := resp.record.GetGrpcService().GetPayloads()
-
-			for idx, expected := range records[recordIdx].rpcPayload {
-				actual := servicePayload[idx].String()
-
-				if !strings.EqualFold(actual, expected) {
-					t.Fatalf("service payloads not correct, got %q, want %q", actual, expected)
-				}
+			// this test that probably shouldn't be happening
+			gotServicePayload := resp.record.GetGrpcService().GetProtoVal().String()
+			wantServicePayload := records[recordIdx].rpcPayload
+			if !strings.EqualFold(gotServicePayload, wantServicePayload) {
+				t.Fatalf("service payloads not correct, got %q, want %q", gotServicePayload, wantServicePayload)
 			}
 		}
 
@@ -819,7 +811,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// this channel check maybe should just go away entirely -- see:
 		// https://github.com/openconfig/gnsi/issues/98
 		// in case of nokia this is being set to the aaa session id just to have some hopefully
-		// useful info in this field to identify a "session" (even if it isnt necessarily ssh/grpc
+		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly)
 		if !records[recordIdx].succeeded {
 			if channelID != "aaa_session_id: 0" {
@@ -865,17 +857,16 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		}
 
 		if !records[recordIdx].succeeded {
-			// not a successful rpc so dont need to check anything else
+			// not a successful rpc so don't need to check anything else
 			recordIdx++
 
 			continue
 		}
 
-		t.Log("skipping 'role' check until ondatra and vendors catch up to jan2024 proto update...")
-		//role := resp.record.GetSessionInfo().GetUser().GetGroup()
-		//if records[recordIdx].expectedRole != role {
-		//	t.Fatalf("role not correct, got %q, want %q", role, records[recordIdx].expectedRole)
-		//}
+		role := resp.record.GetSessionInfo().GetUser().GetRole()
+		if records[recordIdx].expectedRole != role {
+			t.Fatalf("role not correct, got %q, want %q", role, records[recordIdx].expectedRole)
+		}
 
 		// verify the l4 bits align, this stuff is only set if auth is successful so do it down here
 		localAddr := resp.record.GetSessionInfo().GetLocalAddress()
