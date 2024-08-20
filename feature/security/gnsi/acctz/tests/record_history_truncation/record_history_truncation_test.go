@@ -23,7 +23,7 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 
 	bootTime := systemState.GetBootTime()
 
-	// try to get records from 1 day prior to devices boot time
+	// try to get records from 1 day prior to device's boot time
 	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
 
 	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
