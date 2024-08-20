@@ -592,7 +592,6 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		lastTaskID = currentTaskID
 
-		// -2 for a little breathing room since things may not be perfectly synced up time-wise
 		if records[recordIdx].startTime.Unix() > timestamp.Unix() {
 			t.Fatalf(
 				"record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d",
