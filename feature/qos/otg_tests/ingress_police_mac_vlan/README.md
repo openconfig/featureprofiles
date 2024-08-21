@@ -1,10 +1,10 @@
-# TE-18.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# TE-18.4 Classify traffic on input using destination mac and police using 1 rate, 2 color marker
 
 ## Summary
 
 Use the gRIBI applied ip entries from TE-18.1 gRIBI. Configure an ingress scheduler
 to police traffic using a 1 rate, 2 color policer. Configure a classifier to match
-traffic on a next-hop-group.  Apply the configuration to a VLAN on an aggregate
+traffic on a destination mac.  Apply the configuration to a VLAN on an aggregate
 interface.  Send traffic to validate the policer.
 
 ## Topology
@@ -17,10 +17,10 @@ Use TE-18.1 test environment setup.
 
 ## Procedure
 
-### TE-18.3.1 Generate and push configuration
+### TE-18.4.1 Generate and push configuration
 
 * Generate config for 2 scheduler polices with an input rate limit.  
-* Generate config for 2 classifiers which match on next-hop-group.
+* Generate config for 2 classifiers which match on destination mac.
 * Generate config for 2 input policies which map the scheduler and classifers
   together.
 * Generate config to apply classifer and scheduler to DUT subinterface with vlan.
@@ -72,9 +72,7 @@ openconfig-qos:
           config:
             id: "match_1_dest_A"
           conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+            destination-mac
     - classifer: “dest_B”
       config:
         name: “dest_B”
@@ -83,9 +81,7 @@ openconfig-qos:
           config:
             id: "match_1_dest_B"
           conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+            destination-mac
 
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
     - input-policy: "limit_group_A_2Gb"
@@ -122,7 +118,7 @@ openconfig-qos:
 
 ```
 
-### TE-18.3.1 Test traffic
+### TE-18.4.2 Test traffic
 
 * Send traffic
   * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
@@ -130,13 +126,13 @@ openconfig-qos:
     cir.
   * Validate packets are received by ATE port 2.
     * Validate qos interface scheduler counters
-    * Validate afts next hop counters
   * Validate outer packet ipv6 flow label assignment
     * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
       * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
       * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
   * Increase traffic on flow to dest_B to 2Gbps
     * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
+
 
 #### OpenConfig Path and RPC Coverage
 
@@ -153,6 +149,7 @@ paths:
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/conditions/l2/config/destination-mac:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
