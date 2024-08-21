@@ -34,7 +34,7 @@ Create a library of device configuration to be used for all of the gNSI.acctz.v1
 
 ## gNSI Accounting (acctz) Tests:
 - [ACCTZ-1.1 Record Subscribe Full](RecordSubscribeFull)
-- [ACCTZ-2.1 Record Subscribe Partial](RecordSubscribePartial)
+- [ACCTZ-2.1 Record Subscribe Partial](tests/record_subscribe_partial)
 - [ACCTZ-3.1 Record Subscribe Non-gRPC](RecordSubscribeNongrpc)
 - [ACCTZ-4.1 Record History Truncation](RecordHistoryTruncation/)
 - [ACCTZ-4.2 Record Payload Truncation](RecordPayloadTruncation/)
