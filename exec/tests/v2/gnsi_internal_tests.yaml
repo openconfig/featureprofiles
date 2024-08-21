@@ -72,3 +72,13 @@ tests:
   timeout: 21000
   internal: true
   branch: acctz/pre
+- name: authz4 (Authz-4 Reboot Persistent)
+  path: feature/security/gnsi/authz/cisco/tests
+  args:
+    - '-test.run="(?:TestAuthz4)"'
+  internal: true
+  branch: master
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4
