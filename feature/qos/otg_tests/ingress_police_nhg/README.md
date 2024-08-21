@@ -29,12 +29,12 @@ Use TE-18.1 test environment setup.
 ```yaml
 ---
 openconfig-qos:
-  scheduler-policies:
-    - scheduler-policy: "limit_2Gb"
+  policer-policies:
+    - policer-policy: "limit_2Gb"
       config:
         name: "limit_2Gb"
-      schedulers:
-        - scheduler: 0
+      policers:
+        - policer: 0
           config:
               type: ONE_RATE_TWO_COLOR
               sequence: 0
@@ -47,11 +47,11 @@ openconfig-qos:
               config:
                 drop: TRUE
 
-    - scheduler-policy: "limit_1Gb"
+    - policer-policy: "limit_1Gb"
       config:
         name: "limit_1Gb"
-      schedulers:
-        - scheduler: 0
+      policers:
+        - policer: 0
           config:
               type: ONE_RATE_TWO_COLOR
               sequence: 0
@@ -75,6 +75,9 @@ openconfig-qos:
             next-hop-group:
                 config:
                     name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          actions:
+            config:
+              policer-policy: "limit_group_A_2Gb"  # new OC path needed
     - classifer: “dest_B”
       config:
         name: “dest_B”
@@ -86,40 +89,35 @@ openconfig-qos:
             next-hop-group:
                 config:
                     name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-
-  input-policies:       # new OC subtree input-policies (/qos/input-policies)
-    - input-policy: "limit_group_A_2Gb"
-      config:
-        name: "limit_group_A_2Gb"
-        classifer: "dest_A"
-        scheduler-policy: "limit_2Gb"
-    - input-policy: "limit_dest_group_B_1Gb"
-      config:
-        name: "limit_dest_group_B_1Gb"
-        classifer: "dest_B"
-        scheduler-policy: "limit_1Gb"
+          actions:
+            config:
+              policer-policy: "limit_group_B_1Gb"  # new OC path needed
 
   interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
+    - interface: "PortChannel1.100"
         config:
-          subinterface: 100
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_A_2Gb
-        ]
-  interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
+          interface-id: "PortChannel1.100"
+        input:
+          classifers:
+            - classifier:
+              config:
+                name: "dest_A"
+                type: "IPV4"
+          policer-policy:     # New OC subtree /qos/interfaces/interface/policer-policy
+            config:
+              name: "limit_2G"
+    - interface: "PortChannel1.200"
         config:
-          subinterface: 200
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_B_1Gb
-        ]
-
+          interface-id: "PortChannel1.200"
+        input:
+          classifers:
+            - classifier:
+              config:
+                name: "dest_B"
+                type: "IPV4"
+          policer-policy:    # New OC subtree /qos/interfaces/interface/policer-policy
+            config:
+              name: "limit_1G"
 ```
 
 ### TE-18.3.1 Test traffic
@@ -155,13 +153,13 @@ paths:
   /qos/classifiers/classifier/terms/term/config/id:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
-  # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
-  # /qos/input-policies/input-policy/config/name:
-  # /qos/input-policies/input-policy/config/classifier:
-  # /qos/input-policies/input-policy/config/scheduler-policy:
-
-  # qos interface config
-  #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
+  # qos policer config - TODO: a new OC subtree (/qos/policer-policies, essentially copying/moving policer action from schedulers)
+  # /qos/policer-policies/policer-policy/config/name:
+  # /qos/policer-policies/policer-policy/config/policers/policer/config/sequence:
+  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/cir:
+  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/bc:
+  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/cir:
+  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/exceed-action/config/drop:
 
   # qos interface scheduler counters
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
