@@ -310,7 +310,7 @@ func TestDUTDaemonFailure(t *testing.T) {
 	})
 
 	t.Run("KillGRIBIDaemon", func(t *testing.T) {
-		gnoi.KillProcess(t, dut, gnoi.GRIBI, gnoi.SIG_TERM, true, true)
+		gnoi.KillProcess(t, dut, gnoi.GRIBI, gnoi.SigTerm, true, true)
 
 		t.Logf("Time check: %s", time.Since(start))
 

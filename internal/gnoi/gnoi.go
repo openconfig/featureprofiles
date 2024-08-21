@@ -73,11 +73,11 @@ const (
 
 // signal type of termination request
 const (
-	SIG_TERM       = spb.KillProcessRequest_SIGNAL_TERM
-	SIG_KILL       = spb.KillProcessRequest_SIGNAL_KILL
-	SIG_HUP        = spb.KillProcessRequest_SIGNAL_HUP
-	SIG_ABORT      = spb.KillProcessRequest_SIGNAL_ABRT
-	SIG_UNSPECIFED = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
+	SigTerm        = spb.KillProcessRequest_SIGNAL_TERM
+	SigKill        = spb.KillProcessRequest_SIGNAL_KILL
+	SigHup         = spb.KillProcessRequest_SIGNAL_HUP
+	SigAbort       = spb.KillProcessRequest_SIGNAL_ABRT
+	SigUnspecified = spb.KillProcessRequest_SIGNAL_UNSPECIFIED
 )
 
 // KillProcess terminates the daemon on the DUT.
