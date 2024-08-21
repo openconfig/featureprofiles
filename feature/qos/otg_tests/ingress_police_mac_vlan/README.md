@@ -81,7 +81,7 @@ openconfig-qos:
           config:
             id: "match_1_dest_B"
           conditions:
-            destination-mac
+            destination-mac: dut_port1_mac_address    # use the mac address from dut port1    
 
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
     - input-policy: "limit_group_A_2Gb"
