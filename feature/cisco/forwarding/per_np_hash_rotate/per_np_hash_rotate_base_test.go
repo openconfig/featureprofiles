@@ -132,12 +132,13 @@ func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice) map[string][]i
 // getPerLCPerNPHashVal returns int val for a given NP and LC using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val" location <LC#> CLI.
 func getPerLCPerNPHashVal(t *testing.T, dut *ondatra.DUTDevice, np int, lc string) int {
-	t.Helper()
+	// t.Helper() //fixme
 	var hashVal int
 	//get per LC per NP hash-rotate value from the device
 	debugCLI := fmt.Sprintf("show controllers npu debugshell %v 'script device_hash_rotate_info get_val' location %v", np, lc)
 	cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
 	npList := parseDebugCLIOutput(t, cliResp)
+	t.Logf("debug cli output and nplist %v\n%v", debugCLI, npList) //fixme
 	hashVal = npList[0]
 	return hashVal
 }

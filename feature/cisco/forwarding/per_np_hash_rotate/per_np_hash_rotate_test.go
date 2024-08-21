@@ -23,6 +23,7 @@ import (
 	"os"
 	"testing"
 	"text/tabwriter"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -177,6 +178,44 @@ func TestBulkNPHashRotateConfig(t *testing.T) {
 
 	hashConfig := setBulkPerNPHashConfig(t, dut, lcList, false)
 	defer setBulkPerNPHashConfig(t, dut, lcList, true)
+	for _, lc := range lcList {
+		for _, np := range npList {
+			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(hashConfig[lc][np]); got != want {
+				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
+			}
+		}
+	}
+}
+
+func TestBulkNPHashConfigPersistenceRouterReload(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Get list of LCs")
+	lcList = util.GetLCList(t, dut)
+
+	hashConfig := setBulkPerNPHashConfig(t, dut, lcList, false)
+	defer setBulkPerNPHashConfig(t, dut, lcList, true)
+	util.RebootDevice(t)
+	//wait for grpc to be ready
+	time.Sleep(1 * time.Minute)
+	for _, lc := range lcList {
+		for _, np := range npList {
+			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(hashConfig[lc][np]); got != want {
+				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
+			}
+		}
+	}
+}
+
+func TestBulkNPHashConfigPersistenceLCReload(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Get list of LCs")
+	lcList = util.GetLCList(t, dut)
+
+	hashConfig := setBulkPerNPHashConfig(t, dut, lcList, false)
+	defer setBulkPerNPHashConfig(t, dut, lcList, true)
+	util.ReloadLinecards(t, lcList)
+	// wait for LCs to be ready
+	time.Sleep(3 * time.Minute)
 	for _, lc := range lcList {
 		for _, np := range npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(hashConfig[lc][np]); got != want {
