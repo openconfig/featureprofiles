@@ -73,7 +73,7 @@ tests:
   internal: true
   branch: acctz/pre
 - name: authz4 (Authz-4 Reboot Persistent)
-  path: feature/security/gnsi/authz/cisco/tests
+  path: feature/security/gnsi/authz/tests/authz/
   args:
     - '-test.run="(?:TestAuthz4)"'
   internal: true
