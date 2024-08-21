@@ -1,4 +1,4 @@
-package record_subscribe_partial
+package record_subscribe_partial_test
 
 import (
 	"context"
