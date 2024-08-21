@@ -146,12 +146,6 @@ func DefaultNetworkInstance(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
-// ExplicitP4RTNodeComponent returns if device does not report P4RT node names in the component hierarchy.
-// Fully compliant devices should report the PORT hardware components with the INTEGRATED_CIRCUIT components as their parents, as the P4RT node names.
-func ExplicitP4RTNodeComponent(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitP4RtNodeComponent()
-}
-
 // ISISRestartSuppressUnsupported returns whether the device should skip isis restart-suppress check.
 func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
@@ -183,11 +177,6 @@ func StaticProtocolName(dut *ondatra.DUTDevice) string {
 		return spn
 	}
 	return "DEFAULT"
-}
-
-// UseVendorNativeACLConfig returns whether a device requires native model to configure ACL, specifically for RT-1.4.
-func UseVendorNativeACLConfig(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseVendorNativeAclConfig()
 }
 
 // SwitchChipIDUnsupported returns whether the device supports id leaf for SwitchChip components.
@@ -395,11 +384,6 @@ func ExplicitInterfaceRefDefinition(dut *ondatra.DUTDevice) bool {
 // QOSDroppedOctets returns if device should skip checking QOS Dropped octets stats for interface.
 func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosDroppedOctets()
-}
-
-// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
-func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
 }
 
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
@@ -1007,4 +991,130 @@ func SkipSettingStatementForPolicy(dut *ondatra.DUTDevice) bool {
 // SkipCheckingAttributeIndex return true if device do not return bgp attribute for the bgp session specifying the index
 func SkipCheckingAttributeIndex(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipCheckingAttributeIndex()
+}
+
+// FlattenPolicyWithMultipleStatements return true if devices does not support policy-chaining
+func FlattenPolicyWithMultipleStatements(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFlattenPolicyWithMultipleStatements()
+}
+
+// SlaacPrefixLength128 for Slaac generated IPv6 link local address
+func SlaacPrefixLength128(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSlaacPrefixLength128()
+}
+
+// DefaultRoutePolicyUnsupported returns true if default route policy is not supported
+func DefaultRoutePolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultRoutePolicyUnsupported()
+}
+
+// CommunityMatchWithRedistributionUnsupported is set to true for devices that do not support matching community at the redistribution attach point.
+func CommunityMatchWithRedistributionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityMatchWithRedistributionUnsupported()
+}
+
+// BgpMaxMultipathPathsUnsupported returns true if the device does not support
+// bgp max multipaths.
+func BgpMaxMultipathPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMaxMultipathPathsUnsupported()
+}
+
+// MultipathUnsupportedNeighborOrAfisafi returns true if the device does not
+// support multipath under neighbor or afisafi.
+func MultipathUnsupportedNeighborOrAfisafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMultipathUnsupportedNeighborOrAfisafi()
+}
+
+// ModelNameUnsupported returns true if /components/components/state/model-name
+// is not supported for any component type.
+func ModelNameUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetModelNameUnsupported()
+}
+
+// InstallPositionAndInstallComponentUnsupported returns true if install
+// position and install component are not supported.
+func InstallPositionAndInstallComponentUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInstallPositionAndInstallComponentUnsupported()
+}
+
+// EncapTunnelShutBackupNhgZeroTraffic returns true when encap tunnel is shut then zero traffic flows to backup NHG
+func EncapTunnelShutBackupNhgZeroTraffic(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEncapTunnelShutBackupNhgZeroTraffic()
+}
+
+// MaxEcmpPaths supported for isis max ecmp path
+func MaxEcmpPaths(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMaxEcmpPaths()
+}
+
+// WecmpAutoUnsupported returns true if wecmp auto is not supported
+func WecmpAutoUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpAutoUnsupported()
+}
+
+// RoutingPolicyChainingUnsupported returns true if policy chaining is unsupported
+func RoutingPolicyChainingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingPolicyChainingUnsupported()
+}
+
+// ISISLoopbackRequired returns true if isis loopback is required.
+func ISISLoopbackRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLoopbackRequired()
+}
+
+// WeightedEcmpFixedPacketVerification returns true if fixed packet is used in traffic flow
+func WeightedEcmpFixedPacketVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWeightedEcmpFixedPacketVerification()
+}
+
+// OverrideDefaultNhScale returns true if default NextHop scale needs to be modified
+// else returns false
+func OverrideDefaultNhScale(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOverrideDefaultNhScale()
+}
+
+// BgpExtendedCommunitySetUnsupported returns true if set bgp extended community is unsupported
+func BgpExtendedCommunitySetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedCommunitySetUnsupported()
+}
+
+// BgpSetExtCommunitySetRefsUnsupported returns true if bgp set ext community refs is unsupported
+func BgpSetExtCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetExtCommunitySetRefsUnsupported()
+}
+
+// BgpDeleteLinkBandwidthUnsupported returns true if bgp delete link bandwidth is unsupported
+func BgpDeleteLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDeleteLinkBandwidthUnsupported()
+}
+
+// QOSInQueueDropCounterUnsupported returns true if /qos/interfaces/interface/input/queues/queue/state/dropped-pkts
+// is not supported for any component type.
+func QOSInQueueDropCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosInqueueDropCounterUnsupported()
+}
+
+// BgpExplicitExtendedCommunityEnable returns true if explicit extended community enable is needed
+func BgpExplicitExtendedCommunityEnable(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExplicitExtendedCommunityEnable()
+}
+
+// MatchTagSetConditionUnsupported returns true if match tag set condition is not supported
+func MatchTagSetConditionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchTagSetConditionUnsupported()
+}
+
+// PeerGroupDefEbgpVrfUnsupported returns true if peer group definition under ebgp vrf is unsupported
+func PeerGroupDefEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPeerGroupDefEbgpVrfUnsupported()
+}
+
+// RedisConnectedUnderEbgpVrfUnsupported returns true if redistribution of routes under ebgp vrf is unsupported
+func RedisConnectedUnderEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRedisConnectedUnderEbgpVrfUnsupported()
+}
+
+// BgpAfiSafiInDefaultNiBeforeOtherNi returns true if certain AFI SAFIs are configured in default network instance before other network instances
+func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiInDefaultNiBeforeOtherNi()
 }

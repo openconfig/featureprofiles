@@ -9,7 +9,7 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    interface_enabled: true
+    default_network_instance: "default"
     missing_port_to_optical_channel_component_mapping: true
   }
 }

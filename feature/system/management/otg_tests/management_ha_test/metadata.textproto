@@ -17,7 +17,6 @@ platform_exceptions:  {
     default_network_instance:  "default"
     skip_set_rp_match_set_options:  true
     skip_setting_disable_metric_propagation:  true
-    set_metric_as_preference:  true
     set_no_peer_group: true
     explicit_enable_bgp_on_default_vrf: true
   }
@@ -32,6 +31,18 @@ platform_exceptions:  {
     skip_set_rp_match_set_options:  true
     skip_prefix_set_mode: true
     table_connections_unsupported: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    redis_connected_under_ebgp_vrf_unsupported: true
+    table_connections_unsupported: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
   }
 }
 tags:  TAGS_TRANSIT
