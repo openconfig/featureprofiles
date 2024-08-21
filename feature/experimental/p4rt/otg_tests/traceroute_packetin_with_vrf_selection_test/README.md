@@ -93,10 +93,10 @@ Tests that traceroute respects decap rules.
 1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
     ```
-    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
-        {NH#1001, DEFAULT VRF, weight:1}
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#3001 (DEFAULT VRF) -> {
+        {NH#3001, DEFAULT VRF, weight:1}
     }
-    NH#1001 -> {
+    NH#3001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
 
@@ -146,10 +146,10 @@ Tests that traceroute for a packet with a route lookup miss has an unset target_
 1.  Using gRIBI to install the following entries in the `DECAP_TE_VRF`:
 
     ```
-    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#1001 (DEFAULT VRF) -> {
-        {NH#1001, DEFAULT VRF, weight:1}
+    IPv4Entry {192.51.100.1/24 (DECAP_TE_VRF)} -> NHG#3001 (DEFAULT VRF) -> {
+        {NH#3001, DEFAULT VRF, weight:1}
     }
-    NH#1001 -> {
+    NH#3001 -> {
         decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
     }
     ```
@@ -238,8 +238,18 @@ Tests that traceroute for a packet with a route lookup miss has an unset target_
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
-## Protocol/RPC Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   gRIBI:
-    *   Modify
-        *   ModifyRequest
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
+
+## Config parameter coverage
