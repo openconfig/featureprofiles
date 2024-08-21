@@ -1504,12 +1504,22 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
     except:
         logger.warning(f'Failed to push results to influxdb. Ignoring...')
 
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PushResultsToMongo(self, uid, xunit_results):
+    logger.print("Pushing results to MongoDB...")
+    try:
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to push results to MongoDB. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
 @returns('test_report_text_file', 'report_text')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
-    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
+    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | PushResultsToMongo.s() | self.orig.s()
     test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
     return test_report_text_file, report_text  
