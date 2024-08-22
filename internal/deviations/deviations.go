@@ -1118,3 +1118,8 @@ func RedisConnectedUnderEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAfiSafiInDefaultNiBeforeOtherNi()
 }
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
