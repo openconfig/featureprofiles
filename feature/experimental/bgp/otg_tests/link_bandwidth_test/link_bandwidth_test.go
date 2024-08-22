@@ -339,7 +339,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 								t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 							}
 						}
-						if deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
+						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV4(t, td, v4Prefix)
 						}
 					}
@@ -410,7 +410,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 								t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 							}
 						}
-						if deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
+						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV6(t, td, v6Prefix)
 						}
 					}
@@ -621,7 +621,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		case ondatra.CISCO:
 			var communityCLIConfig string
 			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
-			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
+			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community is-empty then \n pass \n elseif community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
 			helpers.GnmiCLIConfig(t, dut, communityCLIConfig)
 			helpers.GnmiCLIConfig(t, dut, policySetCLIConfig)
 		default:
