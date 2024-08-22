@@ -42,7 +42,7 @@ tests:
   path: feature/security/gnsi/authz/tests/authz/authz1_4_test.go
   args:
     - '-test_infra_id="cafyauto"'
-  pr: 2136
+  branch: harikri4/authz4
   mustpass: true
   timeout: 21000
   owners:
