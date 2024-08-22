@@ -153,7 +153,6 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 		SetRxNames([]string{fmt.Sprintf("%s.%s", ateDst.Name, ipv)})
 	ethHdr := flow.Packet().Add().Ethernet()
 	ethHdr.Src().SetValue(ateSrc.MAC)
-	ethHdr.Dst().SetValue(ateDst.MAC)
 	flow.SetSize(gosnappi.NewFlowSize().SetFixed(flowSize))
 
 	switch ipv {
@@ -180,8 +179,8 @@ func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing
 	td.otgConfig.Flows().Clear()
 	td.otgConfig.Flows().Append(flowParams)
 	td.otg.PushConfig(t, td.otgConfig)
+	time.Sleep(time.Second * 30)
 	td.otg.StartProtocols(t)
-
 	waitF(t)
 
 	td.otg.StartTraffic(t)
@@ -325,19 +324,17 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
-
 	configureDUT(t, dut)
-
 	otgConfig := configureATE(t, ate)
 
 	t.Cleanup(func() {
+		deleteBatch := &gnmi.SetBatch{}
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			netInst := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
 
 			for portName := range dutPorts {
-				gnmi.Delete(
-					t,
-					dut,
+				gnmi.BatchDelete(
+					deleteBatch,
 					gnmi.OC().
 						NetworkInstance(*netInst.Name).
 						Interface(fmt.Sprintf("%s.%d", dut.Port(t, portName).Name(), subInterfaceIndex)).
@@ -347,16 +344,16 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 		}
 
 		for portName := range dutPorts {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(dut.Port(t, portName).Name()).Mtu().Config())
-			gnmi.Delete(
-				t,
-				dut,
+			gnmi.BatchDelete(
+				deleteBatch,
 				gnmi.OC().
 					Interface(dut.Port(t, portName).Name()).
 					Subinterface(subInterfaceIndex).
 					Config(),
 			)
+			gnmi.BatchDelete(deleteBatch, gnmi.OC().Interface(dut.Port(t, portName).Name()).Mtu().Config())
 		}
+		deleteBatch.Set(t, dut)
 	})
 
 	for _, tt := range testCases {
@@ -377,13 +374,13 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attributes, bundleMembers []*ondatra.Port) string {
 	bundleID := netutil.NextAggregateInterface(t, dut)
 	ocRoot := &oc.Root{}
-
 	if deviations.AggregateAtomicUpdate(dut) {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(bundleID).Aggregation().MinLinks().Config())
+		deleteBatch := &gnmi.SetBatch{}
+		gnmi.BatchDelete(deleteBatch, gnmi.OC().Interface(bundleID).Aggregation().MinLinks().Config())
 		for _, port := range bundleMembers {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			gnmi.BatchDelete(deleteBatch, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 		}
-
+		deleteBatch.Set(t, dut)
 		bundle := ocRoot.GetOrCreateInterface(bundleID)
 		bundle.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 		bundle.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -404,13 +401,6 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 
 		gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
 	}
-
-	lacp := &oc.Lacp_Interface{
-		Name:     ygot.String(bundleID),
-		LacpMode: oc.Lacp_LacpActivityType_UNSET,
-	}
-	lacpPath := gnmi.OC().Lacp().Interface(bundleID)
-	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
 
 	agg := ocRoot.GetOrCreateInterface(bundleID)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -566,7 +556,6 @@ func TestLargeIPPacketTransmissionBundle(t *testing.T) {
 
 	allDutPorts := sortPorts(dut.Ports())
 	allAtePorts := sortPorts(ate.Ports())
-
 	if len(allDutPorts) < 2 {
 		t.Fatalf("testbed requires at least two dut ports, but only has %d", len(allDutPorts))
 	}
