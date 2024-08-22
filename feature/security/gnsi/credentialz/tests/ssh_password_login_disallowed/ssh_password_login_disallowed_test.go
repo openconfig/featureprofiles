@@ -39,7 +39,7 @@ import (
 const (
 	username               = "testuser"
 	password               = "i$V5^6IhD*tZ#eg1G@v3xdVZrQwj"
-	userIdentity           = "my_principal"
+	userPrincipal          = "my_principal"
 	caPublicKeyFilename    = "ca.pub"
 	userPrivateKeyFilename = "user"
 	userPublicCertFilename = "user-cert.pub"
@@ -83,8 +83,8 @@ func prepareCaAndHostKeys(t *testing.T, dir string) {
 	dutCertCmd := exec.Command(
 		"ssh-keygen",
 		"-s", "ca",
-		"-I", "testuser",
-		"-n", "my_principal",
+		"-I", username,
+		"-n", userPrincipal,
 		"-V", "+52w",
 		"user.pub",
 	)
@@ -127,6 +127,37 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cr
 	time.Sleep(time.Second)
 }
 
+func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *credentialz.RotateAccountCredentialsRequest) {
+	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
+
+	credzRotateClient, err := credzClient.RotateAccountCredentials(context.Background())
+	if err != nil {
+		t.Fatalf("failed fetching credentialz rotate account credentials client, error: %s", err)
+	}
+
+	err = credzRotateClient.Send(request)
+	if err != nil {
+		t.Fatalf("failed sending credentialz rotate account credentials request, error: %s", err)
+	}
+
+	_, err = credzRotateClient.Recv()
+	if err != nil {
+		t.Fatalf("failed receiving credentialz rotate account credentials response, error: %s", err)
+	}
+
+	err = credzRotateClient.Send(&credentialz.RotateAccountCredentialsRequest{
+		Request: &credentialz.RotateAccountCredentialsRequest_Finalize{
+			Finalize: request.GetFinalize(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed sending credentialz rotate account credentials finalize request, error: %s", err)
+	}
+
+	// brief sleep for finalize to get processed
+	time.Sleep(time.Second)
+}
+
 func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 	keyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, caPublicKeyFilename))
 	if err != nil {
@@ -152,11 +183,35 @@ func setupTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 	sendHostParametersRequest(t, dut, request)
 }
 
+func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice) {
+	request := &credentialz.RotateAccountCredentialsRequest{
+		Request: &credentialz.RotateAccountCredentialsRequest_Password{
+			Password: &credentialz.PasswordRequest{
+				Accounts: []*credentialz.PasswordRequest_Account{
+					{
+						Account: username,
+						Password: &credentialz.PasswordRequest_Password{
+							Value: &credentialz.PasswordRequest_Password_Plaintext{
+								Plaintext: password,
+							},
+						},
+						Version:   "v1.0",
+						CreatedOn: uint64(time.Now().Unix()),
+					},
+				},
+			},
+		},
+	}
+
+	sendAccountCredentialsRequest(t, dut, request)
+}
+
 func setupUser(t *testing.T, dut *ondatra.DUTDevice) {
 	auth := &oc.System_Aaa_Authentication{}
 	user := auth.GetOrCreateUser(username)
 	user.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
 	gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().Config(), auth)
+	setupUserPassword(t, dut)
 }
 
 func setupAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice) {
@@ -183,11 +238,11 @@ func setupAuthorizedUsers(t *testing.T, dut *ondatra.DUTDevice) {
 						AuthorizedPrincipals: &credentialz.UserPolicy_SshAuthorizedPrincipals{
 							AuthorizedPrincipals: []*credentialz.UserPolicy_SshAuthorizedPrincipal{
 								{
-									AuthorizedUser: "my_principal",
+									AuthorizedUser: userPrincipal,
 								},
 							},
 						},
-						Version:   "1.0",
+						Version:   "v1.0",
 						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
@@ -195,31 +250,7 @@ func setupAuthorizedUsers(t *testing.T, dut *ondatra.DUTDevice) {
 		},
 	}
 
-	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-
-	credzRotateClient, err := credzClient.RotateAccountCredentials(context.Background())
-	if err != nil {
-		t.Fatalf("failed fetching credentialz rotate account credentials client, error: %s", err)
-	}
-
-	err = credzRotateClient.Send(request)
-	if err != nil {
-		t.Fatalf("failed sending credentialz rotate account credentials request, error: %s", err)
-	}
-
-	_, err = credzRotateClient.Recv()
-	if err != nil {
-		t.Fatalf("failed receiving credentialz rotate account credentials response, error: %s", err)
-	}
-
-	err = credzRotateClient.Send(&credentialz.RotateAccountCredentialsRequest{
-		Request: &credentialz.RotateAccountCredentialsRequest_Finalize{
-			Finalize: request.GetFinalize(),
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed sending credentialz rotate account credentials finalize request, error: %s", err)
-	}
+	sendAccountCredentialsRequest(t, dut, request)
 }
 
 func assertSSHAuthFails(t *testing.T, dut *ondatra.DUTDevice, addr, _ string) {
