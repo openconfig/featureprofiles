@@ -88,7 +88,7 @@ class VectorStore:
 
         return labels
 
-    def create_documents(self, file):
+    def create_documents(self, file, group, efr, run_id, image):
         documents = list()
 
         tree = ET.parse(file)
@@ -102,6 +102,10 @@ class VectorStore:
                 
                 data = dict()
 
+                data["group"] = group
+                data["efr"] = efr
+                data["run_id"] = run_id
+                data["image"] = image
                 data["tests"] = int(stats.get("tests", 0))
                 data["failures"] = int(stats.get("failures", 0))
                 data["errors"] = int(stats.get("errors", 0))
