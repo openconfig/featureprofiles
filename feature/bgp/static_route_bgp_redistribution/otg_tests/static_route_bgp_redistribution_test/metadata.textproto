@@ -37,3 +37,13 @@ platform_exceptions:  {
     set_metric_as_preference: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor: JUNIPER
+  }
+  deviations:  {
+    skip_setting_disable_metric_propagation: true
+    skip_bgp_send_community_type: true
+    routing_policy_tag_set_embedded: true
+  }
+}
