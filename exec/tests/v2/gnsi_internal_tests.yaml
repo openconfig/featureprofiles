@@ -82,7 +82,7 @@ tests:
   timeout: 21000
   owners:
     - harikri4
-- name: authz4.all (Authz-4 Reboot Persistent)
+- name: authz4.all (Authz-4 all Reboot Persistent)
   path: feature/security/gnsi/authz/tests/authz
   internal: true
   branch: harikri4/authz4
