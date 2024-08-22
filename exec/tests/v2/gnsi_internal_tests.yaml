@@ -77,7 +77,7 @@ tests:
   args:
     - '-test.run="(?:TestAuthz4)"'
   internal: true
-  branch: master
+  branch: harikri4/authz4
   mustpass: true
   timeout: 21000
   owners:
