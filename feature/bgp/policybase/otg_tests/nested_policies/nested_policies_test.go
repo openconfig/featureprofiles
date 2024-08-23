@@ -76,6 +76,8 @@ const (
 	v6MedStatement    = "med-statement-v6"
 	peerGrpNamev4     = "BGP-PEER-GROUP-V4"
 	peerGrpNamev6     = "BGP-PEER-GROUP-V6"
+	permitAll         = "PERMIT-ALL"
+	permitAllStmtName = "20"
 )
 
 var (
@@ -241,10 +243,10 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	rp := root.GetOrCreateRoutingPolicy()
 
 	// Configure PERMIT-ALL policy
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
-	stmt, err := pdef.AppendNewStatement("20")
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
@@ -281,16 +283,9 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 			stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 		}
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
-	}
-	if operation == "set" {
+
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	}
-	dni := deviations.DefaultNetworkInstance(dut)
-	if operation == "set" {
-		// Configure the nested policy.
+
 		rpPolicy := root.GetOrCreateRoutingPolicy()
 		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
 		statPath.SetCallPolicy(v4PrefixPolicy)
@@ -299,6 +294,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
+	dni := deviations.DefaultNetworkInstance(dut)
 	// Configure the parent BGP import policy.
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		//policy under peer group
@@ -324,7 +320,6 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 			gnmi.BatchDelete(batch, path.Config())
 		}
 	}
-
 	batch.Set(t, dut)
 }
 
@@ -373,10 +368,10 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
-	stmt, err := pdef.AppendNewStatement("20")
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
@@ -403,6 +398,12 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		}
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v4MedPolicy)
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -410,15 +411,6 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	if operation == "set" {
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
-		statPath.SetCallPolicy(v4MedPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	}
 	time.Sleep(time.Second * 60)
 
 	// Configure the parent BGP import policy.
@@ -492,10 +484,10 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
-	stmt, err := pdef.AppendNewStatement("20")
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
@@ -531,6 +523,12 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v6PrefixPolicy)
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -538,15 +536,6 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	if operation == "set" {
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
-		statPath.SetCallPolicy(v6PrefixPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	}
 
 	// Configure the parent BGP import policy.
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -622,10 +611,10 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
-	stmt, err := pdef.AppendNewStatement("20")
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
@@ -651,6 +640,12 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		}
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+
+		rpPolicy := root.GetOrCreateRoutingPolicy()
+		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
+		statPath.SetCallPolicy(v6MedPolicy)
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -658,15 +653,6 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 
 	// Configure the nested policy.
 	dni := deviations.DefaultNetworkInstance(dut)
-	if operation == "set" {
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
-		statPath.SetCallPolicy(v6MedPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-	} else if operation == "delete" {
-		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-	}
 	time.Sleep(time.Second * 60)
 
 	// Configure the parent BGP export policy.
@@ -814,10 +800,10 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 
 	t.Logf("Configuring route-policy for BGP on DUT")
 	rp := root.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
-	stmt, err := pdef.AppendNewStatement("20")
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", "20", err)
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	gnmi.Update(t, td.dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -831,32 +817,32 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV41.PeerGroup = ygot.String(peerGrpNamev4)
 	afisafiv41 := nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afisafiv41.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
-	afisafiv41.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	afisafiv41.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
+	afisafiv41.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
 
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(ateAS2)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42.PeerGroup = ygot.String(peerGrpNamev4)
 	afisafiv42 := nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afisafiv42.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
-	afisafiv42.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	afisafiv42.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
+	afisafiv42.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
 
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nV61.SetPeerAs(ateAS1)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV61.PeerGroup = ygot.String(peerGrpNamev6)
 	afisafiv61 := nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	afisafiv61.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
-	afisafiv61.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	afisafiv61.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
+	afisafiv61.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
 
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(ateAS2)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62.PeerGroup = ygot.String(peerGrpNamev6)
 	afisafiv62 := nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	afisafiv62.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
-	afisafiv62.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
+	afisafiv62.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
+	afisafiv62.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
 
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
