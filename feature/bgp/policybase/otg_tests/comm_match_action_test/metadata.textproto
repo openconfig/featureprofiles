@@ -16,6 +16,7 @@ platform_exceptions:  {
     bgp_conditions_match_community_set_unsupported:  true
     bgp_actions_set_community_method_unsupported:  true
     skip_bgp_send_community_type: true
+    bgp_community_set_refs_unsupported: true
   }
 }
 platform_exceptions:  {

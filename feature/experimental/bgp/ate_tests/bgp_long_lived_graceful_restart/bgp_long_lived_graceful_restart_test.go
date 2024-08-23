@@ -885,7 +885,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
-			gnoi.KillProcess(t, dut, gnoi.ROUTING, true)
+			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
 
 		var bgpIxPeer []*ixnet.BGP

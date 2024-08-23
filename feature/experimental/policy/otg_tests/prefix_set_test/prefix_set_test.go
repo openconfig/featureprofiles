@@ -133,7 +133,7 @@ func TestPrefixSetWithOCAgentRestart(t *testing.T) {
 		t.Errorf("Prefix set has %v prefixes, want %v", got, want)
 	}
 
-	gnoi.KillProcess(t, dut, gnoi.OCAGENT, true)
+	gnoi.KillProcess(t, dut, gnoi.OCAGENT, gnoi.SigTerm, true, true)
 
 	v4PrefixSet = ds.GetOrCreatePrefixSet(tag3IPv4)
 	if !deviations.SkipPrefixSetMode(dut) {

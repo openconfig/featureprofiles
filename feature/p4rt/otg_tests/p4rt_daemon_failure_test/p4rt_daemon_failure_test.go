@@ -309,7 +309,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 
 	flow := startTraffic(t, ate, top)
 
-	gnoi.KillProcess(t, dut, gnoi.P4RT, false)
+	gnoi.KillProcess(t, dut, gnoi.P4RT, gnoi.SigTerm, true, true)
 
 	// let traffic keep running for another 10 seconds.
 	time.Sleep(10 * time.Second)
