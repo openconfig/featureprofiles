@@ -4,7 +4,10 @@ Building on TE-18.1 and TE-18.2, add scaling parameters
 
 ## Topology
 
-* [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+* 32 ports as the 'input port set'
+* 4 ports as "uplink facing"
+* VLAN configurations
+  * input vlans are distributed evenly across the 'input port set'
 
 ## Test setup
 
@@ -42,22 +45,22 @@ outer_ip-ttl =        "64"
 
 * Scheduler (policer) scale
   * 1,000 policer rates
-  * 20,000 token buckets / scheduler instantiations
-  * Update schedulers at 1 per `sched_r` = 60 seconds
-  * Update schdulers in a batch of `sched_q` = 1,000
-  * Scheduler changes should take effect within `sched_r` / 2 time
+  * 20,000 policer-policies / token buckets instantiations
+  * Update policer-policies at 1 per `sched_r` = 60 seconds
+  * Update policer-policies in a batch of `sched_q` = 1,000
+  * Policer-policies changes should take effect within `sched_r` / 2 time
 
 #### Scale profile A - many vlans
 
 * 20 ip destinations * 1,000 vlans = 20,000 'flows'
-* Each ingress vlan has 10 policers = 10,000 'token buckets'
-* The 20 ip destinations are split evenly between the 10 policers
+* Each ingress vlan has 20 policer-policies = 10,000 'token buckets'
+* The 20 ip destinations are split evenly between the 20 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
 #### Scale profile B - many destinations, few vlans
 
 * 200 ip destinations * 100 vlans = 20,000 'flows'
-* Each ingress vlan has 4 policers = 4,000 'token buckets'
+* Each ingress vlan has 4 policer-policies = 4,000 'token buckets'
 * The 200 ip destinations are split evenly between the 4 policers
 * Each policer is assigned rate limits matching one of 800 different possible limits between 1Gbps to 400Gbps in 0.5Gbps increments
 
