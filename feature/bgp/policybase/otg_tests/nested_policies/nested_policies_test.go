@@ -283,13 +283,9 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 			stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 		}
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
-
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
+		statPath := rp.GetOrCreatePolicyDefinition(v4LPPolicy).GetStatement(v4LPStatement).GetOrCreateConditions()
 		statPath.SetCallPolicy(v4PrefixPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -397,13 +393,9 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		}
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
+		statPath := rp.GetOrCreatePolicyDefinition(v4ASPPolicy).GetStatement(v4ASPStatement).GetOrCreateConditions()
 		statPath.SetCallPolicy(v4MedPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -521,14 +513,9 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 			stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 		}
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
-
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
+		statPath := rp.GetOrCreatePolicyDefinition(v6LPPolicy).GetStatement(v6LPStatement).GetOrCreateConditions()
 		statPath.SetCallPolicy(v6PrefixPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -639,13 +626,9 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 			stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		}
 		stmt2.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med))
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
-
-		rpPolicy := root.GetOrCreateRoutingPolicy()
-		statPath := rpPolicy.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
+		statPath := rp.GetOrCreatePolicyDefinition(v6ASPPolicy).GetStatement(v6ASPStatement).GetOrCreateConditions()
 		statPath.SetCallPolicy(v6MedPolicy)
-		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
-
+		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	} else if operation == "delete" {
 		gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
