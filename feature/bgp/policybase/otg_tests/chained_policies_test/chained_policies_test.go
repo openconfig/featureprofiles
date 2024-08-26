@@ -274,7 +274,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 	policy.SetImportPolicy([]string{v4PrefixPolicy, v4LPPolicy})
@@ -380,7 +380,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 
@@ -389,9 +389,8 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	//  explicit Import Policy has been applied.
 	importPolPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	eBGPPeerPolicy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		eBGPPeerPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
-
 	}
 
 	if deviations.FlattenPolicyWithMultipleStatements(dut) {
@@ -496,7 +495,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 
@@ -601,7 +600,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 
@@ -610,7 +609,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	//  explicit Import Policy has been applied.
 	importPolPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	eBGPPeerPolicy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
-	if !deviations.DefaultImportExportPolicy(dut) {
+	if !deviations.DefaultImportExportPolicyUnsupported(dut) {
 		eBGPPeerPolicy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 	}
 
@@ -758,7 +757,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	if deviations.DefaultImportExportPolicy(td.dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(td.dut) {
 		t.Logf("Configuring default route-policy for BGP on DUT")
 		rp := root.GetOrCreateRoutingPolicy()
 		pdef := rp.GetOrCreatePolicyDefinition("PERMIT-ALL")
@@ -780,7 +779,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV41.SetPeerAs(ateAS1)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV41.PeerGroup = ygot.String(peerGrpNamev4)
-	if deviations.DefaultImportExportPolicy(td.dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(td.dut) {
 		afisafiv41 := nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		afisafiv41.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
 		afisafiv41.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
@@ -789,7 +788,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV42.SetPeerAs(ateAS2)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42.PeerGroup = ygot.String(peerGrpNamev4)
-	if deviations.DefaultImportExportPolicy(td.dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(td.dut) {
 		afisafiv42 := nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		afisafiv42.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
 		afisafiv42.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
@@ -798,7 +797,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV61.SetPeerAs(ateAS1)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV61.PeerGroup = ygot.String(peerGrpNamev6)
-	if deviations.DefaultImportExportPolicy(td.dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(td.dut) {
 		afisafiv61 := nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		afisafiv61.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
 		afisafiv61.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
@@ -807,7 +806,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV62.SetPeerAs(ateAS2)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62.PeerGroup = ygot.String(peerGrpNamev6)
-	if deviations.DefaultImportExportPolicy(td.dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(td.dut) {
 		afisafiv62 := nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		afisafiv62.GetOrCreateApplyPolicy().SetImportPolicy([]string{"PERMIT-ALL"})
 		afisafiv62.GetOrCreateApplyPolicy().SetExportPolicy([]string{"PERMIT-ALL"})
