@@ -3,110 +3,101 @@
 package gnxi
 
 type rpcs struct {
-	AllRPC                                                  *RPC
-	GnmiAllRPC                                              *RPC
-	GnmiGet                                                 *RPC
-	GnmiSet                                                 *RPC
-	GnmiSubscribe                                           *RPC
-	GnmiCapabilities                                        *RPC
-	GnoiBgpAllRPC                                           *RPC
-	GnoiBgpClearBGPNeighbor                                 *RPC
-	GnoiCertificatemanagementAllRPC                         *RPC
-	GnoiCertificatemanagementCanGenerateCSR                 *RPC
-	GnoiCertificatemanagementGenerateCSR                    *RPC
-	GnoiCertificatemanagementGetCertificates                *RPC
-	GnoiCertificatemanagementInstall                        *RPC
-	GnoiCertificatemanagementLoadCertificate                *RPC
-	GnoiCertificatemanagementLoadCertificateAuthorityBundle *RPC
-	GnoiCertificatemanagementRevokeCertificates             *RPC
-	GnoiCertificatemanagementRotate                         *RPC
-	GnoiDiagAllRPC                                          *RPC
-	GnoiDiagGetBERTResult                                   *RPC
-	GnoiDiagStopBERT                                        *RPC
-	GnoiDiagStartBERT                                       *RPC
-	GnoiFactoryresetAllRPC                                  *RPC
-	GnoiFactoryresetStart                                   *RPC
-	GnoiFileAllRPC                                          *RPC
-	GnoiFilePut                                             *RPC
-	GnoiFileRemove                                          *RPC
-	GnoiFileStat                                            *RPC
-	GnoiFileTransferToRemote                                *RPC
-	GnoiFileGet                                             *RPC
-	GnoiHealthzAcknowledge                                  *RPC
-	GnoiHealthzAllRPC                                       *RPC
-	GnoiHealthzArtifact                                     *RPC
-	GnoiHealthzCheck                                        *RPC
-	GnoiHealthzList                                         *RPC
-	GnoiHealthzGet                                          *RPC
-	GnoiLayer2AllRPC                                        *RPC
-	GnoiLayer2ClearLLDPInterface                            *RPC
-	GnoiLayer2ClearSpanningTree                             *RPC
-	GnoiLayer2PerformBERT                                   *RPC
-	GnoiLayer2SendWakeOnLAN                                 *RPC
-	GnoiLayer2ClearNeighborDiscovery                        *RPC
-	GnoiLinkqualificationCreate                             *RPC
-	GnoiMplsAllRPC                                          *RPC
-	GnoiMplsClearLSPCounters                                *RPC
-	GnoiMplsMPLSPing                                        *RPC
-	GnoiMplsClearLSP                                        *RPC
-	GnoiOtdrAllRPC                                          *RPC
-	GnoiWavelengthrouterAdjustSpectrum                      *RPC
-	GnoiWavelengthrouterAllRPC                              *RPC
-	GnoiWavelengthrouterCancelAdjustPSD                     *RPC
-	GnoiWavelengthrouterCancelAdjustSpectrum                *RPC
-	GnoiOsActivate                                          *RPC
-	GnoiOsAllRPC                                            *RPC
-	GnoiOsVerify                                            *RPC
-	GnoiOsInstall                                           *RPC
-	GnoiOtdrInitiate                                        *RPC
-	GnoiLinkqualificationAllRPC                             *RPC
-	GnoiLinkqualificationCapabilities                       *RPC
-	GnoiLinkqualificationDelete                             *RPC
-	GnoiLinkqualificationGet                                *RPC
-	GnoiLinkqualificationList                               *RPC
-	GnoiSystemAllRPC                                        *RPC
-	GnoiSystemCancelReboot                                  *RPC
-	GnoiSystemKillProcess                                   *RPC
-	GnoiSystemReboot                                        *RPC
-	GnoiSystemRebootStatus                                  *RPC
-	GnoiSystemSetPackage                                    *RPC
-	GnoiSystemSwitchControlProcessor                        *RPC
-	GnoiSystemTime                                          *RPC
-	GnoiSystemTraceroute                                    *RPC
-	GnoiSystemPing                                          *RPC
-	GnoiWavelengthrouterAdjustPSD                           *RPC
-	GnsiAcctzAllRPC                                         *RPC
-	GnsiAcctzRecordSubscribe                                *RPC
-	GnsiAuthzAllRPC                                         *RPC
-	GnsiAuthzGet                                            *RPC
-	GnsiAuthzProbe                                          *RPC
-	GnsiAuthzRotate                                         *RPC
-	GnsiCertzAddProfile                                     *RPC
-	GnsiCertzAllRPC                                         *RPC
-	GnsiCertzCanGenerateCSR                                 *RPC
-	GnsiCertzDeleteProfile                                  *RPC
-	GnsiCertzGetProfileList                                 *RPC
-	GnsiCertzRotate                                         *RPC
-	GnsiCredentialzAllRPC                                   *RPC
-	GnsiCredentialzCanGenerateKey                           *RPC
-	GnsiCredentialzGetPublicKeys                            *RPC
-	GnsiCredentialzRotateHostParameters                     *RPC
-	GnsiCredentialzRotateAccountCredentials                 *RPC
-	GnsiPathzAllRPC                                         *RPC
-	GnsiPathzGet                                            *RPC
-	GnsiPathzProbe                                          *RPC
-	GnsiPathzRotate                                         *RPC
-	GribiAllRPC                                             *RPC
-	GribiFlush                                              *RPC
-	GribiGet                                                *RPC
-	GribiModify                                             *RPC
-	P4P4runtimeAllRPC                                       *RPC
-	P4P4runtimeCapabilities                                 *RPC
-	P4P4runtimeGetForwardingPipelineConfig                  *RPC
-	P4P4runtimeRead                                         *RPC
-	P4P4runtimeSetForwardingPipelineConfig                  *RPC
-	P4P4runtimeStreamChannel                                *RPC
-	P4P4runtimeWrite                                        *RPC
+	AllRPC                                   *RPC
+	GnmiAllRPC                               *RPC
+	GnmiGet                                  *RPC
+	GnmiSet                                  *RPC
+	GnmiSubscribe                            *RPC
+	GnmiCapabilities                         *RPC
+	GnoiBgpAllRPC                            *RPC
+	GnoiBgpClearBGPNeighbor                  *RPC
+	GnoiDiagAllRPC                           *RPC
+	GnoiDiagGetBERTResult                    *RPC
+	GnoiDiagStopBERT                         *RPC
+	GnoiDiagStartBERT                        *RPC
+	GnoiFactoryresetAllRPC                   *RPC
+	GnoiFactoryresetStart                    *RPC
+	GnoiFileAllRPC                           *RPC
+	GnoiFilePut                              *RPC
+	GnoiFileRemove                           *RPC
+	GnoiFileStat                             *RPC
+	GnoiFileTransferToRemote                 *RPC
+	GnoiFileGet                              *RPC
+	GnoiHealthzAcknowledge                   *RPC
+	GnoiHealthzAllRPC                        *RPC
+	GnoiHealthzArtifact                      *RPC
+	GnoiHealthzCheck                         *RPC
+	GnoiHealthzList                          *RPC
+	GnoiHealthzGet                           *RPC
+	GnoiLayer2AllRPC                         *RPC
+	GnoiLayer2ClearLLDPInterface             *RPC
+	GnoiLayer2ClearSpanningTree              *RPC
+	GnoiLayer2PerformBERT                    *RPC
+	GnoiLayer2SendWakeOnLAN                  *RPC
+	GnoiLayer2ClearNeighborDiscovery         *RPC
+	GnoiLinkqualificationCreate              *RPC
+	GnoiMplsAllRPC                           *RPC
+	GnoiMplsClearLSPCounters                 *RPC
+	GnoiMplsMPLSPing                         *RPC
+	GnoiMplsClearLSP                         *RPC
+	GnoiOtdrAllRPC                           *RPC
+	GnoiWavelengthrouterAdjustSpectrum       *RPC
+	GnoiWavelengthrouterAllRPC               *RPC
+	GnoiWavelengthrouterCancelAdjustPSD      *RPC
+	GnoiWavelengthrouterCancelAdjustSpectrum *RPC
+	GnoiOsActivate                           *RPC
+	GnoiOsAllRPC                             *RPC
+	GnoiOsVerify                             *RPC
+	GnoiOsInstall                            *RPC
+	GnoiOtdrInitiate                         *RPC
+	GnoiLinkqualificationAllRPC              *RPC
+	GnoiLinkqualificationCapabilities        *RPC
+	GnoiLinkqualificationDelete              *RPC
+	GnoiLinkqualificationGet                 *RPC
+	GnoiLinkqualificationList                *RPC
+	GnoiSystemAllRPC                         *RPC
+	GnoiSystemCancelReboot                   *RPC
+	GnoiSystemKillProcess                    *RPC
+	GnoiSystemReboot                         *RPC
+	GnoiSystemRebootStatus                   *RPC
+	GnoiSystemSetPackage                     *RPC
+	GnoiSystemSwitchControlProcessor         *RPC
+	GnoiSystemTime                           *RPC
+	GnoiSystemTraceroute                     *RPC
+	GnoiSystemPing                           *RPC
+	GnoiWavelengthrouterAdjustPSD            *RPC
+	GnsiAcctzAllRPC                          *RPC
+	GnsiAcctzRecordSubscribe                 *RPC
+	GnsiAuthzAllRPC                          *RPC
+	GnsiAuthzGet                             *RPC
+	GnsiAuthzProbe                           *RPC
+	GnsiAuthzRotate                          *RPC
+	GnsiCertzAddProfile                      *RPC
+	GnsiCertzAllRPC                          *RPC
+	GnsiCertzCanGenerateCSR                  *RPC
+	GnsiCertzDeleteProfile                   *RPC
+	GnsiCertzGetProfileList                  *RPC
+	GnsiCertzRotate                          *RPC
+	GnsiCredentialzAllRPC                    *RPC
+	GnsiCredentialzCanGenerateKey            *RPC
+	GnsiCredentialzGetPublicKeys             *RPC
+	GnsiCredentialzRotateHostParameters      *RPC
+	GnsiCredentialzRotateAccountCredentials  *RPC
+	GnsiPathzAllRPC                          *RPC
+	GnsiPathzGet                             *RPC
+	GnsiPathzProbe                           *RPC
+	GnsiPathzRotate                          *RPC
+	GribiAllRPC                              *RPC
+	GribiFlush                               *RPC
+	GribiGet                                 *RPC
+	GribiModify                              *RPC
+	P4P4runtimeAllRPC                        *RPC
+	P4P4runtimeCapabilities                  *RPC
+	P4P4runtimeGetForwardingPipelineConfig   *RPC
+	P4P4runtimeRead                          *RPC
+	P4P4runtimeSetForwardingPipelineConfig   *RPC
+	P4P4runtimeStreamChannel                 *RPC
+	P4P4runtimeWrite                         *RPC
 }
 
 var (
@@ -166,69 +157,6 @@ var (
 		FQN:     "gnoi.bgp.BGP.ClearBGPNeighbor",
 		Path:    "/gnoi.bgp.BGP/ClearBGPNeighbor",
 		Exec:    GnoiBgpClearBGPNeighbor,
-	}
-	gnoicertificateCertificateManagementALL = &RPC{
-		Name:    "*",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.*",
-		Path:    "/gnoi.certificate.CertificateManagement/*",
-		Exec:    GnoiCertificatemanagementAllRPC,
-	}
-	gnoicertificateCertificateManagementCanGenerateCSR = &RPC{
-		Name:    "CanGenerateCSR",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.CanGenerateCSR",
-		Path:    "/gnoi.certificate.CertificateManagement/CanGenerateCSR",
-		Exec:    GnoiCertificatemanagementCanGenerateCSR,
-	}
-	gnoicertificateCertificateManagementGenerateCSR = &RPC{
-		Name:    "GenerateCSR",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.GenerateCSR",
-		Path:    "/gnoi.certificate.CertificateManagement/GenerateCSR",
-		Exec:    GnoiCertificatemanagementGenerateCSR,
-	}
-	gnoicertificateCertificateManagementGetCertificates = &RPC{
-		Name:    "GetCertificates",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.GetCertificates",
-		Path:    "/gnoi.certificate.CertificateManagement/GetCertificates",
-		Exec:    GnoiCertificatemanagementGetCertificates,
-	}
-	gnoicertificateCertificateManagementInstall = &RPC{
-		Name:    "Install",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.Install",
-		Path:    "/gnoi.certificate.CertificateManagement/Install",
-		Exec:    GnoiCertificatemanagementInstall,
-	}
-	gnoicertificateCertificateManagementLoadCertificate = &RPC{
-		Name:    "LoadCertificate",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.LoadCertificate",
-		Path:    "/gnoi.certificate.CertificateManagement/LoadCertificate",
-		Exec:    GnoiCertificatemanagementLoadCertificate,
-	}
-	gnoicertificateCertificateManagementLoadCertificateAuthorityBundle = &RPC{
-		Name:    "LoadCertificateAuthorityBundle",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.LoadCertificateAuthorityBundle",
-		Path:    "/gnoi.certificate.CertificateManagement/LoadCertificateAuthorityBundle",
-		Exec:    GnoiCertificatemanagementLoadCertificateAuthorityBundle,
-	}
-	gnoicertificateCertificateManagementRevokeCertificates = &RPC{
-		Name:    "RevokeCertificates",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.RevokeCertificates",
-		Path:    "/gnoi.certificate.CertificateManagement/RevokeCertificates",
-		Exec:    GnoiCertificatemanagementRevokeCertificates,
-	}
-	gnoicertificateCertificateManagementRotate = &RPC{
-		Name:    "Rotate",
-		Service: "gnoi.certificate.CertificateManagement",
-		FQN:     "gnoi.certificate.CertificateManagement.Rotate",
-		Path:    "/gnoi.certificate.CertificateManagement/Rotate",
-		Exec:    GnoiCertificatemanagementRotate,
 	}
 	gnoidiagALL = &RPC{
 		Name:    "*",
@@ -951,23 +879,14 @@ var (
 
 	// RPCMAP is a helper that  maps path to RPCs data that may be needed in tests.
 	RPCMAP = map[string]*RPC{
-		"*":                              ALL,
-		"/gnmi.gNMI/*":                   gnmiALL,
-		"/gnmi.gNMI/Get":                 gnmiGet,
-		"/gnmi.gNMI/Set":                 gnmiSet,
-		"/gnmi.gNMI/Subscribe":           gnmiSubscribe,
-		"/gnmi.gNMI/Capabilities":        gnmiCapabilities,
-		"/gnoi.bgp.BGP/*":                gnoibgpALL,
-		"/gnoi.bgp.BGP/ClearBGPNeighbor": gnoibgpClearBGPNeighbor,
-		"/gnoi.certificate.CertificateManagement/*":                              gnoicertificateCertificateManagementALL,
-		"/gnoi.certificate.CertificateManagement/CanGenerateCSR":                 gnoicertificateCertificateManagementCanGenerateCSR,
-		"/gnoi.certificate.CertificateManagement/GenerateCSR":                    gnoicertificateCertificateManagementGenerateCSR,
-		"/gnoi.certificate.CertificateManagement/GetCertificates":                gnoicertificateCertificateManagementGetCertificates,
-		"/gnoi.certificate.CertificateManagement/Install":                        gnoicertificateCertificateManagementInstall,
-		"/gnoi.certificate.CertificateManagement/LoadCertificate":                gnoicertificateCertificateManagementLoadCertificate,
-		"/gnoi.certificate.CertificateManagement/LoadCertificateAuthorityBundle": gnoicertificateCertificateManagementLoadCertificateAuthorityBundle,
-		"/gnoi.certificate.CertificateManagement/RevokeCertificates":             gnoicertificateCertificateManagementRevokeCertificates,
-		"/gnoi.certificate.CertificateManagement/Rotate":                         gnoicertificateCertificateManagementRotate,
+		"*":                                                              ALL,
+		"/gnmi.gNMI/*":                                                   gnmiALL,
+		"/gnmi.gNMI/Get":                                                 gnmiGet,
+		"/gnmi.gNMI/Set":                                                 gnmiSet,
+		"/gnmi.gNMI/Subscribe":                                           gnmiSubscribe,
+		"/gnmi.gNMI/Capabilities":                                        gnmiCapabilities,
+		"/gnoi.bgp.BGP/*":                                                gnoibgpALL,
+		"/gnoi.bgp.BGP/ClearBGPNeighbor":                                 gnoibgpClearBGPNeighbor,
 		"/gnoi.diag.Diag/*":                                              gnoidiagALL,
 		"/gnoi.diag.Diag/GetBERTResult":                                  gnoidiagGetBERTResult,
 		"/gnoi.diag.Diag/StopBERT":                                       gnoidiagStopBERT,
