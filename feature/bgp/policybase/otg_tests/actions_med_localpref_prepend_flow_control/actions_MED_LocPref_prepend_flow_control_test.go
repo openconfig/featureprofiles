@@ -469,6 +469,11 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case setMEDIncreasePolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
@@ -529,6 +534,11 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case setMEDIncreasePolicy:
+					if bgpPrefix.GetMultiExitDiscriminator() != metric {
+						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					} else {
+						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
+					}
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
