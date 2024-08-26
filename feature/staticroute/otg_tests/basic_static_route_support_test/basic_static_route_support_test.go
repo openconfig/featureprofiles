@@ -2,7 +2,6 @@ package basic_static_route_support_test
 
 import (
 	"fmt"
-	"math"
 	"net"
 	"strings"
 	"testing"
@@ -1174,7 +1173,7 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 
 	v6FIP := v6F.Packet().Add().Ipv6()
 	v6FIP.Src().SetValue(srcV6.Address())
-	v6FIP.Dst().Increment().SetStart(v6TrafficStart).SetCount(math.MaxInt32)
+	v6FIP.Dst().Increment().SetStart(v6TrafficStart).SetCount(254)
 
 	udp = v6F.Packet().Add().Udp()
 	udp.DstPort().Increment().SetStart(1).SetCount(500).SetStep(1)
