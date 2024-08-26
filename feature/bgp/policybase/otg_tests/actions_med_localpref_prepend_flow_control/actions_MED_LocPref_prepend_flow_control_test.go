@@ -468,6 +468,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
+				case setMEDIncreasePolicy:
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
@@ -527,6 +528,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
+				case setMEDIncreasePolicy:
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
@@ -640,7 +642,7 @@ func TestBGPPolicy(t *testing.T) {
 		policyStatement: matchStatement1,
 		defPolicyPort1:  defAcceptRoute,
 		defPolicyPort2:  defRejectRoute,
-		policyTypePort2: setMEDPolicy,
+		policyTypePort2: setMEDIncreasePolicy,
 		port1v4Prefix:   advertisedRoutesv4Net2,
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
