@@ -12,7 +12,6 @@ platform_exceptions:  {
   deviations:  {
     isis_level_enabled:  true
     skip_non_bgp_route_export_check:  true
-    default_import_export_policy: true
   }
 }
 platform_exceptions:  {
