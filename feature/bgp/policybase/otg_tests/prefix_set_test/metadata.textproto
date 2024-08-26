@@ -31,6 +31,22 @@ platform_exceptions:  {
 
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    prepolicy_received_routes: true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    default_import_export_policy: true
+  }
+}
 tags: TAGS_AGGREGATION
 tags: TAGS_TRANSIT
 tags: TAGS_DATACENTER_EDGE
