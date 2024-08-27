@@ -69,7 +69,7 @@ paths:
   /interfaces/interface/state/counters/out-error-pkts:
   /interfaces/interface/state/counters/out-forwarded-pkts:
   /interfaces/interface/state/counters/out-forwarded-octets:
-  /interfaces/interface/state/counters/out-discarded-pkts
+  /interfaces/interface/state/counters/out-discarded-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/in-octets:
   /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
@@ -81,7 +81,7 @@ paths:
   /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-octets:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts
+  /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
   /interfaces/interface/tunnel/ipv6/state/counters/in-pkts:
   /interfaces/interface/tunnel/ipv6/state/counters/in-octets:
   /interfaces/interface/tunnel/ipv6/state/counters/out-pkts:
