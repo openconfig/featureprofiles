@@ -48,7 +48,7 @@ duts {
   hardware_model: "CISCO-8818"
   name: "8818"  # Change this to the device hostname.
   config:{
-    gnmi_set_file: "/Users/arvbaska/b4test/featureprofiles/topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto"
+    gnmi_set_file: "$BASE_CONF_PATH"
   }
   options {
     insecure: false 
