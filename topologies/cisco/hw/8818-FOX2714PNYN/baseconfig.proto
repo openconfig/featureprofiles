@@ -1134,6 +1134,8 @@ replace: {
       "ssh server vrf default\n"
       "hw-module profile pbr vrf-redirect\n"
       "hw-module profile qos qos-stats-push-collection\n"
+      "hw-module shutdown location 0/1/CPU0\n"
+      "hw-module shutdown location 0/4/CPU0\n"
       "hw-module profile npu-compatibility Q200\n"
       "power-mgmt redundancy-num-pms 0\n"
       "interface FourHundredGigE0/0/0/11\n"
