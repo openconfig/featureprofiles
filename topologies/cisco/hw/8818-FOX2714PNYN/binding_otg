@@ -59,19 +59,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:8818"
+    target: "10.85.84.225:8818"
   }
   gnmi {
-    target: "10.85.84.159:8818" 
+    target: "10.85.84.225:8818" 
   }
   gribi{
-    target: "10.85.84.159:8818"
+    target: "10.85.84.225:8818"
   }
   ssh{
-    target: "10.85.84.159:8822"
+    target: "10.85.84.225:8822"
   }
   p4rt{
-    target: "10.85.84.159:8818"
+    target: "10.85.84.225:8818"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -79,42 +79,42 @@ duts {
   
   ports {
     id: "port1"
-    name: "HundredGigE0/0/0/6"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port2"
-    name: "HundredGigE0/0/0/34"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port3"
-    name: "HundredGigE0/16/0/6" # Change this to the actual port name.
-     speed: S_100GB   
-  }
-  ports {
-    id: "port4"
-    name: "HundredGigE0/16/0/34"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port5"
     name: "HundredGigE0/0/0/2"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
-    id: "port6"
+    id: "port2"
     name: "HundredGigE0/0/0/33"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
+    id: "port3"
+    name: "HundredGigE0/16/0/2" # Change this to the actual port name.
+     speed: S_100GB   
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/16/0/33"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
+    id: "port5"
+    name: "HundredGigE0/0/0/6"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    name: "HundredGigE0/0/0/34"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
     id: "port7"
-    name: "HundredGigE0/16/0/2"  # Change this to the actual port name.
+    name: "HundredGigE0/14/0/6"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
    id: "port8"
-   name: "HundredGigE0/16/0/33"  # Change this to the actual port name.
+   name: "HundredGigE0/14/0/34"  # Change this to the actual port name.
    speed: S_100GB   
   }
 }
@@ -130,42 +130,42 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "10.85.84.214;1;77"  # Change this to the actual port name.
+    name: "10.85.84.214;1;73"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port2"
-    name: "10.85.84.214;1;78"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port3"
-    name: "10.85.84.214;1;79"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port4"
-    name: "10.85.84.214;1;80"  # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port5"
-    name: "10.85.84.214;1;73" # Change this to the actual port name.
-    speed: S_100GB   
-  }
-  ports {
-    id: "port6"
     name: "10.85.84.214;1;74"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
-    id: "port7"
+    id: "port3"
     name: "10.85.84.214;1;75"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
+    id: "port4"
+    name: "10.85.84.214;1;76"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
+    id: "port5"
+    name: "10.85.84.214;1;77" # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
+    id: "port6"
+    name: "10.85.84.214;1;78"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
+    id: "port7"
+    name: "10.85.84.214;1;79"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
+  ports {
    id: "port8"
-   name: "10.85.84.214;1;76"  # Change this to the actual port name.
+   name: "10.85.84.214;1;80"  # Change this to the actual port name.
    speed: S_100GB   
   }
   gnmi: {
