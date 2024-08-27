@@ -36,7 +36,7 @@ platform_exceptions: {
     static_protocol_name: "STATIC"
     aggregate_atomic_update: true
     missing_value_for_defaults: true
-    max_ecmp_paths: false
+    max_ecmp_paths: true
     explicit_interface_in_default_vrf: false
   }
 }
