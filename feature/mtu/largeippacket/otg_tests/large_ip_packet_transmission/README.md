@@ -49,14 +49,13 @@ paths:
   /interfaces/interface/config/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
-  # TODO: OpenConfig definition required for Tunnel protocol under interfaces/interfaces/interface/tunnel/ as GRE, IP-IP, GUE etc. 
+  # TODO- OpenConfig definition required for Tunnel protocol under interfaces/interfaces/interface/tunnel/ as GRE, IP-IP, GUE etc. 
   /interfaces/interfaces/interface/tunnel/config/dest/
   /interfaces/interfaces/interface/tunnel/config/src/
   /interfaces/interfaces/interface/tunnel/ipv4/addresses/address/config/ip
   /interfaces/interfaces/interface/tunnel/ipv4/addresses/address/config/prefix-length
   /interfaces/interfaces/interface/tunnel/ipv6/addresses/address/config/ip
   /interfaces/interfaces/interface/tunnel/ipv6/addresses/address/config/prefix-length
-
   # State Paths
   /interfaces/interface/state/counters/in-pkts
   /interfaces/interface/state/counters/in-pkts 
