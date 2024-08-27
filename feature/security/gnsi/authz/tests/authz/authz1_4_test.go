@@ -46,7 +46,7 @@ const (
 type UsersMap map[string]authz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
+	testInfraID = flag.String("test_infra_id", "cisco", "SPIFFE-ID used by test Infra ID user for authz operation")
 	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
 	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	policyMap   map[string]authz.AuthorizationPolicy
@@ -734,10 +734,11 @@ func TestAuthz4(t *testing.T) {
 	// Verify all results match per the above table for policy policy-normal-1 with retry mechanism
 	startAuthTableVerification := time.Now()
 	for {
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			verifyAuthTable(t.(*testing.T), dut, authTable)
+		errMsg := testt.CaptureFatal(t, func(tt testing.TB) {
+			verifyAuthTable(t, dut, authTable)
 		})
 		if errMsg == nil {
+			t.Logf("completed verifyAuthTable")
 			break
 		}
 		t.Logf("AuthTable verification failed: %v, retrying...", errMsg)
