@@ -5,12 +5,3 @@ uuid:  "c1352e24-e45c-4f6d-9b16-d28cc1a5093a"
 plan_id:  "ACCTZ-1.1"
 description:  "Record Subscribe Full"
 testbed:  TESTBED_DUT
-
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    set_native_user: true
-  }
-}
