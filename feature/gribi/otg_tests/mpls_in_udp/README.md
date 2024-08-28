@@ -339,32 +339,11 @@ network_instances: {
 
 ```yaml
 paths:
-  # qos scheduler config
-  /qos/scheduler-policies/scheduler-policy/config/name:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/config/type:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/cir:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
-  /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
 
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
-
-  # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
-  # /qos/input-policies/input-policy/config/name:
-  # /qos/input-policies/input-policy/config/classifier:
-  # /qos/input-policies/input-policy/config/scheduler-policy:
-
-  # qos interface config
-  #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-
-  # qos interface scheduler counters
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-pkts:
-  /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/exceeding-octets:
 
   # afts next-hop counters
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
@@ -388,6 +367,9 @@ rpcs:
       on_change: true
   gribi:
     gRIBI.Modify:
+      network-instances:network-instance:afts:next-hops:next-hop:encapsulate_header:
+      network-instances:network-instance:afts:next-hops:next-hop:mpls-in-udp:
+      network-instances:network-instance:afts:next-hops:next-hop:decapsulate_header:
     gRIBI.Flush:
 ```
 
