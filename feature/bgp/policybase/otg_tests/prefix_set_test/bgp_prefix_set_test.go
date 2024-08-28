@@ -430,7 +430,7 @@ func testPrefixSet(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Run("Validate acceptance based on prefix-set policy - import policy on neighbor", func(t *testing.T) {
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V4, prefixSet2V4}, bgpImportIPv4, *ebgp1NbrV4, importPolicy)
 		applyPrefixSetPolicy(t, dut, []*prefixSetPolicy{prefixSet1V6, prefixSet2V6}, bgpImportIPv6, *ebgp1NbrV6, importPolicy)
-		if deviations.DefaultImportExportPolicy(dut) {
+		if deviations.DefaultImportExportPolicyUnsupported(dut) {
 			t.Logf("Validate for neighbour %v", ebgp1NbrV4)
 			validatePrefixCount(t, dut, *ebgp1NbrV4, 3, 5, 0)
 			validatePrefixCount(t, dut, *ebgp1NbrV6, 1, 5, 0)
@@ -487,7 +487,7 @@ func TestBGPPrefixSet(t *testing.T) {
 		verifyBgpState(t, dut)
 	})
 
-	if deviations.DefaultImportExportPolicy(dut) {
+	if deviations.DefaultImportExportPolicyUnsupported(dut) {
 		t.Run("Validate initial prefix count", func(t *testing.T) {
 			validatePrefixCount(t, dut, *ebgp1NbrV4, 5, 5, 0)
 			validatePrefixCount(t, dut, *ebgp1NbrV6, 5, 5, 0)
