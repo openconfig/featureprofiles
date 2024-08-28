@@ -39,8 +39,6 @@ $ fpcli show rpcs gnoi -d tmp
 gnoi.bgp.BGP.ClearBGPNeighbor
 gnoi.bootconfig.BootConfig.GetBootConfig
 gnoi.bootconfig.BootConfig.SetBootConfig
-gnoi.certificate.CertificateManagement.CanGenerateCSR
-gnoi.certificate.CertificateManagement.GenerateCSR
 ...`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:

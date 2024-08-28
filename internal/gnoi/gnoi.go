@@ -50,7 +50,7 @@ var (
 		},
 		ondatra.NOKIA: {
 			GRIBI:   "sr_grpc_server",
-			OCAGENT: "oc_mgmt_server",
+			OCAGENT: "sr_oc_mgmt_serv",
 			P4RT:    "sr_grpc_server",
 			ROUTING: "sr_bgp_mgr",
 		},
