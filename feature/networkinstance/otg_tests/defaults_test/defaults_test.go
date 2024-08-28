@@ -190,7 +190,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			}).Await(t)
 
 			if !ok {
-				t.Log("IPv6 neighbor resolution failed")
+				t.Fatal("IPv6 neighbor resolution failed")
 			}
 
 			ate.OTG().StartTraffic(t)
