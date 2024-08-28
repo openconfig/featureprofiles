@@ -1119,3 +1119,9 @@ func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
 func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
 }
+
+// BgpSetmedUnionTypeUnsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
+}
