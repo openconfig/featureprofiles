@@ -37,7 +37,6 @@ import (
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 
 	bpb "github.com/openconfig/gnoi/bgp"
-	cpb "github.com/openconfig/gnoi/cert"
 	dpb "github.com/openconfig/gnoi/diag"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	fpb "github.com/openconfig/gnoi/file"
@@ -70,7 +69,6 @@ var (
 		"gnsi.cred":               credpb.File_github_com_openconfig_gnsi_credentialz_credentialz_proto.Services(),
 		"gnsi.acc":                accpb.File_github_com_openconfig_gnsi_acctz_acctz_proto.Services(),
 		"gnoi.bgp":                bpb.File_bgp_bgp_proto.Services(),
-		"gnoi.cert":               cpb.File_cert_cert_proto.Services(),
 		"gnoi.diag":               dpb.File_diag_diag_proto.Services(),
 		"gnoi.factory_reset":      frpb.File_factory_reset_factory_reset_proto.Services(),
 		"gnoi.file":               fpb.File_file_file_proto.Services(),
