@@ -1,8 +1,8 @@
-# PF-1.2: Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel
+# PF-1.2: Policy-based traffic GRE Encapsulation to IPv4/IPv6 GRE tunnel
 
 ## Summary
 
-The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel when matching on source/destination.
+The test verifies policy forwarding(PF) encapsulation action to IPv4/IPv6 GRE tunnel when matching on source/destination.
 
 ## Testbed type
 
@@ -34,16 +34,20 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
 
 3.  Another set of IPv4 static routes to 32x IPv4 GRE encap destinations towards ATE Port 2.
 
-4.  2 IPv4 and 2 IPv6 source prefixes will be used to generate tests traffic 
-(SRC1-SRC2). Apply policy-forwarding with 4 rules to DUT Port 1:
+4.  Another set of IPv6 static routes to 32x IPv6 GRE encap destinations towards ATE Port 2.
+
+5.  2 IPv4 and 2 IPv6 source prefixes will be used to generate tests traffic 
+(SRC1-SRC2). Apply policy-forwarding with 6 rules to DUT Port 1:
     - Match IPV4-SRC1 and accept/foward.
     - Match IPV6-SRC1 and accept/foward.
     - Match IPV4-SRC2 and encapsulate to 32 IPv4 GRE destinations.
     - Match IPV6-SRC2 and encapsulate to 32 IPv4 GRE destinations.
+    - Match IPV4-SRC2 and encapsulate to 32 IPv6 GRE destinations.
+    - Match IPV6-SRC2 and encapsulate to 32 IPv6 GRE destinations.
 
-5.   Set GRE encap source to device's loopback interface.
-6.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations based on vendor implementation.
-7.   Configure QoS classifier for incoming traffic on ATE Port1 for IPv4 and IPv6 traffic. 
+6.   Set GRE encap source to device's loopback interface.
+7.   Either `identifying-prefix` or `targets/target/config/destination` can be used to configure GRE destinations based on vendor implementation.
+8.   Configure QoS classifier for incoming traffic on ATE Port1 for IPv4 and IPv6 traffic. 
      QoS classifier should remark egress packet to the matching ingress DSCP value (eg. match DSCP 32, set egress DSCP 32).
      Match and remark all values for 3 leftmost DSCP bits [0, 8, 16, 24, 32, 40, 48, 56].
     
