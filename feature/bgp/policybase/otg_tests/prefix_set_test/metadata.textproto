@@ -27,8 +27,7 @@ platform_exceptions:  {
     default_network_instance: "default"
     missing_value_for_defaults: true
     skip_set_rp_match_set_options: true
-    default_import_export_policy: true
-
+    default_import_export_policy_unsupported: true
   }
 }
 platform_exceptions:  {
@@ -37,14 +36,6 @@ platform_exceptions:  {
   }
   deviations:  {
     prepolicy_received_routes: true
-  }
-}
-platform_exceptions:  {
-  platform:  {
-    vendor:  JUNIPER
-  }
-  deviations:  {
-    default_import_export_policy: true
   }
 }
 tags: TAGS_AGGREGATION
