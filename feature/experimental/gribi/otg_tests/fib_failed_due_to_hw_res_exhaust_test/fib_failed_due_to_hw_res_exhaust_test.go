@@ -337,9 +337,7 @@ func sendTraffic(t *testing.T, args *testArgs) {
 
 	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
 	/*
-		if !deviations.GRIBISkipFIBFailedTrafficForwardingCheck(args.dut) {
-			verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
-		}
+		verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
 	*/
 }
 
