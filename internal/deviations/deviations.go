@@ -386,11 +386,6 @@ func QOSDroppedOctets(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosDroppedOctets()
 }
 
-// ExplicitGRIBIUnderNetworkInstance returns if device requires gribi-protocol to be enabled under network-instance.
-func ExplicitGRIBIUnderNetworkInstance(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitGribiUnderNetworkInstance()
-}
-
 // BGPMD5RequiresReset returns if device requires a BGP session reset to utilize a new MD5 key.
 func BGPMD5RequiresReset(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpMd5RequiresReset()
@@ -1107,4 +1102,19 @@ func BgpExplicitExtendedCommunityEnable(dut *ondatra.DUTDevice) bool {
 // MatchTagSetConditionUnsupported returns true if match tag set condition is not supported
 func MatchTagSetConditionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchTagSetConditionUnsupported()
+}
+
+// PeerGroupDefEbgpVrfUnsupported returns true if peer group definition under ebgp vrf is unsupported
+func PeerGroupDefEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPeerGroupDefEbgpVrfUnsupported()
+}
+
+// RedisConnectedUnderEbgpVrfUnsupported returns true if redistribution of routes under ebgp vrf is unsupported
+func RedisConnectedUnderEbgpVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRedisConnectedUnderEbgpVrfUnsupported()
+}
+
+// BgpAfiSafiInDefaultNiBeforeOtherNi returns true if certain AFI SAFIs are configured in default network instance before other network instances
+func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiInDefaultNiBeforeOtherNi()
 }
