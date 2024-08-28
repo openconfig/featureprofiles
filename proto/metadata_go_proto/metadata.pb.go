@@ -885,7 +885,6 @@ type Metadata_Deviations struct {
 	// Devices which do not support default import export policy.
 	DefaultImportExportPolicyUnsupported bool `protobuf:"varint,213,opt,name=default_import_export_policy_unsupported,json=defaultImportExportPolicyUnsupported,proto3" json:"default_import_export_policy_unsupported,omitempty"`
 	//	Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
-	//
 	// Juniper: b/353280742
 	GribiUnresolvableNexthopsUnsupported bool `protobuf:"varint,214,opt,name=gribi_unresolvable_nexthops_unsupported,json=gribiUnresolvableNexthopsUnsupported,proto3" json:"gribi_unresolvable_nexthops_unsupported,omitempty"`
 }

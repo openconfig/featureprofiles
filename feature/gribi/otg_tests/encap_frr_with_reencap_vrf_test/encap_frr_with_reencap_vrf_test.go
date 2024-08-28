@@ -1143,7 +1143,6 @@ func TestEncapFrr(t *testing.T) {
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1301).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2224).WithNextHopNetworkInstance(niTEVRF222),
-
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1000).AddNextHop(1300, 1),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
