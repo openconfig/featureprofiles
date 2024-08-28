@@ -1,9 +1,11 @@
 # TE-18.1 gRIBI MPLS in UDP Encapsulation with OC QoS scheduler
 
-Create AFT entries using gRIBI to match destination IP address in a
-network-instance.  Encapsulate the matching packets in MPLS in UDP. Configure
-a qos scheduler using gNMI to rate limit / police traffic based on matching
-the destination IP address of a packet input to the DUT.
+Create AFT entries using gRIBI to match on next hop group in a
+network-instance and encapsulate the matching packets in MPLS in UDP.
+
+Create a policy routing configuration using gNMI to decapsulate MPLS
+in UDP packets which are sent to a loopback address and apply to
+the DUT.
 
 The MPLS in UDP encapsulation is expected to follow
 [rfc7510](https://datatracker.ietf.org/doc/html/rfc7510#section-3),
