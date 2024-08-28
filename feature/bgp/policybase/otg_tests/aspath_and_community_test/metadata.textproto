@@ -30,7 +30,7 @@ platform_exceptions: {
   deviations: {
     bgp_conditions_match_community_set_unsupported: true
     skip_setting_statement_for_policy: true
-    default_import_export_policy: true
+    default_import_export_policy_unsupported: true
     community_member_regex_unsupported: true
     default_route_policy_unsupported: true
   }

@@ -494,9 +494,6 @@ message Metadata {
     bool use_vendor_native_tag_set_config = 171;
     // Skip setting send-community-type in bgp global config
     bool skip_bgp_send_community_type = 172;
-    // Device does not have a default deny action in the absence of a route
-    // policy
-    bool default_import_export_policy = 173;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
     // Ensure no configurations exist under BGP Peer Groups
@@ -603,9 +600,12 @@ message Metadata {
     // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
     // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
+    // Devices which do not support default import export policy.
+    bool default_import_export_policy_unsupported = 213;
+
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
 
   message PlatformExceptions {

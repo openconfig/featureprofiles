@@ -24,7 +24,7 @@ platform_exceptions:  {
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
-    default_import_export_policy: true
+    default_import_export_policy_unsupported: true
     bgp_default_policy_unsupported: true
   }
 }
