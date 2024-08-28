@@ -336,13 +336,6 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		stmt3.GetOrCreateActions().SetPolicyResult(nextstatementResult)
 	}
 
-	// Configure multi_policy:STATEMENT4: match_comm_and_prefix_add_2_community_sets statement
-
-	stmt4, err := pdef1.AppendNewStatement(matchCommPrefixAddCommuStatement)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", matchCommPrefixAddCommuStatement, err)
-	}
-
 	// Configure my_community: [  "50:1"  ] to match_comm_and_prefix_add_2_community_sets statement
 	communitySetMatchCommPrefixAddCommu := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(myCommunitySet)
 
@@ -355,15 +348,30 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	communitySetMatchCommPrefixAddCommu.SetCommunityMember(cs4)
 	communitySetMatchCommPrefixAddCommu.SetMatchSetOptions(matchAny)
 
+	// Configure multi_policy:STATEMENT4: match_comm_and_prefix_add_2_community_sets statement
+
+	stmt4, err := pdef1.AppendNewStatement(matchCommPrefixAddCommuStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", matchCommPrefixAddCommuStatement, err)
+	}
+	stmt6, err := pdef1.AppendNewStatement(matchCommPrefixAddCommuStatement + "_V6")
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", matchCommPrefixAddCommuStatement, err)
+	}
+
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(myCommunitySet)
+		stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(myCommunitySet)
 	} else {
 		stmt4.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(myCommunitySet)
+		stmt6.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(myCommunitySet)
 	}
 
 	// configure match-prefix-set: prefix-set-5 to match_comm_and_prefix_add_2_community_sets statement
 	stmt4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
+	stmt6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName + "_V6")
+	stmt6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
 
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
 	pset.GetOrCreatePrefix(prefixesV4[4][0]+"/29", "29..30")
@@ -387,12 +395,18 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
 		stmt4.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+
+		stmt6.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs(setCommunitySetRefs)
+		stmt6.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetMethod(oc.SetCommunity_Method_REFERENCE)
+		stmt6.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 	}
 	// set-local-pref = 5
 	stmt4.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+	stmt6.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		stmt4.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+		stmt6.GetOrCreateActions().SetPolicyResult(nextstatementResult)
 	}
 
 	// Configure multi_policy:STATEMENT5: match_aspath_set_med statement
