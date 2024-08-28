@@ -600,10 +600,10 @@ message Metadata {
     // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
     // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
-    // Juniper: b/356898098
-    bool community_invert_any_unsupported = 213;
     // Devices which do not support default import export policy.
     bool default_import_export_policy_unsupported = 213;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 214;
 
 
     // Reserved field numbers and identifiers.
