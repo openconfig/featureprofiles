@@ -896,11 +896,6 @@ func BgpCommunitySetRefsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunitySetRefsUnsupported()
 }
 
-// DefaultImportExportPolicy returns true when device does not have a default deny action in the absence of a route policy
-func DefaultImportExportPolicy(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDefaultImportExportPolicy()
-}
-
 // TableConnectionsUnsupported returns true if Table Connections are unsupported.
 func TableConnectionsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTableConnectionsUnsupported()
@@ -1123,4 +1118,10 @@ func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
 // supporting bgp set med union type in OC.
 func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
+}
+
+// DefaultImportExportPolicyUnsupported returns true when device
+// does not support default import export policy.
+func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
 }
