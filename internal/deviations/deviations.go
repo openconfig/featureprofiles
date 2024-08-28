@@ -1119,3 +1119,8 @@ func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
 func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
 }
+
+// Ipv6RouterAdvertisementIntervalUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement interval configuration
+func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementIntervalUnsupported()
+}
