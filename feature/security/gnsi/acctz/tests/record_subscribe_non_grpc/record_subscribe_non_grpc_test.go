@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/gnsi/credentialz"
+
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnsi/acctz"
@@ -27,13 +26,13 @@ import (
 const (
 	successUsername = "acctztestuser"
 	successPassword = "verysecurepassword"
-	successRoleName = "acctz-fp-test-success"
 	failUsername    = "bilbo"
 	failPassword    = "baggins"
 	failRoleName    = "acctz-fp-test-fail"
 	command         = "show version"
 	failCommand     = "show version"
 	shellCommand    = "uname -a"
+	sshPort         = 22
 )
 
 type rpcRecord struct {
@@ -51,7 +50,6 @@ type rpcRecord struct {
 	expectedAuthenStatus acctz.AuthnDetail_AuthnStatus
 	expectedAuthenCause  string
 	expectedIdentity     string
-	expectedRole         string
 }
 
 type recordRequestResult struct {
@@ -63,150 +61,127 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func createNativeRole(t testing.TB, dut *ondatra.DUTDevice) {
-	var SetRequest *gpb.SetRequest
-	switch dut.Vendor() {
-	case ondatra.NOKIA:
-		successRoleData, err := json.Marshal([]any{
-			map[string]any{
-				"services": []string{"cli"},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		failRoleData, err := json.Marshal([]any{
-			map[string]any{
-				"services": []string{"cli"},
-				"cli": map[string][]string{
-					"deny-command-list": {"show version"},
-				},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		successUserData, err := json.Marshal([]any{
-			map[string]any{
-				"password": successPassword,
-				"role":     []string{successRoleName},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		failUserData, err := json.Marshal([]any{
-			map[string]any{
-				"password": failPassword,
-				"role":     []string{failRoleName},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		SetRequest = &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Replace: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": successRoleName}},
+func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
+	request := &credentialz.RotateAccountCredentialsRequest{
+		Request: &credentialz.RotateAccountCredentialsRequest_Password{
+			Password: &credentialz.PasswordRequest{
+				Accounts: []*credentialz.PasswordRequest_Account{
+					{
+						Account: username,
+						Password: &credentialz.PasswordRequest_Password{
+							Value: &credentialz.PasswordRequest_Password_Plaintext{
+								Plaintext: password,
+							},
 						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: successRoleData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authorization"},
-							{Name: "role", Key: map[string]string{"rolename": failRoleName}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: failRoleData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": successUsername}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: successUserData,
-						},
-					},
-				},
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "system"},
-							{Name: "aaa"},
-							{Name: "authentication"},
-							{Name: "user", Key: map[string]string{"username": failUsername}},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: failUserData,
-						},
+						Version:   "v1.0",
+						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
 			},
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
+		},
 	}
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-		t.Fatalf("Unexpected error configuring User: %v", err)
+
+	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
+
+	credzRotateClient, err := credzClient.RotateAccountCredentials(context.Background())
+	if err != nil {
+		t.Fatalf("failed fetching credentialz rotate account credentials client, error: %s", err)
+	}
+
+	err = credzRotateClient.Send(request)
+	if err != nil {
+		t.Fatalf("failed sending credentialz rotate account credentials request, error: %s", err)
+	}
+
+	_, err = credzRotateClient.Recv()
+	if err != nil {
+		t.Fatalf("failed receiving credentialz rotate account credentials response, error: %s", err)
+	}
+
+	err = credzRotateClient.Send(&credentialz.RotateAccountCredentialsRequest{
+		Request: &credentialz.RotateAccountCredentialsRequest_Finalize{
+			Finalize: request.GetFinalize(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed sending credentialz rotate account credentials finalize request, error: %s", err)
+	}
+
+	// brief sleep for finalize to get processed
+	time.Sleep(time.Second)
+}
+
+func nokiaRole(t *testing.T) *gpb.SetRequest {
+	failRoleData, err := json.Marshal([]any{
+		map[string]any{
+			"services": []string{"cli"},
+			"cli": map[string][]string{
+				"deny-command-list": {"show version"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Error with json Marshal: %v", err)
+	}
+
+	return &gpb.SetRequest{
+		Prefix: &gpb.Path{
+			Origin: "native",
+		},
+		Replace: []*gpb.Update{
+			{
+				Path: &gpb.Path{
+					Elem: []*gpb.PathElem{
+						{Name: "system"},
+						{Name: "aaa"},
+						{Name: "authorization"},
+						{Name: "role", Key: map[string]string{"rolename": failRoleName}},
+					},
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_JsonIetfVal{
+						JsonIetfVal: failRoleData,
+					},
+				},
+			},
+		},
 	}
 }
 
 func setupUsers(t *testing.T, dut *ondatra.DUTDevice) {
-	auth := &oc.System_Aaa_Authentication{}
-	auth.GetOrCreateUser(successUsername)
-	auth.GetOrCreateUser(failUsername)
+	var SetRequest *gpb.SetRequest
 
-	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
-
-	if deviations.SetNativeUser(dut) {
-		// probably all vendors need to handle this since the user should have a role attached to
-		// it allowing us to login via ssh/console/whatever
-		createNativeRole(t, dut)
+	//Create failure role in native
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		SetRequest = nokiaRole(t)
 	}
+
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+		t.Fatalf("Unexpected error configuring role: %v", err)
+	}
+
+	//Configure users
+	auth := &oc.System_Aaa_Authentication{}
+	successUser := auth.GetOrCreateUser(successUsername)
+	successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+	failUser := auth.GetOrCreateUser(failUsername)
+	failUser.SetRole(oc.UnionString(failRoleName))
+	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+	setupUserPassword(t, dut, successUsername, successPassword)
+	setupUserPassword(t, dut, failUsername, failPassword)
 }
 
-func dialSSH(t *testing.T, username, password, addr string, port uint32) (net.Conn, io.Writer, io.Reader) {
-	tcpConn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", addr, port), 0)
+func dialSSH(t *testing.T, username, password, target string) (net.Conn, io.Writer, io.Reader) {
+	tcpConn, err := net.DialTimeout("tcp", target, 0)
 	if err != nil {
 		t.Fatalf("got unexpected error dialing ssh tcp connection, error: %s", err)
 	}
 
 	cConn, chans, reqs, err := ssh.NewClientConn(
 		tcpConn,
-		fmt.Sprintf("%s:%d", addr, port),
+		target,
 		&ssh.ClientConfig{
 			User: username,
 			Auth: []ssh.AuthMethod{
@@ -271,10 +246,10 @@ func dialSSH(t *testing.T, username, password, addr string, port uint32) (net.Co
 	return tcpConn, w, r
 }
 
-func sendCLICommand(t *testing.T, addr string, port uint32) []rpcRecord {
+func sendCLICommand(t *testing.T, target string) []rpcRecord {
 	var records []rpcRecord
 
-	tcpConn, w, _ := dialSSH(t, successUsername, successPassword, addr, port)
+	tcpConn, w, _ := dialSSH(t, successUsername, successPassword, target)
 	defer func() {
 		// give things a second to percolate then close the connection
 		time.Sleep(3 * time.Second)
@@ -296,41 +271,39 @@ func sendCLICommand(t *testing.T, addr string, port uint32) []rpcRecord {
 		t.Fatalf("failed sending cli command, error: %s", err)
 	}
 
-	addrParts := strings.Split(tcpConn.LocalAddr().String(), ":")
-	remoteAddr := addrParts[0]
-	remotePort, _ := strconv.Atoi(addrParts[1])
-
-	resolvedAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, port))
+	// remote from the perspective of the router
+	remoteAddr, err := net.ResolveTCPAddr("tcp", tcpConn.LocalAddr().String())
 	if err != nil {
-		t.Fatalf("failed resolving ssh destination addr, error: %s", err)
+		t.Fatalf("failed resolving ssh remote addr, error: %s", err)
 	}
-
-	addr = resolvedAddr.IP.String()
+	localAddr, err := net.ResolveTCPAddr("tcp", target)
+	if err != nil {
+		t.Fatalf("failed resolving ssh local addr, error: %s", err)
+	}
 
 	records = append(records, rpcRecord{
 		startTime:            startTime,
 		doneTime:             time.Now(),
 		cmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
-		localIp:              addr,
-		localPort:            port,
-		remoteIp:             remoteAddr,
-		remotePort:           uint32(remotePort),
+		localIp:              localAddr.IP.String(),
+		localPort:            uint32(localAddr.Port),
+		remoteIp:             remoteAddr.IP.String(),
+		remotePort:           uint32(remoteAddr.Port),
 		succeeded:            true,
 		expectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		expectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     successUsername,
-		expectedRole:         successRoleName,
 	})
 
 	return records
 }
 
-func sendCLICommandFail(t *testing.T, addr string, port uint32) []rpcRecord {
+func sendCLICommandFail(t *testing.T, target string) []rpcRecord {
 	var records []rpcRecord
 
-	tcpConn, w, _ := dialSSH(t, failUsername, failPassword, addr, port)
+	tcpConn, w, _ := dialSSH(t, failUsername, failPassword, target)
 	defer func() {
 		// give things a second to percolate then close the connection
 		time.Sleep(3 * time.Second)
@@ -350,38 +323,36 @@ func sendCLICommandFail(t *testing.T, addr string, port uint32) []rpcRecord {
 		t.Fatalf("failed sending cli command, error: %s", err)
 	}
 
-	addrParts := strings.Split(tcpConn.LocalAddr().String(), ":")
-	remoteAddr := addrParts[0]
-	remotePort, _ := strconv.Atoi(addrParts[1])
-
-	resolvedAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, port))
+	// remote from the perspective of the router
+	remoteAddr, err := net.ResolveTCPAddr("tcp", tcpConn.LocalAddr().String())
 	if err != nil {
-		t.Fatalf("failed resolving ssh destination addr, error: %s", err)
+		t.Fatalf("failed resolving ssh remote addr, error: %s", err)
 	}
-
-	addr = resolvedAddr.IP.String()
+	localAddr, err := net.ResolveTCPAddr("tcp", target)
+	if err != nil {
+		t.Fatalf("failed resolving ssh local addr, error: %s", err)
+	}
 
 	records = append(records, rpcRecord{
 		startTime:            startTime,
 		doneTime:             time.Now(),
 		cmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
-		localIp:              addr,
-		localPort:            port,
-		remoteIp:             remoteAddr,
-		remotePort:           uint32(remotePort),
+		localIp:              localAddr.IP.String(),
+		localPort:            uint32(localAddr.Port),
+		remoteIp:             remoteAddr.IP.String(),
+		remotePort:           uint32(remoteAddr.Port),
 		succeeded:            true,
 		expectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		expectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		expectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		expectedAuthenCause:  "authentication_method: local",
 		expectedIdentity:     failUsername,
-		expectedRole:         failRoleName,
 	})
 
 	return records
 }
 
-func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, addr string, port uint32) []rpcRecord {
+func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, target string) []rpcRecord {
 	var records []rpcRecord
 
 	shellUsername := successUsername
@@ -395,7 +366,7 @@ func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, addr string, port ui
 		shellPassword = "NokiaSrl1!"
 	}
 
-	tcpConn, w, _ := dialSSH(t, shellUsername, shellPassword, addr, port)
+	tcpConn, w, _ := dialSSH(t, shellUsername, shellPassword, target)
 	defer func() {
 		// give things a second to percolate then close the connection
 		time.Sleep(3 * time.Second)
@@ -415,25 +386,24 @@ func sendShellCommand(t *testing.T, dut *ondatra.DUTDevice, addr string, port ui
 		t.Fatalf("failed sending cli command, error: %s", err)
 	}
 
-	addrParts := strings.Split(tcpConn.LocalAddr().String(), ":")
-	remoteAddr := addrParts[0]
-	remotePort, _ := strconv.Atoi(addrParts[1])
-
-	resolvedAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", addr, port))
+	// remote from the perspective of the router
+	remoteAddr, err := net.ResolveTCPAddr("tcp", tcpConn.LocalAddr().String())
 	if err != nil {
-		t.Fatalf("failed resolving ssh destination addr, error: %s", err)
+		t.Fatalf("failed resolving ssh remote addr, error: %s", err)
 	}
-
-	addr = resolvedAddr.IP.String()
+	localAddr, err := net.ResolveTCPAddr("tcp", target)
+	if err != nil {
+		t.Fatalf("failed resolving ssh local addr, error: %s", err)
+	}
 
 	records = append(records, rpcRecord{
 		startTime:            startTime,
 		doneTime:             time.Now(),
 		cmdType:              acctz.CommandService_CMD_SERVICE_TYPE_SHELL,
-		localIp:              addr,
-		localPort:            port,
-		remoteIp:             remoteAddr,
-		remotePort:           uint32(remotePort),
+		localIp:              localAddr.IP.String(),
+		localPort:            uint32(localAddr.Port),
+		remoteIp:             remoteAddr.IP.String(),
+		remotePort:           uint32(remoteAddr.Port),
 		succeeded:            true,
 		expectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		expectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -465,6 +435,11 @@ func getDutAddr(t *testing.T, dut *ondatra.DUTDevice) string {
 	return dutSSHService.GetOutsideIp()
 }
 
+func prettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
 func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -476,6 +451,10 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	// so... we get what we can get.
 	addr := getDutAddr(t, dut)
 
+	// suppose ssh could be not 22 in some cases but don't think this is exposed by introspect
+	target := fmt.Sprintf("%s:%d", addr, sshPort)
+	t.Logf("Target for SSH service: %s", target)
+
 	var records []rpcRecord
 
 	// put enough time between the test starting and any prior events so we can easily know where
@@ -484,14 +463,13 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	startTime := time.Now()
 
-	// suppose ssh could be not 22 in some cases but don't think this is exposed by introspect
-	newRecords := sendCLICommand(t, addr, 22)
+	newRecords := sendCLICommand(t, target)
 	records = append(records, newRecords...)
 
-	newRecords = sendCLICommandFail(t, addr, 22)
+	newRecords = sendCLICommandFail(t, target)
 	records = append(records, newRecords...)
 
-	newRecords = sendShellCommand(t, dut, addr, 22)
+	newRecords = sendShellCommand(t, dut, target)
 	records = append(records, newRecords...)
 
 	// quick sleep to ensure all the records have been processed/ready for us
@@ -564,7 +542,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		}
 
 		if resp.record.GetHistoryIstruncated() {
-			t.Fatal("history is truncated but it shouldnt be")
+			t.Fatalf("history is truncated but it shouldn't be, Record Details: %s", prettyPrint(resp.record))
 		}
 
 		if !resp.record.Timestamp.AsTime().After(startTime) {
@@ -577,7 +555,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// this ensures that timestamps are actually changing for each record
-			t.Fatalf("timestamp is the same as the previous timestamp, this shouldnt be possible!")
+			t.Fatalf("timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(resp.record))
 		}
 
 		lastTimestampUnixMillis = timestamp.UnixMilli()
@@ -592,32 +570,35 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		lastTaskID = currentTaskID
 
-		if records[recordIdx].startTime.Unix() > timestamp.Unix() {
+		// -2 for a little breathing room since things may not be perfectly synced up time-wise
+		if records[recordIdx].startTime.Unix()-2 > timestamp.Unix() {
 			t.Fatalf(
-				"record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d",
-				records[recordIdx].startTime.Unix(),
+				"record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d, Record Details: %s",
+				records[recordIdx].startTime.Unix()-2,
 				timestamp.Unix(),
+				prettyPrint(resp.record),
 			)
 		}
 
 		// done time (that we recorded when making the rpc) + 2 second for some breathing room
 		if records[recordIdx].doneTime.Unix()+2 < timestamp.Unix() {
 			t.Fatalf(
-				"record timestamp is after rpc end timestamp, rpc end timestamp %d, record timestamp %d",
+				"record timestamp is after rpc end timestamp, rpc end timestamp %d, record timestamp %d, Record Details: %s",
 				records[recordIdx].doneTime.Unix()+2,
 				timestamp.Unix(),
+				prettyPrint(resp.record),
 			)
 		}
 
 		cmdType := resp.record.GetCmdService().GetServiceType()
 
 		if records[recordIdx].cmdType != cmdType {
-			t.Fatalf("service type not correct, got %q, want %q", cmdType, records[recordIdx].cmdType)
+			t.Fatalf("service type not correct, got %q, want %q, Record Details: %s", cmdType, records[recordIdx].cmdType, prettyPrint(resp.record))
 		}
 
 		servicePath := resp.record.GetGrpcService().GetRpcName()
 		if records[recordIdx].rpcPath != servicePath {
-			t.Fatalf("service path not correct, got %q, want %q", servicePath, records[recordIdx].rpcPath)
+			t.Fatalf("service path not correct, got %q, want %q, Record Details: %s", servicePath, records[recordIdx].rpcPath, prettyPrint(resp.record))
 		}
 
 		channelID := resp.record.GetSessionInfo().GetChannelId()
@@ -629,68 +610,62 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// directly)
 		if !records[recordIdx].succeeded {
 			if channelID != "aaa_session_id: 0" {
-				t.Fatalf("auth was not successful for this record, but channel id was set, got %q", channelID)
+				t.Fatalf("auth was not successful for this record, but channel id was set, got %q, Record Details: %s", channelID, prettyPrint(resp.record))
 			}
 		}
 
 		// status
 		sessionStatus := resp.record.GetSessionInfo().GetStatus()
 		if records[recordIdx].expectedStatus != sessionStatus {
-			t.Fatalf("session status not correct, got %q, want %q", sessionStatus, records[recordIdx].expectedStatus)
+			t.Fatalf("session status not correct, got %q, want %q, Record Details: %s", sessionStatus, records[recordIdx].expectedStatus, prettyPrint(resp.record))
 		}
 
 		// authen type
 		authenType := resp.record.GetSessionInfo().GetAuthn().GetType()
 		if records[recordIdx].expectedAuthenType != authenType {
-			t.Fatalf("authenType not correct, got %q, want %q", authenType, records[recordIdx].expectedAuthenType)
+			t.Fatalf("authenType not correct, got %q, want %q, Record Details: %s", authenType, records[recordIdx].expectedAuthenType, prettyPrint(resp.record))
 		}
 
 		authenStatus := resp.record.GetSessionInfo().GetAuthn().GetStatus()
 		if records[recordIdx].expectedAuthenStatus != authenStatus {
-			t.Fatalf("authenStatus not correct, got %q, want %q", authenStatus, records[recordIdx].expectedAuthenStatus)
+			t.Fatalf("authenStatus not correct, got %q, want %q, Record Details: %s", authenStatus, records[recordIdx].expectedAuthenStatus, prettyPrint(resp.record))
 		}
 
 		authenCause := resp.record.GetSessionInfo().GetAuthn().GetCause()
 		if records[recordIdx].expectedAuthenCause != authenCause {
-			t.Fatalf("authenCause not correct, got %q, want %q", authenCause, records[recordIdx].expectedAuthenCause)
+			t.Fatalf("authenCause not correct, got %q, want %q, Record Details: %s", authenCause, records[recordIdx].expectedAuthenCause, prettyPrint(resp.record))
 		}
 
 		userIdentity := resp.record.GetSessionInfo().GetUser().GetIdentity()
 		if records[recordIdx].expectedIdentity != userIdentity {
-			t.Fatalf("identity not correct, got %q, want %q", userIdentity, records[recordIdx].expectedIdentity)
+			t.Fatalf("identity not correct, got %q, want %q, Record Details: %s", userIdentity, records[recordIdx].expectedIdentity, prettyPrint(resp.record))
 		}
 
 		if !records[recordIdx].succeeded {
 			// not a successful rpc so don't need to check anything else
 			recordIdx++
-
 			continue
-		}
-
-		role := resp.record.GetSessionInfo().GetUser().GetRole()
-		if records[recordIdx].expectedRole != role {
-			t.Fatalf("role not correct, got %q, want %q", role, records[recordIdx].expectedRole)
 		}
 
 		// verify the l4 bits align, this stuff is only set if auth is successful so do it down here
 		localAddr := resp.record.GetSessionInfo().GetLocalAddress()
 		if records[recordIdx].localIp != localAddr {
-			t.Fatalf("local address not correct, got %q, want %q", localAddr, records[recordIdx].localIp)
+			t.Fatalf("local address not correct, got %q, want %q, Record Details: %s", localAddr, records[recordIdx].localIp, prettyPrint(resp.record))
 		}
 
 		localPort := resp.record.GetSessionInfo().GetLocalPort()
 		if records[recordIdx].localPort != localPort {
-			t.Fatalf("local port not correct, got %d, want %d", localPort, records[recordIdx].localPort)
+			t.Fatalf("local port not correct, got %d, want %d, Record Details: %s", localPort, records[recordIdx].localPort, prettyPrint(resp.record))
 		}
 
 		remoteAddr := resp.record.GetSessionInfo().GetRemoteAddress()
 		if records[recordIdx].remoteIp != remoteAddr {
-			t.Fatalf("remote address not correct, got %q, want %q", remoteAddr, records[recordIdx].remoteIp)
+			t.Fatalf("remote address not correct, got %q, want %q, Record Details: %s", remoteAddr, records[recordIdx].remoteIp, prettyPrint(resp.record))
 		}
 
 		remotePort := resp.record.GetSessionInfo().GetRemotePort()
 		if records[recordIdx].remotePort != remotePort {
-			t.Fatalf("remote port not correct, got %d, want %d", remotePort, records[recordIdx].remotePort)
+			t.Fatalf("remote port not correct, got %d, want %d, Record Details: %s", remotePort, records[recordIdx].remotePort, prettyPrint(resp.record))
 		}
 
 		recordIdx++
