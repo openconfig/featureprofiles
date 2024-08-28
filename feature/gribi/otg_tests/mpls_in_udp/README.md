@@ -30,7 +30,7 @@ outer_ipv6_src =      "2001:f:a:1::0"
 outer_ipv6_dst_A =    "2001:f:c:e::1"
 outer_ipv6_dst_B =    "2001:f:c:e::2"
 outer_ipv6_dst_def =  "2001:1:1:1::0"
-outer_dst_udp_port =  "5555"
+outer_dst_udp_port =  "6635"
 outer_dscp =          "26"
 outer_ip-ttl =        "64"
 
@@ -167,8 +167,7 @@ openconfig-network-instance:
                     config:
                       destination-address: "inner_ipv6_default"
                   action:
-                    # TODO: add to OC model/PR in progress
-                    encapsulate-mpls-in-gre:
+                    encapsulate-mpls-in-gre:              # TODO: add to OC model/PR in progress
                       targets:
                         target: "default_dst_1"
                           config:
