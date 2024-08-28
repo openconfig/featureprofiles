@@ -336,6 +336,9 @@ func sendTraffic(t *testing.T, args *testArgs) {
 	args.otg.StopTraffic(t)
 
 	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
+	/*
+		verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
+	*/
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
