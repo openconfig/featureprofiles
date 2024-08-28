@@ -102,17 +102,17 @@ func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	s6a := s6.GetOrCreateAddress(a.IPv6)
 	s6a.PrefixLength = ygot.Uint8(plen6)
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
-	routerAdvert.SetInterval(*ygot.Uint32(routerAdvertisementTimeInterval))
+	routerAdvert.SetInterval(routerAdvertisementTimeInterval)
 	if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
-		routerAdvert.SetSuppress(*ygot.Bool(routerAdvertisementDisabled))
+		routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	} else {
-		routerAdvert.SetEnable(*ygot.Bool(false))
+		routerAdvert.SetEnable(false)
 		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
 	}
 	return i
 }
 
-// Configures OTG interfaces to send and recieve ipv6 packets.
+// Configures OTG interfaces to send and receive ipv6 packets.
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	topo := gosnappi.NewConfig()
 	t.Logf("Configuring OTG port1")
