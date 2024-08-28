@@ -7,14 +7,6 @@ description: "Packet-based Link Qualification"
 testbed: TESTBED_DUT_DUT_4LINKS
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    skip_plq_interface_oper_status_check: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: ARISTA
   }
   deviations: {
