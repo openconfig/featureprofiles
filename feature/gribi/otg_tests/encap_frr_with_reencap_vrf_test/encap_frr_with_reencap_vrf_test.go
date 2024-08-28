@@ -1072,7 +1072,7 @@ func TestEncapFrr(t *testing.T) {
 			LoadBalancePercent:     []float64{0, 0, 0, 0, 0, 0, 1},
 			TestID:                 "teVrf111NoMatch",
 		},
-	}
+	)
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
 			t.Log("Verify whether the ports are in up state")
