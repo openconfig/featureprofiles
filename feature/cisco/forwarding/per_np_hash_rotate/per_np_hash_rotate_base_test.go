@@ -92,7 +92,7 @@ func setGlobalHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal int, setC
 	if !setConf {
 		configCli = configCli + "no "
 	}
-	configCli = fmt.Sprintf("cef platform load-balancing algorithm adjust %d", hashVal)
+	configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %d", hashVal)
 	config.TextWithGNMI(context.Background(), t, dut, configCli)
 }
 
@@ -127,12 +127,13 @@ func verifyPerNPHashCLIVal(cliHashVal int) int {
 // getPerLCPerNPHashValTable returns a map of LC and corresponding per NP hash rotate value using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val_all_npu" location <LC#> CLI.
 func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice) map[string][]int {
-	t.Helper()
+	// t.Helper()
 	hashValMap := make(map[string][]int)
 	//get per LC per NP hash-rotate value from the device
 	for _, lc := range lcList {
 		debugCLI := fmt.Sprintf("show controllers npu debugshell 0 'script device_hash_rotate_info get_val_all_npu' location %v", lc)
 		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
+		t.Log("debug cli output:\n", cliResp)
 		npList := parseDebugCLIOutput(t, cliResp)
 		hashValMap[lc] = npList
 	}

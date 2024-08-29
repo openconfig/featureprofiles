@@ -64,6 +64,10 @@ func TestPerNPHashRotateVerifyAutoVal(t *testing.T) {
 	w := tabwriter.NewWriter(os.Stdout, 10, 1, 1, ' ', tabwriter.Debug)
 	fmt.Fprintln(w, " RTR_ID\tLC_SLOT_ID\t  NP0\t  NP1\t  NP2\t")
 	for lck, npv := range hashMap {
+		if len(npv) != 3 {
+			t.Errorf("For linecard %v, expected 3 NPs got %v", lck, npv)
+			continue
+		}
 		fmt.Fprintf(w, " %v\t %v\t  %v\t  %v\t  %v\t\n", rtrID, lck, npv[0], npv[1], npv[2])
 	}
 	w.Flush()
@@ -197,7 +201,7 @@ func TestBulkNPHashConfigPersistenceRouterReload(t *testing.T) {
 	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
 	util.RebootDevice(t)
 	//wait for grpc to be ready
-	time.Sleep(1 * time.Minute)
+	time.Sleep(2 * time.Minute)
 	for _, lc := range lcList {
 		for _, np := range npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(h.hashValMap[lc][np]); got != want {
@@ -233,9 +237,9 @@ func TestGlobalAndPerNPHashCoExistence(t *testing.T) {
 	lcList = util.GetLCList(t, dut)
 
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
-	// defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
+	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
 	setGlobalHashConfig(t, dut, 10, true)
-	// defer setGlobalHashConfig(t, dut, 10, false)
+	defer setGlobalHashConfig(t, dut, 10, false)
 	t.Logf("Verify LCs are using per-NP hash value \n, %v", h.hashValMap)
 	for _, lc := range lcList {
 		for _, np := range npList {
@@ -335,4 +339,39 @@ func TestGlobalTakesOverAfterPbrProfileDeletedAllLcReload(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestNonAutomaticHashWithoutPbrAndGlobalOrPerNpHashAllLcReload(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	t.Logf("Get list of LCs")
+	lcList = util.GetLCList(t, dut)
+	// config/unconfig per np hash value and global hash to clear any existing values
+	globalHash := rand.Intn(34) + 1
+	h.setBulkPerNPHashConfig(t, dut, lcList, true)
+	setGlobalHashConfig(t, dut, globalHash, true)
+	time.Sleep(5 * time.Second)
+	h.setBulkPerNPHashConfig(t, dut, lcList, false)
+	setGlobalHashConfig(t, dut, globalHash, false)
+
+	// non-automatic hash value without pbr policy and global or per-np hash
+	// debug shell output will show this hash value as 1
+	nonAutoHash := 0
+	// unconfigure pbr profile
+	setHwProfilePbrVrfRedirect(t, dut, false)
+	// reload router after pbr has been configured back
+	util.ReloadLinecards(t, lcList)
+	time.Sleep(30 * time.Second)
+
+	t.Logf("Verify LC %v are using global hash value \n, %v", lcList, nonAutoHash)
+	for _, lc := range lcList {
+		for _, np := range npList {
+			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(nonAutoHash); got != want {
+				t.Errorf("Global hash value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
+			}
+		}
+	}
+
+	// restrore pbr profile
+	setHwProfilePbrVrfRedirect(t, dut, true)
+	util.ReloadLinecards(t, lcList)
 }
