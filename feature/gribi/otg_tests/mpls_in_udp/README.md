@@ -1,4 +1,4 @@
-# TE-18.1 gRIBI MPLS in UDP Encapsulation with OC QoS scheduler
+# TE-18.1 gRIBI MPLS in UDP Encapsulation and Decapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP.
