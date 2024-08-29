@@ -50,25 +50,23 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
   # TODO: OpenConfig definition required for Tunnel protocol under interfaces/interfaces/interface/tunnel/ as GRE, IP-IP, GUE etc. 
-  /interfaces/interfaces/interface/tunnel/config/dest:
-  /interfaces/interfaces/interface/tunnel/config/src:
-  /interfaces/interfaces/interface/tunnel/ipv4/addresses/address/config/ip:
-  /interfaces/interfaces/interface/tunnel/ipv4/addresses/address/config/prefix-length:
-  /interfaces/interfaces/interface/tunnel/ipv6/addresses/address/config/ip:
-  /interfaces/interfaces/interface/tunnel/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/tunnel/config/dest:
+  /interfaces/interface/tunnel/config/src:
+  /interfaces/interface/tunnel/ipv4/addresses/address/config/ip:
+  /interfaces/interface/tunnel/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/tunnel/ipv6/addresses/address/config/ip:
+  /interfaces/interface/tunnel/ipv6/addresses/address/config/prefix-length:
   # State Paths
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-octets:
-  /interfaces/interface/state/counters/in-error-pkts:
-  /interfaces/interface/state/counters/in-forwarded-pkts:
-  /interfaces/interface/state/counters/in-forwarded-octets:
-  /interfaces/interface/state/counters/in-discarded-pkts:
-  /interfaces/interface/state/counters/out-error-pkts:
-  /interfaces/interface/state/counters/out-forwarded-pkts:
-  /interfaces/interface/state/counters/out-forwarded-octets:
-  /interfaces/interface/state/counters/out-discarded-pkts:
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/in-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/counters/out-discards:
   /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/in-octets:
   /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
