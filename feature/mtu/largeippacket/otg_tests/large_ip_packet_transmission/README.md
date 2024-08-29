@@ -50,7 +50,7 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/mtu:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/mtu:
   # TODO: OpenConfig definition required for Tunnel protocol under interfaces/interfaces/interface/tunnel/ as GRE, IP-IP, GUE etc. 
-  /interfaces/interface/tunnel/config/dest:
+  /interfaces/interface/tunnel/config/dst:
   /interfaces/interface/tunnel/config/src:
   /interfaces/interface/tunnel/ipv4/addresses/address/config/ip:
   /interfaces/interface/tunnel/ipv4/addresses/address/config/prefix-length:
