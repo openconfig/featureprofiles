@@ -58,7 +58,6 @@ paths:
   /interfaces/interfaces/interface/tunnel/ipv6/addresses/address/config/prefix-length:
   # State Paths
   /interfaces/interface/state/counters/in-pkts:
-  /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/in-octets:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-octets:
