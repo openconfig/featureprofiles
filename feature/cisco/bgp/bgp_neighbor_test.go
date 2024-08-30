@@ -52,8 +52,13 @@ func TestNeighborAddress(t *testing.T) {
 	fixBgpLeafRefConstraints(t, dut, bgpInstance)
 	gnmi.Update(t, dut, bgpConfig.Global().As().Config(), bgpAs)
 	time.Sleep(configApplyTime)
-	peerAs := bgpConfig.Neighbor(neighborAddress).PeerAs()
-	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, peerAs.Config(), 34) })
+	bgpNeighbor := bgpConfig.Neighbor(neighborAddress)
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpNeighbor.Config(),
+		&oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			NeighborAddress: neighborAddress,
+			PeerAs: 34,
+		},
+	)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
@@ -1035,8 +1040,13 @@ func TestNeighborGracefulRestartState(t *testing.T) {
 	time.Sleep(configApplyTime)
 	gnmi.Update(t, dut, bgpConfig.Global().GracefulRestart().Enabled().Config(), true)
 	time.Sleep(configApplyTime)
-	config := bgpConfig.Neighbor(neighborAddress).PeerAs()
-	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, config.Config(), 34) })
+	bgpNeighbor := bgpConfig.Neighbor(neighborAddress)
+	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpNeighbor.Config(),
+		&oc.NetworkInstance_Protocol_Bgp_Neighbor{
+			NeighborAddress: neighborAddress,
+			PeerAs: 34,
+		},
+	)
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
