@@ -47,8 +47,8 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   # Config Paths
    openconfig-interfaces:
-    interface:
-      - name: 'tunnel1_if_name'
+    - interface:
+      name: 'tunnel1_if_name'
       config:
         name: 'tunnel1_if_name'
         tunnel:     # configures the tunnel parameters 
