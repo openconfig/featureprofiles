@@ -46,32 +46,33 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 ```yaml
 paths:
   # Config Paths
-  openconfig-interfaces:
-  - interface: 'tunnel1_if_name'
-    config:
-      name: 'tunnel1_if_name'
-      tunnel:     # configures the tunnel parameters 
-        config:
-         src: 'tunnel1_outer_ip_src'
-         dst: 'tunnel1_outer_ip_dst'
-         ttl: 'tunnel1_outer_ttl'
-         gre-key: 'tunnel1_outer_gre_key'
-        ipv4:
+   openconfig-interfaces:
+    interface:
+      - name: 'tunnel1_if_name'
+      config:
+        name: 'tunnel1_if_name'
+        tunnel:     # configures the tunnel parameters 
           config:
-            mtu: 'tunnel1_inner_mtu'
-          addresses:
-            - address:
-              config:
-                ip: 'tunnel1_interface_ipv4'     # For tunnel decap destination and/or route next-hop
-                prefix-length: 'tunnel1_interface_ipv4_prefixlen'
-        ipv6:
-          config:
-            mtu: 'tunnel1_inner_mtu'
-          addresses:
-            - address:
+           src: 'tunnel1_outer_ip_src'
+           dst: 'tunnel1_outer_ip_dst'
+           ttl: 'tunnel1_outer_ttl'
+           gre-key: 'tunnel1_outer_gre_key'
+          ipv4:
+            config:
+              mtu: 'tunnel1_inner_mtu'
+            addresses:
+              - address:
                 config:
-                  ip: 'tunnel1_interface_ipv6'     # For tunnel decap destination and/or route next-hop
-                  prefix-length: 'tunnel1_interface_ipv6_prefixlen'
+                  ip: 'tunnel1_interface_ipv4'     # For tunnel decap destination and/or route next-hop
+                  prefix-length: 'tunnel1_interface_ipv4_prefixlen'
+          ipv6:
+            config:
+              mtu: 'tunnel1_inner_mtu'
+            addresses:
+              - address:
+                  config:
+                    ip: 'tunnel1_interface_ipv6'     # For tunnel decap destination and/or route next-hop
+                    prefix-length: 'tunnel1_interface_ipv6_prefixlen'
   # State Paths
   /interfaces/interface/state/counters/in-pkts:
   /interfaces/interface/state/counters/in-octets:
