@@ -55,10 +55,10 @@ func TestNeighborAddress(t *testing.T) {
 	bgpNeighbor := bgpConfig.Neighbor(neighborAddress)
 	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpNeighbor.Config(),
 		&oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			NeighborAddress: neighborAddress,
-			PeerAs: 34,
-		},
-	)
+			NeighborAddress: ygot.String(neighborAddress),
+			PeerAs: ygot.Uint32(34),
+		})
+	})
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
@@ -1043,10 +1043,10 @@ func TestNeighborGracefulRestartState(t *testing.T) {
 	bgpNeighbor := bgpConfig.Neighbor(neighborAddress)
 	t.Run("Update", func(t *testing.T) { gnmi.Update(t, dut, bgpNeighbor.Config(),
 		&oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			NeighborAddress: neighborAddress,
-			PeerAs: 34,
-		},
-	)
+			NeighborAddress: ygot.String(neighborAddress),
+			PeerAs: ygot.Uint32(34),
+		})
+	})
 	time.Sleep(configApplyTime)
 	defer cleanup(t, dut, bgpInstance)
 
