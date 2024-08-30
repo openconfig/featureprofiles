@@ -1124,3 +1124,8 @@ func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementIntervalUnsupported()
 }
+
+// DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
+}
