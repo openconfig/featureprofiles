@@ -14,7 +14,7 @@ tests:
 - name: BGP-OC
   path: feature/cisco/bgp/...
   timeout: 7200
-  branch: liawalsh/bgp_test
+  branch: master
   internal: true
   owners:
   - karremil
