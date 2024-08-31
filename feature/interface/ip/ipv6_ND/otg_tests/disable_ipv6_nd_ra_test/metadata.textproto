@@ -19,5 +19,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    ipv6_router_advertisement_interval_unsupported: true
   }
 }
