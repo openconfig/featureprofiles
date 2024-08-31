@@ -290,6 +290,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "MTU-1.3"
+  description: "Large IP Packet Transmission"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/largeippacket/otg_tests/large_ip_packet_transmission"
+  exec: " "
+}
+test: {
+  id: "MTU-1.5"
+  description: "Path MTU handling"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/mtu/otg_tests/pmtu_handing"
+  exec: " "
+}
+test: {
   id: "OC-1.1"
   description: "System Configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/tests/system_base_test/README.md"
