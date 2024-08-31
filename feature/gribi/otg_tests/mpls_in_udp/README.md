@@ -198,7 +198,7 @@ network_instances {
     afts {
       ipv6_unicast {
         ipv6_entry {
-          prefix: "outer_loopback_ipv6"   # IPv6 match rule for the device loopback expected to receive MPLS in UDP packets
+          prefix: "outer_loopback_ipv6"   # IPv6 match rule for the prefix on the device expected to receive MPLS in UDP packets
           next-hop-group: 999
         }
       }
@@ -224,8 +224,8 @@ network_instances {
           index: 990
           decapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6      # TODO: Add OC path for this
           # The device should decapsulate the UDP packet and use the MPLS header
-          # to determine the destination network-instance, then forward the packet
-          # based on the inner IP packet, matching an appropriate AFT entry.
+          # to determine the output interface, then forward the packet
+          # without looking up the inner IP packet
         }
       }
     }
@@ -239,103 +239,12 @@ network_instances {
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-### TE-18.1.5 Rewrite inner packet TTL=2 if inner TTL=1
+### TE-18.1.4 - Policy forwarding to encap and forward for BGP packets
 
-* Perform mpls-in-udp encapsulation, but add a condition that the DUT must
-  re-write the ingress, innner packet TLL = 2, if the incoming TTL = 1.
+TODO: Specify a solution for ensuring BGP packets are matched, encapsulated
+and forwarding to a specified  destination using OC policy-forwarding terms.
 
-```proto
-network_instances: {
-  network_instance: {
-    afts {
-      #
-      # entries used for "group_A"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          next_hop_group_id: "nhg_A"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          id: 100
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 100
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 100
-          network_instance: "group_A"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_A"
-            pushed_mpls_label_stack: [100,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            inner_ip_ttl_min: 2
-            dscp: "outer_dscp"
-          }
-        }
-      }
-      #
-      # entries used for "group_B"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_B"
-          next_hop_group: 200
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_B"
-          next_hop_group: 200
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          id: 200
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 200
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 200
-          network_instance: "group_B"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_B"
-            pushed_mpls_label_stack: [200,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            inner_ip_ttl_min: 2
-            dscp: "outer_dscp"
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-#### OpenConfig Path and RPC Coverage
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
