@@ -55,7 +55,7 @@ var (
 		IPv6Len: 128,
 	}
 	mgmtVRF = map[ondatra.Vendor]string{
-		ondatra.JUNIPER: "mgmt_junos",
+		ondatra.JUNIPER: "mvrf1",
 		ondatra.ARISTA:  "mvrf1",
 		ondatra.CISCO:   "mgmtvrf1",
 		ondatra.NOKIA:   "mgmtvrf1",
@@ -67,7 +67,7 @@ var (
 		ondatra.NOKIA:   1,
 	}
 	loopbackSubIntf = map[ondatra.Vendor]int32{
-		ondatra.JUNIPER: 100,
+		ondatra.JUNIPER: 0,
 		ondatra.ARISTA:  0,
 		ondatra.CISCO:   0,
 		ondatra.NOKIA:   0,
