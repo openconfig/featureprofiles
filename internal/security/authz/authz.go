@@ -247,15 +247,64 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	}
 	if hardVerify {
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
-		err := rpc.Exec(context.Background(), dut, opts)
-		if status.Code(err) != expectedExecErr {
-			if status.Code(err) == codes.Unimplemented {
-				t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for the rpc", rpc.Path, err)
-			}
+		// Retry for 10 minutes. Each retry takes 30 sec. Total retry time = 30 * 20(maxRetries) = 600 sec
+		// const maxRetries = 20
+		// for status.Code(err) == codes.Unavailable && retryCount < maxRetries {
+		// 	t.Logf("The execution of rpc %s failed for %d retries due to server not being ready", rpc.Path, retryCount+1)
+		// 	time.Sleep(30 * time.Second)
+		// 	err = rpc.Exec(context.Background(), dut, opts)
+		// 	retryCount++
+		// }
+		// if retryCount == maxRetries {
+		// 	t.Fatalf("The execution of rpc %s failed after %d retries due to server not being ready", rpc.Path, maxRetries)
+		// }
+		const maxRetries = 20
+		const retryInterval = 30 * time.Second
+		retryCodeList := []codes.Code{codes.Unavailable}
+		err := executeWithRetry(t, rpc, dut, opts, maxRetries, retryInterval, expectedExecErr, retryCodeList)
+		if status.Code(err) == expectedExecErr {
+			t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		} else {
 			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 		}
-		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		// if status.Code(err) == expectedExecErr {
+		// 	if status.Code(err) == codes.Unimplemented {
+		// 		t.Fatalf("The execution of rpc %s is failed due to error %v, please add implementation for the rpc", rpc.Path, err)
+		// 	}
+		// 	t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+		// }
+		// t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 	}
+}
+
+// executeWithRetry retries the execution of an RPC until it succeeds or the maximum number of retries is reached.
+func executeWithRetry(t testing.TB, rpc *gnxi.RPC, dut *ondatra.DUTDevice, opts []grpc.DialOption, maxRetries int, retryInterval time.Duration, expectedExecErr codes.Code, retryCodes []codes.Code) error {
+	retryCount := 0
+	ctx := context.Background()
+	err := rpc.Exec(ctx, dut, opts)
+	for containsCode(status.Code(err), retryCodes) && retryCount < maxRetries {
+		t.Logf("The execution of rpc %s failed for %d retries due to not ready: %v", rpc.Path, retryCount+1, err)
+		time.Sleep(retryInterval)
+		err = rpc.Exec(ctx, dut, opts)
+		retryCount++
+	}
+	// if even after maxRetries the error persists, fail Fatal
+	if retryCount == maxRetries {
+		if containsCode(status.Code(err), retryCodes) {
+			t.Fatalf("The execution of rpc %s failed after %d retries due to error: %v", rpc.Path, maxRetries, err)
+		}
+	}
+	return err
+}
+
+// containsCode checks if a given code is in the list of retry codes.
+func containsCode(code codes.Code, retryCodes []codes.Code) bool {
+	for _, c := range retryCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadPolicyFromJSONFile Loads Policy from a JSON File.
