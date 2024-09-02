@@ -1120,6 +1120,12 @@ func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
 }
 
+// CommunityInvertAnyUnsupported returns true when device
+// does not support community invert any.
+func CommunityInvertAnyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityInvertAnyUnsupported()
+}
+
 // Ipv6RouterAdvertisementIntervalUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement interval configuration
 func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementIntervalUnsupported()

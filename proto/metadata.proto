@@ -606,6 +606,8 @@ message Metadata {
     bool ipv6_router_advertisement_interval_unsupported = 214;
     // Decap NH with NextHopNetworkInstance is unsupported
     bool decap_nh_with_nexthop_ni_unsupported = 215;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 216;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
