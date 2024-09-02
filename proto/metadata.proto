@@ -604,6 +604,8 @@ message Metadata {
     bool default_import_export_policy_unsupported = 213;
     // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
     bool ipv6_router_advertisement_interval_unsupported = 214;
+    // Decap NH with NextHopNetworkInstance is unsupported
+    bool decap_nh_with_nexthop_ni_unsupported = 215;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
