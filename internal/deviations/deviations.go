@@ -1135,3 +1135,8 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
+
+// SflowSourceAddressUpdateUnsupported returns true if sflow source address update is unsupported
+func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
+}
