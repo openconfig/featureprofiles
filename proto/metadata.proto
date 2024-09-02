@@ -608,6 +608,9 @@ message Metadata {
     bool decap_nh_with_nexthop_ni_unsupported = 215;
     // Juniper: b/356898098
     bool community_invert_any_unsupported = 216;
+    // SFlow source address update is unsupported
+    // Arista: b/357914789
+    bool sflow_source_address_update_unsupported = 217;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
