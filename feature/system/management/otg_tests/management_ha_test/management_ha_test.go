@@ -89,9 +89,7 @@ func TestManagementHA1(t *testing.T) {
 	p4 := dut.Port(t, "port4")
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 	mgmtVRFName := mgmtVRF[dut.Vendor()]
-	createInterfaces(t, dut, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName}, []uint32{0, 0, 0, 0, uint32(loopbackSubIntf[dut.Vendor()])})
-	addInterfacesToVRF(t, dut, mgmtVRFName, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName}, []uint32{0, 0, 0, 0, uint32(loopbackSubIntf[dut.Vendor()])})
-
+	createAndAddInterfacesToVRF(t, dut, mgmtVRFName, []string{p1.Name(), p2.Name(), p3.Name(), p4.Name(), loopbackIntfName}, []uint32{0, 0, 0, 0, uint32(loopbackSubIntf[dut.Vendor()])})
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, &mgmtVRFName)
 	bs.WithEBGP(
 		t,
@@ -203,7 +201,10 @@ func TestManagementHA1(t *testing.T) {
 	})
 
 	defer func() {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(mgmtVRFName).Config())
+		batchConfig := &gnmi.SetBatch{}
+		gnmi.BatchDelete(batchConfig, gnmi.OC().Interface(loopbackIntfName).Config())
+		gnmi.BatchDelete(batchConfig, gnmi.OC().NetworkInstance(mgmtVRFName).Config())
+		batchConfig.Set(t, dut)
 	}()
 }
 
@@ -278,8 +279,9 @@ func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 }
 
-func createInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfNames []string, unit []uint32) {
+func createAndAddInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfNames []string, unit []uint32) {
 	root := &oc.Root{}
+	batchConfig := &gnmi.SetBatch{}
 	for index, intfName := range intfNames {
 		i := root.GetOrCreateInterface(intfName)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -290,12 +292,9 @@ func createInterfaces(t *testing.T, dut *ondatra.DUTDevice, intfNames []string, 
 		}
 		si := i.GetOrCreateSubinterface(unit[index])
 		si.Enabled = ygot.Bool(true)
-		gnmi.Update(t, dut, gnmi.OC().Interface(intfName).Config(), i)
+		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(intfName).Config(), i)
 	}
-}
 
-func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, intfNames []string, unit []uint32) {
-	root := &oc.Root{}
 	mgmtNI := root.GetOrCreateNetworkInstance(vrfname)
 	mgmtNI.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 	for index, intfName := range intfNames {
@@ -303,7 +302,8 @@ func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, in
 		vi.Interface = ygot.String(intfName)
 		vi.Subinterface = ygot.Uint32(unit[index])
 	}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfname).Config(), mgmtNI)
+	gnmi.BatchReplace(batchConfig, gnmi.OC().NetworkInstance(vrfname).Config(), mgmtNI)
+	batchConfig.Set(t, dut)
 	t.Logf("Added interface %v to VRF %s", intfNames, vrfname)
 }
 
