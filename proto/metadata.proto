@@ -609,7 +609,7 @@ message Metadata {
     // Arista: b/357914789
     bool sflow_source_address_update_unsupported = 217;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 137;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
 
   message PlatformExceptions {
