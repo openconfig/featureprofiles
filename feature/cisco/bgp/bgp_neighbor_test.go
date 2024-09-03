@@ -81,10 +81,7 @@ func TestNeighborAddress(t *testing.T) {
 			t.Run("Update /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled=true", func(t *testing.T) {
 				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), true)
 				time.Sleep(configApplyTime)
-				stateGot, _ := gnmi.Watch(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, func(y *ygnmi.Value[bool]) bool {
-					val, present := y.Val()
-					return present && val
-				}).Await(t)
+				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
 				//stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
 				value, _ := stateGot.Val()
 				if value == false {
@@ -193,8 +190,12 @@ func TestNeighborLocalAs(t *testing.T) {
 			time.Sleep(configApplyTime)
 
 			t.Run("Subscribe", func(t *testing.T) {
-				stateGot := gnmi.Get(t, dut, state.State())
-				if stateGot != input {
+				stateGot := gnmi.Await(t, dut, state.State(), telemetryTimeout, input)
+				val, ok := stateGot.Val()
+				if !ok {
+					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as: got %v, want %v", stateGot, input)
+				}
+				if val != input {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as: got %v, want %v", stateGot, input)
 				}
 			})
