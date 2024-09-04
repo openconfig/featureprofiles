@@ -83,6 +83,12 @@ func TestNeighborAddress(t *testing.T) {
 				time.Sleep(configApplyTime)
 				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
 				//stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
+				if stateGot == nil {
+					res := gnmi.Get(t, dut, bgpState.Neighbor(input).Enabled().State())
+					if res != true {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", res, true)
+					}
+				}
 				value, _ := stateGot.Val()
 				if value == false {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", stateGot, true)
@@ -93,6 +99,13 @@ func TestNeighborAddress(t *testing.T) {
 				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), false)
 				time.Sleep(configApplyTime)
 				stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, false)
+				if stateGot == nil {
+					res := gnmi.Get(t, dut, bgpState.Neighbor(input).Enabled().State())
+					if res == true {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", res, false)
+					}
+				}
+
 				value, _ := stateGot.Val()
 				if value == true {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", stateGot, false)
@@ -191,6 +204,13 @@ func TestNeighborLocalAs(t *testing.T) {
 
 			t.Run("Subscribe", func(t *testing.T) {
 				stateGot := gnmi.Await(t, dut, state.State(), telemetryTimeout, input)
+				if stateGot == nil {
+					res := gnmi.Get(t, dut, state.State())
+					if res != input {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as: got %v, want %v", res, input)
+					}
+				}
+
 				val, ok := stateGot.Val()
 				if !ok {
 					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as: got %v, want %v", stateGot, input)
