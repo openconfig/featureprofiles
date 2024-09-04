@@ -393,7 +393,7 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 136;
-        // Device doesn't support router advertisement enable and mode config
+    // Device doesn't support router advertisement enable and mode config
     // Juniper: b/316173974
     bool ipv6_router_advertisement_config_unsupported = 138;
     // Devices does not support setting prefix limit exceeded flag.
