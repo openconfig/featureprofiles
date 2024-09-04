@@ -393,10 +393,7 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 136;
-    // Devices which needs to enable leaf specific flag
-    // Juniper: b/319202763
-    bool enable_flowctrl_flag = 137;
-    // Device doesn't support router advertisement enable and mode config
+        // Device doesn't support router advertisement enable and mode config
     // Juniper: b/316173974
     bool ipv6_router_advertisement_config_unsupported = 138;
     // Devices does not support setting prefix limit exceeded flag.
@@ -602,9 +599,18 @@ message Metadata {
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
     // Devices which do not support default import export policy.
     bool default_import_export_policy_unsupported = 213;
+    // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
+    bool ipv6_router_advertisement_interval_unsupported = 214;
+    // Decap NH with NextHopNetworkInstance is unsupported
+    bool decap_nh_with_nexthop_ni_unsupported = 215;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 216;
+    // SFlow source address update is unsupported
+    // Arista: b/357914789
+    bool sflow_source_address_update_unsupported = 217;
     //  Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
     // Juniper: b/353280742
-    bool gribi_unresolvable_nexthops_unsupported = 214;
+    bool gribi_unresolvable_nexthops_unsupported = 218;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
