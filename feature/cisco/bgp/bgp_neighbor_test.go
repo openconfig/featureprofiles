@@ -79,47 +79,28 @@ func TestNeighborAddress(t *testing.T) {
 				}
 			})
 
-			t.Run("Update /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled=true", func(t *testing.T) {
-				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), true)
-				time.Sleep(configApplyTime)
+			for _, want := range []bool{true, false} {
+				t.Run(fmt.Sprintf("Update /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled=%t", want), func(t *testing.T) {
+					gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), want)
+					time.Sleep(configApplyTime)
 
-				var res bool
+					var res bool
 
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, true)
-					res, _ = stateGot.Val()
-					t.Logf("Await response '%s'", stateGot)
-				}); errMsg != nil {
-					t.Logf("captured error: %s, retrying", *errMsg)
-				} else {
-					res = gnmi.Get(t, dut, bgpState.Neighbor(input).Enabled().State())
-				}
+					if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+						stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, want)
+						res, _ = stateGot.Val()
+						t.Logf("Await response '%s'", stateGot)
+					}); errMsg != nil {
+						t.Logf("captured error: %s, retrying", *errMsg)
+					} else {
+						res = gnmi.Get(t, dut, bgpState.Neighbor(input).Enabled().State())
+					}
 
-				if res == false {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", res, true)
-				}
-			})
-
-			t.Run("Set /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled=false", func(t *testing.T) {
-				gnmi.Update(t, dut, bgpConfig.Neighbor(input).Enabled().Config(), false)
-				time.Sleep(configApplyTime)
-
-				var res bool
-
-				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-					stateGot := gnmi.Await(t, dut, bgpState.Neighbor(input).Enabled().State(), telemetryTimeout, false)
-					res, _ = stateGot.Val()
-					t.Logf("Await response '%s'", stateGot)
-				}); errMsg != nil {
-					t.Logf("captured error: %s, retrying", *errMsg)
-				} else {
-					res = gnmi.Get(t, dut, bgpState.Neighbor(input).Enabled().State())
-				}
-
-				if res == true {
-					t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", res, false)
-				}
-			})
+					if res != want {
+						t.Errorf("State /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/enabled: got %v, want %v", res, want)
+					}
+				})
+			}
 
 			t.Run("Delete", func(t *testing.T) {
 				gnmi.Delete(t, dut, bgpConfig.Neighbor(input).Config())
