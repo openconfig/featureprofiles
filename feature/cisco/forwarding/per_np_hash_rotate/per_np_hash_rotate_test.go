@@ -21,12 +21,14 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"text/tabwriter"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 
 	"github.com/openconfig/ondatra"
@@ -35,11 +37,15 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 )
 
+const (
+	cardTypeRp = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+)
+
 var (
 	lcList = []string{}
 	rtrID  uint32
 	npList = []int{0, 1, 2}
-	h      NpuHash
+	h      = NpuHash{npList: []int{0, 1, 2}}
 )
 
 func TestMain(m *testing.M) {
@@ -50,7 +56,12 @@ func TestMain(m *testing.M) {
 func TestPerNPHashRotateVerifyAutoVal(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lcList = util.GetLCList(t, dut)
-	hashMap := getPerLCPerNPHashTable(t, dut)
+	if len(lcList) == 0 {
+		// attempt to get RP
+		lcList = components.FindComponentsByType(t, dut, cardTypeRp)
+		h.npList = []int{0}
+	}
+	hashMap := getPerLCPerNPHashTable(t, dut, lcList)
 	for lck, npv := range hashMap {
 		lcSlot := uint32(util.GetLCSlotID(t, lck))
 		rtrID = getOFARouterID(t, dut, lck)
@@ -64,11 +75,14 @@ func TestPerNPHashRotateVerifyAutoVal(t *testing.T) {
 	w := tabwriter.NewWriter(os.Stdout, 10, 1, 1, ' ', tabwriter.Debug)
 	fmt.Fprintln(w, " RTR_ID\tLC_SLOT_ID\t  NP0\t  NP1\t  NP2\t")
 	for lck, npv := range hashMap {
-		if len(npv) != 3 {
+		if strings.Contains(lck, "RP") {
+			fmt.Fprintf(w, " %v\t  %v\t  %v\t\n", rtrID, lck, npv[0])
+		} else if len(npv) != 3 {
 			t.Errorf("For linecard %v, expected 3 NPs got %v", lck, npv)
 			continue
+		} else {
+			fmt.Fprintf(w, " %v\t %v\t  %v\t  %v\t  %v\t\n", rtrID, lck, npv[0], npv[1], npv[2])
 		}
-		fmt.Fprintf(w, " %v\t %v\t  %v\t  %v\t  %v\t\n", rtrID, lck, npv[0], npv[1], npv[2])
 	}
 	w.Flush()
 }
@@ -151,6 +165,9 @@ func TestAutoHashValRandomize(t *testing.T) {
 func TestAutoHashValPostLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		t.Skip("No linecards found")
+	}
 	util.ReloadLinecards(t, lcList)
 	t.Log("Verify hash-rotate calculation across all LCs after reloading all linecards")
 	TestPerNPHashRotateVerifyAutoVal(t)
@@ -158,6 +175,7 @@ func TestAutoHashValPostLCReload(t *testing.T) {
 
 func TestAutoHashValPostRouterReload(t *testing.T) {
 	util.RebootDevice(t)
+	time.Sleep(1 * time.Minute)
 	t.Log("Verify hash-rotate calculation across all LCs after rebooting router")
 	TestPerNPHashRotateVerifyAutoVal(t)
 }
@@ -180,11 +198,16 @@ func TestBulkNPHashRotateConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		// attempt to get RP
+		lcList = components.FindComponentsByType(t, dut, cardTypeRp)
+		h.npList = []int{0}
+	}
 
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
 	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
 	for _, lc := range lcList {
-		for _, np := range npList {
+		for _, np := range h.npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(h.hashValMap[lc][np]); got != want {
 				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
 			}
@@ -196,14 +219,18 @@ func TestBulkNPHashConfigPersistenceRouterReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
-
+	if len(lcList) == 0 {
+		// attempt to get RP
+		lcList = components.FindComponentsByType(t, dut, cardTypeRp)
+		h.npList = []int{0}
+	}
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
 	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
 	util.RebootDevice(t)
 	//wait for grpc to be ready
 	time.Sleep(2 * time.Minute)
 	for _, lc := range lcList {
-		for _, np := range npList {
+		for _, np := range h.npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(h.hashValMap[lc][np]); got != want {
 				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
 			}
@@ -215,6 +242,9 @@ func TestBulkNPHashConfigPersistenceLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		t.Skip("No linecards found")
+	}
 
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
 	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
@@ -235,14 +265,18 @@ func TestGlobalAndPerNPHashCoExistence(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
-
+	if len(lcList) == 0 {
+		// attempt to get RP
+		lcList = components.FindComponentsByType(t, dut, cardTypeRp)
+		h.npList = []int{0}
+	}
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
 	defer h.setBulkPerNPHashConfig(t, dut, lcList, false)
 	setGlobalHashConfig(t, dut, 10, true)
 	defer setGlobalHashConfig(t, dut, 10, false)
 	t.Logf("Verify LCs are using per-NP hash value \n, %v", h.hashValMap)
 	for _, lc := range lcList {
-		for _, np := range npList {
+		for _, np := range h.npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(h.hashValMap[lc][np]); got != want {
 				t.Errorf("per-NP hash rotate value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
 			}
@@ -254,6 +288,12 @@ func TestGlobalTakesOverAfterPerNPHashDeleted(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		// attempt to get RP
+		lcList = components.FindComponentsByType(t, dut, cardTypeRp)
+		h.npList = []int{0}
+	}
+
 	globalHash := rand.Intn(34) + 1
 
 	// configure per np hash value
@@ -266,7 +306,7 @@ func TestGlobalTakesOverAfterPerNPHashDeleted(t *testing.T) {
 
 	t.Logf("Verify LCs are using global hash value \n, %v", globalHash)
 	for _, lc := range lcList {
-		for _, np := range npList {
+		for _, np := range h.npList {
 			if got, want := getPerLCPerNPHashVal(t, dut, np, lc), verifyPerNPHashCLIVal(globalHash); got != want {
 				t.Errorf("Global hash value for LC %v NP%v is not per calculation got %v, want %v", lc, np, got, want)
 			}
@@ -315,6 +355,9 @@ func TestGlobalTakesOverAfterPbrProfileDeletedAllLcReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		t.Skip("No linecards found")
+	}
 	globalHash := rand.Intn(34) + 1
 	// configure per np hash value
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)
@@ -345,6 +388,9 @@ func TestNonAutomaticHashWithoutPbrAndGlobalOrPerNpHashAllLcReload(t *testing.T)
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
 	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		t.Skip("No linecards found")
+	}
 	// config/unconfig per np hash value and global hash to clear any existing values
 	globalHash := rand.Intn(34) + 1
 	h.setBulkPerNPHashConfig(t, dut, lcList, true)

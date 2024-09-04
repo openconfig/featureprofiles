@@ -53,6 +53,7 @@ func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int
 
 type NpuHash struct {
 	hashValMap  map[string][]int
+	npList      []int
 	unsetConfig string
 }
 
@@ -69,7 +70,7 @@ func (h *NpuHash) setBulkPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, l
 		var configCli, unConfigCli string
 		hashValMap := make(map[string][]int)
 		for _, lcLoc := range lcs {
-			for _, npVal := range []int{0, 1, 2} {
+			for _, npVal := range h.npList {
 				npHash := rand.Intn(34) + 1 //Random value between 1-35
 				hashValMap[lcLoc] = append(hashValMap[lcLoc], npHash)
 
@@ -126,7 +127,7 @@ func verifyPerNPHashCLIVal(cliHashVal int) int {
 
 // getPerLCPerNPHashValTable returns a map of LC and corresponding per NP hash rotate value using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val_all_npu" location <LC#> CLI.
-func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice) map[string][]int {
+func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice, lcList []string) map[string][]int {
 	// t.Helper()
 	hashValMap := make(map[string][]int)
 	//get per LC per NP hash-rotate value from the device

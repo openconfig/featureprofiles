@@ -576,6 +576,9 @@ func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 // GetLCSlotID returns the LC slot ID on the device for a location.
 func GetLCSlotID(t *testing.T, lcloc string) uint8 {
+	if strings.Contains(lcloc, "RP") {
+		return 0
+	}
 	lcSl := strings.Split(lcloc, "/")
 	lcslotID, err := strconv.Atoi(lcSl[1])
 	if err != nil {
