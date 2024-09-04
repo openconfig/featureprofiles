@@ -1070,11 +1070,30 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 	var trackspeed oc.E_IfEthernet_ETHERNET_SPEED
 
 	for _, intf := range intfsState {
+		t.Logf("interface: %v", intf)
 		if intf.HardwarePort == nil || intf.PhysicalChannel == nil {
 			continue
 		}
-		hwp := strings.Split(intf.GetHardwarePort(), "Port")[1]
-		name := strings.Split(intf.GetName(), "GigE")[1]
+		hwp := intf.GetHardwarePort()
+		t.Logf("Got hardware port: %s", hwp)
+		hwpSplit := strings.Split(hwp, "Port")
+		if len(hwpSplit) > 1 {
+			hwp = hwpSplit[1]
+			t.Logf("Got split hardware port: %s", hwp)
+		} else {
+			t.Log("Could not split hardware port")
+		}
+		
+		name := intf.GetName()
+		t.Logf("Getting port name: %s", hwp)
+		nameSplit := strings.Split(name, "GigE")
+		if len(nameSplit) > 1 {
+			name = nameSplit[1]
+			t.Logf("Got split name: %s", name)
+		} else {
+			t.Log("Could not split name")
+		}
+		
 		channel := strconv.Itoa(int(intf.GetPhysicalChannel()[0]))
 
 		if hwp+"/"+(channel) == name {
