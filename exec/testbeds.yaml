@@ -9,6 +9,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40055
       gnmi_port: 50055
+      rest_port: 30055
 
   8808-36FH_FOX2613PHWL:
     hw: 8808-36FH_FOX2613PHWL
@@ -20,6 +21,7 @@ testbeds:
       host: kne2-lnx
       controller_port: 40057
       gnmi_port: 50057
+      rest_port: 30057
 
   8201-FOC2448P0MP:
     hw: 8201-FOC2448P0MP
@@ -38,6 +40,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40058
       gnmi_port: 50058
+      rest_port: 30058
 
   8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
     hw: 8808-36FH_FOX2504P3CE
@@ -49,6 +52,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40061
       gnmi_port: 50061
+      rest_port: 30061
 
   8201-32FH_FLM254206E7:
     hw: 8201-32FH_FLM254206E7
@@ -60,6 +64,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40054
       gnmi_port: 50054
+      rest_port: 30054
 
   8201-32FH_FLM253900HJ:
     hw: 8201-32FH_FLM253900HJ
@@ -71,6 +76,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40053
       gnmi_port: 50053
+      rest_port: 30053
 
   8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
     hw: 8808_FOX2625PLW8
@@ -82,6 +88,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40056
       gnmi_port: 50056
+      rest_port: 30056
 
   8808_FOX2506P5XE:
     hw: 8808_FOX2506P5XE
@@ -93,6 +100,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40052
       gnmi_port: 50052
+      rest_port: 30052
 
   8808_FOX2643Q39J: &8808_FOX2643Q39J_DEFAULTS
     hw: 8808_FOX2643Q39J
@@ -104,6 +112,8 @@ testbeds:
       host: kne2-lnx
       controller_port: 40060
       gnmi_port: 50060
+      rest_port: 30060
+
   8808_FOX2643Q39J_gnsi:
     <<: *8808_FOX2643Q39J_DEFAULTS
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/single_testbed
@@ -120,6 +130,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
+      rest_port: 30059
 
   8818-FOX2714PNYN:
     hw: 8818-FOX2714PNYN
@@ -131,6 +142,7 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 48818
       gnmi_port: 58818
+      rest_port: 38818
 
   2DUT-TB1:
     hw:
@@ -146,6 +158,7 @@ testbeds:
       host: kne2-lnx
       controller_port: 40058
       gnmi_port: 50058
+      rest_port: 30058
 
   2DUT-TB2:
     hw:
@@ -161,6 +174,7 @@ testbeds:
       host: kne2-lnx
       controller_port: 40052
       gnmi_port: 50052
+      rest_port: 30052
 
   8800-FOC2330PAZK:
     hw: 8800-FOC2330PAZK
@@ -269,3 +283,4 @@ testbeds:
       host: ott-ucs-b4
       controller_port: 40051
       gnmi_port: 50051
+      rest_port: 30051
