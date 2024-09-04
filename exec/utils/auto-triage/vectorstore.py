@@ -9,10 +9,13 @@ class VectorStore:
     def __init__(self):
         client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/")
         database = client["auto-triage"]
-        self.collection = database["sample-data"]
-        self.collection_labels = database["sample-labels"]
+        self.collection = database["data"]
+        self.collection_labels = database["labels"]
+        self.firex_ids_collection = database["firex-ids"]
 
         self.tf = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+        self.vector_store = None
 
         self._create_index()
 
@@ -20,35 +23,27 @@ class VectorStore:
         results = list(
             self.collection.aggregate(
                 [
+                    {"$unwind": "$testcases"},
                     {
-                        '$match': {
-                            'label': {
-                                '$ne': ''
-                            }, 
-                            'status': {
-                                '$eq': 'failed'
-                            }, 
-                            '$and': [
-                                {
-                                    'logs': {
-                                        '$ne': ''
-                                    }
-                                }, {
-                                    'logs': {
-                                        '$ne': 'None'
-                                    }
-                                }
-                            ]
+                        "$match": {
+                            "testcases.status": {"$eq": "failed"},
+                            "testcases.generated": {"$eq": False},
+                            "testcases.label": {"$ne": ""},
+                            "$and": [
+                                {"testcases.logs": {"$ne": ""}},
+                                {"testcases.logs": {"$ne": "None"}},
+                            ],
                         }
-                    }, {
-                        '$project': {
-                            'name': True, 
-                            'plan_id': True, 
-                            'logs': True, 
-                            'timestamp': True, 
-                            'label': True
+                    },
+                    {
+                        "$project": {
+                            "name": "$testcases.name",
+                            "plan_id": 1,
+                            "logs": "$testcases.logs",
+                            "timestamp": 1,
+                            "label": "$testcases.label",
                         }
-                    }
+                    },
                 ]
             )
         )
@@ -68,7 +63,7 @@ class VectorStore:
 
         if len(documents) > 0:
             self.vector_store = FAISS.from_documents(documents, self.tf)
-        else: 
+        else:
             self.vector_store = None
 
     def _generate_labels(self, sentence):
@@ -81,74 +76,104 @@ class VectorStore:
         )
 
         labels = list()
+        visited = set()
 
         for document in documents:
             data, score = document
+            if data.metadata["label"] in visited or score < 0:
+                continue
             labels.append({"label": data.metadata["label"], "score": score})
+            visited.add(data.metadata["label"])
 
         return labels
 
-    def create_documents(self, file):
+    def create_documents(self, file, group, efr, run_id, lineup):
         documents = list()
 
         tree = ET.parse(file)
 
-        for testsuite in tree.getroot().findall('./testsuite'):
+        testsuites_metadata = tree.getroot().attrib
+
+        if int(testsuites_metadata["failures"]) > 0:
+            meta_firex = {
+                "firex_id": run_id,
+                "group": group,
+                "lineup": lineup,
+                "tag": efr,
+            }
+            meta_firex.update(testsuites_metadata)
+            self.firex_ids_collection.insert_one(meta_firex)
+
+        for testsuite in tree.getroot().findall("./testsuite"):
             stats = testsuite.attrib
             properties = testsuite.find("properties")
             testcases = testsuite.findall("testcase")
 
+            data = dict()
+
+            data["group"] = meta_firex["group"]
+            data["efr"] = meta_firex["tag"]
+            data["run_id"] = meta_firex["firex_id"]
+            data["lineup"] = meta_firex["lineup"]
+            data["tests"] = int(stats.get("tests", 0))
+            data["failures"] = int(stats.get("failures", 0))
+            data["errors"] = int(stats.get("errors", 0))
+            data["disabled"] = int(stats.get("disabled", 0))
+            data["skipped"] = int(stats.get("skipped", 0))
+            data["timestamp"] = str(stats.get("timestamp", 0))
+            data["testcases"] = list()
+
+            keys = [
+                "test.plan_id",
+                "test.description",
+                "test.uuid",
+                "testsuite_hash",
+                "testsuite_root",
+            ]
+
+            for property in properties:
+                if property.get("name") in keys:
+                    data[property.get("name").replace("test.", "")] = property.get(
+                        "value"
+                    )
+
+            if data["failures"] == 0:
+                continue
+
             for testcase in testcases:
-                
-                data = dict()
 
-                data["tests"] = int(stats.get("tests", 0))
-                data["failures"] = int(stats.get("failures", 0))
-                data["errors"] = int(stats.get("errors", 0))
-                data["disabled"] = int(stats.get("disabled", 0))
-                data["skipped"] = int(stats.get("skipped", 0))
-                data["timestamp"] = str(stats.get("timestamp", 0))
-
-                keys = ["test.plan_id", "test.description", "test.uuid"]
-
-                for property in properties:
-                    if property.get("name") in keys:
-                        data[property.get("name").replace("test.", "")] = property.get(
-                            "value"
-                        )
-
-                if data["failures"] == 0:
-                    continue
-
+                testcase_data = dict()
                 failure = testcase.find("failure")
 
                 if failure is not None:
-                    data["name"] = testcase.get("name")
-                    data["time"] = float(testcase.get("time"))
-                    data["message"] = failure.get("message")
-                    data["logs"] = str(failure.text).strip()
-                    data["status"] = "failed"
+                    testcase_data["name"] = testcase.get("name")
+                    testcase_data["time"] = float(testcase.get("time"))
+                    testcase_data["message"] = failure.get("message")
+                    testcase_data["logs"] = str(failure.text).strip()
+                    testcase_data["status"] = "failed"
+                    testcase_data["triage_status"] = "New"
 
                     labels = self._generate_labels(
                         failure.text if failure.text is not None else "",
                     )
 
                     if len(labels) > 0:
-                        data["generated_labels"] = self._generate_labels(
+                        testcase_data["generated_labels"] = self._generate_labels(
                             failure.text if failure.text is not None else "",
                         )
-                        data["generated"] = True
-                        data["label"] = data["generated_labels"][0]["label"]
+                        testcase_data["generated"] = True
+                        testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
                     else:
-                        data["label"] = ""
+                        testcase_data["label"] = ""
 
                 else:
-                    data["name"] = testcase.get("name")
-                    data["time"] = float(testcase.get("time"))
-                    data["status"] = "passed"
-                    data["label"] = "Test Passed. No Label Required."
+                    testcase_data["name"] = testcase.get("name")
+                    testcase_data["time"] = float(testcase.get("time"))
+                    testcase_data["status"] = "passed"
+                    testcase_data["label"] = "Test Passed. No Label Required."
 
-                documents.append(data)
+                data["testcases"].append(testcase_data)
+            documents.append(data)
         return documents
 
     def insert_many(self, documents):
