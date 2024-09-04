@@ -123,7 +123,7 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, version):
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
     return f"""
 version: "2"
 services:
@@ -132,6 +132,7 @@ services:
     restart: always
     ports:
       - "{control_port}:40051"
+      - "{rest_port}:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -188,7 +189,7 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_version))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_version))
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -918,7 +919,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                 'controller_port': 3389,
                 'controller_port_redir': e['ports'][3389],
                 'gnmi_port': 11009,
-                'gnmi_port_redir': e['ports'][11009]
+                'gnmi_port_redir': e['ports'][11009],
+                'rest_port': 8443,
             }
         
         data_ports = _sim_get_data_ports(testbed_logs_dir)            
@@ -1504,12 +1506,22 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
     except:
         logger.warning(f'Failed to push results to influxdb. Ignoring...')
 
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PushResultsToMongo(self, uid, xunit_results):
+    logger.print("Pushing results to MongoDB...")
+    try:
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to push results to MongoDB. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
 @returns('test_report_text_file', 'report_text')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
-    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
+    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | PushResultsToMongo.s() | self.orig.s()
     test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
     return test_report_text_file, report_text  
