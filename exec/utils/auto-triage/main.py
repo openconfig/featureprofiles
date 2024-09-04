@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 if args.group in includeGroups:
     vs = VectorStore()
-    documents = vs.create_documents(file = args.xunit_file, group = args.group, efr = args.efr, run_id = args.run_id, image = args.image_lineup)
+    documents = vs.create_documents(file = args.xunit_file, group = args.group, efr = args.efr, run_id = args.run_id, lineup = args.image_lineup)
 
     if len(documents) > 0:
         vs.insert_many(documents)
