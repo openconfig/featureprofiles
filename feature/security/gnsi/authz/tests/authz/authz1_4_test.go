@@ -734,10 +734,11 @@ func TestAuthz4(t *testing.T) {
 	// Verify all results match per the above table for policy policy-normal-1 with retry mechanism
 	startAuthTableVerification := time.Now()
 	for {
-		errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			verifyAuthTable(t.(*testing.T), dut, authTable)
+		errMsg := testt.CaptureFatal(t, func(tt testing.TB) {
+			verifyAuthTable(t, dut, authTable)
 		})
 		if errMsg == nil {
+			t.Logf("completed verifyAuthTable")
 			break
 		}
 		t.Logf("AuthTable verification failed: %v, retrying...", errMsg)
