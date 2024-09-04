@@ -44,5 +44,6 @@ platform_exceptions: {
   deviations: {
     bgp_rib_oc_path_unsupported:  true
     bgp_aspathset_unsupported: true
+    next_statement_policy_termination_unsupported: true
   }
 }

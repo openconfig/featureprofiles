@@ -1140,3 +1140,8 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()
 }
+
+// NextStatementPolicyTerminationUnsupported returns true for devices that do not support Next_Statement as the last statement in the policy
+func NextStatementPolicyTerminationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNextStatementPolicyTerminationUnsupported()
+}

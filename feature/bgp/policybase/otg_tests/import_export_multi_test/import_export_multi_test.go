@@ -247,7 +247,11 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 	}
 
 	if !deviations.SkipSettingStatementForPolicy(dut) {
-		pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+		if deviations.NextStatementPolicyTerminationUnsupported(dut) {
+			pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		} else {
+			pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
+		}
 	}
 
 	// Configure the parent policy multi_policy.
