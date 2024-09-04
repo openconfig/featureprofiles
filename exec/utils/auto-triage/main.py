@@ -2,8 +2,6 @@ from vectorstore import VectorStore
 import argparse
 from pymongo import MongoClient
 
-includeGroups = ["b4-featureprofiles", "b4-internal"]
-
 parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
 parser.add_argument('run_id', help="FireX Run ID")
 parser.add_argument('xunit_file', help="xUnit Result File")
