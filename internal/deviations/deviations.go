@@ -1135,3 +1135,8 @@ func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
+
+// GnmiGetRequiresConfigType returns true for devices that require type to be specified as config
+func GnmiGetRequiresConfigType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetRequiresConfigType()
+}
