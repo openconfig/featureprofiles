@@ -610,6 +610,7 @@ message Metadata {
     bool sflow_source_address_update_unsupported = 217;
     // gnmi_get_requires_config_type is set to true for devices that require type to be specified as config
     // in default it will be false
+    // Juniper: b/361547597
     bool gnmi_get_requires_config_type = 218;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
