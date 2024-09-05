@@ -120,13 +120,19 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
+func verifyPortsUp(t *testing.T, dev *ondatra.Device, portList []string, portStatus bool) {
 	t.Helper()
-	for _, p := range []attrs.Attributes{dutPort1, dutPort2} {
-		ocName := dev.Port(t, p.Name).Name()
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(ocName).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", ocName, status, want)
+	want := oc.Interface_OperStatus_UP
+	if !portStatus {
+		want = oc.Interface_OperStatus_DOWN
+	}
+	for _, port := range portList {
+		p := dev.Port(t, port)
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if status != want {
+			t.Errorf("%s Status: got %v, want %v", port, status, want)
+		} else {
+			t.Logf("%s Status: got %v, want %v", port, status, want)
 		}
 	}
 }
@@ -479,7 +485,8 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 			})
 
 			t.Run("Verify port status on DUT", func(t *testing.T) {
-				verifyPortsUp(t, dut.Device)
+				portList := []string{"port1", "port2"}
+				verifyPortsUp(t, dut.Device, portList, true)
 			})
 
 			t.Run("Verify BGP telemetry", func(t *testing.T) {
