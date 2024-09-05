@@ -114,11 +114,6 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
        on_change: true
       gNMI.Set:
   ```
+## Minimum DUT Required
 
-## Protocol/RPC Parameter coverage
-
-N/A
-
-## Minimum DUT platform requirement
-
-N/A
+vRX - Virtual Router Device
