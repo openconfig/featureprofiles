@@ -1083,7 +1083,7 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 		} else {
 			t.Log("Could not split hardware port")
 		}
-		
+
 		name := intf.GetName()
 		t.Logf("Getting port name: %s", hwp)
 		nameSplit := strings.Split(name, "GigE")
@@ -1093,7 +1093,7 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 		} else {
 			t.Log("Could not split name")
 		}
-		
+
 		channel := strconv.Itoa(int(intf.GetPhysicalChannel()[0]))
 
 		if hwp+"/"+(channel) == name {
