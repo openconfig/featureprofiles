@@ -1,0 +1,12 @@
+name: core_decode
+owners: 
+  - krinata2
+testbeds:
+  - 8008-1DUT
+tests:
+- name: enrollz_test
+  path: tools/cisco/core_decode
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: krinata2_core_decode
