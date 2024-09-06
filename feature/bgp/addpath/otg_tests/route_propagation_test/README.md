@@ -4,6 +4,10 @@
 
 BGP Route Propagation
 
+## Testbed type
+
+*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
 ## Procedure
 
 Establish eBGP sessions between:
@@ -11,44 +15,33 @@ Establish eBGP sessions between:
 *   ATE port-1 and DUT port-1
 *   ATE port-2 and DUT port-2
 
-RT-1.3.1: Initial Add-Path Configuration: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
 
-*   DUT & ATE: Configure both DUT and ATE to enable add-path send and receive capabilities for both IPv4 and IPv6 address families.
+### RT-1.3.1: MRAI: [TODO: https://github.com/openconfig/featureprofiles/issues/3035]
+*   DUT: Configure the Minimum Route Advertisement Interval (MRAI) for desired behavior.
+*   ATE Port 2: Verify received routes adhere to the MRAI timing.
+
+### RT-1.3.2: RFC5549
+*   DUT: Enable RFC5549 support:
+    *   Update the BGP peer group configuration to enable extended next hop encoding using  `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding`  
+*   ATE Port 1: Advertise IPv4 routes with IPv6 next-hops.
+*   ATE Port 2: Validate correct acceptance and propagation of routes with IPv6 next-hops.
+
+### RT-1.3.3: Add-Path (Initial State): [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
+*   ATE Port 1: Advertise multiple routes with distinct path IDs for the same prefix.
+*   ATE Port 2: Confirm that all advertised routes are accepted and propagated by the DUT due to the initially enabled Add-Path.
 *   Verification (Telemetry): Verify that the DUT's telemetry output reflects the enabled Add-Path capabilities.
 
-RT-1.3.2: Route Policy Configuration:
+### RT-1.3.4: Disabling Add-Path Send: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
+*   DUT: Disable Add-Path send for the neighbor connected to ATE Port 2 for both IPv4 and IPv6.
+*   Verification (Telemetry): Confirm that the DUT's telemetry reflects the disabled Add-Path send status.
+*   ATE Port 1: Readvertise multiple paths.
+*   ATE Port 2: Verify that only a single best path is received by ATE Port 2 due to disabled Add-Path send on the DUT.
 
-*   DUT: Configure Route-policy under BGP peer-group address-family and specify default accept for received prefixes on DUT.
-*   ATE Port 1: Advertise both IPv4 and IPv6 prefixes.
-
-RT-1.3.3: Route Propagation and Specific Capabilities:
-
-*   RT-1.3.3.1: MRAI: [TODO: https://github.com/openconfig/featureprofiles/issues/3035]
-    *   DUT: Configure the Minimum Route Advertisement Interval (MRAI) for desired behavior.
-    *   ATE Port 2: Verify received routes adhere to the MRAI timing.
-
-*   RT-1.3.3.2: RFC5549: [TODO: https://github.com/openconfig/featureprofiles/issues/3036]
-    *   DUT: Enable RFC5549 support:
-        *   Update the BGP peer group configuration to enable extended next hop encoding using  `/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/ipv4-unicast/config/extended-next-hop-encoding`  
-    *   ATE Port 1: Advertise IPv4 routes with IPv6 next-hops.
-    *   ATE Port 2: Validate correct acceptance and propagation of routes with IPv6 next-hops.
-
-*   RT-1.3.3.3: Add-Path (Initial State): [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
-    *   ATE Port 1: Advertise multiple routes with distinct path IDs for the same prefix.
-    *   ATE Port 2: Confirm that all advertised routes are accepted and propagated by the DUT due to the initially enabled Add-Path.
-
-*   RT-1.3.3.4: Disabling Add-Path Send: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
-    *   DUT: Disable Add-Path send for the neighbor connected to ATE Port 2 for both IPv4 and IPv6.
-    *   Verification (Telemetry): Confirm that the DUT's telemetry reflects the disabled Add-Path send status.
-    *   ATE Port 1: Readvertise multiple paths.
-    *   ATE Port 2: Verify that only a single best path is received by ATE Port 2 due to disabled Add-Path send on the DUT.
-
-*   RT-1.3.3.5: Disabling Add-Path Receive: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
-
-    *   DUT: Disable Add-Path receive for the neighbor connected to ATE Port 1 for both IPv4 and IPv6.
-    *   Verification (Telemetry): Confirm the disabled Add-Path receive status in telemetry.
-    *   ATE Port 1: Advertise BGP routes to the DUT via Port 1.
-    *   ATE Port 2: Verify that the DUT has received and propagated only one single path.
+### RT-1.3.5: Disabling Add-Path Receive: [TODO: https://github.com/openconfig/featureprofiles/issues/3037]
+*   DUT: Disable Add-Path receive for the neighbor connected to ATE Port 1 for both IPv4 and IPv6.
+*   Verification (Telemetry): Confirm the disabled Add-Path receive status in telemetry.
+*   ATE Port 1: Advertise BGP routes to the DUT via Port 1.
+*   ATE Port 2: Verify that the DUT has received and propagated only one single path.
 
 ## OpenConfig Path and RPC Coverage
 
