@@ -188,58 +188,74 @@ openconfig-network-instance:
 * Generate traffic from ATE port 1 to ATE port 2
 * Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
 
-### TE-18.1.3 - Decapsulation set by gRIBI
+### TE-18.1.3 - MPLS in GRE decapsulation set by gNMI
 
-This gRIBI content is used to perform MPLS in UDP decapsulation.
+Canonical OpenConfig for policy forwarding, matching IP prefix with action
+decapsulate in GRE.
 
-```proto
-network_instances {
-  network_instance {
-    afts {
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "outer_loopback_ipv6"   # IPv6 match rule for the prefix on the device expected to receive MPLS in UDP packets
-          next-hop-group: 999
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "outer_loopback_ipv4"
-          next-hop-group: 999
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          next_hop_group_id: "Decap"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          id: 999
-          next_hops {
-            next_hop: {
-              index: 990
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 990
-          decapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6      # TODO: Add OC path for this
-          # The device should decapsulate the UDP packet and use the MPLS header
-          # to determine the output interface, then forward the packet
-          # without looking up the inner IP packet
-        }
-      }
-    }
-  }
-}
+```yaml
+openconfig-network-instance:
+  network-instances:
+    - network-instance: "DEFAULT"
+      afts:
+        policy-forwarding:
+          policies:
+            policy: "default decap rule"
+              config: 
+                policy-id: "default decap rule"
+                type: PBR_POLICY
+              rules:
+                rule: 1
+                  config:
+                    sequence-id: 1
+                  ipv6:
+                    config:
+                      destination-address: "decap_loopback_ipv6"
+                  action:
+                    decapsulate-mpls-in-gre: TRUE             # TODO: add to OC model/PR in progress
 ```
 
-* Push the gRIBIB the policy forwarding configuration
+* Push the gNMI the policy forwarding configuration
 * Push the configuration to DUT using gnmi.Set with REPLACE option
-* Configure ATE port 1 with traffic flow which does not match any AFT next hop route
-* Generate traffic from ATE port 1 to ATE port 2
-* Validate ATE port 2 receives GRE traffic with correct inner and outer IPs
+* Configure ATE port 1 with traffic flow which matches the decap loopback IP address
+* Generate traffic from ATE port 1
+* Validate ATE port 2 receives packets with correct VLAN and the inner inner_decap_ipv6
 
-### TE-18.1.4 - Policy forwarding to encap and forward for BGP packets
+### TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
+
+Canonical OpenConfig for policy forwarding, matching IP prefix with action
+decapsulate MPLS in UDP.
+
+```yaml
+openconfig-network-instance:
+  network-instances:
+    - network-instance: "DEFAULT"
+      afts:
+        policy-forwarding:
+          policies:
+            policy: "default decap rule"
+              config: 
+                policy-id: "default decap rule"
+                type: PBR_POLICY
+              rules:
+                rule: 1
+                  config:
+                    sequence-id: 1
+                  ipv6:
+                    config:
+                      destination-address: "decap_loopback_ipv6"
+                  action:
+                    decapsulate-mpls-in-udp: TRUE
+```
+
+* Push the gNMI the policy forwarding configuration
+* Push the configuration to DUT using gnmi.Set with REPLACE option
+* Configure ATE port 1 with traffic flow
+  * Flow should have a packet encap format : outer_decap_udp_ipv6 <- MPLS label <- inner_decap_ipv6
+* Generate traffic from ATE port 1
+* Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
+
+### TE-18.1.5 - Policy forwarding to encap and forward for BGP packets
 
 TODO: Specify a solution for ensuring BGP packets are matched, encapsulated
 and forwarding to a specified  destination using OC policy-forwarding terms.
