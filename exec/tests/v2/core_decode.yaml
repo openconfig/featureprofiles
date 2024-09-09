@@ -1,12 +1,25 @@
-name: core_decode
-owners: 
-  - krinata2
-testbeds:
-  - 8008-1DUT
-tests:
-- name: enrollz_test
-  path: tools/cisco/core_decode
-  timeout: 36000
-  mustpass: true
-  internal: true
-  branch: krinata2_core_decode
+featureprofiles_internal_core_decode:
+    framework: b4
+    owners:
+        - krinata2
+    testbeds:
+        - 8808-OC
+    supported_platforms:
+        - "8000"
+    plugins:
+        - /auto/tftpboot-ottawa/b4/repos/featureprofiles_master/exec/firex/v2/runner.py
+    commit_pipeline_exclude: true
+    known_breakage_fix_exclude: true
+    smart_sanity_exclude: true
+    restrict_known_break_to_owners: true
+    internal_test: true
+    internal_fp_repo_rev: krinata2_core_decode
+    collect_debug_files: true
+    script_paths:
+        - featureprofiles_internal/core_decode:
+            testbeds:
+                - 8808-OC
+            test_name: core_decode
+            test_path: tools/cisco/core_decode
+            test_timeout: 7200
+            test_branch: krinata2_core_decode
