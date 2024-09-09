@@ -53,8 +53,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 	tlsc := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true, // NOLINT
 	})
+	conntectionState := connectivity.Ready
 	conn, err := grpc.NewClient("localhost:60061", grpc.WithTransportCredentials(tlsc))
-	conn.WaitForStateChange( ctx, connectivity.Ready )
+	conn.WaitForStateChange( ctx, conntectionState )
 	if err != nil {
 		t.Fatalf("Failed to dial cntrsrv, %v", err)
 	}
