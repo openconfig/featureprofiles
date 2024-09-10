@@ -473,7 +473,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{}
+	opts := []grpc.DialOption{grpc.WithDisableRetry()}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
