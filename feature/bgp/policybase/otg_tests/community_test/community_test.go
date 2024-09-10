@@ -94,7 +94,9 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		communitySet := stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		communitySet.SetCommunitySet(communitySetName)
+		communitySet.SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchSetOptions))
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
@@ -284,6 +286,10 @@ func TestCommunitySet(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if tc.desc == "Testing with no_3_comms" && deviations.CommunityInvertAnyUnsupported(bs.DUT) {
+				t.Skip("Skipping community match invert testcase")
+			}
 
 			configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
 			sleepTime := time.Duration(totalPackets/trafficPps) + 2
