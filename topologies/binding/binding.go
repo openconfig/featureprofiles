@@ -46,7 +46,7 @@ import (
 
 var (
 	// To be stubbed out by unit tests.
-	grpcDialContextFn = grpc.DialContext
+	grpcDialContextFn = grpc.NewClient
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
 
@@ -526,7 +526,7 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, target, opts...)
+			return grpcDialContextFn(target, opts...)
 		},
 		DialTarget: bopts.Target,
 		DialOpts:   opts,

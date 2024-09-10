@@ -88,7 +88,7 @@ func newChecker(dut binding.DUT) (*checker, error) {
 	if _, ok := vendorCoreFileNamePattern[dutVendor]; !ok {
 		return nil, fmt.Errorf("add support for vendor %v in var vendorCoreFileNamePattern", dutVendor)
 	}
-	gClients, err := dut.DialGNOI(context.Background(), grpc.WithBlock())
+	gClients, err := dut.DialGNOI(context.Background())
 	if err != nil {
 		return nil, err
 	}
