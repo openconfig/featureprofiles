@@ -59,7 +59,7 @@ func DialService(ctx context.Context, t *testing.T, name string, dut *ondatra.DU
 		InsecureSkipVerify: true, // NOLINT
 	})
 	conn, err := dialer.DialGRPC(ctx, name, grpc.WithTransportCredentials(tlsc))
-	conn.WaitForStateChange( ctx, connectivity.Ready )
+	conn.WaitForStateChange(ctx, connectivity.Ready)
 	if err != nil {
 		t.Fatalf("Failed to dial %s, %v", name, err)
 	}
