@@ -34,9 +34,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/grpc/connectivity"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 )
