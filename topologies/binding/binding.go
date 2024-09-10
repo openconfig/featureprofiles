@@ -473,7 +473,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{grpc.WithBlock()}
+	opts := []grpc.DialOption{grpc.WaitForReady(true)}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
@@ -524,6 +524,7 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
 				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				t.Logf("ctx: %v, cancelFunc: %v", ctx, cancelFunc)
 				defer cancelFunc()
 			}
 			return grpcDialContextFn(target, opts...)
