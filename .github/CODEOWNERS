@@ -11,7 +11,7 @@
 *       @openconfig/featureprofiles-maintainers
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
-/feature/bgp/   @dloher
+/feature/bgp/   @dplore
 
 # Common OTG utilities 
 /internal/otgutils/  @openconfig/featureprofiles-maintainers-otg
