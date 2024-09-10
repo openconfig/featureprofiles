@@ -158,7 +158,7 @@ openconfig-network-instance:
         policy-forwarding:
           policies:
             policy: "default encap rule"
-              config: 
+              config:
                 policy-id: "default encap rule"
                 type: PBR_POLICY
               rules:
@@ -191,7 +191,7 @@ openconfig-network-instance:
 ### TE-18.1.3 - MPLS in GRE decapsulation set by gNMI
 
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate in GRE.
+decapsulate in GRE. # TODO: Move to dedicated README
 
 ```yaml
 openconfig-network-instance:
@@ -201,7 +201,7 @@ openconfig-network-instance:
         policy-forwarding:
           policies:
             policy: "default decap rule"
-              config: 
+              config:
                 policy-id: "default decap rule"
                 type: PBR_POLICY
               rules:
@@ -224,7 +224,7 @@ openconfig-network-instance:
 ### TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
 
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
-decapsulate MPLS in UDP.
+decapsulate MPLS in UDP.  # TODO: Move to dedicated README
 
 ```yaml
 openconfig-network-instance:
@@ -234,7 +234,7 @@ openconfig-network-instance:
         policy-forwarding:
           policies:
             policy: "default decap rule"
-              config: 
+              config:
                 policy-id: "default decap rule"
                 type: PBR_POLICY
               rules:
