@@ -15,7 +15,11 @@
 package cfgplugins
 
 import (
+	"fmt"
+	"testing"
+
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -26,7 +30,7 @@ import (
 // configuration including any deviations for the device.
 // If sfglobal is nil, default values are provided.
 // The SFlow configuration is returned to give the caller an option to override default values.
-func NewSFlowGlobalCfg(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondatra.DUTDevice) *oc.Sampling_Sflow {
+func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondatra.DUTDevice, ni, intfName string) *oc.Sampling_Sflow {
 	c := new(oc.Sampling_Sflow)
 
 	if newcfg == nil {
@@ -35,12 +39,12 @@ func NewSFlowGlobalCfg(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondat
 		c.IngressSamplingRate = ygot.Uint32(1000000)
 		// c.EgressSamplingRate = ygot.Uint32(1000000),  TODO: verify if EgressSamplingRate is a required DUT feature
 		c.Dscp = ygot.Uint8(8)
-		coll := new(oc.Sampling_Sflow_Collector)
-		coll.SetAddress("192.0.2.129")
-		coll.SetPort(6343)
-		coll.SetSourceAddress("192.0.2.5")
-		coll.SetNetworkInstance(deviations.DefaultNetworkInstance(d))
-		c.AppendCollector(coll)
+		c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
+		c.GetOrCreateInterface(d.Port(t, "port2").Name()).Enabled = ygot.Bool(true)
+		coll := NewSFlowCollector(t, batch, nil, d, ni, intfName)
+		for _, col := range coll {
+			c.AppendCollector(col)
+		}
 	} else {
 		*c = *newcfg
 	}
@@ -52,19 +56,63 @@ func NewSFlowGlobalCfg(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondat
 
 // NewSFlowCollector creates a collector to be appended to SFlowConfig.
 // If sfc is nil, default values are provided.
-func NewSFlowCollector(batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice) *oc.Sampling_Sflow_Collector {
-	c := new(oc.Sampling_Sflow_Collector)
+func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice, ni, intfName string) []*oc.Sampling_Sflow_Collector {
+	coll := []*oc.Sampling_Sflow_Collector{}
 
 	if newcfg == nil {
-		c.SetAddress("192.0.2.129")
-		c.SetPort(6343)
-		c.SetSourceAddress("192.0.2.5")
+		intf := gnmi.Get[*oc.Interface](t, d, gnmi.OC().Interface(intfName).State())
+
+		cV4 := new(oc.Sampling_Sflow_Collector)
+		cV4.SetAddress("192.0.2.129")
+		cV4.SetPort(6343)
+
+		if deviations.SflowSourceAddressUpdateUnsupported(d) {
+			sFlowSourceAddressCli := ""
+			switch d.Vendor() {
+			case ondatra.ARISTA:
+				sFlowSourceAddressCli = fmt.Sprintf("sflow vrf %s source-interface %s", ni, intf.GetName())
+			}
+			if sFlowSourceAddressCli != "" {
+				helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
+			}
+		} else {
+			addresses := []string{}
+			for _, addr := range intf.GetSubinterface(0).GetIpv4().Address {
+				addresses = append(addresses, addr.GetIp())
+			}
+			cV4.SetSourceAddress(addresses[0])
+		}
+		cV4.SetNetworkInstance(ni)
+		coll = append(coll, cV4)
+
+		cV6 := new(oc.Sampling_Sflow_Collector)
+		cV6.SetAddress("2001:db8::129")
+		cV6.SetPort(6343)
+		if deviations.SflowSourceAddressUpdateUnsupported(d) {
+			sFlowSourceAddressCli := ""
+			switch d.Vendor() {
+			case ondatra.ARISTA:
+				sFlowSourceAddressCli = fmt.Sprintf("sflow vrf %s source-interface %s", ni, intf.GetName())
+			}
+			if sFlowSourceAddressCli != "" {
+				helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
+			}
+		} else {
+			addresses := []string{}
+			for _, addr := range intf.GetSubinterface(0).GetIpv6().Address {
+				addresses = append(addresses, addr.GetIp())
+			}
+			cV6.SetSourceAddress(addresses[0])
+		}
+		cV6.SetNetworkInstance(ni)
+		coll = append(coll, cV6)
 	} else {
-		*c = *newcfg
+		coll = append(coll, newcfg)
 	}
 
-	c.SetNetworkInstance(normalizeNIName("DEFAULT", d))
-	gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Collector(c.GetAddress(), c.GetPort()).Config(), c)
+	for _, c := range coll {
+		gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Collector(c.GetAddress(), c.GetPort()).Config(), c)
+	}
 
-	return c
+	return coll
 }

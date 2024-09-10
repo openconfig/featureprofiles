@@ -80,29 +80,23 @@ var (
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, &dutSrc, dut))
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, &dutDst, dut))
 }
 
 // Configures the given DUT interface.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
+func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	i := a.NewOCInterface(p.Name(), dut)
+	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
 	}
-	s := i.GetOrCreateSubinterface(0)
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	s6a := s6.GetOrCreateAddress(a.IPv6)
-	s6a.PrefixLength = ygot.Uint8(plen6)
+	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
-	routerAdvert.SetInterval(routerAdvertisementTimeInterval)
+	if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
+		routerAdvert.SetInterval(routerAdvertisementTimeInterval)
+	}
 	if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
 		routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	} else {
@@ -143,11 +137,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // Verifies that desired parameters are set with required value on the device.
 func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
-	telemetryTimeIntervalQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
-	timeIntervalOnTelemetry := gnmi.Get(t, dut, telemetryTimeIntervalQuery)
-	t.Logf("Required RA time interval = %v, RA Time interval observed on telemetry = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
-	if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
-		t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+	if !deviations.Ipv6RouterAdvertisementIntervalUnsupported(dut) {
+		telemetryTimeIntervalQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Interval().State()
+		timeIntervalOnTelemetry := gnmi.Get(t, dut, telemetryTimeIntervalQuery)
+		t.Logf("Required RA time interval = %v, RA Time interval observed on telemetry = %v ", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+		if timeIntervalOnTelemetry != routerAdvertisementTimeInterval {
+			t.Fatalf("Inconsistent Time interval!\nRequired RA time interval = %v and Configured RA Time Interval = %v are not same!", routerAdvertisementTimeInterval, timeIntervalOnTelemetry)
+		}
 	}
 
 	if deviations.Ipv6RouterAdvertisementConfigUnsupported(dut) {
@@ -210,7 +206,6 @@ func validatePackets(t *testing.T, fileName string) {
 				if routerAdvert != nil {
 					t.Fatalf("Error:Found a router advertisement packet!")
 				}
-
 			}
 		}
 	}
@@ -229,5 +224,4 @@ func TestIpv6NDRA(t *testing.T) {
 	t.Run("TestCase-2: No Router Advertisement in response to Router Solicitation", func(t *testing.T) {
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, true, 1)
 	})
-
 }

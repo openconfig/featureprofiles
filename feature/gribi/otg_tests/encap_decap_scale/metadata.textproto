@@ -46,5 +46,6 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     omit_l2_mtu: true
+    decap_nh_with_nexthop_ni_unsupported: true
   }
 }

@@ -34,5 +34,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     static_protocol_name: "STATIC"
+    sflow_source_address_update_unsupported: true
   }
 }
