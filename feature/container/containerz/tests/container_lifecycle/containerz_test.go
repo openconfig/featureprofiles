@@ -10,6 +10,7 @@ import (
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/connectivity"
 )
 
 var (
