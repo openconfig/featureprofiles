@@ -767,7 +767,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
         
         _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
         _write_xml_suite(suite, xunit_results_filepath)
-        check_output(f'/auto/ops-tool/ws-krinata2/helper/core_monitor_decode.sh {test_log_directory_path}')
+        check_output(f'/auto/ops-tool/ws-krinata2/helper/core_monitor_decode.sh {test_log_directory_path} &')
         copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
 
