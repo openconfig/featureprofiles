@@ -6,6 +6,11 @@ Test gNSI Credentialz API behaviors.
 ## Request Examples
 These gNSI credentialz requests are examples that can be used with cases below.
 =======
+<<<<<<< HEAD
+These example gNSI credentialz requests are examples that can be used with cases
+below.
+=======
+>>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
 
 ### Configure a testuser and password
 
@@ -63,6 +68,22 @@ stream.Send(
 )
 ```
 
+<<<<<<< HEAD
+### Configure and enable GLOME
+
+```
+stream.Send(
+    RotateHostParametersRequest {
+        enabled: true,
+        key: "4242424242424242424242424242424242424242424242",
+        key_version: 4,
+        url_prefix: "https://fake-prefix.xyz",
+    }
+)
+```
+
+=======
+>>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
 ### Populate Authorized Principals
 
 ```
@@ -281,6 +302,29 @@ and
   * Ensure that access rejects telemetry counter is incremented
     `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
 
+<<<<<<< HEAD
+### Credentialz-6, GLOME Configuration
+
+#### Setup
+* Create a glome key with `glome` following [these
+  instructions](https://github.com/google/glome?tab=readme-ov-file#getting-started).
+* Send a RotateHostParameters GlomeRequest message, with key, key_version, and
+  prefix_url.
+
+#### Pass case
+* Attempt a console connection.
+  * Prompt must include a GLOME challenge.
+  * Use the `glome` binary along with your generated key to generate an
+    authorization code.
+  * Use the authorization code at the console prompt.
+  * Authorization must succeed.
+  * Ensure telemetry values for version and enabled match what was set in Setup.
+
+#### Fail case
+* Attempt a console connection.
+  * Enter `fake-authorization-code` in the prompt.
+  * Authentication must fail.
+=======
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
@@ -293,3 +337,4 @@ rpcs:
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
 
+>>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
