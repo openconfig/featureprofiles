@@ -31,7 +31,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/eventlis"
-	"google.golang.org/grpc"
 
 	fpb "github.com/openconfig/gnoi/file"
 	opb "github.com/openconfig/ondatra/proto"
