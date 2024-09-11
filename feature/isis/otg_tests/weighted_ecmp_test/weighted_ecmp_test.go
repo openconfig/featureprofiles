@@ -35,7 +35,7 @@ const (
 	srcTrafficV6      = "2001:db8:64:65::1"
 	dstTrafficV4      = "100.0.1.1"
 	dstTrafficV6      = "2001:db8:64:64::1"
-	v4Count           = 1000
+	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
 )
@@ -83,7 +83,7 @@ var (
 		atePort2MAC:  "02:00:01:01:01:06",
 		ateISISSysID: "640000000003",
 		v4Route:      "100.0.1.1",
-		v4RouteCount: 1000,
+		v4RouteCount: 254,
 		v6Route:      "2001:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
@@ -98,22 +98,22 @@ var (
 		atePort2MAC:  "02:00:01:01:01:09",
 		ateISISSysID: "640000000004",
 		v4Route:      "100.0.1.1",
-		v4RouteCount: 1000,
+		v4RouteCount: 254,
 		v6Route:      "2001:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
 	agg4 = &aggPortData{
 		dutIPv4:      "192.0.2.13",
 		ateIPv4:      "192.0.2.14",
-		dutIPv6:      "2001:db8::14",
-		ateIPv6:      "2001:db8::15",
+		dutIPv6:      "2001:db8::15",
+		ateIPv6:      "2001:db8::16",
 		ateAggName:   "lag4",
 		ateAggMAC:    "02:00:01:01:01:10",
 		atePort1MAC:  "02:00:01:01:01:11",
 		atePort2MAC:  "02:00:01:01:01:12",
 		ateISISSysID: "640000000005",
 		v4Route:      "100.0.1.1",
-		v4RouteCount: 1000,
+		v4RouteCount: 254,
 		v6Route:      "2001:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
@@ -161,7 +161,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-	time.Sleep(time.Minute)
+
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
@@ -217,7 +217,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-	time.Sleep(time.Minute)
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
@@ -381,9 +380,9 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetMetric(10)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
 	isisPort2V4 := dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".ISISV4").SetLinkMetric(10)
-	isisPort2V4.Addresses().Add().SetAddress(agg.v4Route).SetCount(uint32(agg.v4RouteCount)).SetPrefix(32)
+	isisPort2V4.Addresses().Add().SetAddress(agg.v4Route).SetPrefix(24)
 	isisPort2V6 := dev.Isis().V6Routes().Add().SetName(agg.ateAggName + ".ISISV6").SetLinkMetric(10)
-	isisPort2V6.Addresses().Add().SetAddress(agg.v6Route).SetCount(uint32(agg.v6RouteCount)).SetPrefix(uint32(128))
+	isisPort2V6.Addresses().Add().SetAddress(agg.v6Route).SetPrefix(uint32(64))
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
@@ -494,6 +493,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	if deviations.ISISLoopbackRequired(dut) {
 		gnmi.Update(t, dut, gnmi.OC().Config(), d)
 		// add loopback interface to ISIS
