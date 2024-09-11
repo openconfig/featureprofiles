@@ -6,11 +6,6 @@ Test gNSI Credentialz API behaviors.
 ## Request Examples
 These gNSI credentialz requests are examples that can be used with cases below.
 =======
-<<<<<<< HEAD
-These example gNSI credentialz requests are examples that can be used with cases
-below.
-=======
->>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
 
 ### Configure a testuser and password
 
@@ -68,7 +63,6 @@ stream.Send(
 )
 ```
 
-<<<<<<< HEAD
 ### Configure and enable GLOME
 
 ```
@@ -82,8 +76,6 @@ stream.Send(
 )
 ```
 
-=======
->>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
 ### Populate Authorized Principals
 
 ```
@@ -302,7 +294,6 @@ and
   * Ensure that access rejects telemetry counter is incremented
     `/oc-sys:system/oc-sys:ssh-server/oc-sys:state:counters:access-rejects`
 
-<<<<<<< HEAD
 ### Credentialz-6, GLOME Configuration
 
 #### Setup
@@ -336,5 +327,3 @@ rpcs:
   gnsi:
     credentialz.v1.Credentialz.RotateAccountCredentials:
 ```
-
->>>>>>> 5dd4e85fb3b0f8ce9b7b3b60686d8dc771e00cea
