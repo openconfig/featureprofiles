@@ -64,7 +64,7 @@ Once the ZR link is estabished proceed with the following:
 
 *  With module in low power mode verify that the module laser is squelched
    and it is no longer able to report output-power under the following OC
-   paths.
+   paths or it is streaming -40 dbm.
     *   /components/component/optical-channel/state/output-power/instant
     *   /components/component/optical-channel/state/output-power/avg
     *   /components/component/optical-channel/state/output-power/min

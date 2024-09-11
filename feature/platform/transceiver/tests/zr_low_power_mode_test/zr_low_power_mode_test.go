@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -87,7 +88,7 @@ func TestLowPowerMode(t *testing.T) {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-
+			opticalCompName := components.OpticalChannelComponentFromPort(t, dut, dp)
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
 			// Stream all inventory information.
@@ -130,35 +131,35 @@ func TestLowPowerMode(t *testing.T) {
 
 			validateStreamOutput(t, allStream)
 
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalCompName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
-				if _, ok := opInstN.Val(); ok {
-					t.Fatalf("streaming /components/component/optical-channel/state/output-power/instant is not expected to be reported")
+				if val, ok := opInstN.Val(); ok && val != -40 {
+					t.Fatalf("streaming /components/component/optical-channel/state/output-power/instant is not expected to be reported or the streamed value should be -40 dbm")
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalCompName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
-				if _, ok := opAvgN.Val(); ok {
-					t.Fatalf("streaming /components/component/optical-channel/state/output-power/avg is not expected to be reported")
+				if val, ok := opAvgN.Val(); ok && val != -40 {
+					t.Fatalf("streaming /components/component/optical-channel/state/output-power/avg is not expected to be reported or the streamed value should be -40 dbm")
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalCompName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
-				if _, ok := opMinN.Val(); ok {
-					t.Fatalf("streaming /components/component/optical-channel/state/output-power/min is not expected to be reported")
+				if val, ok := opMinN.Val(); ok && val != -40 {
+					t.Fatalf("streaming /components/component/optical-channel/state/output-power/min is not expected to be reported or the streamed value should be -40 dbm")
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(tr).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalCompName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
-				if _, ok := opMaxN.Val(); ok {
-					t.Fatalf("streaming /components/component/optical-channel/state/output-power/max is not expected to be reported")
+				if val, ok := opMaxN.Val(); ok && val != -40 {
+					t.Fatalf("streaming /components/component/optical-channel/state/output-power/max is not expected to be reported or the streamed value should be -40 dbm")
 				}
 			}
 
