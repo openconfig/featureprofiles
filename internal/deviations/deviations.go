@@ -720,11 +720,6 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
 
-// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
-func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
-}
-
 // Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
 func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
@@ -1120,7 +1115,23 @@ func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
 }
 
+// CommunityInvertAnyUnsupported returns true when device
+// does not support community invert any.
+func CommunityInvertAnyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityInvertAnyUnsupported()
+}
+
 // Ipv6RouterAdvertisementIntervalUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement interval configuration
 func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementIntervalUnsupported()
+}
+
+// DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
+}
+
+// SflowSourceAddressUpdateUnsupported returns true if sflow source address update is unsupported
+func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
