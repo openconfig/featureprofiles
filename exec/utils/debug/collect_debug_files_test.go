@@ -1,10 +1,12 @@
 package debug
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -189,6 +191,7 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 	}); err != nil {
 		t.Errorf("Error copying debug files: %v", err)
 	}
+	findCoreFile(t, dutOutDir)
 }
 
 func (ti *Targets) getSSHInfo(t *testing.T) error {
@@ -269,4 +272,113 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 // getTechFilePath return the techDirecory + / + replacing " " with _
 func getTechFilePath(tech string, prefix string) string {
 	return filepath.Join(techDirectory, prefix+strings.ReplaceAll(tech, " ", "_"))
+}
+
+func findCoreFile(t *testing.T, pathToMonitor string) {
+	t.Logf("Processing existing core files in directory: %s\n", pathToMonitor)
+	fmt.Printf("Processing existing core files in directory: %s\n", pathToMonitor)
+	err := filepath.Walk(pathToMonitor, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && (strings.HasSuffix(info.Name(), ".core") || strings.HasSuffix(info.Name(), ".core.gz")) {
+			t.Logf("Found existing core file: %s\n", path)
+			decodeCoreFile(t, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		t.Logf("Error walking the path %s: %v\n", pathToMonitor, err)
+		fmt.Printf("Error walking the path %s: %v\n", pathToMonitor, err)
+	}
+}
+
+func decodeCoreFile(t *testing.T, coreFile string) {
+	txtFile := strings.TrimSuffix(coreFile, filepath.Ext(coreFile)) + ".core.txt"
+	coreDir := filepath.Dir(coreFile)
+
+	t.Logf("Decoding core file: %s\n", coreFile)
+	t.Logf("Corresponding TXT file: %s\n", txtFile)
+	t.Logf("Core file directory: %s\n", coreDir)
+	fmt.Printf("Decoding core file: %s\n", coreFile)
+	fmt.Printf("Corresponding TXT file: %s\n", txtFile)
+	fmt.Printf("Core file directory: %s\n", coreDir)
+
+	// Check if the .txt file exists
+	if _, err := os.Stat(txtFile); os.IsNotExist(err) {
+		t.Logf("TXT file %s not found for core file %s\n", txtFile, coreFile)
+		fmt.Printf("TXT file %s not found for core file %s\n", txtFile, coreFile)
+		return
+	}
+
+	// Read the workspace path from the .txt file
+	file, err := os.Open(txtFile)
+	if err != nil {
+		t.Logf("Error opening TXT file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	var workspace string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Workspace") {
+			workspace = strings.Split(line, " = ")[1]
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Logf("Error reading TXT file: %v\n", err)
+		return
+	}
+
+	t.Logf("Workspace path: %s\n", workspace)
+
+	// Change to the workspace directory
+	if _, err := os.Stat(workspace); os.IsNotExist(err) {
+		t.Logf("Workspace directory %s not found\n", workspace)
+		return
+	}
+
+	if err := os.Chdir(workspace); err != nil {
+		t.Logf("Error changing to workspace directory: %v\n", err)
+		return
+	}
+
+	t.Logf("Changed to workspace directory: %s\n", workspace)
+
+	// Wait until the core file is completely copied
+	var prevSize int64 = -1
+	var currSize int64 = 0
+	for prevSize != currSize {
+		prevSize = currSize
+		time.Sleep(5 * time.Second)
+		fileInfo, err := os.Stat(coreFile)
+		if err != nil {
+			t.Logf("Error getting core file size: %v\n", err)
+			return
+		}
+		currSize = fileInfo.Size()
+	}
+
+	// Decode the core file
+	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
+	t.Logf("Decoding output will be saved to: %s\n", decodeOutput)
+
+	cmd := exec.Command("/auto/mcp-project1/xr-decoder/xr-decode", "-l", coreFile)
+	output, err := cmd.Output()
+	if err != nil {
+		t.Logf("Error decoding core file: %v\n", err)
+		return
+	}
+
+	if err := os.WriteFile(decodeOutput, output, 0644); err != nil {
+		t.Logf("Error writing decode output: %v\n", err)
+		return
+	}
+
+	t.Logf("Decoded core file %s and placed the result in %s\n", coreFile, coreDir)
 }
