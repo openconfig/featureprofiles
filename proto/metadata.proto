@@ -611,9 +611,7 @@ message Metadata {
     // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
     // Juniper: b/330173167
     bool bgp_aspathset_unsupported = 218;
-    // next_statemen_policy_termination_unsupported is set to true for devices that do not support Next_Statement as the last statement in the policy
-    // Juniper: b/364321100
-    bool next_statement_policy_termination_unsupported = 219;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

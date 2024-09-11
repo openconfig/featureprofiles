@@ -246,16 +246,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		pd2stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(matchAny)
 	}
 
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		if deviations.NextStatementPolicyTerminationUnsupported(dut) {
-			pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		} else {
-			pd2stmt1.GetOrCreateActions().SetPolicyResult(nextstatementResult)
-		}
-	}
+	pd2stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// Configure the parent policy multi_policy.
-
 	pdef1 := rp.GetOrCreatePolicyDefinition(parentPolicy)
 
 	// Configure multi_policy:STATEMENT1: reject_route_community
