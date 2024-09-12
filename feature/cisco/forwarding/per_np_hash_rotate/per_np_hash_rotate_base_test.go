@@ -231,7 +231,7 @@ func getPIRouterID(t *testing.T, dut *ondatra.DUTDevice) string {
 	return id
 }
 
-// unsetHwProfilePbrVrfRedirect configures hw-module profile pbr vrf-redirect CLI.
+// setHwProfilePbrVrfRedirect configures hw-module profile pbr vrf-redirect CLI.
 func setHwProfilePbrVrfRedirect(t *testing.T, dut *ondatra.DUTDevice, setConf bool) {
 	t.Helper()
 	var configCli string
