@@ -128,9 +128,8 @@ func verifyPerNPHashCLIVal(cliHashVal int) int {
 // getPerLCPerNPHashValTable returns a map of LC and corresponding per NP hash rotate value using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val_all_npu" location <LC#> CLI.
 func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice, lcList []string) map[string][]int {
-	// t.Helper()
 	hashValMap := make(map[string][]int)
-	//get per LC per NP hash-rotate value from the device
+	// get per LC per NP hash-rotate value from the device
 	for _, lc := range lcList {
 		debugCLI := fmt.Sprintf("show controllers npu debugshell 0 'script device_hash_rotate_info get_val_all_npu' location %v", lc)
 		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
@@ -144,7 +143,6 @@ func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice, lcList []strin
 // getPerLCPerNPHashVal returns int val for a given NP and LC using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val" location <LC#> CLI.
 func getPerLCPerNPHashVal(t *testing.T, dut *ondatra.DUTDevice, np int, lc string) int {
-	// t.Helper() //fixme
 	var hashVal int
 	//get per LC per NP hash-rotate value from the device
 	debugCLI := fmt.Sprintf("show controllers npu debugshell %v 'script device_hash_rotate_info get_val' location %v", np, lc)
@@ -152,7 +150,7 @@ func getPerLCPerNPHashVal(t *testing.T, dut *ondatra.DUTDevice, np int, lc strin
 	for attempt >= 1 {
 		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
 		npList := parseDebugCLIOutput(t, cliResp)
-		t.Logf("debug cli output and nplist %v\n%v", debugCLI, npList) //fixme
+		t.Logf("debug cli output and nplist %v\n%v", debugCLI, npList)
 		if len(npList) > 0 {
 			hashVal = npList[0]
 			break
