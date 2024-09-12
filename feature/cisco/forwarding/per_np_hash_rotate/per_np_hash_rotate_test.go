@@ -162,6 +162,7 @@ func TestAutoHashValRandomize(t *testing.T) {
 	t.Skip()
 }
 
+// TestAutoHashValPostRouterReload verifies the auto set per-NP hash values are retained after linecard reload.
 func TestAutoHashValPostLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	lcList = util.GetLCList(t, dut)
@@ -173,6 +174,7 @@ func TestAutoHashValPostLCReload(t *testing.T) {
 	TestPerNPHashRotateVerifyAutoVal(t)
 }
 
+// TestAutoHashValPostRouterReload verifies the auto set per-NP hash values are retained after router reload.
 func TestAutoHashValPostRouterReload(t *testing.T) {
 	util.RebootDevice(t)
 	time.Sleep(1 * time.Minute)
@@ -180,20 +182,7 @@ func TestAutoHashValPostRouterReload(t *testing.T) {
 	TestPerNPHashRotateVerifyAutoVal(t)
 }
 
-func FetchUniqueItems(t *testing.T, s []string) []string {
-	itemExisted := make(map[string]bool)
-	var uniqueList []string
-	for _, item := range s {
-		if _, ok := itemExisted[item]; !ok {
-			itemExisted[item] = true
-			uniqueList = append(uniqueList, item)
-		} else {
-			t.Logf("Detected duplicated item: %v", item)
-		}
-	}
-	return uniqueList
-}
-
+// TestGlobalHashRotateConfig verifies the global hash values can be configured for multiple linecards at the same time.
 func TestBulkNPHashRotateConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -215,6 +204,7 @@ func TestBulkNPHashRotateConfig(t *testing.T) {
 	}
 }
 
+// TestGlobalHashRotateConfig verifies the hash values can be configured for multiple linecards at the same time ard are retained after router reload.
 func TestBulkNPHashConfigPersistenceRouterReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -238,6 +228,7 @@ func TestBulkNPHashConfigPersistenceRouterReload(t *testing.T) {
 	}
 }
 
+// TestGlobalHashRotateConfig verifies the hash values can be configured for multiple linecards at the same time and are retained after linecard reload.
 func TestBulkNPHashConfigPersistenceLCReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -260,7 +251,7 @@ func TestBulkNPHashConfigPersistenceLCReload(t *testing.T) {
 	}
 }
 
-// TestGlobalAndPerNPHashCoExistence verifies that per-NP hash value is prefered when global value is configured at the same time.
+// TestGlobalAndPerNPHashCoExistence verifies that per-NP hash value is preferred when global value is configured at the same time.
 func TestGlobalAndPerNPHashCoExistence(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -284,6 +275,7 @@ func TestGlobalAndPerNPHashCoExistence(t *testing.T) {
 	}
 }
 
+// TestGlobalTakesOverAfterPerNPHashDeleted verifies that global hash value is preferred when per-NP hash value is deleted.
 func TestGlobalTakesOverAfterPerNPHashDeleted(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -314,6 +306,7 @@ func TestGlobalTakesOverAfterPerNPHashDeleted(t *testing.T) {
 	}
 }
 
+// TestGlobalTakesOverAfterPerNPHashDeletedLcReload verifies that global hash value is preferred when pbr profile is deleted and a specific linecards is reloaded.
 func TestGlobalTakesOverAfterPbrProfileDeletedLcReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -342,15 +335,15 @@ func TestGlobalTakesOverAfterPbrProfileDeletedLcReload(t *testing.T) {
 	util.ReloadLinecards(t, lcList)
 
 	t.Logf("Verify LC %v are using global hash value \n, %v", lcList[0], globalHash)
-	// for _, lc := range lcList {
 	for _, np := range npList {
 		if got, want := getPerLCPerNPHashVal(t, dut, np, lcList[0]), verifyPerNPHashCLIVal(globalHash); got != want {
 			t.Errorf("Global hash value for LC %v NP%v is not per calculation got %v, want %v", lcList[0], np, got, want)
 		}
 	}
-	// }
+
 }
 
+// TestGlobalTakesOverAfterPerNPHashDeletedAllLcReload verifies that global hash value is preferred when pbr profile is deleted and all linecards are reloaded.
 func TestGlobalTakesOverAfterPbrProfileDeletedAllLcReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
@@ -384,6 +377,7 @@ func TestGlobalTakesOverAfterPbrProfileDeletedAllLcReload(t *testing.T) {
 	}
 }
 
+// TestNonAutomaticHashWithoutPbrAndGlobalOrPerNpHashAllLcReload verifies that non-automatic hash value is preferred when pbr profile is deleted and all linecards are reloaded.
 func TestNonAutomaticHashWithoutPbrAndGlobalOrPerNpHashAllLcReload(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Logf("Get list of LCs")
