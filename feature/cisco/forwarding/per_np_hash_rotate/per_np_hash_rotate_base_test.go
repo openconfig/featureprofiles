@@ -185,7 +185,6 @@ func parseDebugCLIOutput(t *testing.T, cliOut string) []int {
 // getOFARouterID returns uint32 OFA router-id using show ofa objects global location <> CLI.
 func getOFARouterID(t *testing.T, dut *ondatra.DUTDevice, lcloc string) uint32 {
 	var rtr, lineHavingRouterID string
-	//ofaGlObj := fmt.Sprintf("show ofa objects global location %v | include router", lcloc)
 	ofaGlObj := fmt.Sprintf("show ofa objects global location %v", lcloc)
 
 	attempt := 5
