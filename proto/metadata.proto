@@ -611,6 +611,8 @@ message Metadata {
     //  Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
     // Juniper: b/353280742
     bool gribi_unresolvable_nexthops_unsupported = 218;
+    //  Devices requires autonegotiation to be disabled and requires port speed and duplex to be set.
+    bool explicit_auto_negotiation_disable_required = 219;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
