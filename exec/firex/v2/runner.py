@@ -14,7 +14,7 @@ from microservices.runners.runner_base import FireXRunnerBase
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
-from helper import CommandFailed, remote_exec, scp_to_remote
+from helper import CommandFailed, remote_exec, scp_to_remote, scp_from_remote
 from getpass import getuser
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -1413,16 +1413,31 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed, otg_v
 @app.task(bind=True)
 def CollectIxiaLogs(self, reserved_testbed, out_dir):
     logger.print("Collecting OTG logs...")
-    # sim has no access to /auto/
-    if reserved_testbed.get('sim', False):
-        logger.print("Not supported on sim...skipping")
-        return
-    
+    otg_log_collector_bin = "/auto/tftpboot-ottawa/b4/bin/otg_log_collector"
+    pname = reserved_testbed["id"].lower()
+
     try:
-        otg_log_collector_bin = "/auto/tftpboot-ottawa/b4/bin/otg_log_collector"
-        pname = reserved_testbed["id"].lower()
-        cmd = f'{otg_log_collector_bin} {pname} {out_dir}'
-        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+        # sim has no access to /auto/
+        if reserved_testbed.get('sim', False):
+            conn_args = {}
+            if 'username' in reserved_testbed['otg']:
+                conn_args['username'] = reserved_testbed['otg']['username']
+                conn_args['password'] = reserved_testbed['otg']['password']
+            if 'port' in reserved_testbed['otg']:
+                conn_args['port'] = reserved_testbed['otg']['port']
+        
+            collect_script_on_remote = f'/tmp/{os.path.basename(otg_log_collector_bin)}'
+            out_dir_on_remote = f'/tmp/otg_logs'
+            scp_to_remote(reserved_testbed['otg']['host'], otg_log_collector_bin, collect_script_on_remote, **conn_args)
+
+            cmd = f'{collect_script_on_remote} {pname} {out_dir_on_remote}'
+            remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
+
+            scp_from_remote(reserved_testbed['otg']['host'], out_dir_on_remote, out_dir, recursive=True, **conn_args)
+
+        else:
+            cmd = f'{otg_log_collector_bin} {pname} {out_dir}'
+            remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
     except:
         logger.warning(f'Failed to collect OTG logs. Ignoring...')
 
