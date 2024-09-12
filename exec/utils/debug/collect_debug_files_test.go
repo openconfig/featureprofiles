@@ -108,10 +108,11 @@ func TestCollectDebugFiles(t *testing.T) {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
 	}
 
-	commands := []string{
+	seq_commands := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
 	}
+	commands := []string{}
 
 	if *coreCheck {
 		commands = append(commands,
@@ -124,6 +125,21 @@ func TestCollectDebugFiles(t *testing.T) {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
+		}
+		ctx := context.Background()
+		dut := ondatra.DUT(t, dutID)
+		sshClient := dut.RawAPIs().CLI(t)
+		for _, cmd := range seq_commands {
+			testt.CaptureFatal(t, func(t testing.TB) {
+				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+					t.Logf("> %s", cmd)
+					t.Log(result.Output())
+				} else {
+					t.Logf("> %s", cmd)
+					t.Log(err.Error())
+				}
+				t.Logf("\n")
+			})
 		}
 		wg.Add(1)
 		go func(dutID string, target targetInfo) {
