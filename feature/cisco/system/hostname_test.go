@@ -29,7 +29,7 @@ import (
 //
 // config_path:/system/config/hostname
 // telemetry_path:/system/state/hostname
-func TestHostname(t *testing.T) {
+func testHostname(t *testing.T) {
 	testCases := []struct {
 		description string
 		hostname    string

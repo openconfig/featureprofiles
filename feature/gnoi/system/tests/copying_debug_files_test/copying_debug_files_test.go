@@ -31,10 +31,11 @@ var (
 		ondatra.NOKIA:   "sr_bgp_mgr",
 		ondatra.ARISTA:  "IpRib",
 		ondatra.JUNIPER: "rpd",
+		ondatra.CISCO:   "bgp",
 	}
 	components = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Chassis",
-		ondatra.CISCO:   "Chassis",
+		ondatra.CISCO:   "Rack 0",
 		ondatra.JUNIPER: "CHASSIS0",
 		ondatra.NOKIA:   "Chassis",
 	}
@@ -59,7 +60,6 @@ func TestMain(m *testing.M) {
 //
 //  - gnoi operation commands can be sent and tested using CLI command grpcurl.
 //    https://github.com/fullstorydev/grpcurl
-//
 
 func TestCopyingDebugFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -85,6 +85,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	componentName := map[string]string{"name": components[dut.Vendor()]}
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
+			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -129,6 +130,7 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	// Execute Healthz Check RPC for the chassis component.
 	chkReq := &hpb.CheckRequest{
 		Path: &tpb.Path{
+			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -145,6 +147,7 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error on executing Healthz Check RPC: %v", err)
 	}
+	t.Logf("Check response: %v", chkRes)
 	// Fetch artifact related metadata that was returned in the Check Response.
 	artifacts := chkRes.GetStatus().GetArtifacts()
 	if len(artifacts) == 0 {

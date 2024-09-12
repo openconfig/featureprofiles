@@ -54,7 +54,8 @@ whitelist_arguments([
     'test_show_skipped',
     'test_repo_url',
     'sim_use_mtls',
-    'collect_dut_info'
+    'collect_dut_info',
+    'cflow_over_ssh'
 ])
 
 def _get_user_nobackup_path(ws=None):
@@ -122,7 +123,7 @@ def _gnmi_set_file_template(conf):
 }
     """
 
-def _otg_docker_compose_template(control_port, gnmi_port, version):
+def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
     return f"""
 version: "2"
 services:
@@ -131,6 +132,7 @@ services:
     restart: always
     ports:
       - "{control_port}:40051"
+      - "{rest_port}:8443"
     depends_on:
       layer23-hw-server:
         condition: service_started
@@ -187,7 +189,7 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed, otg_version):
         return
     otg_info = reserved_testbed['otg']
     with open(docker_file, 'w') as fp:
-        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_version))
+        fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'], otg_version))
 
 # def _get_mtls_binding_option(internal_fp_repo_dir, testbed):
 #     tb_file = MTLS_DEFAULT_TRUST_BUNDLE_FILE
@@ -269,7 +271,7 @@ def _sim_get_data_ports(testbed_logs_dir):
     for dut, entry in vxr_conf.get('devices').items():
         data_ports[dut] = entry.get('data_ports', [])
     return data_ports
-            
+
 def _cli_to_gnmi_set_file(cli_lines, gnmi_file, extra_conf=[]):
     gnmi_set = _gnmi_set_file_template(cli_lines)
     with open(gnmi_file, 'w') as gnmi:
@@ -574,6 +576,7 @@ def b4_chain_provider(ws, testsuite_id,
                         testbed=None,
                         sanitizer=None,
                         cflow=None,
+                        cflow_over_ssh=False,
                         **kwargs):
     
     if internal_test:
@@ -646,8 +649,10 @@ def b4_chain_provider(ws, testsuite_id,
             custom_tech="sanitizer",
         )
         
-    if cflow and testbed:
-        chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
+    if cflow:
+        if cflow_over_ssh: chain |= CollectCoverageDataOverSSH.s()
+        else: chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
+
     return chain
 
 # noinspection PyPep8Naming
@@ -914,7 +919,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
                 'controller_port': 3389,
                 'controller_port_redir': e['ports'][3389],
                 'gnmi_port': 11009,
-                'gnmi_port_redir': e['ports'][11009]
+                'gnmi_port_redir': e['ports'][11009],
+                'rest_port': 8443,
             }
         
         data_ports = _sim_get_data_ports(testbed_logs_dir)            
@@ -1088,7 +1094,7 @@ def CheckoutRepo(self, repo, repo_branch=None, repo_rev=None):
     r.git.clean('-xdf')
 
 # noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*60*60, time_limit=1*60*60, returns=('core_files'))
+@app.task(bind=True, max_retries=3, autoretry_for=[CommandFailed], soft_time_limit=1*90*60, time_limit=1*90*60, returns=('core_files'))
 def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir, 
                       timestamp=1, core_check=False, collect_tech=False,
                       run_cmds=False, split_files_per_dut=False, custom_tech="", custom_cmds=""):
@@ -1101,7 +1107,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
 
     collect_debug_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/debug ' \
-            f'-timeout 60m ' \
+            f'-timeout 45m ' \
             f'-args ' \
             f'-collect_dut_info=false '\
             f'-testbed {reserved_testbed["testbed_file"]} ' \
@@ -1464,6 +1470,27 @@ def GenerateSimTestbedFile(self,
         configure_unicon=configure_unicon)
     return self.enqueue_child_and_get_results(c, return_keys=('testbed', 'tb_data', 'testbed_path'))
 
+@app.task(base=FireX, bind=True)
+@returns('cflow_dat_dir')
+def CollectCoverageDataOverSSH(self, ws, internal_fp_repo_dir, reserved_testbed, cflow_arguments=None):
+    if not cflow_arguments:
+        cflow_arguments = {}
+
+    cflow_date = cflow_arguments.get('arguments_dict', {}).get('cflow_date', 'no_date')
+    cflow_dat_dir = os.path.join(ws, 'cflow', cflow_date)
+    os.makedirs(cflow_dat_dir, exist_ok=True)
+    
+    c = CollectDebugFiles.s(
+        ws=ws,
+        internal_fp_repo_dir=internal_fp_repo_dir, 
+        reserved_testbed=reserved_testbed, 
+        out_dir=cflow_dat_dir,
+        collect_tech=True,
+        custom_tech="cflow",
+    )
+    self.enqueue_child_and_get_results(c)
+    return cflow_dat_dir
+
 # noinspection PyPep8Naming
 @app.task(bind=True)
 def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
@@ -1479,12 +1506,22 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
     except:
         logger.warning(f'Failed to push results to influxdb. Ignoring...')
 
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PushResultsToMongo(self, uid, xunit_results):
+    logger.print("Pushing results to MongoDB...")
+    try:
+        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        logger.print(check_output(cmd))
+    except:
+        logger.warning(f'Failed to push results to MongoDB. Ignoring...')
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
 @returns('test_report_text_file', 'report_text')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
-    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
+    c = InjectArgs(**self.abog) | PushResultsToInflux.s() | PushResultsToMongo.s() | self.orig.s()
     test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
     return test_report_text_file, report_text  

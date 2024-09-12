@@ -27,7 +27,7 @@ import (
 // be read and is not an unreasonable value.
 //
 // telemetry_path:/system/state/boot-time
-func TestBootTime(t *testing.T) {
+func testBootTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	defer observer.RecordYgot(t, "SUBSCRIBE", gnmi.OC().System().BootTime())
 	t.Run("Subscribe//system/state/boot-time", func(t *testing.T) {

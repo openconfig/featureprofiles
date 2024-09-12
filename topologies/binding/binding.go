@@ -47,7 +47,6 @@ import (
 
 var (
 	// To be stubbed out by unit tests.
-	//lint:ignore SA1019 DialContext allows for blocking on new connections.
 	grpcDialContextFn = grpc.DialContext
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
