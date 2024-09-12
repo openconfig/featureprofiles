@@ -295,7 +295,7 @@ func findCoreFile(t *testing.T, pathToMonitor string) {
 }
 
 func decodeCoreFile(t *testing.T, coreFile string) {
-	txtFile := strings.TrimSuffix(coreFile, filepath.Ext(coreFile)) + ".core.txt"
+	txtFile := strings.TrimSuffix(coreFile, filepath.Ext(coreFile)) + ".txt"
 	coreDir := filepath.Dir(coreFile)
 
 	t.Logf("Decoding core file: %s\n", coreFile)
