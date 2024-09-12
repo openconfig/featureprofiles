@@ -9,12 +9,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/testt"
 	"github.com/povsister/scp"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -117,46 +119,72 @@ func TestCollectDebugFiles(t *testing.T) {
 		)
 	}
 
-	for dutID, targetInfo := range targets.targetInfo {
+	var wg sync.WaitGroup
+	for dutID, target := range targets.targetInfo {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
 		}
+		wg.Add(1)
+		go func(dutID string, target targetInfo) {
+			defer wg.Done()
+			executeCommandsForDUT(t, dutID, target, fileNamePrefix, commands)
+		}(dutID, target)
+	}
+	wg.Wait()
+}
 
-		if *collectTech {
-			for _, t := range showTechList {
-				fname := getTechFilePath(t, fileNamePrefix)
-				if t == "sanitizer" {
-					fname = filepath.Join(techDirectory, "showtech-sanitizer-"+dutID)
-				}
-				commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, fname))
+func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNamePrefix string, commands []string) {
+	if *collectTech {
+		for _, t := range showTechList {
+			fname := getTechFilePath(t, fileNamePrefix)
+			if t == "sanitizer" {
+				fname = filepath.Join(techDirectory, "showtech-sanitizer-"+dutID)
 			}
+			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, fname))
 		}
+	}
 
-		if *runCmds {
-			for _, t := range pipedCmdList {
-				commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFilePath(t, fileNamePrefix)))
-			}
+	if *runCmds {
+		for _, t := range pipedCmdList {
+			commands = append(commands, fmt.Sprintf("%s | file %s", t, getTechFilePath(t, fileNamePrefix)))
 		}
+	}
 
-		ctx := context.Background()
-		dut := ondatra.DUT(t, dutID)
-		sshClient := dut.RawAPIs().CLI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	dut := ondatra.DUT(t, dutID)
+	sshClient := dut.RawAPIs().CLI(t)
 
-		for _, cmd := range commands {
+	executeCommandsInParallel(t, ctx, sshClient, commands)
+	copyDebugFiles(t, target)
+}
+
+func executeCommandsInParallel(t *testing.T, ctx context.Context, sshClient binding.CLIClient, commands []string) {
+	var wg sync.WaitGroup
+	commandResults := make(chan string, len(commands))
+
+	for _, cmd := range commands {
+		wg.Add(1)
+		go func(cmd string) {
+			defer wg.Done()
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-					t.Logf("> %s", cmd)
-					t.Log(result.Output())
+					commandResults <- fmt.Sprintf("> %s\n%s\n", cmd, result.Output())
 				} else {
-					t.Logf("> %s", cmd)
-					t.Log(err.Error())
+					commandResults <- fmt.Sprintf("> %s\n%s\n", cmd, err.Error())
 				}
-				t.Logf("\n")
 			})
-		}
+		}(cmd)
+	}
 
-		copyDebugFiles(t, targetInfo)
+	go func() {
+		wg.Wait()
+		close(commandResults)
+	}()
+
+	for result := range commandResults {
+		t.Log(result)
 	}
 }
 
@@ -277,13 +305,30 @@ func getTechFilePath(tech string, prefix string) string {
 func findCoreFile(t *testing.T, pathToMonitor string) {
 	t.Logf("Processing existing core files in directory: %s\n", pathToMonitor)
 	fmt.Printf("Processing existing core files in directory: %s\n", pathToMonitor)
+
+	coreFiles := make(chan string)
+	var wg sync.WaitGroup
+
+	// Start a fixed number of worker goroutines
+	numWorkers := 4
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for coreFile := range coreFiles {
+				decodeCoreFile(t, coreFile)
+			}
+		}()
+	}
+
+	// Walk the directory and send core files to the workers
 	err := filepath.Walk(pathToMonitor, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() && (strings.HasSuffix(info.Name(), ".core") || strings.HasSuffix(info.Name(), ".core.gz")) {
 			t.Logf("Found existing core file: %s\n", path)
-			decodeCoreFile(t, path)
+			coreFiles <- path
 		}
 		return nil
 	})
@@ -292,6 +337,9 @@ func findCoreFile(t *testing.T, pathToMonitor string) {
 		t.Logf("Error walking the path %s: %v\n", pathToMonitor, err)
 		fmt.Printf("Error walking the path %s: %v\n", pathToMonitor, err)
 	}
+
+	close(coreFiles)
+	wg.Wait()
 }
 
 func decodeCoreFile(t *testing.T, coreFile string) {
@@ -364,21 +412,38 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		currSize = fileInfo.Size()
 	}
 
-	// Decode the core file
+	// Create a temporary file to indicate that decoding is in progress
+	inProgressFile := coreFile + ".decode_in_progress"
+	if _, err := os.Create(inProgressFile); err != nil {
+		t.Logf("Error creating in-progress file: %v\n", err)
+		return
+	}
+
+	// Decode the core file in the background
 	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-	t.Logf("Decoding output will be saved to: %s\n", decodeOutput)
-
-	cmd := exec.Command("/auto/mcp-project1/xr-decoder/xr-decode", "-l", coreFile)
-	output, err := cmd.Output()
-	if err != nil {
-		t.Logf("Error decoding core file: %v\n", err)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s", coreFile, decodeOutput, inProgressFile))
+	if err := cmd.Start(); err != nil {
+		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
 
-	if err := os.WriteFile(decodeOutput, output, 0644); err != nil {
-		t.Logf("Error writing decode output: %v\n", err)
-		return
-	}
+	t.Logf("Started background decoding for core file %s\n", coreFile)
 
-	t.Logf("Decoded core file %s and placed the result in %s\n", coreFile, coreDir)
+	// // Decode the core file
+	// decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
+	// t.Logf("Decoding output will be saved to: %s\n", decodeOutput)
+
+	// cmd := exec.Command("/auto/mcp-project1/xr-decoder/xr-decode", "-l", coreFile)
+	// output, err := cmd.Output()
+	// if err != nil {
+	// 	t.Logf("Error decoding core file: %v\n", err)
+	// 	return
+	// }
+
+	// if err := os.WriteFile(decodeOutput, output, 0644); err != nil {
+	// 	t.Logf("Error writing decode output: %v\n", err)
+	// 	return
+	// }
+
+	// t.Logf("Decoded core file %s and placed the result in %s\n", coreFile, coreDir)
 }
