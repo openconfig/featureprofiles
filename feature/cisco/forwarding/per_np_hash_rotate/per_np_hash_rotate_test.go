@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -158,8 +159,54 @@ func TestExplicitNPHashRotateConfig(t *testing.T) {
 // TestAutoHashValRandomize verifies the auto set per-NP hash values are randomized such that
 // a given LC's 3 NPs dont have same values & LCn & LCn+1 values are not same.
 func TestAutoHashValRandomize(t *testing.T) {
-	//TODO
-	t.Skip()
+	dut := ondatra.DUT(t, "dut")
+	lcList = util.GetLCList(t, dut)
+	if len(lcList) == 0 {
+		t.Skip("No linecards found")
+	}
+	hashMap := getPerLCPerNPHashTable(t, dut, lcList)
+
+	// Extract the keys into a slice
+	keys := make([]string, 0, len(hashMap))
+	for key := range hashMap {
+		keys = append(keys, key)
+	}
+
+	// Sort the keys
+	sort.Strings(keys)
+
+	// Iterate over the sorted keys
+	for i, key := range keys {
+		values := hashMap[key]
+
+		// Check if the values in the slice are distinct
+		if len(values) != 3 {
+			t.Errorf("the slice for key %s does not have exactly 3 entries", key)
+		}
+		if values[0] == values[1] || values[0] == values[2] || values[1] == values[2] {
+			t.Errorf("the slice for key %s has duplicate values: %v", key, values)
+		}
+
+		// Check consecutive entries
+		if i > 0 {
+			previousKey := keys[i-1]
+			previousValues := hashMap[previousKey]
+			if slicesAreEqual(values, previousValues) {
+				t.Errorf("consecutive entries %s and %s have the same values: %v", previousKey, key, values)
+			}
+		}
+	}
+
+}
+
+// Helper function to compare two slices
+func slicesAreEqual(slice1, slice2 []int) bool {
+	for i := range slice1 {
+		if slice1[i] != slice2[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // TestAutoHashValPostRouterReload verifies the auto set per-NP hash values are retained after linecard reload.
