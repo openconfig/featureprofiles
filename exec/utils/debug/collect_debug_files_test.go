@@ -108,7 +108,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
 	}
 
-	seq_commands := []string{
+	deviceDirCleanupCmds := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
 	}
@@ -129,7 +129,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		ctx := context.Background()
 		dut := ondatra.DUT(t, dutID)
 		sshClient := dut.RawAPIs().CLI(t)
-		for _, cmd := range seq_commands {
+		for _, cmd := range deviceDirCleanupCmds {
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
 					t.Logf("> %s", cmd)
