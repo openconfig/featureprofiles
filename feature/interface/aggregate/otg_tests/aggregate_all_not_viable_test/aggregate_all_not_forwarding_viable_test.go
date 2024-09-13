@@ -215,12 +215,17 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	})
 	t.Run("RT-5.7.1.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
-		configForwardingViable(t, dut, dutPortList[1:2], false)
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+				t.Fatalf("ISIS Adjacency is Established on LAG_2 ")
+			}
+		}
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[1:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -261,7 +266,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.1.4: Setting Forwarding-Viable to False and Down some Port on Lag2", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
@@ -337,10 +342,16 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.2.2: Setting Forwarding-Viable to False for Lag2 all ports", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
-		configForwardingViable(t, dut, dutPortList[1:2], false)
+		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
+		// Ensure ISIS Adjacency is Down on LAG_2
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+				t.Fatalf("ISIS Adjacency is Established on LAG_2")
+			}
+		}
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:(agg2.ateLagCount+1)], dutPortList[1:(agg2.ateLagCount+1)]); err != nil {
 			t.Fatal(err)
@@ -377,7 +388,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.2.4: Setting Forwarding-Viable to False and Down some Port on Lag2", func(t *testing.T) {
 		// Ensure ISIS Adjacency is up on LAG_2
-		if ok := awaitAdjacency(t, dut, aggIDs[1], oc.Isis_IsisInterfaceAdjState_UP); !ok {
+		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_UP}); !ok {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
@@ -1096,11 +1107,14 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
 		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
 		lostPkt := txPkts - rxPkts
+		t.Logf("lostPkt - %v", lostPkt)
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
+				t.Logf("status - %v and got - %v", status, got)
 				return false
 			}
 		} else if got := (lostPkt * 100 / txPkts); got > 0 {
+			t.Logf("status - %v and got - %v", status, got)
 			return false
 		}
 	} else {
@@ -1108,7 +1122,11 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
 			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 			lostPkt := txPkts - rxPkts
+
+			t.Logf("flow.Name() - %v", flow.Name())
+			t.Logf("lostPkt - %v", lostPkt)
 			if got := (lostPkt * 100 / txPkts); got > 0 {
+				t.Logf("status - %v and got - %v", status, got)
 				return false
 			}
 		}
@@ -1117,15 +1135,19 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 }
 
 // awaitAdjacency wait for adjacency to be up/down
-func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state oc.E_Isis_IsisInterfaceAdjState) bool {
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	intf := isisPath.Interface(intfName)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
-		return v == state && ok
+		for _, s := range state {
+			if (v == s) && ok {
+				return true
+			}
+		}
+		return false
 	}).Await(t)
-
 	return ok
 }
 
