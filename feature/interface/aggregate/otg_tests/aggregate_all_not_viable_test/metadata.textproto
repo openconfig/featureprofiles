@@ -53,12 +53,3 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: false
   }
 }
-
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    interface_ref_config_unsupported: true
-  }
-}
