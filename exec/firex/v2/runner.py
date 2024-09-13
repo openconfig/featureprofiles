@@ -480,57 +480,61 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, images,
         self.enqueue_child_and_get_results(c)
 
     if not isinstance(testbeds, list): testbeds = [testbeds]
-    reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
-    if not reserved_testbed:
-        raise Exception(f'Could not reserve testbed')
+
+    while len(testbeds) > 0:
+        reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
+        testbeds.remove(reserved_testbed["id"])
+
+        c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
+                    reserved_testbed=reserved_testbed, **self.abog)
+
+        using_sim = reserved_testbed.get('sim', False) 
+        if using_sim:
+            topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
+            with open(topo_file, "r") as fp:
+                topo_yaml = yaml.safe_load(fp)
+
+            if not type(reserved_testbed['baseconf']) is dict:
+                reserved_testbed['baseconf'] = {
+                    'dut': reserved_testbed['baseconf']
+                }
+
+            for dut, conf in reserved_testbed['baseconf'].items():
+                baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
+                baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
+                shutil.copyfile(baseconf_file, baseconf_file_copy)
+                topo_yaml['devices'][dut]['cvac'] = baseconf_file_copy
+
+            with open(topo_file, "w") as fp:
+                fp.write(yaml.dump(topo_yaml))
+            c |= self.orig.s(plat='8000', topo_file=topo_file)
+
+        c |= GenerateOndatraTestbedFiles.s()
+        if using_sim and sim_use_mtls:
+            c |= GenerateCertificates.s()
+            c |= SimEnableMTLS.s()
+
+        if not using_sim:
+            c |= CheckTestbed.s()
+            if install_image:
+                c |= SoftwareUpgrade.s(force_install=force_install)
+                force_reboot = False
+        if smus:
+            c |= InstallSMUs.s(smus=smus)
+        if force_reboot:
+            c |= ForceReboot.s()
+        if collect_tb_info:
+            c |= CollectTestbedInfo.s()
+        try:
+            result = self.enqueue_child_and_get_results(c)
+            return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
+                result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
+                result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
+        except Exception as e:
+            _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
+            logger.warning(f'Failed to bringup testbed {reserved_testbed["id"]}: {e}')
     
-    c = InjectArgs(internal_fp_repo_dir=internal_fp_repo_dir, 
-                reserved_testbed=reserved_testbed, **self.abog)
-
-    using_sim = reserved_testbed.get('sim', False) 
-    if using_sim:
-        topo_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['topology'])
-        with open(topo_file, "r") as fp:
-            topo_yaml = yaml.safe_load(fp)
-
-        if not type(reserved_testbed['baseconf']) is dict:
-            reserved_testbed['baseconf'] = {
-                'dut': reserved_testbed['baseconf']
-            }
-
-        for dut, conf in reserved_testbed['baseconf'].items():
-            baseconf_file = _resolve_path_if_needed(internal_fp_repo_dir, conf)
-            baseconf_file_copy = os.path.join(testbed_logs_dir, f'baseconf_{dut}.conf')
-            shutil.copyfile(baseconf_file, baseconf_file_copy)
-            topo_yaml['devices'][dut]['cvac'] = baseconf_file_copy
-
-        with open(topo_file, "w") as fp:
-            fp.write(yaml.dump(topo_yaml))
-        c |= self.orig.s(plat='8000', topo_file=topo_file)
-
-    c |= GenerateOndatraTestbedFiles.s()
-    if using_sim and sim_use_mtls:
-        c |= GenerateCertificates.s()
-        c |= SimEnableMTLS.s()
-        
-    if install_image and not using_sim:
-        c |= SoftwareUpgrade.s(force_install=force_install)
-        force_reboot = False
-    if smus:
-        c |= InstallSMUs.s(smus=smus)
-    if force_reboot:
-        c |= ForceReboot.s()
-    if collect_tb_info:
-        c |= CollectTestbedInfo.s()
-    try:
-        result = self.enqueue_child_and_get_results(c)
-    except Exception as e:
-        _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
-        raise e
-
-    return (internal_fp_repo_url, internal_fp_repo_dir, result.get("reserved_testbed"),
-            result.get("slurm_cluster_head", None), result.get("sim_working_dir", None),
-            result.get("slurm_jobid", None), result.get("topo_path", None), result.get("testbed", None))
+    raise Exception(f'Could not reserve testbed')
 
 @app.task(base=FireX, bind=True)
 def CleanupTestbed(self, ws, testbed_logs_dir, 
@@ -1008,6 +1012,20 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     return reserved_testbed
+
+@app.task(bind=True, soft_time_limit=1*5*60, time_limit=1*5*60)
+def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed):
+    logger.print("Checking testbed connectivity...")
+    cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/tbchecks ' \
+            f'-timeout 1m ' \
+            f'-args ' \
+            f'-collect_dut_info=false ' \
+            f'-testbed {reserved_testbed["testbed_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} '
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True, soft_time_limit=1*60*60, time_limit=1*60*60)
