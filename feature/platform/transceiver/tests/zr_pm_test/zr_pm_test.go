@@ -4,18 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	dp16QAM             = uint16(16)
+	dp16QAM             = uint16(1)
 	samplingInterval    = 10 * time.Second
 	minAllowedQValue    = 7.0
 	maxAllowedQValue    = 14.0
@@ -34,20 +33,7 @@ const (
 
 var (
 	frequencies         = []uint64{191400000, 196100000}
-	targetOpticalPowers = []float64{-6, -10}
-
-	dutPorts = []attrs.Attributes{
-		{
-			Desc:    "dutPort1",
-			IPv4:    "192.0.2.1",
-			IPv4Len: 30,
-		},
-		{
-			Desc:    "dutPort2",
-			IPv4:    "192.0.2.5",
-			IPv4Len: 30,
-		},
-	}
+	targetOpticalPowers = []float64{-9, -13}
 )
 
 func TestMain(m *testing.M) {
@@ -72,9 +58,6 @@ func TestPM(t *testing.T) {
 			t.Fatalf("%s PMD is %v, not 400ZR", p.Name(), p.PMD())
 		}
 
-		// Configure interfaces.
-		gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), dutPorts[i].NewOCInterface(p.Name(), dut))
-
 		// Get transceiver and optical channel.
 		trs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 		ochs[p.Name()] = gnmi.Get(t, dut, gnmi.OC().Component(trs[p.Name()]).Transceiver().Channel(0).AssociatedOpticalChannel().State())
@@ -88,195 +71,142 @@ func TestPM(t *testing.T) {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
 			for _, p := range dut.Ports() {
-				configOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower)
-				configOTNChannel(t, dut, ochs[p.Name()], otnIndexes[p.Name()])
-				configETHChannel(t, dut, otnIndexes[p.Name()], ethIndexes[p.Name()])
+				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, dp16QAM)
+				cfgplugins.ConfigOTNChannel(t, dut, ochs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
+				cfgplugins.ConfigETHChannel(t, dut, p.Name(), trs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
 			}
 
-			// Create OTN channel sample steam for each port.
+			// Create sample steams for each port.
 			otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
+			interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
 			for portName, otnIndex := range otnIndexes {
 				otnStreams[portName] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).State(), samplingInterval)
+				interfaceStreams[portName] = samplestream.New(t, dut, gnmi.OC().Interface(portName).State(), samplingInterval)
 				defer otnStreams[portName].Close()
+				defer interfaceStreams[portName].Close()
 			}
 
-			// Enable transceivers.
-			for _, tr := range trs {
-				gnmi.Replace(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), true)
+			// Enable interface.
+			for _, p := range dut.Ports() {
+				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 			}
 
 			// Wait for streaming telemetry to report the channels as up.
-			for _, otnIndex := range otnIndexes {
-				gnmi.Await(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).LinkState().State(), timeout, oc.Channel_LinkState_UP)
+			for _, p := range dut.Ports() {
+				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
-			// Disable transceivers.
-			for _, tr := range trs {
-				gnmi.Replace(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), false)
+			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
+
+			// Disable interface.
+			for _, p := range dut.Ports() {
+				cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 			}
 
 			// Wait for streaming telemetry to report the channels as down.
-			for _, otnIndex := range otnIndexes {
-				gnmi.Await(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).LinkState().State(), timeout, oc.Channel_LinkState_DOWN)
+			for _, p := range dut.Ports() {
+				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+
+			validateAllSamples(t, dut, false, interfaceStreams, otnStreams)
 
 			// Re-enable transceivers.
-			for _, tr := range trs {
-				gnmi.Replace(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), true)
+			for _, p := range dut.Ports() {
+				cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 			}
 
 			// Wait for streaming telemetry to report the channels as up.
-			for _, otnIndex := range otnIndexes {
-				gnmi.Await(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).LinkState().State(), timeout, oc.Channel_LinkState_UP)
+			for _, p := range dut.Ports() {
+				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
-			// Now validate OTN streams didn't return any invalid values.
-			for portName, stream := range otnStreams {
-				var linkStates []oc.E_Channel_LinkState
-				for _, val := range stream.All() {
-					linkStates = append(linkStates, validateStream(t, val, portName))
+			validateAllSamples(t, dut, true, interfaceStreams, otnStreams)
+		}
+	}
+}
+
+// validateAllSamples validates all the sample streams.
+func validateAllSamples(t *testing.T, dut *ondatra.DUTDevice, isEnabled bool, interfaceStreams map[string]*samplestream.SampleStream[*oc.Interface], otnStreams map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
+	for _, p := range dut.Ports() {
+		for valIndex := range interfaceStreams[p.Name()].All() {
+			if valIndex >= len(otnStreams[p.Name()].All()) {
+				break
+			}
+			operStatus := validateSampleStream(t, interfaceStreams[p.Name()].All()[valIndex], otnStreams[p.Name()].All()[valIndex], p.Name())
+			switch operStatus {
+			case oc.Interface_OperStatus_UP:
+				if !isEnabled {
+					t.Errorf("Invalid %v operStatus value: want DOWN, got %v", p.Name(), operStatus)
 				}
-				validateLinkStateTransitions(t, linkStates, portName)
+			case oc.Interface_OperStatus_DOWN:
+				if isEnabled {
+					t.Errorf("Invalid %v operStatus value: want UP, got %v", p.Name(), operStatus)
+				}
 			}
 		}
 	}
 }
 
-// validateStream validates the stream data.
-func validateStream(t *testing.T, data *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Channel_LinkState {
-	if data == nil {
+// validateSampleStream validates the stream data.
+func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Interface_OperStatus {
+	if interfaceData == nil {
 		t.Errorf("Data not received for port %v.", portName)
-		return oc.Channel_LinkState_UNSET
+		return oc.Interface_OperStatus_UNSET
 	}
-	v, ok := data.Val()
+	interfaceValue, ok := interfaceData.Val()
 	if !ok {
 		t.Errorf("Channel data is empty for port %v.", portName)
-		return oc.Channel_LinkState_UNSET
+		return oc.Interface_OperStatus_UNSET
 	}
-	linkState := v.GetLinkState()
-	if linkState == oc.Channel_LinkState_UNSET {
+	operStatus := interfaceValue.GetOperStatus()
+	if operStatus == oc.Interface_OperStatus_UNSET {
 		t.Errorf("Link state data is empty for port %v", portName)
-		return oc.Channel_LinkState_UNSET
+		return oc.Interface_OperStatus_UNSET
 	}
-	otn := v.GetOtn()
+	terminalDeviceValue, ok := terminalDeviceData.Val()
+	if !ok {
+		t.Errorf("Terminal Device data is empty for port %v.", portName)
+		return oc.Interface_OperStatus_UNSET
+	}
+	otn := terminalDeviceValue.GetOtn()
 	if otn == nil {
 		t.Errorf("OTN data is empty for port %v", portName)
-		return linkState
+		return operStatus
 	}
 	if b := otn.GetPreFecBer(); b == nil {
 		t.Errorf("PreFECBER data is empty for port %v", portName)
 	} else {
-		validatePMValue(t, portName, "PreFECBER", b.GetMin(), b.GetMax(), b.GetAvg(), b.GetInstant(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, linkState)
+		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, operStatus)
 	}
 	if e := otn.GetEsnr(); e == nil {
 		t.Errorf("ESNR data is empty for port %v", portName)
 	} else {
-		validatePMValue(t, portName, "esnr", e.GetMin(), e.GetMax(), e.GetAvg(), e.GetInstant(), minAllowedESNR, maxAllowedESNR, inactiveESNR, linkState)
+		validatePMValue(t, portName, "esnr", e.GetInstant(), e.GetMin(), e.GetMax(), e.GetAvg(), minAllowedESNR, maxAllowedESNR, inactiveESNR, operStatus)
 	}
 	if q := otn.GetQValue(); q == nil {
 		t.Errorf("QValue data is empty for port %v", portName)
 	} else {
-		validatePMValue(t, portName, "QValue", q.GetMin(), q.GetMax(), q.GetAvg(), q.GetInstant(), minAllowedQValue, maxAllowedQValue, inactiveQValue, linkState)
+		validatePMValue(t, portName, "QValue", q.GetInstant(), q.GetMin(), q.GetMax(), q.GetAvg(), minAllowedQValue, maxAllowedQValue, inactiveQValue, operStatus)
 	}
-	return linkState
+	return operStatus
 }
 
 // validatePMValue validates the pm value.
-func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, linkState oc.E_Channel_LinkState) {
-	switch linkState {
-	case oc.Channel_LinkState_UP:
-		if instant < min || instant > max || avg < min || avg > max || min < minAllowed || max > maxAllowed {
+func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
+	switch operStatus {
+	case oc.Interface_OperStatus_UP:
+		if instant < minAllowed || instant > maxAllowed {
 			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
-	case oc.Channel_LinkState_DOWN:
-		if instant != inactiveValue || avg != inactiveValue || min != inactiveValue || max != inactiveValue {
+	case oc.Interface_OperStatus_DOWN:
+		if instant != inactiveValue {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
 	}
-	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, linkState, min, max, avg, instant)
-}
-
-// validateLinkStateTransitions validates the link state transitions.
-func validateLinkStateTransitions(t *testing.T, linkStates []oc.E_Channel_LinkState, portName string) {
-	if len(linkStates) < 3 {
-		t.Errorf("Invalid %v link state transitions: want at least 3 samples, got %v", portName, len(linkStates))
-		return
-	}
-	if linkStates[0] != oc.Channel_LinkState_DOWN {
-		t.Errorf("Invalid %v link state transitions: want DOWN for initial link state, got %v ", portName, linkStates[0])
-		return
-	}
-	var transitionIndexes []int
-	for i := range linkStates {
-		if i == 0 {
-			continue
-		}
-		if linkStates[i-1] != linkStates[i] {
-			transitionIndexes = append(transitionIndexes, i)
-		}
-	}
-	if len(transitionIndexes) != 2 {
-		t.Errorf("Invalid %v link state transitions: want 2 transitions, got %v ", portName, len(transitionIndexes))
-		return
-	}
-	if linkStates[transitionIndexes[0]] != oc.Channel_LinkState_UP {
-		t.Errorf("Invalid %v link state transitions: want DOWN-->UP, got %v-->%v", portName, linkStates[transitionIndexes[0]-1], linkStates[transitionIndexes[0]])
-		return
-	}
-	if linkStates[transitionIndexes[1]] != oc.Channel_LinkState_DOWN {
-		t.Errorf("Invalid %v link state transitions: want UP-->DOWN, got %v-->%v", portName, linkStates[transitionIndexes[1]-1], linkStates[transitionIndexes[1]])
-	}
-}
-
-// configOpticalChannel configures the optical channel.
-func configOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64) {
-	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		Frequency:         ygot.Uint64(frequency),
-		TargetOutputPower: ygot.Float64(targetOpticalPower),
-	})
-}
-
-// configOTNChannel configures the OTN channel.
-func configOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex uint32) {
-	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
-		Description:        ygot.String("OTN Logical Channel"),
-		Index:              ygot.Uint32(otnIndex),
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: {
-				Index:          ygot.Uint32(1),
-				OpticalChannel: ygot.String(och),
-				Description:    ygot.String("OTN to Optical"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
-			},
-		},
-	})
-}
-
-// configETHChannel configures the ETH channel.
-func configETHChannel(t *testing.T, dut *ondatra.DUTDevice, otnIndex, ethIndex uint32) {
-	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
-		Description:        ygot.String("ETH Logical Channel"),
-		Index:              ygot.Uint32(ethIndex),
-		RateClass:          oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
-		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			1: {
-				Index:          ygot.Uint32(1),
-				LogicalChannel: ygot.Uint32(otnIndex),
-				Description:    ygot.String("ETH to OTN"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
-			},
-		},
-	})
+	t.Logf("Valid %v sample when %v is %v --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, operStatus, min, max, avg, instant)
 }

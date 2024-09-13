@@ -228,7 +228,7 @@ func startDhcpServer(intf string, em *bootzem.InMemoryEntityManager, bootzAddr s
 	conf := &dhcp.Config{
 		Interface:  intf,
 		AddressMap: make(map[string]*dhcp.Entry),
-		BootzURL:   fmt.Sprintf("bootz://%v/grpc", bootzAddr),
+		BootzURLs:  []string{fmt.Sprintf("bootz://%v/grpc", bootzAddr)},
 		// Add DNS if is needed
 		DNS: []string{},
 	}
