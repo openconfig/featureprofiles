@@ -437,13 +437,29 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 
 	// Decode the core file in the background
 	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s", coreFile, decodeOutput, inProgressFile))
+	currentTime := time.Now()
+	timeString := currentTime.Format("2006-01-02 15:04:05")
+	t.Logf("corefile %s, background decode start time %s", coreFile, timeString)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+	currentTime = time.Now()
+	timeString = currentTime.Format("2006-01-02 15:04:05")
+	t.Logf("corefile %s, background decode end time %s", coreFile, timeString)
 	if err := cmd.Start(); err != nil {
 		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
-
+	currentTime = time.Now()
+	timeString = currentTime.Format("2006-01-02 15:04:05")
+	t.Logf("corefile %s, background decode error time %s", coreFile, timeString)
 	t.Logf("Started background decoding for core file %s\n", coreFile)
+
+	cmd = exec.Command("ps", "-elf", fmt.Sprintf("| grep %s", coreFile))
+	output, err := cmd.Output()
+	if err != nil {
+		t.Logf("Error ps command: %v\n", err)
+		return
+	}
+	t.Logf("ps output: %v", output)
 
 	// // Decode the core file
 	// decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
