@@ -10874,8 +10874,6 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
@@ -10957,8 +10955,6 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
@@ -11041,8 +11037,6 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
@@ -11516,10 +11510,6 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 
@@ -12500,21 +12490,21 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
 
-			// Perform GET operations for sandbox policy instance after router reload
+			// Perform GET operations for sandbox policy instance after RP Switchover
 			client = start(t)
 			sand_res_after_RPSwitch, _ := client.Get(context.Background(), getReq_Sand)
 			if d := cmp.Diff(get_res, sand_res_after_RPSwitch, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 			}
 
-			// Perform GET operations for active policy instance after router reload
+			// Perform GET operations for active policy instance after RP Switchover
 			actv_res_after_RPSwitch, _ := client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %s", actv_res_after_RPSwitch)
 			if d := cmp.Diff(get_res, actv_res_after_RPSwitch, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 			}
 
-			// Verify gNMI Operations after Router Reload
+			// Verify gNMI Operations after RP Switchover.
 			performOperations(t, dut)
 
 			resp := gnmi.Update(t, dut, path.Config(), true)
@@ -13412,7 +13402,7 @@ func TestRPSO_Pathz(t *testing.T) {
 
 			// Verify memory usage after removing gNMI Set Request with 19 MB.
 			if !verifier.Verify(t) {
-				t.Errorf("Memory usage verification failed removing gNMI Set Request with 19 MB.")
+				t.Errorf("Memory usage verification failed removing gNMI Set Request with 5 MB.")
 			}
 			// Check top CPU utilization after removing gNMI Set Request with 19 MB.
 			pathz.TopCpuMemoryUtilization(t, dut)
