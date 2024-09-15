@@ -1018,7 +1018,7 @@ def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Checking testbed connectivity...")
     cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/tbchecks ' \
-            f'-timeout 1m ' \
+            f'-timeout 2m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
