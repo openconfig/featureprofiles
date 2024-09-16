@@ -1,7 +1,7 @@
 ## TE-18.5 gRIBI encapsulation for mpls in UDP with inner TTL manipulation
 
 * Create AFT entries to perform mpls-in-udp encapsulation, but add a condition that the DUT must
-  re-write the ingress, innner packet TLL = 2, if the incoming TTL = 1.
+  match destination IP to be local and retain TTL = 1 if the incoming TTL = 1.
 
 ## Topology
 
@@ -29,7 +29,7 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TE-18.5.1 Rewrite inner packet TTL=2 if inner TTL=1
+### TE-18.5.1 Retain inner packet TTL=1 if inner TTL=1
 
 The gRIBI client should send this proto message to the DUT to create AFT
 entries.  See [OC PR in progress](https://github.com/openconfig/public/pull/1153)
@@ -71,14 +71,21 @@ network_instances: {
           index: 100
           network_instance: "group_A"
           encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_A"
-            pushed_mpls_label_stack: [100,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            inner_ip_ttl_min: 2
-            dscp: "outer_dscp"
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [100,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_A"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              dscp: "outer_dscp"
+            }
           }
         }
       }
@@ -111,15 +118,27 @@ network_instances: {
         next_hop {
           index: 200
           network_instance: "group_B"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_B"
-            pushed_mpls_label_stack: [200,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            inner_ip_ttl_min: 2
-            dscp: "outer_dscp"
+          encap-headers {
+            encap-header {
+              index: 1
+              type : OPENCONFIG_AFT_TYPES:MPLS
+              mpls {
+                pushed_mpls_label_stack: [200,]
+              }
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              type: OPENCONFIG_AFT_TYPES:UDP
+              udp {
+                src_ip: "outer_ipv6_src"
+                dst_ip: "outer_ipv6_dst_B"
+                dst_udp_port: "outer_dst_udp_port"
+                ip_ttl: "outer_ip-ttl"
+                dscp: "outer_dscp"
+              }
+            }
           }
         }
       }
@@ -127,11 +146,12 @@ network_instances: {
   }
 }
 ```
+
 * Send traffic from ATE port 1 to DUT port 1 with inner TTL=1
 * Validate afts next hop counters
 * Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
-  * Validate inner packet TTL=2 if inner TTL=1
+  * Validate inner packet TTL=1 if inner TTL=1
 
 #### OpenConfig Path and RPC Coverage
 
