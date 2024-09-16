@@ -131,21 +131,26 @@ network_instances: {
         next_hop {
           index: 200
           network_instance: "group_B"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
           encap-headers {
             encap-header {
               index: 1
-              pushed_mpls_label_stack: [200,]
+              type : OPENCONFIG_AFT_TYPES:MPLS
+              mpls {
+                pushed_mpls_label_stack: [200,]
+              }
             }
           }
           encap-headers {
             encap-header {
               index: 2
-              src_ip: "outer_ipv6_src"
-              dst_ip: "outer_ipv6_dst_B"
-              dst_udp_port: "outer_dst_udp_port"
-              ip_ttl: "outer_ip-ttl"
-              dscp: "outer_dscp"
+              type: OPENCONFIG_AFT_TYPES:UDP
+              udp {
+                src_ip: "outer_ipv6_src"
+                dst_ip: "outer_ipv6_dst_B"
+                dst_udp_port: "outer_dst_udp_port"
+                ip_ttl: "outer_ip-ttl"
+                dscp: "outer_dscp"
+              }
             }
           }
         }
