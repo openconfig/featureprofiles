@@ -43,12 +43,12 @@ outer_ip-ttl =        "64"
 #### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
-entries.  See [OC PR in progress](https://github.com/openconfig/public/pull/1153)
-for the new OC AFT model nodes needed for this.  The
+entries.  See [OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
+for the new OC AFT model nodes needed for this.  
+
+TODO: The
 [gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
 will be generated from the afts tree.
-
-TODO: Update gRIBI protobuf.
 
 ```proto
 network_instances: {
@@ -84,13 +84,21 @@ network_instances: {
           index: 100
           network_instance: "group_A"
           encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_A"
-            pushed_mpls_label_stack: [100,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            dscp: "outer_dscp"
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [100,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_A"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              dscp: "outer_dscp"
+            }
           }
         }
       }
@@ -124,13 +132,21 @@ network_instances: {
           index: 200
           network_instance: "group_B"
           encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
-          mpls_in_udp {
-            src_ip: "outer_ipv6_src"
-            dst_ip: "outer_ipv6_dst_B"
-            pushed_mpls_label_stack: [200,]
-            dst_udp_port: "outer_dst_udp_port"
-            ip_ttl: "outer_ip-ttl"
-            dscp: "outer_dscp"
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [200,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_B"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              dscp: "outer_dscp"
+            }
           }
         }
       }
