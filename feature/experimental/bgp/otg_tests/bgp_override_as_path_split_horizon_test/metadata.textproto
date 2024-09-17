@@ -1,3 +1,10 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "97f0e45a-2970-4227-9409-3003e7c7cdd7"
+plan_id: "RT-1.54"
+description: "BGP Override AS-path split-horizon"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
