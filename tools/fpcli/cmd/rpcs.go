@@ -38,6 +38,8 @@ $ fpcli show rpcs gnoi -d tmp
 gnoi.bgp.BGP.ClearBGPNeighbor
 gnoi.bootconfig.BootConfig.GetBootConfig
 gnoi.bootconfig.BootConfig.SetBootConfig
+gnoi.certificate.CertificateManagement.CanGenerateCSR
+gnoi.certificate.CertificateManagement.GenerateCSR
 ...`,
 	Run: func(cmd *cobra.Command, args []string) {
 		downloadPath := viper.GetString("download-dir")

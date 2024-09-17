@@ -164,7 +164,7 @@ func TestValidatePath(t *testing.T) {
 
 			err := validatePath(ocpath, root)
 			if diff := errdiff.Substring(err, tt.wantErrSubstr); diff != "" {
-				t.Error(diff)
+				t.Errorf(diff)
 			}
 
 			if err != nil {

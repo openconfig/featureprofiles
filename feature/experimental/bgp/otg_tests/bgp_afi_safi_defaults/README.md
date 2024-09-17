@@ -75,43 +75,47 @@ BGP AFI SAFI OC DEFAULTS TEST
         *   For IPv6 neighbor ensure that the IPv6 neighborship is not ESTABLISHED and
             IPv6-unicast capabilities are set to FALSE.
 
+## Config Parameter coverage
 
-## OpenConfig Path and RPC Coverage
+*   /network-instances/network-instance/protocols/protocol/bgp/global/config/as
+*   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/   
+    neighbor-address
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/
+    config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/
+    auth-password
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/
+    neighbor-address
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group/
+    peer-group-name
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/
+    afi-safi/config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-```yaml
-paths:
-    ## Config Parameter coverage
+## Telemetry Parameter coverage
 
-    /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
-    /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/neighbor-address:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/auth-password:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
-    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/
+    supported-capabilities
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/
+    supported-capabilities
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-group
 
-    ## Telemetry Parameter coverage
+## Protocol/RPC Parameter coverage
 
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities: 
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-type:
-    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-type:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-as:
-    /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/local-as:
+N/A
 
-rpcs:
-    gnmi:
-        gNMI.Set:
-        gNMI.Get:
-        gNMI.Subscribe:
-```
-## Minimum DUT Required
+## Minimum DUT platform requirement
 
-vRX - Virtual Router Device
+N/A

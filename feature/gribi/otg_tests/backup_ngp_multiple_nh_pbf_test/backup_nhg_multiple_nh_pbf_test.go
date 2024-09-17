@@ -274,7 +274,7 @@ func TestBackup(t *testing.T) {
 		top:    top,
 	}
 
-	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
+	vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 	tcArgs.testIPv4BackUpSwitch(t)
 }
 

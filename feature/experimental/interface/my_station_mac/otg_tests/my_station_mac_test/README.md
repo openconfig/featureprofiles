@@ -14,16 +14,14 @@ Ensure my MAC entries installed on the DUT are honored and used for routing.
 *   Remove the MyStationMAC configuration. 
 *   Validate that traffic is blackholed.
 
-## OpenConfig Path and RPC Coverage
+## Config Parameter Coverage
 
-```yaml
-paths:
-   /system/mac-address/config/routing-mac:
-   /system/mac-address/state/routing-mac:
+*   /system/mac-address/config/routing-mac.
 
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-```
+## Telemetry Parameter Coverage
+
+*   /system/mac-address/state/routing-mac.
+
+## Protocol/RPC Parameter Coverage
+
+N/A

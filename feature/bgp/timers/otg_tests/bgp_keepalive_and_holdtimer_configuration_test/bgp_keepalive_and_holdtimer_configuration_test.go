@@ -259,13 +259,8 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(bgpGlobalAttrs.grRestartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
-			if deviations.BGPExplicitPrefixLimitReceived(dut) {
-				prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
-				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			} else {
-				prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			}
+			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+			prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
@@ -286,13 +281,8 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(bgpGlobalAttrs.grRestartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
-			if deviations.BGPExplicitPrefixLimitReceived(dut) {
-				prefixLimit := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
-				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			} else {
-				prefixLimit := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
-				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
-			}
+			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
+			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}

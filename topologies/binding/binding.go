@@ -27,26 +27,27 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
-	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/binding/ixweb"
-	opb "github.com/openconfig/ondatra/proto"
-	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	grpb "github.com/openconfig/gribi/v1/proto/service"
+	opb "github.com/openconfig/ondatra/proto"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 var (
 	// To be stubbed out by unit tests.
-	grpcDialContextFn = grpc.NewClient
+	grpcDialContextFn = grpc.DialContext
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
 
@@ -473,7 +474,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{grpc.WithDisableRetry()}
+	opts := []grpc.DialOption{grpc.WithBlock()}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
@@ -523,10 +524,10 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
-				_, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(target, opts...)
+			return grpcDialContextFn(ctx, target, opts...)
 		},
 		DialTarget: bopts.Target,
 		DialOpts:   opts,

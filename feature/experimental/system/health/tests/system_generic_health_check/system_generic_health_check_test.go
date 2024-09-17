@@ -157,10 +157,6 @@ func TestComponentStatus(t *testing.T) {
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
-			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
-			if compMtyPresent && compMtyVal {
-				t.Skipf("INFO: Skip status check as %s is empty", component)
-			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
 			if !present {
 				t.Errorf("ERROR: Get component %s oper-status failed", component)
@@ -370,23 +366,12 @@ func TestNoQueueDrop(t *testing.T) {
 	for _, intf := range interfaces {
 		t.Run(intf, func(t *testing.T) {
 			qosInterface := gnmi.OC().Qos().Interface(intf)
-			if deviations.QOSInQueueDropCounterUnsupported(dut) {
-				t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
-				counters := gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State())
-				t.Logf("counters: %s", counters)
-				if len(counters) == 0 {
-					t.Errorf("%s Interface Queue Input Dropped packets Telemetry Value is not present", intf)
-				}
-				for queueID, dropPkt := range counters {
-					dropCount, present := dropPkt.Val()
-					if !present {
-						t.Errorf("%s Interface %s Telemetry Value is not present", intf, dropPkt.Path)
-					} else {
-						t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
-					}
-				}
-			}
 			cases := []testCase{
+				{
+					desc:     "Queue Input Dropped packets",
+					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
+				},
 				{
 					desc:     "Queue Output Dropped packets",
 					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
@@ -597,7 +582,6 @@ func TestInterfacesubIntfs(t *testing.T) {
 					t.Fatalf("ERROR: subIntf index value doesn't exist")
 				}
 				subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
-				IntfPath := gnmi.OC().Interface(intf)
 				subIntfState := gnmi.Get(t, dut, subIntfPath.State())
 				subIntf := subIntfState.GetName()
 
@@ -629,7 +613,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 						t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
 					}
 
-					counters := IntfPath.Counters()
+					counters := subIntfPath.Counters()
 					parentCounters := gnmi.OC().Interface(intf).Counters()
 
 					cases := []struct {
@@ -668,7 +652,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 							parentCounter: parentCounters.InFcsErrors().State(),
 						},
 					}
-					t.Logf("Verifying counters for Interfaces: %s", interfaces)
+
 					for _, c := range cases {
 						t.Run(c.desc, func(t *testing.T) {
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {

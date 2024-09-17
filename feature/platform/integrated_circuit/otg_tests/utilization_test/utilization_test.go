@@ -20,7 +20,6 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -46,7 +45,6 @@ const (
 var (
 	fibResource = map[ondatra.Vendor]string{
 		ondatra.ARISTA: "Routing/Resource6",
-		ondatra.NOKIA:  "ip-lpm-routes",
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -107,22 +105,58 @@ func TestResourceUtilization(t *testing.T) {
 	otgV6Peer, otgPort1, otgConfig := configureOTG(t, otg)
 
 	verifyBgpTelemetry(t, dut)
+
+	val, ok := gnmi.Watch(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).ActiveComponentList().State(), time.Minute, func(v *ygnmi.Value[[]string]) bool {
+		cs, present := v.Val()
+		return present && len(cs) > 0
+	}).Await(t)
+	if !ok {
+		switch {
+		case deviations.MissingHardwareResourceTelemetryBeforeConfig(dut):
+			t.Log("FIB resource is not active in any available components")
+		default:
+			t.Fatalf("FIB resource is not active in any available components")
+		}
+	}
+	comps, _ := val.Val()
+
 	gnmi.Replace(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).Config(), &oc.System_Utilization_Resource{
 		Name:                    ygot.String(fibResource[dut.Vendor()]),
 		UsedThresholdUpper:      ygot.Uint8(usedThresholdUpper),
 		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
 	})
-	comps := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+
+	val, ok = gnmi.Watch(t, dut, gnmi.OC().System().Utilization().Resource(fibResource[dut.Vendor()]).ActiveComponentList().State(), time.Minute, func(v *ygnmi.Value[[]string]) bool {
+		cs, present := v.Val()
+		return present && len(cs) > 0
+	}).Await(t)
+	if !ok {
+		t.Fatalf("FIB resource is not active in any available components")
+	}
+	comps, _ = val.Val()
+
 	beforeUtzs := componentUtilizations(t, dut, comps)
 	if len(beforeUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
+		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
 	}
+	t.Run("Utilization Thresholds per Component", func(t *testing.T) {
+		for _, c := range comps {
+			t.Run(c, func(t *testing.T) {
+				if got, want := beforeUtzs[c].upperThreshold, usedThresholdUpper; got != want {
+					t.Errorf("used-upper-threshold mismatch for component: %s, got: %d, want: %d", c, got, want)
+				}
+				if got, want := beforeUtzs[c].upperThresholdClear, usedThresholdUpperClear; got != want {
+					t.Errorf("used-upper-threshold-clear mismatch for component: %s, got: %d, want: %d", c, got, want)
+				}
+			})
+		}
+	})
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
 	afterUtzs := componentUtilizations(t, dut, comps)
 	if len(afterUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
+		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
 	}
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
@@ -140,7 +174,7 @@ func TestResourceUtilization(t *testing.T) {
 
 	afterClearUtzs := componentUtilizations(t, dut, comps)
 	if len(afterClearUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
+		t.Fatalf("Couldn't retrieve Utilization information for all Components in active-component-list")
 	}
 
 	t.Run("Utilization after BGP route clear", func(t *testing.T) {

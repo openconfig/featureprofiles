@@ -29,14 +29,11 @@ Ensure that gRIBI entries are persisted over daemon failure.
 
     *   Issuing a gRIBI Get RPC results in 203.0.113.0/24 being returned.
 
-## OpenConfig Path and RPC Coverage
-```yaml
-rpcs:
-  gribi:
-    gRIBI.Get:
-    gRIBI.Modify:
-    gRIBI.Flush:
-```
+## Protocol/RPC Parameter Coverage
+
+*   gRIBI
+    *   ModifyRequest
+    *   GetRequest
 
 ## Telemetry Parameter Coverage
 

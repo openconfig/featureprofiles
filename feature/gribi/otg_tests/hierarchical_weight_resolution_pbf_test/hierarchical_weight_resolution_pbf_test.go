@@ -295,7 +295,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
-	gnmi.Update(t, d, intfPath.Config(), i)
+	gnmi.Replace(t, d, intfPath.Config(), i)
 	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
@@ -738,12 +738,12 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	}
 
 	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
-		vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
 
 	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
-		vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 

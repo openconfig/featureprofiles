@@ -440,23 +440,13 @@ the double failure handling, and ensures that the fallback to DEFAULT is
 activated through the backup NHGs of the tunnels instead of withdrawing the
 IPv4Entry.
 
-1.  Update `NHG#1000` and `NHG#1001` to the following: 
+1.  Update `NHG#1000` and `NHG#1001` to the following: ``` NHG#1000 (Default
+    VRF) { {NH#1000, DEFAULT VRF} } NH#1000 ->
+    { decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4 network_instance: "DEFAULT" }
 
-```
-NHG#1000 (Default VRF) { {NH#1000, DEFAULT VRF} }
-
-NH#1000 -> { 
-  decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-  network_instance: "DEFAULT"
-}
-
-NHG#1001 (Default VRF) { {NH#1001, DEFAULT VRF} }
-
-NH#1001 -> {
-  decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
-  network_instance: "DEFAULT"
-}
-```
+NHG#1001 (Default VRF) { {NH#1001, DEFAULT VRF} } NH#1001 -> {
+decapsulate_header: OPENCONFIGAFTTYPESDECAPSULATIONHEADERTYPE_IPV4
+network_instance: "DEFAULT" } ```
 
 1.  Validate that all traffic is distributed per the hierarchical weights.
 2.  Shutdown DUT port-2, port-3, and port-4, and port-6.
@@ -504,18 +494,11 @@ be routed to the DEFAULT VRF for further lookup.
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 
-## OpenConfig Path and RPC Coverage
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-  gribi:
-    gRIBI.Get:
-    gRIBI.Modify:
-    gRIBI.Flush:
-```
+## Protocol/RPC Parameter Coverage
+
+*   gRIBI:
+    *   Modify
+        *   ModifyRequest
 
 ## Required DUT platform
 

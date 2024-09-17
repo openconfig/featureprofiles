@@ -29,38 +29,26 @@ Ensure that gRIBI entries are persisted over supervisor failure.
     the prefix `203.0.113.0/24` pointing to ATE port-2 is present and traffic
     flows 100% from ATE port-1 to ATE port-2.
 
-## OpenConfig Path and RPC Coverage
+## Protocol/RPC Parameter coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+*   gNOI:
+    *   System
+        *   SwitchControlProcessor
 
-```yaml
-paths:
-    ## Config Parameter coverage
+## Config parameter coverage
 
-    ## Telemetry Parameter coverage
+## Telemery parameter coverage
 
-    /components/component/state/last-reboot-time:
-     platform_type: ["CHASSIS", "CONTROLLER_CARD"]
-    /components/component/state/last-reboot-reason:
-     platform_type: ["CHASSIS", "CONTROLLER_CARD" ]
-    /components/component/state/redundant-role:
-     platform_type: [ "CONTROLLER_CARD" ]
-    /components/component/state/last-switchover-time:
-     platform_type: [ "CONTROLLER_CARD" ]
-    /components/component/state/last-switchover-reason/trigger:
-     platform_type: [ "CONTROLLER_CARD" ]
-    /components/component/state/last-switchover-reason/details:
-     platform_type: [ "CONTROLLER_CARD" ]
+*   CHASSIS:
 
-rpcs:
-    gnmi:
-        gNMI.Set:
-        gNMI.Get:
-        gNMI.Subscribe:
-    gnoi:
-        system.System.SwitchControlProcessor:
-```
+    *   /components/component[name=<chassis>]/state/last-reboot-time
+    *   /components/component[name=<chassis>]/state/last-reboot-reason
 
-## Minimum DUT Required
+*   CONTROLLER_CARD:
 
-vRX - Virtual Router Device
+    *   /components/component[name=<supervisor>]/state/redundant-role
+    *   /components/component[name=<supervisor>]/state/last-switchover-time
+    *   /components/component[name=<supervisor>]/state/last-switchover-reason/trigger
+    *   /components/component[name=<supervisor>]/state/last-switchover-reason/details
+    *   /components/component[name=<supervisor>]/state/last-reboot-time
+    *   /components/component[name=<supervisor>]/state/last-reboot-reason

@@ -692,12 +692,12 @@ func TestHierarchicalWeightResolution(t *testing.T) {
 	}
 
 	t.Run("TestBasicHierarchicalWeightWithVrfPolW", func(t *testing.T) {
-		vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testBasicHierarchicalWeight(ctx, t, dut, ate, top, gRIBI)
 	})
 
 	t.Run("TestHierarchicalWeightBoundaryScenarioWithVrfPolW", func(t *testing.T) {
-		vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
+		vrfpolicy.ConfigureVRFSelectionPolicyW(t, dut)
 		testHierarchicalWeightBoundaryScenario(ctx, t, dut, ate, top, gRIBI)
 	})
 

@@ -34,7 +34,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/encoding/prototext"
 
@@ -58,8 +57,7 @@ func DialService(ctx context.Context, t *testing.T, name string, dut *ondatra.DU
 	tlsc := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true, // NOLINT
 	})
-	conn, err := dialer.DialGRPC(ctx, name, grpc.WithTransportCredentials(tlsc))
-	conn.WaitForStateChange(ctx, connectivity.Ready)
+	conn, err := dialer.DialGRPC(ctx, name, grpc.WithTransportCredentials(tlsc), grpc.WithBlock())
 	if err != nil {
 		t.Fatalf("Failed to dial %s, %v", name, err)
 	}

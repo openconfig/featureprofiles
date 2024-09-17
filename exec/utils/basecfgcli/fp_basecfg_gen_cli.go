@@ -47,7 +47,7 @@ func (flagCred) RequireTransportSecurity() bool {
 
 func init() {
 	flag.Parse()
-	dialOpts := []grpc.DialOption{}
+	dialOpts := []grpc.DialOption{grpc.WithBlock()}
 	if *insec {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else if *skipVerify {

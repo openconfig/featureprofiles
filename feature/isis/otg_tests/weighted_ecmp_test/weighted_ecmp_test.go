@@ -12,13 +12,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -39,7 +37,6 @@ const (
 	dstTrafficV6      = "2001:db8:64:64::1"
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
-	fixedPackets      = 1000000
 )
 
 type aggPortData struct {
@@ -114,6 +111,7 @@ var (
 		ateLoopbackV4: "192.0.2.18",
 		ateLoopbackV6: "2001:db8::18",
 	}
+
 	dutLoopback = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "192.0.2.21",
@@ -130,23 +128,20 @@ var (
 	unequalDistributionWeights = []uint64{20, 40, 40}
 
 	ecmpTolerance = uint64(1)
-
-	lb string
-
-	vendor ondatra.Vendor
-
-	isisLevel = 2
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
 func TestWeightedECMPForISIS(t *testing.T) {
+	// ondatra.Debug().Breakpoint(t)
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+
 	aggIDs := configureDUT(t, dut)
-	vendor = dut.Vendor()
-	// Enable weighted ECMP in ISIS and set LoadBalancing to Auto
+
+	// Enable weighted ECMP and set LoadBalancing to Auto
 	if !deviations.RibWecmp(dut) {
 		b := &gnmi.SetBatch{}
 		// isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -159,29 +154,18 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		}
 		b.Set(t, dut)
 	}
-	if deviations.WecmpAutoUnsupported(dut) {
-		var weight string
-		switch dut.Vendor() {
-		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n ! \n interface %s \n address-family ipv4 unicast \n weight 100 \n address-family ipv6 unicast \n weight 100 \n", aggIDs[1], aggIDs[2], aggIDs[3])
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
-		}
-		helpers.GnmiCLIConfig(t, dut, weight)
-	}
+
 	top := configureATE(t, ate)
 	flows := configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
 	for _, agg := range []*aggPortData{agg1, agg2} {
 		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+		gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 
 	startTraffic(t, ate, top)
-	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
@@ -189,7 +173,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
 			}
 		}
-		time.Sleep(time.Minute)
 		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName, agg4.ateAggName})
 		for idx, weight := range equalDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
@@ -217,33 +200,9 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 	p3 := dut.Port(t, "port3")
 	gnmi.Await(t, dut, gnmi.OC().Interface(p3.Name()).OperStatus().State(), time.Minute*2, oc.Interface_OperStatus_DOWN)
-
-	if deviations.WecmpAutoUnsupported(dut) {
-		var weight string
-		switch dut.Vendor() {
-		case ondatra.CISCO:
-			weight = fmt.Sprintf(" router isis DEFAULT \n interface %s \n address-family ipv4 unicast \n weight 200 \n address-family ipv6 unicast \n weight 200 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n ! \n interface %s \n address-family ipv4 unicast \n weight 400 \n address-family ipv6 unicast \n weight 400 \n", aggIDs[1], aggIDs[2], aggIDs[3])
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'WecmpAutoUnsupported'", dut.Vendor())
-		}
-		helpers.GnmiCLIConfig(t, dut, weight)
-	}
-
 	top.Flows().Clear()
-	if deviations.ISISLoopbackRequired(dut) {
-		flows = configureFlows(t, top, ate1AdvV4, ate1AdvV6, ate2AdvV4, ate2AdvV6)
-		ate.OTG().PushConfig(t, top)
-		ate.OTG().StartProtocols(t)
-		VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-		for _, agg := range []*aggPortData{agg1, agg2} {
-			bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV4).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-			gnmi.Await(t, dut, bgpPath.Neighbor(agg.ateLoopbackV6).SessionState().State(), 3*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
-		}
-	}
 
 	startTraffic(t, ate, top)
-	time.Sleep(time.Minute)
 
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
@@ -252,7 +211,6 @@ func TestWeightedECMPForISIS(t *testing.T) {
 				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
 			}
 		}
-		time.Sleep(time.Minute)
 		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName, agg4.ateAggName})
 		for idx, weight := range unequalDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
@@ -304,12 +262,8 @@ func randRange(t *testing.T, start, end uint32, count int) []uint32 {
 
 func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV6 *ipAddr) []gosnappi.Flow {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	top.Flows().Clear()
 	fV4 := top.Flows().Add().SetName("flowV4")
-	if deviations.WeightedEcmpFixedPacketVerification(dut) {
-		fV4.Duration().FixedPackets().SetPackets(fixedPackets)
-	}
 	fV4.Metrics().SetEnable(true)
 	fV4.TxRx().Device().
 		SetTxNames([]string{agg1.ateAggName + ".IPv4"}).
@@ -322,13 +276,10 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v4.Src().Increment().SetStart(srcTrafficV4).SetCount(v4Count)
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
-	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
-	udp.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
+	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 500))
+	udp.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 
 	fV6 := top.Flows().Add().SetName("flowV6")
-	if deviations.WeightedEcmpFixedPacketVerification(dut) {
-		fV6.Duration().FixedPackets().SetPackets(fixedPackets)
-	}
 	fV6.Metrics().SetEnable(true)
 	fV6.TxRx().Device().
 		SetTxNames([]string{agg1.ateAggName + ".IPv6"}).
@@ -342,9 +293,8 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4, srcV6, dstV4, dstV
 	v6.Src().Increment().SetStart(srcTrafficV6).SetCount(v6Count)
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
-	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
-	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 5000))
-
+	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 500))
+	udpv6.DstPort().SetValues(randRange(t, 49152, 65535, 500))
 	return []gosnappi.Flow{fV4, fV6}
 }
 
@@ -427,7 +377,6 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4,
 
 func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 	t.Helper()
-	dut := ondatra.DUT(t, "dut")
 	isis := dev.Isis().SetSystemId(agg.ateISISSysID).SetName(agg.ateAggName + ".ISIS")
 	isis.Basic().SetHostname(isis.Name())
 	isis.Advanced().SetAreaAddresses([]string{ateAreaAddress})
@@ -437,14 +386,6 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).SetMetric(10)
 	isisInt.Advanced().SetAutoAdjustMtu(true).SetAutoAdjustArea(true).SetAutoAdjustSupportedProtocols(true)
-	if deviations.ISISLoopbackRequired(dut) {
-		// configure ISIS loopback interface and advertise them via ISIS.
-		isisPort2V4 := dev.Isis().V4Routes().Add().SetName(agg.ateAggName + ".ISISV4").SetLinkMetric(10)
-		isisPort2V4.Addresses().Add().SetAddress(agg.ateLoopbackV4).SetPrefix(32)
-		isisPort2V6 := dev.Isis().V6Routes().Add().SetName(agg.ateAggName + ".ISISV6").SetLinkMetric(10)
-		isisPort2V6.Addresses().Add().SetAddress(agg.ateLoopbackV6).SetPrefix(uint32(128))
-	}
-
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
@@ -500,7 +441,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
-			if port.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+			if port.PMD() == ondatra.PMD100GBASEFR {
 				e.AutoNegotiate = ygot.Bool(false)
 				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
@@ -512,11 +453,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	// Wait for LAG interfaces to be UP
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
 	}
-	if !deviations.ISISLoopbackRequired(dut) {
-		configureStaticRouteToATELoopbacks(t, dut)
-	}
+	configureStaticRouteToATELoopbacks(t, dut)
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
 	configureDUTBGP(t, dut)
@@ -536,7 +475,7 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	lb = netutil.LoopbackInterface(t, dut, 0)
+	lb := netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
 	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
@@ -609,10 +548,7 @@ func configureStaticRouteToATELoopbacks(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	t.Helper()
-
 	d := &oc.Root{}
-	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
@@ -632,12 +568,7 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	if deviations.ISISLoopbackRequired(dut) {
-		gnmi.Update(t, dut, gnmi.OC().Config(), d)
-		// add loopback interface to ISIS
-		aggIDs = append(aggIDs, "Loopback0")
-	}
-	// Add other ISIS interfaces
+
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
@@ -667,15 +598,12 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 			isisIntfLevelAfiv6.Enabled = nil
 		}
 	}
-	if deviations.ISISLoopbackRequired(dut) {
-		gnmi.Update(t, dut, dutConfIsisPath.Config(), prot)
-	} else {
-		gnmi.Update(t, dut, gnmi.OC().Config(), d)
-	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 
 func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -713,11 +641,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		bgpNbrV4.PeerAs = ygot.Uint32(asn)
 		bgpNbrV4.Enabled = ygot.Bool(true)
 		bgpNbrV4T := bgpNbrV4.GetOrCreateTransport()
-		localAddressLeafv4 := dutLoopback.IPv4
-		if deviations.ISISLoopbackRequired(dut) {
-			localAddressLeafv4 = lb
-		}
-		bgpNbrV4T.LocalAddress = ygot.String(localAddressLeafv4)
+		bgpNbrV4T.LocalAddress = ygot.String(dutLoopback.IPv4)
 		af4 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.Enabled = ygot.Bool(true)
 		af6 := bgpNbrV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -728,12 +652,7 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 		bgpNbrV6.PeerAs = ygot.Uint32(asn)
 		bgpNbrV6.Enabled = ygot.Bool(true)
 		bgpNbrV6T := bgpNbrV6.GetOrCreateTransport()
-		localAddressLeafv6 := dutLoopback.IPv6
-		if deviations.ISISLoopbackRequired(dut) {
-			localAddressLeafv6 = lb
-		}
-		bgpNbrV6T.LocalAddress = ygot.String(localAddressLeafv6)
-
+		bgpNbrV6T.LocalAddress = ygot.String(dutLoopback.IPv6)
 		af4 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.Enabled = ygot.Bool(false)
 		af6 = bgpNbrV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -741,54 +660,4 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
-
-}
-func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string, loopBacks []*aggPortData) {
-	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-	for _, dutIntf := range dutIntfs {
-
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			dutIntf = dutIntf + ".0"
-		}
-		nbrPath := statePath.Interface(dutIntf)
-		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
-		_, ok := gnmi.WatchAll(t, dut, query, 3*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-			state, present := val.Val()
-			return present && state == oc.Isis_IsisInterfaceAdjState_UP
-		}).Await(t)
-		if !ok {
-			t.Logf("IS-IS state on %v has no adjacencies", dutIntf)
-			t.Fatal("No IS-IS adjacencies reported.")
-		}
-	}
-	if deviations.ISISLoopbackRequired(dut) {
-		// verify loopback has been received via ISIS
-		t.Log("Starting route check")
-		for _, loopBack := range loopBacks {
-			batch := gnmi.OCBatch()
-			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-			id := formatID(loopBack.ateISISSysID)
-			iPv4Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().Prefix(fmt.Sprintf(loopBack.ateLoopbackV4 + "/32"))
-			iPv6Query := statePath.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Level(uint8(isisLevel)).Lsp(id).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).ExtendedIpv4Reachability().Prefix(fmt.Sprintf(loopBack.ateLoopbackV6 + "/128"))
-			batch.AddPaths(iPv4Query, iPv6Query)
-			_, ok := gnmi.Watch(t, dut, batch.State(), 5*time.Minute, func(val *ygnmi.Value[*oc.Root]) bool {
-				_, present := val.Val()
-				return present
-			}).Await(t)
-			if !ok {
-				t.Fatalf("ISIS did not receive the route loopback %s", loopBack.ateLoopbackV4)
-			}
-		}
-	}
-}
-
-func formatID(input string) string {
-	part1 := input[:4]
-	part2 := input[4:8]
-	part3 := input[8:12]
-
-	formatted := fmt.Sprintf("%s.%s.%s.00-00", part1, part2, part3)
-
-	return formatted
 }

@@ -131,12 +131,3 @@ Once the ZR link is estabished proceed to configure the following entities:
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel
-
-## OpenConfig Path and RPC Coverage
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-```

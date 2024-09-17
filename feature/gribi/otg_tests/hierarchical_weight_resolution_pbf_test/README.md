@@ -125,18 +125,24 @@ WCMP width of 16 nexthops:
     *   A tolerance of 0.2% is allowed for each VLAN for now, since we only test
         for 2 mins.
 
-## OpenConfig Path and RPC Coverage
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-  gribi:
-    gRIBI.Get:
-    gRIBI.Modify:
-    gRIBI.Flush:
-```
+## Config Parameter Coverage
+
+N/A
+
+## Telemetry Parameter Coverage
+
+TODO:
+/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
+
+## Protocol/RPC Parameter coverage
+
+*   gRIBI:
+    *   Modify()
+        *   ModifyRequest:
+            *   AFTOperation:
+                *   next_hop_group
+                    *   NextHopGroupKey: id
+                    *   NextHopGroup: weight
 
 ## Minimum DUT platform requirement
 

@@ -220,10 +220,9 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 }
 
 // validateTelemetry validates telemetry sensors
-func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch, secondaryAfterSwitch string) {
+func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
 	t.Log("Validate OC Switchover time/reason.")
 	primary := gnmi.OC().Component(primaryAfterSwitch)
-	secondary := gnmi.OC().Component(secondaryAfterSwitch)
 	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
 		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
 	} else {
@@ -245,16 +244,16 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch,
 		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
 	}
 
-	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
-		t.Errorf("secondary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+	if !gnmi.Lookup(t, dut, primary.LastRebootTime().State()).IsPresent() {
+		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
+		lastrebootTime := gnmi.Get(t, dut, primary.LastRebootTime().State())
 		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
 	}
-	if !gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
-		t.Errorf("secondary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+	if !gnmi.Lookup(t, dut, primary.LastRebootReason().State()).IsPresent() {
+		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
+		lastrebootReason := gnmi.Get(t, dut, primary.LastRebootReason().State())
 		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
 	}
 }
@@ -313,7 +312,6 @@ func TestSupFailure(t *testing.T) {
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
 
@@ -355,8 +353,8 @@ func TestSupFailure(t *testing.T) {
 
 	// Old secondary controller becomes primary after switchover.
 	primaryAfterSwitch := secondaryBeforeSwitch
-	secondaryAfterSwitch := secondaryBeforeSwitch
-	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
+
+	validateTelemetry(t, dut, primaryAfterSwitch)
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	// Try starting the gribi client twice as switchover may reset the connection.

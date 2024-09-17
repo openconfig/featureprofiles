@@ -240,21 +240,17 @@ func getNotificationsUsingGNMIGet(t *testing.T, gnmiClient gpb.GNMIClient, dut *
 	return getResponse.GetNotification()
 }
 
-func checkMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
+// checkMetadata checks protobuf-metadata
+func checkMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice, done *atomic.Int64) {
 	t.Helper()
-	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := metadata1
-	t.Logf("getResp: %v ", getRespTimeStamp)
-	if got != want && done.Load() == 0 {
-		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
-	}
-}
 
-func checkMetadata2(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDevice) {
-	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
-	want := metadata2
-	t.Logf("getResp: %v ", getRespTimeStamp)
+
+	want := metadata1
+	t.Logf("SetResp: %v, getResp: %v ", done.Load(), getRespTimeStamp)
+	if done.Load() > 0 && done.Load() < getRespTimeStamp {
+		want = metadata2
+	}
 	if got != want {
 		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
 	}
@@ -284,7 +280,7 @@ func TestLargeSetConsistency(t *testing.T) {
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
 	}
-	checkMetadata1(t, gnmiClient, dut, done)
+	checkMetadata(t, gnmiClient, dut, done)
 
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
@@ -304,6 +300,7 @@ func TestLargeSetConsistency(t *testing.T) {
 		done.Store(setResp.GetTimestamp())
 	}()
 
+	// sending 4 Get requests concurrently every 5 seconds.
 	for i := 0; i < 4; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -315,14 +312,14 @@ func TestLargeSetConsistency(t *testing.T) {
 					return
 				default:
 					t.Logf("[%d - running] checking config protobuf-metadata", i)
-					time.Sleep(5 * time.Millisecond)
-					checkMetadata1(t, gnmiClient, dut, done)
+					checkMetadata(t, gnmiClient, dut, done)
+					time.Sleep(5 * time.Second)
 				}
 			}
 		}(i)
 	}
 
 	wg.Wait()
-	time.Sleep(5 * time.Second)
-	checkMetadata2(t, gnmiClient, dut)
+
+	checkMetadata(t, gnmiClient, dut, done)
 }

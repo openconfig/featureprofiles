@@ -536,7 +536,7 @@ func newConnForAcceptAndRejectCounters(t *testing.T, dut *ondatra.DUTDevice, tls
 
 	tlsConf.Certificates = invalidCerts
 
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf))}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tlsConf)), grpc.WithReturnConnectionError()}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	_, err = dut.RawAPIs().BindingDUT().DialGNSI(ctx, opts...)

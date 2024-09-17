@@ -228,7 +228,7 @@ func startDhcpServer(intf string, em *bootzem.InMemoryEntityManager, bootzAddr s
 	conf := &dhcp.Config{
 		Interface:  intf,
 		AddressMap: make(map[string]*dhcp.Entry),
-		BootzURLs:  []string{fmt.Sprintf("bootz://%v/grpc", bootzAddr)},
+		BootzURL:   fmt.Sprintf("bootz://%v/grpc", bootzAddr),
 		// Add DNS if is needed
 		DNS: []string{},
 	}
@@ -456,7 +456,7 @@ func (flagCred) RequireTransportSecurity() bool {
 
 // DialGRPC dials a gRPC connection to the specefied addr. by default it uses tls with skip verify
 func DialGRPC(addr string, ctx context.Context, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{}
+	opts := []grpc.DialOption{grpc.WithBlock()}
 	opts = append(opts, grpc.WithPerRPCCredentials(flagCred{}))
 	tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	/*tls := &tls.Config{

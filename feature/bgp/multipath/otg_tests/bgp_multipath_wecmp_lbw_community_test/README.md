@@ -57,14 +57,12 @@ Validate BGP in multipath UCMP support with link bandwidth community
 *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=<id>]/state
 *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops
 
-## OpenConfig Path and RPC Coverage
+## Protocol/RPC Parameter Coverage
 
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Subscribe:
-```
+*   gNMI
+    *   Set
+    *   Subscribe
+
 ## Required DUT platform
 
 *   FFF - Fixed Form Factor

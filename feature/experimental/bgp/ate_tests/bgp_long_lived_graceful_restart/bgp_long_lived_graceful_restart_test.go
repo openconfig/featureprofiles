@@ -16,6 +16,7 @@ package bgp_long_lived_graceful_restart_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -23,12 +24,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/gnoi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	gnps "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/acl"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ondatra/ixnet"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -189,6 +192,12 @@ var (
 		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
+	}
+	routingDaemon = map[ondatra.Vendor]string{
+		ondatra.JUNIPER: "rpd",
+		ondatra.ARISTA:  "Bgp-main",
+		ondatra.CISCO:   "emsd",
+		ondatra.NOKIA:   "sr_bgp_mgr",
 	}
 )
 
@@ -603,6 +612,215 @@ func configACLInterface(iFace *oc.Acl_Interface, ifName string) *acl.Acl_Interfa
 	return aclConf
 }
 
+// Helper function to replicate configACL() configs in native model.
+// Define the values for each ACL entry and marshal for json encoding.
+// Then craft a gNMI set Request to update the changes.
+func configACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		var aclEntry10Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"drop": map[string]any{},
+				},
+				"match": map[string]any{
+					"destination-ip": map[string]any{
+						"prefix": ateDstCIDR,
+					},
+					"source-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry10Update, err := json.Marshal(aclEntry10Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var aclEntry20Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"drop": map[string]any{},
+				},
+				"match": map[string]any{
+					"source-ip": map[string]any{
+						"prefix": ateDstCIDR,
+					},
+					"destination-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry20Update, err := json.Marshal(aclEntry20Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		var aclEntry30Val = []any{
+			map[string]any{
+				"action": map[string]any{
+					"accept": map[string]any{},
+				},
+				"match": map[string]any{
+					"source-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+					"destination-ip": map[string]any{
+						"prefix": aclNullPrefix,
+					},
+				},
+			},
+		}
+		entry30Update, err := json.Marshal(aclEntry30Val)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry10Update,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry20Update,
+						},
+					},
+				},
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "acl"},
+							{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+							{Name: "entry", Key: map[string]string{"sequence-id": "30"}},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: entry30Update,
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring SRL ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
+// Helper function to replicate AdmitAllACL() configs in native model,
+// then craft a gNMI set Request to update the changes.
+func configAdmitAllACLNative(t testing.TB, d *ondatra.DUTDevice, name string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		gpbDelRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Delete: []*gpb.Path{
+				{
+					Elem: []*gpb.PathElem{
+						{Name: "acl"},
+						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "entry", Key: map[string]string{"sequence-id": "10"}},
+					},
+				},
+				{
+					Elem: []*gpb.PathElem{
+						{Name: "acl"},
+						{Name: "ipv4-filter", Key: map[string]string{"name": name}},
+						{Name: "entry", Key: map[string]string{"sequence-id": "20"}},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
+			t.Fatalf("Unexpected error removing SRL ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
+// Helper function to replicate configACLInterface in native model.
+// Set ACL at interface ingress,
+// then craft a gNMI set Request to update the changes.
+func configACLInterfaceNative(t *testing.T, d *ondatra.DUTDevice, ifName string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		var interfaceAclVal = []any{
+			map[string]any{
+				"ipv4-filter": []any{
+					aclName,
+				},
+			},
+		}
+		interfaceAclUpdate, err := json.Marshal(interfaceAclVal)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "srl",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "interface", Key: map[string]string{"name": ifName}},
+							{Name: "subinterface", Key: map[string]string{"index": "0"}},
+							{Name: "acl"},
+							{Name: "input"},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: interfaceAclUpdate,
+						},
+					},
+				},
+			},
+		}
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error configuring interface ACL: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
+}
+
 func disableLLGRConf(dut *ondatra.DUTDevice, as int) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -642,6 +860,56 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+}
+
+func restartRoutingProcess(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if _, ok := routingDaemon[dut.Vendor()]; !ok {
+		t.Fatalf("Please add support for vendor %v in var routingDaemon", dut.Vendor())
+	}
+	t.Run("KillGRIBIDaemon", func(t *testing.T) {
+		// Find the PID of routing Daemon.
+		var pId uint64
+		pName := routingDaemon[dut.Vendor()]
+		t.Run("FindroutingDaemonPid", func(t *testing.T) {
+			pId = findProcessByName(t, dut, pName)
+			if pId == 0 {
+				t.Fatalf("Couldn't find pid of routing daemon '%s'", pName)
+			} else {
+				t.Logf("Pid of routing daemon '%s' is '%d'", pName, pId)
+			}
+		})
+
+		// Kill routing daemon through gNOI Kill Request.
+		t.Run("ExecuteGnoiKill", func(t *testing.T) {
+			// TODO - pid type is uint64 in oc-system model, but uint32 in gNOI Kill Request proto.
+			// Until the models are brought in line, typecasting the uint64 to uint32.
+			gNOIKillProcess(t, dut, pName, uint32(pId))
+			// Wait for a bit for routing daemon on the DUT to restart.
+			time.Sleep(30 * time.Second)
+		})
+	})
+}
+
+// findProcessByName uses telemetry to find out the PID of a process
+func findProcessByName(t *testing.T, dut *ondatra.DUTDevice, pName string) uint64 {
+	t.Helper()
+	pList := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	var pID uint64
+	for _, proc := range pList {
+		if proc.GetName() == pName {
+			pID = proc.GetPid()
+			t.Logf("Pid of daemon '%s' is '%d'", pName, pID)
+		}
+	}
+	return pID
+}
+
+// gNOIKillProcess kills a daemon on the DUT, given its name and pid.
+func gNOIKillProcess(t *testing.T, dut *ondatra.DUTDevice, pName string, pID uint32) {
+	t.Helper()
+	killResponse := gnoi.Execute(t, dut, system.NewKillProcessOperation().Name(pName).PID(pID).Signal(gnps.KillProcessRequest_SIGNAL_TERM).Restart(true))
+	t.Logf("Got kill process response: %v\n\n", killResponse)
 }
 
 // setBgpPolicy is used to configure routing policy on DUT.
@@ -838,9 +1106,14 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-		aclConf := configACLInterface(iFace, ifName)
-		gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+			aclConf := configACLInterface(iFace, ifName)
+			gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		}
 
 		t.Run("Verify graceful restart telemetry", func(t *testing.T) {
 			verifyGracefulRestart(t, dut)
@@ -885,7 +1158,7 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
-			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
+			restartRoutingProcess(t, dut)
 		})
 
 		var bgpIxPeer []*ixnet.BGP
@@ -930,9 +1203,14 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing ACL on the interface to restore BGP GR. Traffic should now pass!")
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-		aclPath := configACLInterface(iFace, ifName)
-		gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configAdmitAllACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+			aclPath := configACLInterface(iFace, ifName)
+			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		}
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {
@@ -1014,9 +1292,14 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		startTime := time.Now()
 		t.Log("Trigger graceful restart on ATE")
 		ate.Actions().NewBGPGracefulRestart().WithRestartTime(grRestartTime * time.Second).WithPeers(bgpPeer).Send(t)
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
-		aclConf := configACLInterface(iFace, ifName)
-		gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configACL(d, aclName))
+			aclConf := configACLInterface(iFace, ifName)
+			gnmi.Replace(t, dut, aclConf.Config(), iFace)
+		}
 
 		t.Run("Verify graceful restart telemetry", func(t *testing.T) {
 			verifyGracefulRestart(t, dut)
@@ -1053,9 +1336,14 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 
 	t.Run("RemoveAclInterface", func(t *testing.T) {
 		t.Log("Removing Acl on the interface to restore BGP GR. Traffic should now pass!")
-		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
-		aclPath := configACLInterface(iFace, ifName)
-		gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		if deviations.UseVendorNativeACLConfig(dut) {
+			configAdmitAllACLNative(t, dut, aclName)
+			configACLInterfaceNative(t, dut, ifName)
+		} else {
+			gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4).Config(), configAdmitAllACL(d, aclName))
+			aclPath := configACLInterface(iFace, ifName)
+			gnmi.Replace(t, dut, aclPath.Config(), iFace)
+		}
 	})
 
 	t.Run("VerifyBGPEstablished", func(t *testing.T) {

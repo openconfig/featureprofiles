@@ -121,24 +121,22 @@ WCMP width of 16 nexthops:
 
 N/A
 
-## OpenConfig Path and RPC Coverage
-```yaml
-paths:
-  ## State Paths ##
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+## Telemetry Parameter Coverage
 
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Set:
-    gNMI.Subscribe:
-  gribi:
-    gRIBI.Get:
-    gRIBI.Modify:
-    gRIBI.Flush:
-```
+TODO:
+/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
+
+## Protocol/RPC Parameter coverage
+
+*   gRIBI:
+    *   Modify()
+        *   ModifyRequest:
+            *   AFTOperation:
+                *   next_hop_group
+                    *   NextHopGroupKey: id
+                    *   NextHopGroup: weight
 
 ## Minimum DUT platform requirement
 
-* vRX - virtual router device
+vRX
 
