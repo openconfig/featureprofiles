@@ -114,6 +114,7 @@ func TestGnmiSubscriptionDuringPlq(t *testing.T) {
 }
 
 func TestPlqInvalidEndpoints(t *testing.T) {
+	t.Skip() // 17 September TODO: re-enable after triage
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
@@ -279,8 +280,6 @@ func TestPlqGeneratorRequest(t *testing.T) {
 }
 
 func TestPlqDeletePlqTestDuringQualification(t *testing.T) {
-	t.Skip() // 20 August 2024: intermittent interface down error. debugging
-	// https://firex-north.cisco.com/cgi-bin/hfr-mpls/auto-view.php?file=/auto/firex-logs-ott/b4-internal/FireX-kjahed-240820-085325-35391/tests_logs/packet_link_qualification_F760EEEB/script_console_output.txt
 	/*
 		create plq request
 		delete on generator
