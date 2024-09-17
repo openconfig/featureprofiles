@@ -213,6 +213,12 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 		}
 	}
 	transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
+	}
 	opticalChannelName := gnmi.Get(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
 	return opticalChannelName
 }
