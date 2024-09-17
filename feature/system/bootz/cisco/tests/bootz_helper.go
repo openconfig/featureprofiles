@@ -456,7 +456,7 @@ func (flagCred) RequireTransportSecurity() bool {
 
 // DialGRPC dials a gRPC connection to the specefied addr. by default it uses tls with skip verify
 func DialGRPC(addr string, ctx context.Context, overrideOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{grpc.WithBlock()}
+	opts := []grpc.DialOption{}
 	opts = append(opts, grpc.WithPerRPCCredentials(flagCred{}))
 	tc := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	/*tls := &tls.Config{
