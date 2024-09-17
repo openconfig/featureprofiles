@@ -946,8 +946,8 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md"
 }
 test: {
-  id: "TE-18.3"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp_scale/README.md"
+  id: "TE-18.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp_ipsec/README.md"
 }
 test: {
   id: "TE-2.1"
