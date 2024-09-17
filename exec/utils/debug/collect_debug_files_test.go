@@ -453,7 +453,7 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 	t.Logf("corefile %s, background decode error time %s", coreFile, timeString)
 	t.Logf("Started background decoding for core file %s\n", coreFile)
 
-	cmd = exec.Command("ps", "-elf", fmt.Sprintf("| grep %s", coreFile))
+	cmd = exec.Command("ps", "-elf", "|", "grep", "xr-decode")
 	output, err := cmd.Output()
 	if err != nil {
 		t.Logf("Error ps command: %v\n", err)
