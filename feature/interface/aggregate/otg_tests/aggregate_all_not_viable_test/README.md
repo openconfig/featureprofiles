@@ -46,8 +46,9 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
   1. Advertise one network prefix (pfx2) from ATE LAG_2 and ATE LAG_3.
 - Establish iBGP between ATE and DUT over LGA using LAG interface IPs and 
   advertise prefix pfx3 with BGP NH from pfx2 range.
-- Programm via gRIBI route for prefix pfx4 with NHG pointing LAG_2 & LAG_3(all
-  ports are forwarding-viable at this point) with equal weight.
+- Programm via gRIBI route for prefix pfx4 with NHG pointing to NH LAG_2 & backup 
+  to NHG pointing to NH LAG_3(all ports are forwarding-viable at this point) 
+  with equal weight.
 
 ## RT-5.7.1: For ISIS cost of LAG_2 lower than ISIS cost of LAG_3:
 #### Run traffic:
@@ -64,9 +65,8 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 
 #### RT-5.7.1.2: Verify forwarding-viable behavior on an aggregate interface with all members down or set with forwarding-viable=FALSE.
 -   Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
--   Disable/deactive laser on ATE port2; Now all LAG_2 members are either down 
-        (port2) or set with forwarding-viable=FALSE
--   Ensure that the ISIS adjacency times out on DUT LAG_2 and ATE LAG_2
+-   Set with forwarding-viable=FALSE on port 2 (All Ports now on LAG_2 are set with FV=false)
+-   Ensure that the ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
 -   Ensure there is no layer3 traffic transmitted out of DUT ports 2-6 (LAG_2)
 -   Ensure that traffic is received on all port3-6 and delivered to ATE LAG_1
 -   Ensure there are no packet losses in steady state (no congestion) for 
@@ -75,7 +75,7 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
     traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
 -   Ensure there is no traffic received on DUT LAG_3
 -   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
--   Ensure that traffic from ATE port1 to pfx4 are transmitted out through NH pointing to LAG3
+-   Ensure that traffic from ATE port1 to pfx4 are transmitted out through backup NHG pointing to NH LAG3
 
 #### RT-5.7.1.3: Make the forwarding-viable transitions from FALSE --> TRUE on a ports 6 within the LAG_2 on the DUT
 -   Ensure that only DUT port 6 of LAG ports has bidirectional traffic.
@@ -84,6 +84,21 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure there are no packet losses in steady state (no congestion).
 -   Ensure there is no traffic received on DUT LAG_3
 -   Ensure there is no traffic transmitted on DUT LAG_3
+
+#### RT-5.7.1.4: Verify forwarding-viable behavior on an aggregate interface with some members are down with all member are set with forwarding-viable=FALSE.
+-   Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+-   Set with forwarding-viable=FALSE on port 2 and make down other ports on LAG_2
+    (All Ports now on LAG_2 are set with FV=false and some ports are down)
+-   Ensure that the ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+-   Ensure there is no layer3 traffic transmitted out of DUT ports 2-6 (LAG_2)
+-   Ensure that traffic is received on all port3-6 and delivered to ATE LAG_1
+-   Ensure there are no packet losses in steady state (no congestion) for 
+    traffic from ATE LAG_2 to ATE LAG_1 (pfx_1).
+-   Ensure there are no packet losses in steady state (no congestion) for 
+    traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
+-   Ensure there is no traffic received on DUT LAG_3
+-   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
+-   Ensure that traffic from ATE port1 to pfx4 are transmitted out through NHG pointing to NH LAG3
 
     
 ## RT-5.7.2: For ISIS cost of LAG_2 equal to ISIS cost of LAG_3
@@ -99,10 +114,29 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure that traffic is received on all port2-6 and ports7-8 and delivered to ATE port1
 -   Ensure there are no packet losses in steady state (no congestion)
 
-#### RT-5.7.2.2: Verify forwarding-viable behavior on an aggregate interface with all members down or set with forwarding-viable=FALSE.
+#### RT-5.7.2.2: Verify forwarding-viable behavior on an aggregate interface with all are set with forwarding-viable=FALSE.
 -   Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
--   Disable/deactive laser on ATE port2; Now all LAG_2 members are either down (port2) or 
-    set with forwarding-viable=FALSE
+-   Set with forwarding-viable=FALSE on port 2 (All Ports now on LAG_2 are set with FV=false)
+-   Ensure that the ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+-   Ensure there is no traffic transmitted out of  DUT ports 2-6 (LAG_2)
+-   Ensure that traffic received on all port3-6 and ports7-8 is delivered to ATE LAG_1
+-   Ensure there are no packet losses in steady state (no congestion) for
+    traffic from ATE LAG_2, LAG_3 to ATE LAG_1 (pfx_1).
+-   Ensure there are no packet losses in steady state (no congestion) for
+    traffic from ATE LAG_1 to ATE LAG_3 (pfx_2, pfx3).
+-   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
+-   Ensure that traffic from ATE port1 to pfx4 are transmitted out through NHG pointing to NH LAG3
+
+#### RT-5.7.2.3: Make the forwarding-viable transitions from FALSE --> TRUE on a ports 6 within the LAG_2 on the DUT
+-   Ensure that only DUT port 6 of LAG_2 and all ports of LAG_3 ports has bidirectional traffic.
+-   Ensure there is no traffic transmitted out of  DUT ports 2-6
+-   Ensure that traffic received on all port3-6 and ports7-8 is delivered to ATE port1
+-   Ensure there are no packet losses in steady state (no congestion).
+
+#### RT-5.7.2.4: Verify forwarding-viable behavior on an aggregate interface with some members are down with all member are set with forwarding-viable=FALSE.
+-   Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
+-   Set with forwarding-viable=FALSE and make down other ports on LAG_2
+    (All Ports now on LAG_2 are set with FV=false and some ports are down)
 -   Ensure that the ISIS adjacency times out on DUT LAG_2 and ATE LAG_2
 -   Ensure there is no traffic transmitted out of  DUT ports 2-6 (LAG_2)
 -   Ensure that traffic received on all port3-6 and ports7-8 is delivered to ATE LAG_1
@@ -113,11 +147,6 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
 -   Ensure that traffic from ATE port1 to pfx4 are transmitted out through NH pointing to LAG3
 
-#### RT-5.7.2.3: Make the forwarding-viable transitions from FALSE --> TRUE on a ports 6 within the LAG_2 on the DUT
--   Ensure that only DUT port 6 of LAG_2 and all ports of LAG_3 ports has bidirectional traffic.
--   Ensure there is no traffic transmitted out of  DUT ports 2-6
--   Ensure that traffic received on all port3-6 and ports7-8 is delivered to ATE port1
--   Ensure there are no packet losses in steady state (no congestion).
 
 ## OpenConfig Path and RPC Coverage
 
