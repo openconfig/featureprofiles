@@ -9,10 +9,8 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/testt"
 )
 
 func testIanaPorts(t *testing.T) {
@@ -49,38 +47,7 @@ func testIanaPorts(t *testing.T) {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotbefore, listenAdd)
 		// 	}
 		// Reload router
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
-			Method:  spb.RebootMethod_COLD,
-			Delay:   0,
-			Message: "Reboot chassis without delay",
-			Force:   true,
-		})
-		if err != nil {
-			t.Fatalf("Reboot failed %v", err)
-		}
-		startReboot := time.Now()
-		const maxRebootTime = 30
-		t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-		for {
-			var currentTime string
-			t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-			time.Sleep(3 * time.Minute)
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-			}); errMsg != nil {
-				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-			} else {
-				t.Logf("Device rebooted successfully with received time: %v", currentTime)
-				break
-			}
-
-			if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-				t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-			}
-		}
-		t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+		gnoiReboot(t, dut)
 		// 	gotafter := gnmi.Get(t, dut, path.State())[0]
 		// 	if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
 		// 		t.Logf("Listen Address not returned as expected got : %v , want %v", gotafter, listenAdd)
