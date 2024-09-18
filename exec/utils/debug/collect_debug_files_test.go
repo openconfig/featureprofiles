@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	techDirectory  = "harddisk:/firex_tech"
-	scpCopyTimeout = 300 * time.Second
+	techDirectory  = "harddisk:/firex_tech" // Directory for storing tech support files
+	scpCopyTimeout = 300 * time.Second      // Timeout for SCP copy operations
 )
 
 var (
@@ -76,9 +76,9 @@ var (
 	}
 )
 
+// NewTargets initializes a new Targets instance and sets up SSH information for each target
 func NewTargets(t *testing.T) *Targets {
 	t.Helper()
-	// set up all ssh for the targets
 	nt := Targets{
 		targetInfo: make(map[string]targetInfo),
 	}
@@ -90,11 +90,14 @@ func NewTargets(t *testing.T) *Targets {
 	return &nt
 }
 
+// TestMain is the entry point for running tests
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// TestCollectDebugFiles collects debug files from the targets
 func TestCollectDebugFiles(t *testing.T) {
+	t.Log("Starting TestCollectDebugFiles")
 	targets := NewTargets(t)
 	if *outDir == "" {
 		t.Fatalf("outDir was not set")
@@ -144,13 +147,17 @@ func TestCollectDebugFiles(t *testing.T) {
 		wg.Add(1)
 		go func(dutID string, target targetInfo) {
 			defer wg.Done()
+			t.Logf("Executing commands for DUT: %s", dutID)
 			executeCommandsForDUT(t, dutID, target, fileNamePrefix, commands)
 		}(dutID, target)
 	}
 	wg.Wait()
+	t.Log("Completed TestCollectDebugFiles")
 }
 
+// executeCommandsForDUT executes commands for a specific DUT
 func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNamePrefix string, commands []string) {
+	t.Logf("Starting executeCommandsForDUT for DUT: %s", dutID)
 	if *collectTech {
 		for _, t := range showTechList {
 			fname := getTechFilePath(t, fileNamePrefix)
@@ -174,9 +181,12 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 
 	executeCommandsInParallel(t, ctx, sshClient, commands)
 	copyDebugFiles(t, target)
+	t.Logf("Completed executeCommandsForDUT for DUT: %s", dutID)
 }
 
+// executeCommandsInParallel executes commands in parallel
 func executeCommandsInParallel(t *testing.T, ctx context.Context, sshClient binding.CLIClient, commands []string) {
+	t.Log("Starting executeCommandsInParallel")
 	var wg sync.WaitGroup
 	commandResults := make(chan string, len(commands))
 
@@ -202,10 +212,13 @@ func executeCommandsInParallel(t *testing.T, ctx context.Context, sshClient bind
 	for result := range commandResults {
 		t.Log(result)
 	}
+	t.Log("Completed executeCommandsInParallel")
 }
 
+// copyDebugFiles copies debug files from the target to the local machine
 func copyDebugFiles(t *testing.T, d targetInfo) {
 	t.Helper()
+	t.Logf("Starting copyDebugFiles for DUT: %s", d.dut)
 
 	target := fmt.Sprintf("%s:%s", d.sshIP, d.sshPort)
 	t.Logf("Copying debug files from %s (%s)", d.dut, target)
@@ -236,10 +249,13 @@ func copyDebugFiles(t *testing.T, d targetInfo) {
 		t.Errorf("Error copying debug files: %v", err)
 	}
 	findCoreFile(t, dutOutDir)
+	t.Logf("Completed copyDebugFiles for DUT: %s", d.dut)
 }
 
+// getSSHInfo retrieves SSH information for each target from the binding file
 func (ti *Targets) getSSHInfo(t *testing.T) error {
 	t.Helper()
+	t.Log("Starting getSSHInfo")
 
 	bf := flag.Lookup("binding")
 	var bindingFile string
@@ -310,17 +326,18 @@ func (ti *Targets) getSSHInfo(t *testing.T) error {
 			}
 		}
 	}
+	t.Log("Completed getSSHInfo")
 	return nil
 }
 
-// getTechFilePath return the techDirecory + / + replacing " " with _
+// getTechFilePath returns the techDirectory + / + replacing " " with _
 func getTechFilePath(tech string, prefix string) string {
 	return filepath.Join(techDirectory, prefix+strings.ReplaceAll(tech, " ", "_"))
 }
 
+// findCoreFile processes existing core files in the specified directory
 func findCoreFile(t *testing.T, pathToMonitor string) {
 	t.Logf("Processing existing core files in directory: %s\n", pathToMonitor)
-	fmt.Printf("Processing existing core files in directory: %s\n", pathToMonitor)
 
 	coreFiles := make(chan string)
 	var wg sync.WaitGroup
@@ -351,28 +368,26 @@ func findCoreFile(t *testing.T, pathToMonitor string) {
 
 	if err != nil {
 		t.Logf("Error walking the path %s: %v\n", pathToMonitor, err)
-		fmt.Printf("Error walking the path %s: %v\n", pathToMonitor, err)
 	}
 
 	close(coreFiles)
 	wg.Wait()
+	t.Log("Completed findCoreFile")
 }
 
+// decodeCoreFile decodes a core file and logs the output
 func decodeCoreFile(t *testing.T, coreFile string) {
+	t.Logf("Starting decodeCoreFile for core file: %s", coreFile)
 	txtFile := strings.TrimSuffix(coreFile, filepath.Ext(coreFile)) + ".txt"
 	coreDir := filepath.Dir(coreFile)
 
 	t.Logf("Decoding core file: %s\n", coreFile)
 	t.Logf("Corresponding TXT file: %s\n", txtFile)
 	t.Logf("Core file directory: %s\n", coreDir)
-	fmt.Printf("Decoding core file: %s\n", coreFile)
-	fmt.Printf("Corresponding TXT file: %s\n", txtFile)
-	fmt.Printf("Core file directory: %s\n", coreDir)
 
 	// Check if the .txt file exists
 	if _, err := os.Stat(txtFile); os.IsNotExist(err) {
 		t.Logf("TXT file %s not found for core file %s\n", txtFile, coreFile)
-		fmt.Printf("TXT file %s not found for core file %s\n", txtFile, coreFile)
 		return
 	}
 
@@ -437,45 +452,13 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 
 	// Decode the core file in the background
 	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-	currentTime := time.Now()
-	timeString := currentTime.Format("2006-01-02 15:04:05")
-	t.Logf("corefile %s, background decode start time %s", coreFile, timeString)
+
 	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s &", coreFile, decodeOutput, inProgressFile))
-	currentTime = time.Now()
-	timeString = currentTime.Format("2006-01-02 15:04:05")
-	t.Logf("corefile %s, background decode end time %s", coreFile, timeString)
+
 	if err := cmd.Start(); err != nil {
 		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
-	currentTime = time.Now()
-	timeString = currentTime.Format("2006-01-02 15:04:05")
-	t.Logf("corefile %s, background decode error time %s", coreFile, timeString)
 	t.Logf("Started background decoding for core file %s\n", coreFile)
 
-	cmd = exec.Command("ps", "-elf", "|", "grep", "xr-decode")
-	output, err := cmd.Output()
-	if err != nil {
-		t.Logf("Error ps command: %v\n", err)
-		return
-	}
-	t.Logf("ps output: %v", output)
-
-	// // Decode the core file
-	// decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-	// t.Logf("Decoding output will be saved to: %s\n", decodeOutput)
-
-	// cmd := exec.Command("/auto/mcp-project1/xr-decoder/xr-decode", "-l", coreFile)
-	// output, err := cmd.Output()
-	// if err != nil {
-	// 	t.Logf("Error decoding core file: %v\n", err)
-	// 	return
-	// }
-
-	// if err := os.WriteFile(decodeOutput, output, 0644); err != nil {
-	// 	t.Logf("Error writing decode output: %v\n", err)
-	// 	return
-	// }
-
-	// t.Logf("Decoded core file %s and placed the result in %s\n", coreFile, coreDir)
 }
