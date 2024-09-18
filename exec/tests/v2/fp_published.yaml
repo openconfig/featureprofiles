@@ -822,10 +822,11 @@ tests:
     mustpass: true
     pr: 2889  
   - name: TE-14.2 (DCGate - encap and decap scale)
-    path: feature/gribi/encap_decap_scale
+    path: feature/gribi/otg_tests/encap_decap_scale
     owners:
       - arvbaska
-    mustpass: false  
+    mustpass: true  
+    pr: 3134     
   - name: TE-11.21 (DCGate - Backup NHG Multiple NH with PBF)
     path: feature/gribi/otg_tests/backup_ngp_multiple_nh_pbf_test
     owners:
