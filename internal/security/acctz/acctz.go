@@ -42,7 +42,6 @@ import (
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -60,8 +59,10 @@ const (
 	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
 	gnoiPingPath         = "/gnoi.system.System/Ping"
 	gnsiGetPath          = "/gnsi.authz.v1.Authz/Get"
-	defaultSshPort       = 22
+	defaultSSHPort       = 22
 )
+
+var gRPCClientAddr net.Addr
 
 // Record represents the structure for an acctz record.
 type Record struct {
@@ -69,12 +70,12 @@ type Record struct {
 	DoneTime             time.Time
 	CmdType              acctz.CommandService_CmdServiceType
 	Cmd                  string
-	RpcType              acctz.GrpcService_GrpcServiceType
-	RpcPath              string
-	RpcPayload           string
-	LocalIp              string
+	RPCType              acctz.GrpcService_GrpcServiceType
+	RPCPath              string
+	RPCPayload           string
+	LocalIP              string
 	LocalPort            uint32
-	RemoteIp             string
+	RemoteIP             string
 	RemotePort           uint32
 	Succeeded            bool
 	ExpectedStatus       acctz.SessionInfo_SessionStatus
@@ -177,8 +178,8 @@ func SetupGrpcUsers(t *testing.T, dut *ondatra.DUTDevice) {
 	setupUserPassword(t, dut, successUsername, successPassword)
 }
 
-// SetupSshUsers Setup users for ssh-based acctz tests.
-func SetupSshUsers(t *testing.T, dut *ondatra.DUTDevice) {
+// SetupSSHUsers Setup users for ssh-based acctz tests.
+func SetupSSHUsers(t *testing.T, dut *ondatra.DUTDevice) {
 	var SetRequest *gnmi.SetRequest
 
 	// Create failure cli role in native.
@@ -213,7 +214,7 @@ func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Serv
 	return resolvedTarget.String()
 }
 
-func getSshTarget(t *testing.T, dut *ondatra.DUTDevice) string {
+func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	var serviceDUT interface {
 		Service(string) (*tpb.Service, error)
 	}
@@ -224,7 +225,7 @@ func getSshTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 		t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
 
 		// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
-		dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSshPort)
+		dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
 		resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
 		if err != nil {
 			t.Fatalf("Failed resolving ssh target %s", dialTarget)
@@ -235,17 +236,15 @@ func getSshTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), defaultSshPort)
+		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), defaultSSHPort)
 	}
 
 	t.Logf("Target for ssh service: %s", target)
 	return target
 }
 
-func dialGrpc(t *testing.T, target string) (*grpc.ClientConn, net.Addr) {
-	var addrObj net.Addr
-
-	conn, err := grpc.Dial(
+func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
+	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(
 			credentials.NewTLS(
@@ -263,31 +262,17 @@ func dialGrpc(t *testing.T, target string) (*grpc.ClientConn, net.Addr) {
 			if err != nil {
 				return nil, err
 			}
-			addrObj = c.LocalAddr()
+			gRPCClientAddr = c.LocalAddr()
 			return c, err
 		}))
 	if err != nil {
 		t.Fatalf("Got unexpected error dialing gRPC target %q, error: %v", target, err)
 	}
 
-	readyCounter := 0
-
-	for {
-		state := conn.GetState()
-		if state == connectivity.Ready {
-			break
-		}
-		readyCounter += 1
-		if readyCounter >= 10 {
-			t.Fatal("gRPC connection never reached ready state.")
-		}
-		time.Sleep(time.Second)
-	}
-
-	return conn, addrObj
+	return conn
 }
 
-func dialSsh(t *testing.T, username, password, target string) (*ssh.Client, io.WriteCloser) {
+func dialSSH(t *testing.T, username, password, target string) (*ssh.Client, io.WriteCloser) {
 	conn, err := ssh.Dial(
 		"tcp",
 		target,
@@ -366,7 +351,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	target := getGrpcTarget(t, dut, introspect.GNMI)
 
 	var records []Record
-	grpcConn, addrObj := dialGrpc(t, target)
+	grpcConn := dialGrpc(t, target)
 	gnmiClient := gnmi.NewGNMIClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
@@ -384,8 +369,8 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
-		RpcPath:              gnmiCapabilitiesPath,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
+		RPCPath:              gnmiCapabilitiesPath,
 		Succeeded:            false,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -409,18 +394,18 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, addrObj.String())
+	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
 	localIp, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
-		RpcPath:              gnmiCapabilitiesPath,
-		RpcPayload:           payload.String(),
-		LocalIp:              localIp,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
+		RPCPath:              gnmiCapabilitiesPath,
+		RPCPayload:           payload.String(),
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -442,7 +427,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	target := getGrpcTarget(t, dut, introspect.GNOI)
 
 	var records []Record
-	grpcConn, addrObj := dialGrpc(t, target)
+	grpcConn := dialGrpc(t, target)
 	gnoiSystemClient := system.NewSystemClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
@@ -467,8 +452,8 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-		RpcPath:              gnoiPingPath,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
+		RPCPath:              gnoiPingPath,
 		Succeeded:            false,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -499,18 +484,18 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, addrObj.String())
+	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
 	localIp, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
-		RpcPath:              gnoiPingPath,
-		RpcPayload:           payload.String(),
-		LocalIp:              localIp,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
+		RPCPath:              gnoiPingPath,
+		RPCPayload:           payload.String(),
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -532,7 +517,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	target := getGrpcTarget(t, dut, introspect.GNSI)
 
 	var records []Record
-	grpcConn, addrObj := dialGrpc(t, target)
+	grpcConn := dialGrpc(t, target)
 	authzClient := authzpb.NewAuthzClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
@@ -551,8 +536,8 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
-		RpcPath:              gnsiGetPath,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
+		RPCPath:              gnsiGetPath,
 		Succeeded:            false,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -576,18 +561,18 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, addrObj.String())
+	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
 	localIp, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
-		RpcPath:              gnsiGetPath,
-		RpcPayload:           payload.String(),
-		LocalIp:              localIp,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
+		RPCPath:              gnsiGetPath,
+		RPCPayload:           payload.String(),
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -609,7 +594,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	target := getGrpcTarget(t, dut, introspect.GRIBI)
 
 	var records []Record
-	grpcConn, addrObj := dialGrpc(t, target)
+	grpcConn := dialGrpc(t, target)
 	gribiClient := gribi.NewGRIBIClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
@@ -636,9 +621,9 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
-		RpcPath:              "/gribi.gRIBI/Get",
-		RpcPayload:           "",
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
+		RPCPath:              "/gribi.gRIBI/Get",
+		RPCPayload:           "",
 		Succeeded:            false,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -672,18 +657,18 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, addrObj.String())
+	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
 	localIp, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
-		RpcPath:              "/gribi.gRIBI/Get",
-		RpcPayload:           payload.String(),
-		LocalIp:              localIp,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
+		RPCPath:              "/gribi.gRIBI/Get",
+		RPCPayload:           payload.String(),
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -705,7 +690,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	target := getGrpcTarget(t, dut, introspect.P4RT)
 
 	var records []Record
-	grpcConn, addrObj := dialGrpc(t, target)
+	grpcConn := dialGrpc(t, target)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
@@ -721,9 +706,9 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
-		RpcPath:              "/p4.v1.P4Runtime/Capabilities",
-		RpcPayload:           "",
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
+		RPCPath:              "/p4.v1.P4Runtime/Capabilities",
+		RPCPayload:           "",
 		Succeeded:            false,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
@@ -746,18 +731,18 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, addrObj.String())
+	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
 	localIp, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
-		RpcType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
-		RpcPath:              "/p4.v1.P4Runtime/Capabilities",
-		RpcPayload:           payload.String(),
-		LocalIp:              localIp,
+		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
+		RPCPath:              "/p4.v1.P4Runtime/Capabilities",
+		RPCPayload:           payload.String(),
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -775,11 +760,11 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSshTarget(t, dut)
+	target := getSSHTarget(t, dut)
 
 	var records []Record
 
-	sshConn, w := dialSsh(t, successUsername, successPassword, target)
+	sshConn, w := dialSSH(t, successUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -805,9 +790,9 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
 		Cmd:                  successCliCommand,
-		LocalIp:              localIp,
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -825,10 +810,10 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSshTarget(t, dut)
+	target := getSSHTarget(t, dut)
 
 	var records []Record
-	sshConn, w := dialSsh(t, failUsername, failPassword, target)
+	sshConn, w := dialSSH(t, failUsername, failPassword, target)
 
 	defer func() {
 		// Give things a second to percolate then close the connection.
@@ -854,9 +839,9 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
 		Cmd:                  failCliCommand,
-		LocalIp:              localIp,
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -874,7 +859,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSshTarget(t, dut)
+	target := getSSHTarget(t, dut)
 
 	var records []Record
 	shellUsername := successUsername
@@ -888,7 +873,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		shellPassword = "NokiaSrl1!"
 	}
 
-	sshConn, w := dialSsh(t, shellUsername, shellPassword, target)
+	sshConn, w := dialSSH(t, shellUsername, shellPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -916,9 +901,9 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_SHELL,
 		Cmd:                  shellCommand,
-		LocalIp:              localIp,
+		LocalIP:              localIp,
 		LocalPort:            localPort,
-		RemoteIp:             remoteIp,
+		RemoteIP:             remoteIp,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,

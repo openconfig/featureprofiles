@@ -162,21 +162,21 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		}
 
 		serviceType := resp.record.GetGrpcService().GetServiceType()
-		if records[recordIdx].RpcType != serviceType {
-			t.Fatalf("Service type not correct, got %q, want %q, Record Details: %s", serviceType, records[recordIdx].RpcType, prettyPrint(resp.record))
+		if records[recordIdx].RPCType != serviceType {
+			t.Fatalf("Service type not correct, got %q, want %q, Record Details: %s", serviceType, records[recordIdx].RPCType, prettyPrint(resp.record))
 		}
 
 		servicePath := resp.record.GetGrpcService().GetRpcName()
-		if records[recordIdx].RpcPath != servicePath {
-			t.Fatalf("Service path not correct, got %q, want %q, Record Details: %s", servicePath, records[recordIdx].RpcPath, prettyPrint(resp.record))
+		if records[recordIdx].RPCPath != servicePath {
+			t.Fatalf("Service path not correct, got %q, want %q, Record Details: %s", servicePath, records[recordIdx].RPCPath, prettyPrint(resp.record))
 		}
 
-		if records[recordIdx].RpcPayload != "" {
+		if records[recordIdx].RPCPayload != "" {
 			// It seems like it *could* truncate payloads so that may come up at some point
 			// which would obviously make this comparison not work, but for the simple RPCs in
 			// this test that probably shouldn't be happening.
 			gotServicePayload := resp.record.GetGrpcService().GetProtoVal().String()
-			wantServicePayload := records[recordIdx].RpcPayload
+			wantServicePayload := records[recordIdx].RPCPayload
 			if !strings.EqualFold(gotServicePayload, wantServicePayload) {
 				t.Fatalf("Service payloads not correct, got %q, want %q, Record Details: %s", gotServicePayload, wantServicePayload, prettyPrint(resp.record))
 			}
@@ -224,8 +224,8 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		if records[recordIdx].Succeeded {
 			// Verify the l4 bits align, this is only set if auth is successful so do it down here.
 			localAddr := resp.record.GetSessionInfo().GetLocalAddress()
-			if records[recordIdx].LocalIp != localAddr {
-				t.Fatalf("Local address not correct, got %q, want %q, Record Details: %s", localAddr, records[recordIdx].LocalIp, prettyPrint(resp.record))
+			if records[recordIdx].LocalIP != localAddr {
+				t.Fatalf("Local address not correct, got %q, want %q, Record Details: %s", localAddr, records[recordIdx].LocalIP, prettyPrint(resp.record))
 			}
 
 			localPort := resp.record.GetSessionInfo().GetLocalPort()
@@ -234,8 +234,8 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 			}
 
 			remoteAddr := resp.record.GetSessionInfo().GetRemoteAddress()
-			if records[recordIdx].RemoteIp != remoteAddr {
-				t.Fatalf("Remote address not correct, got %q, want %q, Record Details: %s", remoteAddr, records[recordIdx].RemoteIp, prettyPrint(resp.record))
+			if records[recordIdx].RemoteIP != remoteAddr {
+				t.Fatalf("Remote address not correct, got %q, want %q, Record Details: %s", remoteAddr, records[recordIdx].RemoteIP, prettyPrint(resp.record))
 			}
 
 			remotePort := resp.record.GetSessionInfo().GetRemotePort()
