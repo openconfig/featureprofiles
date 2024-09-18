@@ -29,7 +29,11 @@ platform_exceptions:  {
   deviations:  {
     omit_l2_mtu: true
     default_network_instance: "default"
+    interface_enabled: true
     static_protocol_name: "STATIC"
     skip_bgp_send_community_type: true
+    skip_setting_disable_metric_propagation: true
+    same_policy_attached_to_all_afis: true
+    set_metric_as_preference: true
   }
 }

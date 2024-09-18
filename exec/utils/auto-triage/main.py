@@ -1,6 +1,5 @@
 import argparse
 
-
 from Database import Database
 from FireX import FireX
 from Vectorstore import Vectorstore
