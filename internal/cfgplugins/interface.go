@@ -33,28 +33,30 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
-// opticalChannelComponentFromPort returns the name of the optical channel component for the given
+// OpticalChannelComponentFromPort returns the name of the optical channel component for the given
 // port.
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
 	t.Helper()
 	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-		return fmt.Sprintf("%s-Optical0", transceiverName)
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		default:
+			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
+		}
 	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
+	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
+	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
+	for _, comp := range comps {
+		comp, ok := comp.Val()
+
+		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
+			return comp.GetName()
 		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
 	}
+	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
+	return ""
 }
 
 // InterfaceConfig configures the interface with the given port.
@@ -65,8 +67,9 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+	gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
 	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
 		Frequency:         ygot.Uint64(targetFrequencyMHz),
@@ -76,7 +79,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
 func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
-	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
 
 	outputPower := gnmi.Get(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().TargetOutputPower().State())
@@ -157,4 +160,17 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 			},
 		},
 	})
+}
+
+// isSubCompOfHardwarePort checks if a component is a subcomponent of a specified hardware port in the DUT.
+func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
+	for {
+		if comp.GetName() == parentHardwarePortName {
+			return true
+		}
+		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
+			return false
+		}
+		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
+	}
 }

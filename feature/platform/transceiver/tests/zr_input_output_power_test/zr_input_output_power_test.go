@@ -1,6 +1,7 @@
 package zr_input_output_power_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 )
 
 const (
-	dp16QAM                    = uint16(1)
 	samplingInterval           = 10 * time.Second
 	inactiveOCHRxPower         = -30.0
 	inactiveOCHTxPower         = -30.0
@@ -27,6 +27,8 @@ const (
 var (
 	frequencies         = []uint64{191400000, 196100000}
 	targetOpticalPowers = []float64{-9, -13}
+	opModeFlag          = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -42,6 +44,11 @@ func TestOpticalPower(t *testing.T) {
 		trs  = make(map[string]string)
 		ochs = make(map[string]string)
 	)
+	if opModeFlag != nil {
+		operationalMode = uint16(*opModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 
 	for _, p := range dut.Ports() {
 		// Check the port PMD is 400ZR.
@@ -58,7 +65,7 @@ func TestOpticalPower(t *testing.T) {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
 			for _, p := range dut.Ports() {
-				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, dp16QAM)
+				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 			}
 
 			// Create sample steams for each port.

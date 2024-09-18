@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	dp16QAM          = 1
+	dp16QAM          = 5003 // TODO - make this a flag
 	samplingInterval = 10 * time.Second
 	minCDValue       = -200
 	maxCDValue       = 2400
