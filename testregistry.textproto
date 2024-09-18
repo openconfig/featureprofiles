@@ -73,6 +73,21 @@ test: {
   exec: " "
 }
 test: {
+  id: "attestz-1"
+  description: "Validate attestz for initial install"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
+}
+test: {
+  id: "attestz-2"
+  description: "Validate oIAK and oIDevID rotation"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
+}
+test: {
+  id: "attestz-3"
+  description: "Validate post-install re-attestation"
+  readme: "https://github.com/openconfig/featureprofiles/tree/main/feature/system/attestz/tests/README.md"
+}
+test: {
   id: "Authz-1"
   description: "test policy behaviors, and probe results matches actual client results"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/authz/tests/README.md"
