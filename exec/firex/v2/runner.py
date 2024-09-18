@@ -1544,8 +1544,8 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 def PushResultsToMongo(self, uid, xunit_results, lineup=None, efr=None):
     logger.print("Pushing results to MongoDB...")
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
-        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        mongo_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{mongo_reporter_bin} {uid} {xunit_results}'
         if lineup: 
             cmd += f' --lineup {lineup}'
         if efr: 
