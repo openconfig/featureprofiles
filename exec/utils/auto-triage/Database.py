@@ -52,7 +52,7 @@ class Database:
         return results
 
     def is_subscribed(self, name):
-        document = self._groups.findOne(filter = {
+        document = self._groups.find_one(filter = {
             "group": name
         })
 

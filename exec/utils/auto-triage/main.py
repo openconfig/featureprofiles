@@ -19,7 +19,7 @@ def main():
     run_info = firex.get_run_information(args.xunit_file)
 
     # Only Consider Subscribed Groups
-    if database.is_subscribed(run_info.group) == False:
+    if database.is_subscribed(run_info["group"]) == False:
         return
     
     # Add FireX Metadata
@@ -31,6 +31,7 @@ def main():
     
     # Add Testsuite Data
     documents = firex.get_testsuites(vectorstore, args.xunit_file, run_info)
+
     database.insert_logs(documents)
 
 main()

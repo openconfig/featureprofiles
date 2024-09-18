@@ -8,7 +8,7 @@ class FireX:
         root = tree.getroot()
 
         testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
-        run_file = testsuite_root + "/run.json"
+        run_file = "/Users/shahdivyank" + testsuite_root + "/run.json"
 
         testsuites_metadata = root.attrib 
 
