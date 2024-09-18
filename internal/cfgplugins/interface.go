@@ -50,7 +50,6 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
 	for _, comp := range comps {
 		comp, ok := comp.Val()
-
 		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
 			return comp.GetName()
 		}
