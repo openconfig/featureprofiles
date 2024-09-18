@@ -21,19 +21,20 @@ class Database:
         self._firex_ids.insert_one(document)
 
     def get_datapoints(self):
+        documents = list(self._labels.find(filter = {}, projection = {
+            "_id": 0,
+            "label": 1
+        }))
+
+        valid_labels = [document["label"] for document in documents]
+
         results = list(
             self._data.aggregate(
                 [
                     {"$unwind": "$testcases"},
                     {
                         "$match": {
-                            "testcases.status": {"$eq": "failed"},
-                            "testcases.generated": {"$eq": False},
-                            "testcases.label": {"$ne": ""},
-                            "$and": [
-                                {"testcases.logs": {"$ne": ""}},
-                                {"testcases.logs": {"$ne": "None"}},
-                            ],
+                            "testcases.label": {"$in": valid_labels}
                         }
                     },
                     {
