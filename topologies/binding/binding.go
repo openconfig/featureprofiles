@@ -46,7 +46,7 @@ import (
 
 var (
 	// To be stubbed out by unit tests.
-	grpcDialContextFn = grpc.DialContext
+	grpcDialContextFn = grpc.NewClient
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
 
@@ -473,7 +473,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{grpc.WithBlock()}
+	opts := []grpc.DialOption{grpc.WithDisableRetry()}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
@@ -523,10 +523,10 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
-				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				_, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, target, opts...)
+			return grpcDialContextFn(target, opts...)
 		},
 		DialTarget: bopts.Target,
 		DialOpts:   opts,

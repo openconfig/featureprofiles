@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/containerz/client"
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -53,7 +54,9 @@ func TestDeployAndStartContainer(t *testing.T) {
 	tlsc := credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true, // NOLINT
 	})
-	conn, err := grpc.DialContext(ctx, "localhost:60061", grpc.WithTransportCredentials(tlsc), grpc.WithBlock())
+	conntectionState := connectivity.Ready
+	conn, err := grpc.NewClient("localhost:60061", grpc.WithTransportCredentials(tlsc))
+	conn.WaitForStateChange(ctx, conntectionState)
 	if err != nil {
 		t.Fatalf("Failed to dial cntrsrv, %v", err)
 	}

@@ -315,17 +315,37 @@ func TestScaling(t *testing.T) {
 		},
 	)
 	createFlow(t, ate, top, vrfConfigs[1])
-
+	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
-		client.Modify().AddEntry(t, entries...)
-		if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
-			t.Fatalf("Could not program entries, got err: %v", err)
+		// Breaking more than 10k gribi entries from 1 modify operation into multiple
+		// modify operations with 10k entries each.
+		if len(entries) > maxEntries {
+			index := 0
+			for idx := 0; idx < len(entries)/maxEntries; idx++ {
+				client.Modify().AddEntry(t, entries[index:maxEntries+index]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+				index += maxEntries
+			}
+			// Program the remaining entries less than 10k in another modify operation.
+			if len(entries)%maxEntries != 0 {
+				client.Modify().AddEntry(t, entries[index:]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+			}
+
+		} else {
+			client.Modify().AddEntry(t, entries...)
+			if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+				t.Fatalf("Could not program entries, got err: %v", err)
+			}
 		}
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
-
 	checkTraffic(t, ate, top)
 }
 

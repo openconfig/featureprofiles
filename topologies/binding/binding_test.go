@@ -244,7 +244,7 @@ func TestDialOTGTimeout(t *testing.T) {
 		r:   resolver{&bindpb.Binding{}},
 		dev: &bindpb.Device{Otg: &bindpb.Options{Timeout: timeoutSecs}},
 	}
-	grpcDialContextFn = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error) {
+	grpcDialContextFn = func(string, ...grpc.DialOption) (*grpc.ClientConn, error) {
 		return nil, nil
 	}
 	gosnappiNewAPIFn = func() gosnappi.Api {

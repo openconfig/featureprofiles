@@ -83,6 +83,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, &dutSrc, dut))
 	p2 := dut.Port(t, "port2")
 	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, &dutDst, dut))
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // Configures the given DUT interface.
@@ -101,7 +105,6 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 		routerAdvert.SetSuppress(routerAdvertisementDisabled)
 	} else {
 		routerAdvert.SetEnable(false)
-		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_ALL)
 	}
 	return i
 }

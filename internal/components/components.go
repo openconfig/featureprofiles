@@ -212,18 +212,13 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
 	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
+	transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
 	}
+	opticalChannelName := gnmi.Get(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
+	return opticalChannelName
 }
