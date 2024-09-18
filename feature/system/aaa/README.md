@@ -20,13 +20,19 @@ This test suite aims to thoroughly validate the correct implementation  of the A
 ### SYS-3.1.1 User Configuration Test
 
 *   Create a user on the DUT with the following parameters:
-    *   username: testuser
-    *   password: password
-    *   password-type: MD5
-    *   role: admin
+    ```yaml
+    system:  
+    aaa:  
+        authentication:  
+        users:  
+            - user:  
+            config:  
+                username: "testuser" 
+                password: "password"
+                role: SYSTEM_ROLE_ADMIN
+    ```
 *   Verification:
-    *   Confirm the successful creation of the "testuser" account with the specified parameters.
-    *   Validate that the password is encrypted using MD5.
+    *   Get  the device configuration via gNMI and verify the successful creation of the "testuser" account with the specified parameters.
 
 ### SYS-3.1.2 TACACS+ Server Configuration Test
 
@@ -37,23 +43,60 @@ This test suite aims to thoroughly validate the correct implementation  of the A
         *   Key: tacacs_password
         *   Timeout: 4
     *   Configure the source IP address of a selected interface for all outgoing TACACS+ packets as the loopback interface.
+    ```yaml
+    system:  
+    aaa:  
+        server-groups:  
+        server-group:  
+            config:  
+            name: "my_server_group"  
+            servers:  
+            - server:  
+                config:  
+                name: "tacacs_server_1"  
+                address: 192.168.1.1 
+                timeout: 4  
+                tacacs:  
+                config:  
+                    port: 49  
+                    source-address: dut_loopback_address  
+                    secret-key: acacs_password
+    ```
 *   Verification:
-    *   Confirm the successful creation of the Tacacs server with the specified parameters.
+    *   Get the device configuration via gNMI and verify that the TACACS+ server has been successfully created with the correct parameters.
 
 ### SYS-3.1.3 AAA Authentication Configuration Test
 
 *   Configuration:
     *   Configure the DUT to use TACACS+ as the primary authentication method and local authentication as a fallback option.
+    ```yaml
+    system:  
+    aaa:  
+        authentication:  
+        config:  
+            authentication-method: [TACACS_ALL, LOCAL] 
+    ```
 *   Verification:
-    *   Validate that the authentication settings are implemented as intended.
+    *   Use gNMI to get the device's current configuration and verify that the authentication settings match the intended design.
 
 ### SYS-3.1.4 AAA Authorization Configuration Test
 
 *   Configuration:
     *   Configure command authorization to exclusively utilize the TACACS+ server.
     *   Configure authorization for configuration mode to primarily use the TACACS+ server and fall back to local authorization if the TACACS+ server is unavailable or does not respond.
+    ```yaml
+    system:  
+    aaa:  
+        authorization:  
+        config:  
+            authorization-method: [TACACS_ALL, LOCAL]  
+        events:  
+            config:  
+                - event-type: AAA_AUTHORIZATION_EVENT_COMMAND  
+                - event-type: AAA_AUTHORIZATION_EVENT_CONFIG
+    ```
 *   Verification:
-    *   Validate that the authorization settings are implemented and working as intended.
+    *   Use gNMI to Get the device's current configuration and verify its alignment with the intended authorization settings..
 
 ### SYS-3.1.5 AAA Accounting Configuration Test
 
@@ -61,8 +104,22 @@ This test suite aims to thoroughly validate the correct implementation  of the A
     *   Activate accounting for command line interface (CLI) commands on the device under test (DUT).
     *   Activate accounting for login sessions on the DUT.
     *   Activate accounting for system event logs on the DUT.
+    ```yaml
+    system:  
+    aaa:  
+        accounting:  
+        config:  
+            name: "my_server_group"  
+            accounting-method: TACACS_ALL  
+        events:  
+            config:  
+            - event-type: AAA_ACCOUNTING_EVENT_COMMAND  
+                record: START_STOP 
+            - event-type: AAA_ACCOUNTING_EVENT_LOGIN  
+                record: START_STOP 
+    ```
 *   Verification:
-    *   Confirm that the accounting settings are correctly implemented.
+    *   Use gNMI to get the device's configuration and validate that the accounting settings are correctly implemented as intended.
 
 ## OpenConfig Path and RPC Coverage
 
