@@ -15,12 +15,10 @@
 package fptest
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -53,52 +51,5 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	if intf.GetOrCreateSubinterface(si) != nil {
 		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
-	}
-}
-
-// EnableGRIBIUnderNetworkInstance enables GRIBI protocol under network instance.
-func EnableGRIBIUnderNetworkInstance(t testing.TB, d *ondatra.DUTDevice, ni string) {
-	t.Helper()
-	if ni == "" {
-		t.Fatalf("Network instance not provided for gRIBI protocol definition")
-	}
-
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "srl",
-			},
-			Update: []*gpb.Update{{
-				Path: &gpb.Path{
-					Elem: []*gpb.PathElem{
-						{
-							Name: "network-instance",
-							Key:  map[string]string{"name": ni},
-						},
-						{
-							Name: "protocols",
-						},
-						{
-							Name: "gribi",
-						},
-						{
-							Name: "admin-state",
-						},
-					},
-				},
-				Val: &gpb.TypedValue{
-					Value: &gpb.TypedValue_JsonIetfVal{
-						JsonIetfVal: []byte(`"enable"`),
-					},
-				},
-			}},
-		}
-		gnmiClient := d.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Enabling Gribi on network-instance %s failed with unexpected error: %v", ni, err)
-		}
-	default:
-		t.Fatalf("Vendor %s does not support 'deviation_explicit_gribi_under_network_instance'", d.Vendor())
 	}
 }

@@ -37,7 +37,7 @@ Different test scenarios requires different setups.
     *   Connect a gRIBI client to DUT with session parameters
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
-    *   Inject the following gRIBI structure to the DTU:
+    *   Inject the following gRIBI structure to the DUT:
 
         ```text
         VIP_1/32 {DEFAULT VRF} --> NHG#1 --> NH#1 {next-hop: ATEPort2IP}
@@ -54,7 +54,7 @@ Different test scenarios requires different setups.
     *   Connect a gRIBI client to DUT with session parameters
         `{persistence=PRESERVE Redundancy=SINGLE_PRIMARY}`
     *   gRIBI Flush the DUT.
-    *   Inject the following gRIBI structure to the DTU:
+    *   Inject the following gRIBI structure to the DUT:
 
         ```text
         VIP_1/32 {DEFAULT VRF} --> NHG#1 --> NH#1 {next-hop: ATEPort2IP}
@@ -99,15 +99,46 @@ Different test scenarios requires different setups.
         traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
         at ATE port-4.
 
-## Config Parameter coverage
+*   Test#3 - (tunnel viability triggers decap):
 
-No new configuration covered.
+    *   Deploy Setup#2 as above and inject below gRIBI structure to the DUT:
+        
+        ```text
+        NHG#102 --> [NH#104 {decap-encap, src:OuterSrcIP_2, dst:OuterDstIP_FAILURE, network-instance: VRF-C}, backupNHG: NHG#103]
+        ```
 
-## Telemetry Parameter coverage
+    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2 receives
+        the IPinIP traffic with outer IP as `OuterDstIP_1`.
 
-No new telemetry covered.
+    *   Shutdown DUT port-2 interface, and validate that ATE port-4 receives the
+        traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
+        at ATE port-4.
 
-## Protocol/RPC Parameter coverage
+*   Test#4 - (resolution failure on new tunnels triggers decap in the backup NHG):
+
+    *   Deploy Setup#2 as above.
+
+    *   Remove `OuterDstIP_2/32` from `VRF-C`.
+
+    *   Send IPinIP traffic to `OuterDstIP_1`. Validate that ATE port-2 receives
+        the IPinIP traffic with outer IP as `OuterDstIP_1`.
+
+    *   Shutdown DUT port-2 interface, and validate that ATE port-4 receives the
+        traffic with decapsulated traffic with destination IP as `InnerDstIP_1`
+        at ATE port-4.
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 

@@ -1018,7 +1018,7 @@ def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Checking testbed connectivity...")
     cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/tbchecks ' \
-            f'-timeout 1m ' \
+            f'-timeout 2m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
@@ -1541,11 +1541,15 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 
 # noinspection PyPep8Naming
 @app.task(bind=True)
-def PushResultsToMongo(self, uid, xunit_results):
+def PushResultsToMongo(self, uid, xunit_results, lineup=None, efr=None):
     logger.print("Pushing results to MongoDB...")
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
-        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
+        mongo_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{mongo_reporter_bin} {uid} {xunit_results}'
+        if lineup: 
+            cmd += f' --lineup {lineup}'
+        if efr: 
+            cmd += f' --efr {efr}'
         logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to push results to MongoDB. Ignoring...')

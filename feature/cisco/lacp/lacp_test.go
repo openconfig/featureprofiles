@@ -378,12 +378,15 @@ func TestLacpMemberEdt(t *testing.T) {
 			gnmi.Replace(t, dut, gnmi.OC().Interface(member).Ethernet().AggregateId().Config(), iut.Name())
 			watcher := edtWatchLacpMember(t, dut, iut.Name(), member)
 			watcherAny := edtWatchLacpMemberAny(t, dut, iut.Name(), member)
+			// The order of execution is not guarenteed. so delete can go first before the subscribe. Hence the explicit sleep
+			// Ref - https://techzone.cisco.com/t5/IOS-XR-PI-GNMI-GNOI-Infra-Eng/order-of-execution-is-wrong/m-p/13389337
+			time.Sleep(1 * time.Second)
 			gnmi.Delete(t, dut, gnmi.OC().Interface(member).Ethernet().AggregateId().Config())
-			if _, present := watcher.Await(t); present {
-				t.Errorf("EDT data was sent for member %s", member)
+			if _, present := watcher.Await(t); !present {
+				t.Errorf("EDT data was not sent for member %s", member)
 			}
-			if _, present := watcherAny.Await(t); present {
-				t.Errorf("EDT data was sent for member %s", member)
+			if _, present := watcherAny.Await(t); !present {
+				t.Errorf("EDT data was not sent for member %s", member)
 			}
 		})
 		t.Run(fmt.Sprintf("LACP Mode %s: Verify an update is received by gnmi client on shutting a member of a bundle interface.", mode.String()), func(t *testing.T) {
