@@ -1,6 +1,7 @@
 package zr_cd_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 )
 
 const (
-	dp16QAM          = 5003 // TODO - make this a flag
 	samplingInterval = 10 * time.Second
 	minCDValue       = -200
 	maxCDValue       = 2400
@@ -32,6 +32,8 @@ const (
 var (
 	frequencies        = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
 	targetOutputPowers = []float64{-13, -9}             // 400ZR OIF Tx power range
+	opModeFlag         = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode    uint16
 )
 
 func TestMain(m *testing.M) {
@@ -105,11 +107,15 @@ func TestCDValue(t *testing.T) {
 	och1 := gnmi.Get(t, dut, gnmi.OC().Component(tr1).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	och2 := gnmi.Get(t, dut, gnmi.OC().Component(tr2).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	component1 := gnmi.OC().Component(och1)
-
+	if opModeFlag != nil {
+		operationalMode = uint16(*opModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
-			cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, dp16QAM)
-			cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, dp16QAM)
+			cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
+			cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
 
 			// Wait for channels to be up.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
