@@ -23,7 +23,7 @@ def main():
         return
     
     # Add FireX Metadata
-    database.insert_metadata(run_info)
+    # database.insert_metadata(run_info)
     
     # Create FAISS Index
     datapoints = database.get_datapoints()
@@ -32,6 +32,6 @@ def main():
     # Add Testsuite Data
     documents = firex.get_testsuites(vectorstore, args.xunit_file, run_info)
 
-    database.insert_logs(documents)
+    # database.insert_logs(documents)
 
 main()

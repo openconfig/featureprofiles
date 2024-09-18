@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import json
+import glob
 
 
 class FireX:
@@ -9,6 +10,11 @@ class FireX:
 
         testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
         run_file = testsuite_root + "/run.json"
+        show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
+
+        with open(show_version) as show_version_contents:
+            header = show_version_contents.readlines()[0]
+            os_version = header.split(",")[1].split(" ")[2].strip()
 
         testsuites_metadata = root.attrib 
 
@@ -19,13 +25,8 @@ class FireX:
                 "firex_id": meta["firex_id"],
                 "group": meta["group"],
                 "lineup": meta["inputs"]["lineup"],
-                "tag": (
-                    meta["inputs"]["tag"]
-                    if "tag" in meta["inputs"]
-                    else "Unknown"
-                ),
+                "tag": os_version,
             })
-
         return testsuites_metadata
     
     def get_testsuites(self, vectorstore, file, run_info):

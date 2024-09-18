@@ -3,7 +3,7 @@ from pymongo import MongoClient
 class Database:
     def __init__(self):
         self._client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/")
-        self._database = self._client["auto-triage"]
+        self._database = self._client["auto-triage-dev"]
 
         self._data = self._database["data"]
         self._labels = self._database["labels"]
