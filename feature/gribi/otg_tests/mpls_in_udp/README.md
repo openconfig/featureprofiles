@@ -288,22 +288,6 @@ paths:
 # afts state paths set via gRIBI
   # TODO: https://github.com/openconfig/public/pull/1153
 
-      next_hop_groups {
-        next_hop_group {
-          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          id: 200
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 200
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 200
-          network_instance: "group_B"
-
   #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
   #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
