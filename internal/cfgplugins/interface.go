@@ -15,11 +15,10 @@
 package cfgplugins
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -33,31 +32,6 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
-// OpticalChannelComponentFromPort returns the name of the optical channel component for the given
-// port.
-func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			return fmt.Sprintf("%s-Optical0", transceiverName)
-		default:
-			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
-		}
-	}
-	comps := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
-	hardwarePortCompName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for _, comp := range comps {
-		comp, ok := comp.Val()
-		if ok && comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL && isSubCompOfHardwarePort(t, dut, hardwarePortCompName, comp) {
-			return comp.GetName()
-		}
-	}
-	t.Fatalf("No interface to optical-channel mapping found for interface = %v", p.Name())
-	return ""
-}
-
 // InterfaceConfig configures the interface with the given port.
 func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
@@ -66,7 +40,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	ocComponent := OpticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
 	gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
 	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
@@ -78,7 +52,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
 func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
-	ocComponent := OpticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
 
 	outputPower := gnmi.Get(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().TargetOutputPower().State())
@@ -159,17 +133,4 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 			},
 		},
 	})
-}
-
-// isSubCompOfHardwarePort checks if a component is a subcomponent of a specified hardware port in the DUT.
-func isSubCompOfHardwarePort(t *testing.T, dut *ondatra.DUTDevice, parentHardwarePortName string, comp *oc.Component) bool {
-	for {
-		if comp.GetName() == parentHardwarePortName {
-			return true
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT {
-			return false
-		}
-		comp = gnmi.Get(t, dut, gnmi.OC().Component(comp.GetParent()).State())
-	}
 }
