@@ -17,7 +17,7 @@ Use TE-18.1 test environment setup.
 
 ## Procedure
 
-### TE-18.3.1 Generate and push configuration
+### TE-18.2.1 Generate and push configuration
 
 * Generate config for 2 scheduler polices with an input rate limit.  
 * Generate config for 2 classifiers which match on next-hop-group.
@@ -120,7 +120,127 @@ openconfig-qos:
               name: "limit_1G"
 ```
 
-### TE-18.3.1 Test traffic
+### TE-18.2.2 push gRIBI aft encap rules with next-hop-group-id
+
+Create a gRIBI client and send this proto message to the DUT to create AFT
+entries.  Note the next-hop-groups here include a `next_hop_group_id` field
+which matches the
+`/qos/classifiers/classifier/condition/next-hop-group/config/name` leaf.
+
+* [TODO: OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
+* [TODO: gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
+
+```proto
+network_instances: {
+  network_instance: {
+    afts {
+      #
+      # entries used for "group_A"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet
+          next_hop_group: 100
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet
+          next_hop_group: 100
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          id: 100
+          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          next_hops {                 # reference to a next-hop
+            next_hop: {
+              index: 100
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 100
+          network_instance: "group_A"
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [100,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_A"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              dscp: "outer_dscp"
+            }
+          }
+        }
+      }
+      #
+      # entries used for "group_B"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_B"
+          next_hop_group: 200
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_B"
+          next_hop_group: 200
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          id: 200
+          next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          next_hops {                 # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+          encap-headers {
+            encap-header {
+              index: 1
+              type : OPENCONFIG_AFT_TYPES:MPLS
+              mpls {
+                pushed_mpls_label_stack: [200,]
+              }
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              type: OPENCONFIG_AFT_TYPES:UDP
+              udp {
+                src_ip: "outer_ipv6_src"
+                dst_ip: "outer_ipv6_dst_B"
+                dst_udp_port: "outer_dst_udp_port"
+                ip_ttl: "outer_ip-ttl"
+                dscp: "outer_dscp"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+
+### TE-18.2.3 Test traffic
 
 * Send traffic
   * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
