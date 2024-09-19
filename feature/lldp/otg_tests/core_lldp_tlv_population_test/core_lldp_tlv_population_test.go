@@ -138,18 +138,21 @@ func TestLLDPDisabled(t *testing.T) {
 func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevice, *oc.Lldp) {
 	node := ondatra.DUT(t, name)
 	p := node.Port(t, portName)
-	lldp := gnmi.OC().Lldp()
+	d := &oc.Root{}
+	lldp := d.GetOrCreateLldp()
+	llint := lldp.GetOrCreateInterface(p.Name())
 
-	gnmi.Replace(t, node, lldp.Enabled().Config(), lldpEnabled)
+	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
 
 	if lldpEnabled {
-		gnmi.Replace(t, node, lldp.Interface(p.Name()).Enabled().Config(), lldpEnabled)
+		gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
 	}
+
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
 
-	return node, gnmi.Get(t, node, lldp.Config())
+	return node, gnmi.Get(t, node, gnmi.OC().Lldp().Config())
 }
 
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {

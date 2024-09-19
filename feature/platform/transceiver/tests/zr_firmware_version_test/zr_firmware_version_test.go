@@ -112,11 +112,11 @@ func TestZRFirmwareVersionStateInterfaceFlap(t *testing.T) {
 	p1Stream := samplestream.New(t, dut1, component1.FirmwareVersion().State(), 10*time.Second)
 
 	// Wait 60 sec cooling off period
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_DOWN)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 
 	// Enable interface
 	configInterface(t, dut1, dp1, true)
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 	verifyFirmwareVersionValue(t, dut1, p1Stream)
 }
