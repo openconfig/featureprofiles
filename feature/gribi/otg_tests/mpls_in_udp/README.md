@@ -83,7 +83,6 @@ network_instances: {
         next_hop {
           index: 100
           network_instance: "group_A"
-          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
           encap-headers {
             encap-header {
               index: 1
@@ -286,23 +285,42 @@ and forwarding to a specified  destination using OC policy-forwarding terms.
 ```yaml
 paths:
 
-  # qos classifier config
-  /qos/classifiers/classifier/config/name:
-  /qos/classifiers/classifier/terms/term/config/id:
-  #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
+# afts state paths set via gRIBI
+  # TODO: https://github.com/openconfig/public/pull/1153
 
-  # afts next-hop counters
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          id: 200
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+
+  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
+  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/network-instance:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/mpls/pushed-mpls-label-stack:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/src-ip:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-ip:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-udp-port:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/ip-ttl:
+  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dscp:
+
+# afts next-hop counters
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
 
-  # afts state paths set via gRIBI
-  # TODO: https://github.com/openconfig/public/pull/1153
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/src-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/ip-ttl:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dst-udp-port:
-  #/network-instances/network-instance/afts/next-hops/next-hop/mpls-in-udp/state/dscp:
-  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
 
 rpcs:
   gnmi:
