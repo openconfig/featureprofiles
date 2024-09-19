@@ -30,10 +30,10 @@ const (
 )
 
 var (
-	frequencies        = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
-	targetOutputPowers = []float64{-13, -9}             // 400ZR OIF Tx power range
-	opModeFlag         = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalMode    uint16
+	frequencies         = []uint64{191400000, 196100000} // 400ZR OIF wavelength range
+	targetOutputPowers  = []float64{-13, -9}             // 400ZR OIF Tx power range
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -95,6 +95,11 @@ func verifyAllCDValues(t *testing.T, dut1 *ondatra.DUTDevice, p1StreamInstant, p
 
 func TestCDValue(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	dp1 := dut.Port(t, "port1")
@@ -107,11 +112,6 @@ func TestCDValue(t *testing.T) {
 	och1 := gnmi.Get(t, dut, gnmi.OC().Component(tr1).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	och2 := gnmi.Get(t, dut, gnmi.OC().Component(tr2).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 	component1 := gnmi.OC().Component(och1)
-	if opModeFlag != nil {
-		operationalMode = uint16(*opModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	for _, frequency := range frequencies {
 		for _, targetOutputPower := range targetOutputPowers {
 			cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
