@@ -1546,10 +1546,6 @@ def PushResultsToMongo(self, uid, xunit_results, lineup=None, efr=None):
     try:
         mongo_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
         cmd = f'{mongo_reporter_bin} {uid} {xunit_results}'
-        if lineup: 
-            cmd += f' --lineup {lineup}'
-        if efr: 
-            cmd += f' --efr {efr}'
         logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to push results to MongoDB. Ignoring...')
