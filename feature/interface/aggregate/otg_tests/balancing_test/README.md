@@ -60,5 +60,7 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
+      union_replace: false
     gNMI.Subscribe:
+      on_change: false
 ```
