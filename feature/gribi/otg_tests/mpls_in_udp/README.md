@@ -70,7 +70,6 @@ network_instances: {
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_id: "nhg_A"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
           id: 100
           next_hops {            # reference to a next-hop
             next_hop: {
@@ -117,7 +116,6 @@ network_instances: {
       }
       next_hop_groups {
         next_hop_group {
-          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
           id: 200
           next_hops {            # reference to a next-hop
             next_hop: {
