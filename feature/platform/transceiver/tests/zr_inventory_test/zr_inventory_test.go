@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -14,6 +13,7 @@ import (
 )
 
 const (
+	dp16QAM          = 1
 	samplingInterval = 10 * time.Second
 	timeout          = 5 * time.Minute
 	waitInterval     = 30 * time.Second
@@ -81,13 +81,11 @@ func TestInventory(t *testing.T) {
 		samplestream.New(t, dut, component1.SerialNo().State(), samplingInterval),
 		samplestream.New(t, dut, component1.PartNo().State(), samplingInterval),
 		samplestream.New(t, dut, component1.MfgName().State(), samplingInterval),
+		samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval),
 		samplestream.New(t, dut, component1.HardwareVersion().State(), samplingInterval),
 		samplestream.New(t, dut, component1.FirmwareVersion().State(), samplingInterval),
 		// samplestream.New(t, dut1, component1.Description().State(), samplingInterval),
 	)
-	if !deviations.ComponentMfgDateUnsupported(dut) {
-		p1StreamsStr = append(p1StreamsStr, samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval))
-	}
 	p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut, component1.Type().State(), samplingInterval))
 
 	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)

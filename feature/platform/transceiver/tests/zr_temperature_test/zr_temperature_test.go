@@ -92,18 +92,15 @@ func TestZRTemperatureState(t *testing.T) {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
 	component1 := gnmi.OC().Component(transceiverName)
-	// subcomponents check not required for CISCO
-	if dut1.Vendor() != ondatra.CISCO {
-		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
-		for _, s := range subcomponents {
-			subc, ok := s.Val()
-			if ok {
-				sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
-				if sensorComponent.GetType() == sensorType {
-					scomponent := gnmi.OC().Component(sensorComponent.GetName())
-					if scomponent != nil {
-						component1 = scomponent
-					}
+	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+	for _, s := range subcomponents {
+		subc, ok := s.Val()
+		if ok {
+			sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
+			if sensorComponent.GetType() == sensorType {
+				scomponent := gnmi.OC().Component(sensorComponent.GetName())
+				if scomponent != nil {
+					component1 = scomponent
 				}
 			}
 		}
