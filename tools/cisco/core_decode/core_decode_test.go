@@ -13,8 +13,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestCoreFileDecode(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	peer := ondatra.DUT(t, "peer")
+	dut := ondatra.DUT(t, "DUT")
+	peer := ondatra.DUT(t, "PEER")
 
 	processList := []string{
 		"bundlemgr_checker", "ifmgr", "netio", "pkt_trace_agent",

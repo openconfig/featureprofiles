@@ -3,7 +3,7 @@ featureprofiles_internal_core_decode:
     owners:
         - krinata2
     testbeds:
-        - 8808-OC
+        - 8808-2DUT
     supported_platforms:
         - "8000"
     plugins:
@@ -18,7 +18,7 @@ featureprofiles_internal_core_decode:
     script_paths:
         - featureprofiles_internal/core_decode:
             testbeds:
-                - 8808-OC
+                - 8808-2DUT
             test_name: core_decode
             test_path: tools/cisco/core_decode
             test_timeout: 7200
