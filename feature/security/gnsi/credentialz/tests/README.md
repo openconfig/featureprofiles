@@ -71,7 +71,7 @@ stream.Send(
         enabled: true,
         key: "4242424242424242424242424242424242424242424242",
         key_version: 4,
-        url_prefix: "https://fake-prefix.xyz",
+        url_prefix: "https://example.invalid",
     }
 )
 ```
@@ -217,7 +217,7 @@ and
 * Create a ssh CA keypair with `ssh-keygen -f /tmp/ca`.
 * Fetch the ssh server's host public key.
 * Sign the public key from the previous step into a host certificate using the
-  CA key `ssh-keygen -s /tmp/ca -I dut -h -n dut.test.com -V +52w
+  CA key `ssh-keygen -s /tmp/ca -I dut -h -n dut.example.invalid -V +52w
   /location/of/host/public_key.pub`
 * Add the certificate to the server (see RotateHostParameters,
   AuthenticationArtifacts, certificate)
