@@ -1,3 +1,17 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package record_history_truncation_test
 
 import (
@@ -23,29 +37,29 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 
 	bootTime := systemState.GetBootTime()
 
-	// try to get records from 1 day prior to device's boot time
+	// Try to get records from 1 day prior to device's boot time.
 	recordStartTime := time.Unix(0, int64(bootTime)).Add(-24 * time.Hour)
 
 	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
 
 	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
 	if err != nil {
-		t.Fatalf("failed getting accountz record subscribe client, error: %s", err)
+		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
 
 	err = acctzSubClient.Send(&acctz.RecordRequest{
 		Timestamp: timestamppb.New(recordStartTime),
 	})
 	if err != nil {
-		t.Fatalf("failed sending record request, error: %s", err)
+		t.Fatalf("Failed sending record request, error: %s", err)
 	}
 
 	record, err := acctzSubClient.Recv()
 	if err != nil {
-		t.Fatalf("failed receiving from accountz record subscribe client, error: %s", err)
+		t.Fatalf("Failed receiving from accountz record subscribe client, error: %s", err)
 	}
 
 	if record.GetHistoryIstruncated() != true {
-		t.Fatal("history is not truncated but should be")
+		t.Fatal("History is not truncated but should be.")
 	}
 }
