@@ -47,10 +47,10 @@ import (
 	"fmt"
 	"regexp"
 
-	log "github.com/golang/glog"
-	"github.com/openconfig/featureprofiles/internal/metadata"
-	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
-	"github.com/openconfig/ondatra"
+	"google3/base/go/log"
+	"google3/third_party/openconfig/featureprofiles/internal/metadata/metadata"
+	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
+	"google3/third_party/openconfig/ondatra/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
@@ -1134,4 +1134,9 @@ func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 // SflowSourceAddressUpdateUnsupported returns true if sflow source address update is unsupported
 func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
+}
+
+// LinklocalMaskLen returns true if linklocal mask length is not 64
+func LinklocalMaskLen(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinklocalMaskLen()
 }
