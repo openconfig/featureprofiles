@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+
 const (
 	srcDUTGlobalIPv6      = "2001:db8::1"
 	srcOTGGlobalIPv6      = "2001:db8::2"
@@ -184,7 +185,7 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 		subInt4.Enabled = ygot.Bool(true)
 	}
 	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
-	if deviations.LinklocalMaskLen(dut) {
+	if deviations.LinkLocalMaskLen(dut) {
 		dutSrc.IPv6Len = 128
 	}
 	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
@@ -198,7 +199,8 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		dstSubInt4.Enabled = ygot.Bool(true)
 	}
-	if deviations.LinklocalMaskLen(dut) {
+	dutDst.IPv6Len = 128
+	if deviations.LinkLocalMaskLen(dut) {
 		dutDst.IPv6Len = 128
 	}
 	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
@@ -343,3 +345,4 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 }
+

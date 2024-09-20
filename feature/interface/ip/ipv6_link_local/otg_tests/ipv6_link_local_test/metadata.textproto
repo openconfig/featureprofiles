@@ -19,7 +19,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    linklocal_mask_len: true
+    link_local_mask_len: true
   }
 } # CISCOXR
 platform_exceptions: {

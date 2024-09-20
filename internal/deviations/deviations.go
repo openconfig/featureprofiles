@@ -47,10 +47,10 @@ import (
 	"fmt"
 	"regexp"
 
-	"google3/base/go/log"
-	"google3/third_party/openconfig/featureprofiles/internal/metadata/metadata"
-	mpb "google3/third_party/openconfig/featureprofiles/proto/metadata_go_proto"
-	"google3/third_party/openconfig/ondatra/ondatra"
+	log "github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/metadata"
+	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
+	"github.com/openconfig/ondatra"
 )
 
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
@@ -1137,6 +1137,6 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // LinklocalMaskLen returns true if linklocal mask length is not 64
-func LinklocalMaskLen(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLinklocalMaskLen()
+func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
 }
