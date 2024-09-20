@@ -641,7 +641,7 @@ func ReloadLinecards(t *testing.T, lcList []string) {
 			// any other error just sleep.
 		}
 	}
-	t.Logf("It took %v minutes to reboot linecards.", time.Now().Sub(startTime).Minutes())
+	t.Logf("It took %v minutes to reboot linecards.", time.Since(startTime).Minutes())
 }
 
 // RebootDevice reboots the device gracefully and waits for the device to come back up.
