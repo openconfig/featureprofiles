@@ -11,5 +11,6 @@ platform_exceptions:  {
   }
   deviations:  {
     cli_takes_precedence_over_oc:  true
+    gnmi_get_requires_config_type: true
   }
 }
