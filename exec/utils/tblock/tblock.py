@@ -1,6 +1,7 @@
 from pwd import getpwuid
 from random import randint
 from datetime import datetime
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import logging
 import argparse
@@ -186,9 +187,14 @@ ldir = args.locks_dir
 if not os.path.exists(ldir):
     os.makedirs(ldir, mode=0o777, exist_ok=True)
 
+log_file = os.path.join(ldir, "logs.txt")
+if not os.path.exists(log_file):
+    open(log_file, 'a').close()
+    os.chmod(log_file, 0o666)
+
 logger = logging.getLogger("tblock")
 logger.setLevel(logging.INFO)
-log_handler = RotatingFileHandler(os.path.join(ldir, "logs.txt"), maxBytes=100000000, backupCount=1)
+log_handler = RotatingFileHandler(log_file, maxBytes=100000000, backupCount=1)
 log_formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 log_handler.setFormatter(log_formatter)
 logger.addHandler(log_handler)
