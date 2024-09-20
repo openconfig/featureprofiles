@@ -28,7 +28,7 @@ import (
 
 var (
 	processName = map[ondatra.Vendor]string{
-		ondatra.NOKIA:   "sr_bgp_mgr",
+		ondatra.NOKIA:   "sr_qos_mgr",
 		ondatra.ARISTA:  "IpRib",
 		ondatra.JUNIPER: "rpd",
 	}
