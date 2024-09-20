@@ -151,9 +151,9 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NHG has the same backup to Repair VRF.
 	tunnelNHGRatio := param.V4TunnelCount / param.V4TunnelNHGCount
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
-		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
+			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 
 			// Build NHs and link NHs to NHG.
 			for i := 0; i < param.V4TunnelNHGSplitCount; i++ {
@@ -215,8 +215,8 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NH has one entry for decap and encap
 	// * All NHG has a backup for decap then goto default VRF.
 	reEncapNHGRatio := param.V4TunnelCount / param.V4ReEncapNHGCount
-	nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
 	nhgID = idPool.NextNHGID()
+	nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
 		nhID = idPool.NextNHID()
 		vrfDefault.NHs = append(vrfDefault.NHs,
@@ -242,9 +242,9 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * do the same as Transit VRF
 	// * but with decap to default NHG
 	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
-		nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 		if idx%tunnelNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
+			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgRedirectToVrfR)
 
 			// Build NHs and link NHs to NHG.
 			for i := 0; i < param.V4TunnelNHGSplitCount; i++ {
@@ -259,7 +259,7 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 		}
 
 		// Build IPv4 entry
-		vrfRDConf.NHs = append(vrfRDConf.NHs,
+		vrfRDConf.V4Entries = append(vrfRDConf.V4Entries,
 			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFRD).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}

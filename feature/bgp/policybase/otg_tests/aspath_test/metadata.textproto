@@ -5,7 +5,7 @@ uuid: "f4387453-37e8-4c2b-99c3-24b13cc51fd1"
 plan_id: "RT-7.3"
 description: "BGP Policy AS Path Set"
 testbed: TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
+tags: [TAGS_TRANSIT, TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -19,5 +19,14 @@ platform_exceptions: {
     skip_set_rp_match_set_options: true
     skip_setting_disable_metric_propagation: true
     bgp_conditions_match_community_set_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    community_member_regex_unsupported: true
+    default_route_policy_unsupported: true
   }
 }
