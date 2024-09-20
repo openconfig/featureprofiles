@@ -19,42 +19,103 @@ Use TE-18.1 test environment setup.
 
 ### TE-18.2.1 Generate and push configuration
 
-* Generate config for 2 scheduler polices with an input rate limit.  
 * Generate config for 2 classifiers which match on next-hop-group.
-* Generate config for 2 input policies which map the scheduler and classifers
-  together.
+* Generate config for 2 forwarding-groups mapped to "dummy" input queues
+  * Note that the DUT is not required to have an input queue, the dummy queue
+    satisfies the OC schema which requires defining nodes mapping
+    classfier->fwd_group->queue->scheduler
+* Generate config for 2 schedulder-policies to police traffic
 * Generate config to apply classifer and scheduler to DUT subinterface with vlan.
 * Use gnmi.Replace to push the config to the DUT.
 
 ```yaml
 ---
 openconfig-qos:
-  policer-policies:
-    - policer-policy: "limit_2Gb"
+  classifers:
+    - classifer: “dest_A”
       config:
-        name: "limit_2Gb"
-      policers:
-        - policer: 0
+        name: “dest_A”
+      terms:
+        - term:
           config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
-          one-rate-two-color:
+            id: "match_1_dest_A1"
+          conditions:
+            next-hop-group:
+                config:
+                    name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          actions:
             config:
-              cir: 2000000000           # 2Gbit/sec
-              bc: 100000                 # 100 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
+              target-group: "input_dest_A"
+        - term:
+          config:
+            id: "match_1_dest_A2"
+          conditions:
+            next-hop-group:
+                config:
+                    name: "nhg_A2"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          actions:
+            config:
+              target-group: "input_dest_A"
 
-    - policer-policy: "limit_1Gb"
+    - classifer: “dest_B”
+      config:
+        name: “dest_B”
+      terms:
+        - term:
+          config:
+            id: "match_1_dest_B1"
+          conditions:
+            next-hop-group:
+                config:
+                    name: "nhg_B1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          actions:
+            config:
+              target-group: "input_dest_B"
+        - term:
+          config:
+            id: "match_1_dest_B2"
+          conditions:
+            next-hop-group:
+                config:
+                    name: "nhg_B2"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          actions:
+            config:
+              target-group: "input_dest_B"
+
+
+  forwarding-groups:
+    - forwarding-group: "input_dest_A"
+      config:
+        name: "input packets"
+        output-queue: dummy_input_queue_A
+    - forwarding-group: "input_dest_B"
+      config:
+        name: "input packets"
+        output-queue: dummy_input_queue_B
+
+  queues:
+    - queue:
+      config:
+        name: "dummy_input_queue_A"
+    - queue:
+      config:
+        name: "dummy_input_queue_B"
+
+  scheduler-policies:
+    - scheduler-policy:
       config:
         name: "limit_1Gb"
-      policers:
-        - policer: 0
+      schedulers:
+        - scheduler:
           config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
+            sequence: 1
+            type: ONE_RATE_TWO_COLOR
+          inputs:
+            - input: "my input policer 1Gb"
+              config:
+                id: "my input policer 1Gb"
+                # instead of QUEUE, how about a new enum, FWD_GROUP (current options are QUEUE, IN_PROFILE, OUT_PROFILE)
+                queue: dummy_input_queue_A
           one-rate-two-color:
             config:
               cir: 1000000000           # 1Gbit/sec
@@ -63,35 +124,30 @@ openconfig-qos:
             exceed-action:
               config:
                 drop: TRUE
-  classifers:
-    - classifer: “dest_A”
+
+    - scheduler-policy:
       config:
-        name: “dest_A”
-      terms:
-        - term:   # repeated for address in destination A
+        name: "limit_2Gb"
+      schedulers:
+        - scheduler:
           config:
-            id: "match_1_dest_A"
-          conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_A"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          actions:
+            sequence: 1
+            type: ONE_RATE_TWO_COLOR
+          inputs:
+            - input: "my input policer 2Gb"
+              config:
+                id: "my input policer 2Gb"
+                # instead of QUEUE, how about a new enum, FWD_GROUP (current options are QUEUE, IN_PROFILE, OUT_PROFILE)
+                input-type: QUEUE
+                queue: dummy_input_queue_B
+          one-rate-two-color:
             config:
-              policer-policy: "limit_group_A_2Gb"  # new OC path needed
-    - classifer: “dest_B”
-      config:
-        name: “dest_B”
-      terms:
-        - term:
-          config:
-            id: "match_1_dest_B"
-          conditions:
-            next-hop-group:
-                config:
-                    name: "nhg_B"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          actions:
-            config:
-              policer-policy: "limit_group_B_1Gb"  # new OC path needed
+              cir: 2000000000           # 2Gbit/sec
+              bc: 100000                # 100 kilobytes
+              queuing-behavior: POLICE
+            exceed-action:
+              config:
+                drop: TRUE
 
   interfaces:                  # this is repeated per subinterface (vlan)
     - interface: "PortChannel1.100"
@@ -103,9 +159,9 @@ openconfig-qos:
               config:
                 name: "dest_A"
                 type: "IPV4"
-          policer-policy:     # New OC subtree /qos/interfaces/interface/policer-policy
-            config:
-              name: "limit_2G"
+            scheduler-policy:
+              state:
+                name: limit_group_A_1Gb
     - interface: "PortChannel1.200"
         config:
           interface-id: "PortChannel1.200"
@@ -115,9 +171,14 @@ openconfig-qos:
               config:
                 name: "dest_B"
                 type: "IPV4"
-          policer-policy:    # New OC subtree /qos/interfaces/interface/policer-policy
-            config:
-              name: "limit_1G"
+          scheduler-policy:
+            state:
+              name: limit_group_B_2Gb
+
+            scheduler-policy:
+              state:
+                name: limit_group_A_1Gb
+
 ```
 
 ### TE-18.2.2 push gRIBI aft encap rules with next-hop-group-id
