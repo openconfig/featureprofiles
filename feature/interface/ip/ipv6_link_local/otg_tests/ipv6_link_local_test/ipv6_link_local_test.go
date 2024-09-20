@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 const (
 	srcDUTGlobalIPv6      = "2001:db8::1"
 	srcOTGGlobalIPv6      = "2001:db8::2"
@@ -345,4 +344,3 @@ func verifyInterfaceTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 }
-
