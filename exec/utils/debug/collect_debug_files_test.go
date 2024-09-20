@@ -111,10 +111,10 @@ func TestCollectDebugFiles(t *testing.T) {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
 	}
 
-	deviceDirCleanupCmds := []string{
-		"run rm -rf /" + techDirectory,
-		"mkdir " + techDirectory,
-	}
+	// deviceDirCleanupCmds := []string{
+	// 	"run rm -rf /" + techDirectory,
+	// 	"mkdir " + techDirectory,
+	// }
 	commands := []string{}
 
 	if *coreCheck {
@@ -129,21 +129,21 @@ func TestCollectDebugFiles(t *testing.T) {
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
 		}
-		ctx := context.Background()
-		dut := ondatra.DUT(t, dutID)
-		sshClient := dut.RawAPIs().CLI(t)
-		for _, cmd := range deviceDirCleanupCmds {
-			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-					t.Logf("> %s", cmd)
-					t.Log(result.Output())
-				} else {
-					t.Logf("> %s", cmd)
-					t.Log(err.Error())
-				}
-				t.Logf("\n")
-			})
-		}
+		// ctx := context.Background()
+		// dut := ondatra.DUT(t, dutID)
+		// sshClient := dut.RawAPIs().CLI(t)
+		// for _, cmd := range deviceDirCleanupCmds {
+		// 	testt.CaptureFatal(t, func(t testing.TB) {
+		// 		if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+		// 			t.Logf("%s> %s",dutID, cmd)
+		// 			t.Log(result.Output())
+		// 		} else {
+		// 			t.Logf("%s> %s",dutID, cmd)
+		// 			t.Log(err.Error())
+		// 		}
+		// 		t.Logf("\n")
+		// 	})
+		// }
 		wg.Add(1)
 		go func(dutID string, target targetInfo) {
 			defer wg.Done()
@@ -174,18 +174,36 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 		}
 	}
 
+	deviceDirCleanupCmds := []string{
+		"run rm -rf /" + techDirectory,
+		"mkdir " + techDirectory,
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	dut := ondatra.DUT(t, dutID)
 	sshClient := dut.RawAPIs().CLI(t)
 
-	executeCommandsInParallel(t, ctx, sshClient, commands)
+	for _, cmd := range deviceDirCleanupCmds {
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+				t.Logf("%s> %s",dutID, cmd)
+				t.Log(result.Output())
+			} else {
+				t.Logf("%s> %s",dutID, cmd)
+				t.Log(err.Error())
+			}
+			t.Logf("\n")
+		})
+	}
+
+	executeCommandsInParallel(t, ctx, dutID, sshClient, commands)
 	copyDebugFiles(t, target)
 	t.Logf("Completed executeCommandsForDUT for DUT: %s", dutID)
 }
 
 // executeCommandsInParallel executes commands in parallel
-func executeCommandsInParallel(t *testing.T, ctx context.Context, sshClient binding.CLIClient, commands []string) {
+func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, sshClient binding.CLIClient, commands []string) {
 	t.Log("Starting executeCommandsInParallel")
 	var wg sync.WaitGroup
 	commandResults := make(chan string, len(commands))
@@ -196,9 +214,9 @@ func executeCommandsInParallel(t *testing.T, ctx context.Context, sshClient bind
 			defer wg.Done()
 			testt.CaptureFatal(t, func(t testing.TB) {
 				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-					commandResults <- fmt.Sprintf("> %s\n%s\n", cmd, result.Output())
+					commandResults <- fmt.Sprintf("%s> %s\n%s\n", dutID, cmd, result.Output())
 				} else {
-					commandResults <- fmt.Sprintf("> %s\n%s\n", cmd, err.Error())
+					commandResults <- fmt.Sprintf("%s> %s\n%s\n", dutID, cmd, err.Error())
 				}
 			})
 		}(cmd)
