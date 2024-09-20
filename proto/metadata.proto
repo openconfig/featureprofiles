@@ -153,8 +153,6 @@ message Metadata {
     // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
-    // Device requires gribi-protocol to be enabled under network-instance.
-    bool explicit_gribi_under_network_instance = 40;
     // Device requires port-speed to be set because its default value may not be
     // usable.
     bool explicit_port_speed = 41;
@@ -395,9 +393,6 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 136;
-    // Devices which needs to enable leaf specific flag
-    // Juniper: b/319202763
-    bool enable_flowctrl_flag = 137;
     // Device doesn't support router advertisement enable and mode config
     // Juniper: b/316173974
     bool ipv6_router_advertisement_config_unsupported = 138;
@@ -496,9 +491,6 @@ message Metadata {
     bool use_vendor_native_tag_set_config = 171;
     // Skip setting send-community-type in bgp global config
     bool skip_bgp_send_community_type = 172;
-    // Device does not have a default deny action in the absence of a route
-    // policy
-    bool default_import_export_policy = 173;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
     // Ensure no configurations exist under BGP Peer Groups
@@ -605,9 +597,19 @@ message Metadata {
     // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
     // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
-
+    // Devices which do not support default import export policy.
+    bool default_import_export_policy_unsupported = 213;
+    // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
+    bool ipv6_router_advertisement_interval_unsupported = 214;
+    // Decap NH with NextHopNetworkInstance is unsupported
+    bool decap_nh_with_nexthop_ni_unsupported = 215;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 216;
+    // SFlow source address update is unsupported
+    // Arista: b/357914789
+    bool sflow_source_address_update_unsupported = 217;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
 
   message PlatformExceptions {
