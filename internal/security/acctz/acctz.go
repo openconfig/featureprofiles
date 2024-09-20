@@ -372,7 +372,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
 		RPCPath:              gnmiCapabilitiesPath,
 		Succeeded:            false,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 		ExpectedIdentity:     failUsername,
@@ -394,8 +394,8 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
@@ -403,12 +403,12 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI,
 		RPCPath:              gnmiCapabilitiesPath,
 		RPCPayload:           payload.String(),
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		ExpectedAuthenCause:  "authentication_method: local",
@@ -455,7 +455,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
 		RPCPath:              gnoiPingPath,
 		Succeeded:            false,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 		ExpectedIdentity:     failUsername,
@@ -484,8 +484,8 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
@@ -493,12 +493,12 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNOI,
 		RPCPath:              gnoiPingPath,
 		RPCPayload:           payload.String(),
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		ExpectedAuthenCause:  "authentication_method: local",
@@ -539,7 +539,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
 		RPCPath:              gnsiGetPath,
 		Succeeded:            false,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 		ExpectedIdentity:     failUsername,
@@ -561,8 +561,8 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
@@ -570,12 +570,12 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GNSI,
 		RPCPath:              gnsiGetPath,
 		RPCPayload:           payload.String(),
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		ExpectedAuthenCause:  "authentication_method: local",
@@ -625,7 +625,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCPath:              "/gribi.gRIBI/Get",
 		RPCPayload:           "",
 		Succeeded:            false,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 		ExpectedIdentity:     failUsername,
@@ -657,8 +657,8 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
@@ -666,12 +666,12 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 		RPCPath:              "/gribi.gRIBI/Get",
 		RPCPayload:           payload.String(),
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		ExpectedAuthenCause:  "authentication_method: local",
@@ -710,7 +710,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCPath:              "/p4.v1.P4Runtime/Capabilities",
 		RPCPayload:           "",
 		Succeeded:            false,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 		ExpectedIdentity:     failUsername,
@@ -731,8 +731,8 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
@@ -740,12 +740,12 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []Record {
 		RPCType:              acctz.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 		RPCPath:              "/p4.v1.P4Runtime/Capabilities",
 		RPCPayload:           payload.String(),
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
-		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
+		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_ONCE,
 		ExpectedAuthenType:   acctz.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 		ExpectedAuthenStatus: acctz.AuthnDetail_AUTHN_STATUS_SUCCESS,
 		ExpectedAuthenCause:  "authentication_method: local",
@@ -782,17 +782,17 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
 		Cmd:                  successCliCommand,
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -831,17 +831,17 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_CLI,
 		Cmd:                  failCliCommand,
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
@@ -893,17 +893,17 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []Record {
 	}
 
 	// Remote from the perspective of the router.
-	remoteIp, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIp, localPort := getHostPortInfo(t, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, Record{
 		StartTime:            startTime,
 		DoneTime:             time.Now(),
 		CmdType:              acctz.CommandService_CMD_SERVICE_TYPE_SHELL,
 		Cmd:                  shellCommand,
-		LocalIP:              localIp,
+		LocalIP:              localIP,
 		LocalPort:            localPort,
-		RemoteIP:             remoteIp,
+		RemoteIP:             remoteIP,
 		RemotePort:           remotePort,
 		Succeeded:            true,
 		ExpectedStatus:       acctz.SessionInfo_SESSION_STATUS_OPERATION,
