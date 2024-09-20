@@ -1,11 +1,16 @@
 from pwd import getpwuid
 from random import randint
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
+import logging
 import argparse
+import getpass
 import yaml
 import json
 import time
 import errno
 import os
+
 
 def _find_owner(filename):
     return getpwuid(os.stat(filename).st_uid).pw_name
@@ -87,13 +92,17 @@ def _trylock_helper(tb):
     if not os.getlogin() in allowed_users:
         return False
     lock_file = os.path.join(ldir, tb['hw'])
-    return _lockfile(lock_file)
+    if _lockfile(lock_file):
+        logger.info(f"Testbed {tb['hw']} locked by user {getpass.getuser()}")
+        return True
+    return False
 
 def _release_helper(tb):
     if not tb.get('sim', False) and os.getlogin() in allowed_users:
         lock_file = os.path.join(ldir, tb['hw'])
         if os.path.exists(lock_file):
             os.remove(lock_file)
+            logger.info(f"Testbed {tb['hw']} released by user {getpass.getuser()}")
 
 def _release_all(tbs):
     for tb in tbs:
@@ -176,6 +185,13 @@ with open(os.path.join(__location__, 'users.txt')) as fp:
 ldir = args.locks_dir
 if not os.path.exists(ldir):
     os.makedirs(ldir, mode=0o777, exist_ok=True)
+
+logger = logging.getLogger("tblock")
+logger.setLevel(logging.INFO)
+log_handler = RotatingFileHandler(os.path.join(ldir, "logs.txt"), maxBytes=100000000, backupCount=1)
+log_formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+log_handler.setFormatter(log_formatter)
+logger.addHandler(log_handler)
 
 testbeds = []
 with open(args.testbeds_file, 'r') as fp:
