@@ -579,7 +579,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	if dut.Vendor() == ondatra.CISCO {
+		bgpNbrT.LocalAddress = ygot.String(loopbackIntfName)
+	} else {
+		bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	}
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -1091,6 +1095,8 @@ func TestEncapFrr(t *testing.T) {
 			createFlow(t, otgConfig, otg, ipv4InnerDst)
 			captureState := startCapture(t, args, baseCapturePortList)
 			sendTraffic(t, args, baseCapturePortList, captureState)
+			otgutils.LogPortMetrics(t, otg, args.otgConfig)
+			otgutils.LogFlowMetrics(t, otg, args.otgConfig)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
@@ -1139,23 +1145,41 @@ func TestEncapFrr(t *testing.T) {
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf222NoMatch" {
-				args.client.Modify().AddEntry(t,
-					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1300).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).WithNextHopNetworkInstance(niTEVRF222),
-					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1301).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).WithNextHopNetworkInstance(niTEVRF222),
-
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1000).AddNextHop(1300, 1),
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1001).AddNextHop(1301, 1),
+				client.Modify().DeleteEntry(t,
+					fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
+					fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+						WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
 				)
-				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
-					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+				if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+					t.Logf("Could not delete entries via client, got err, check error codes: %v", err)
 				}
+
+				// restore the entries
+				defer func() {
+					client.Modify().AddEntry(t,
+						fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+							WithPrefix(gribiIPv4EntryVRF2221+"/"+maskLen32).WithNextHopGroup(2),
+						fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+							WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
+					)
+					if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+						t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+					}
+					teVRF222IPList := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222}
+					for ip := range teVRF222IPList {
+						chk.HasResult(t, client.Results(t),
+							fluent.OperationResult().
+								WithIPv4Operation(teVRF222IPList[ip]+"/32").
+								WithOperationType(constants.Add).
+								WithProgrammingResult(fluent.InstalledInFIB).
+								AsResult(),
+							chk.IgnoreOperationID(),
+						)
+					}
+				}()
 			}
+
 			if tc.TestID == "teVrf111NoMatch" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1181,6 +1205,8 @@ func TestEncapFrr(t *testing.T) {
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
 			sendTraffic(t, args, tc.CapturePortList, captureState)
+			otgutils.LogPortMetrics(t, otg, args.otgConfig)
+			otgutils.LogFlowMetrics(t, otg, args.otgConfig)
 			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
 
 			if deviations.EncapTunnelShutBackupNhgZeroTraffic(dut) {
