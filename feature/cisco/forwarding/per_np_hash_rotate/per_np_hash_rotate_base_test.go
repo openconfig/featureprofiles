@@ -188,7 +188,6 @@ func getOFARouterID(t *testing.T, dut *ondatra.DUTDevice, lcloc string) uint32 {
 	ofaGlObj := fmt.Sprintf("show ofa objects global location %v", lcloc)
 
 	attempt := 5
-	cliSplit := []string{}
 	for attempt >= 1 {
 		cliResp := config.CMDViaGNMI(context.Background(), t, dut, ofaGlObj)
 		lines := strings.Split(cliResp, "\n")
@@ -207,7 +206,7 @@ func getOFARouterID(t *testing.T, dut *ondatra.DUTDevice, lcloc string) uint32 {
 			attempt = 0
 		}
 	}
-	cliSplit = strings.Split(lineHavingRouterID, "=> ")
+	cliSplit := strings.Split(lineHavingRouterID, "=> ")
 	rtr = strings.ReplaceAll(cliSplit[1], "\n", "")
 	t.Log("OFA Router-ID is", rtr)
 	rtrID, err := strconv.ParseUint(rtr, 0, 32)
@@ -237,6 +236,6 @@ func setHwProfilePbrVrfRedirect(t *testing.T, dut *ondatra.DUTDevice, setConf bo
 	if !setConf {
 		configCli = configCli + "no "
 	}
-	configCli = configCli + fmt.Sprintf("hw-module profile pbr vrf-redirect")
+	configCli = configCli + "hw-module profile pbr vrf-redirect"
 	config.TextWithGNMI(context.Background(), t, dut, configCli)
 }
