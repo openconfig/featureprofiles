@@ -608,6 +608,9 @@ message Metadata {
     // SFlow source address update is unsupported
     // Arista: b/357914789
     bool sflow_source_address_update_unsupported = 217;
+    // Linklocal mask length is not 64
+    // Cisco: b/368271859
+    bool link_local_mask_len = 218;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
