@@ -17,29 +17,31 @@ Determine LLDP advertisement and reception operates correctly.
         configuration of lldp/interfaces/interface/config/enabled (TRUE or
         FALSE) on any interface.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /lldp/config/enabled
-*   /lldp/interfaces/interface/config/enabled
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-## Telemetry Parameter coverage
+```yaml
+paths:
+  ## Config Paths ##
+  /lldp/config/enabled:
+  /lldp/interfaces/interface/config/enabled:
 
-*   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id
-*   /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-subtype
-*   /lldp/interfaces/interface/neighbors/neighbor/state/port-id
-*   /lldp/interfaces/interface/neighbors/neighbor/state/port-id-subtype
-*   /lldp/interfaces/interface/neighbors/neighbor/state/system-name
-*   /lldp/interfaces/interface/state/name
-*   /lldp/state/chassis-id
-*   /lldp/state/chassis-id-type
-*   /lldp/state/system-name
+  ## State Paths ##
+  /lldp/interfaces/interface/neighbors/neighbor/state/chassis-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/port-id:
+  /lldp/interfaces/interface/neighbors/neighbor/state/system-name:
+  /lldp/interfaces/interface/state/name:
+  /lldp/state/chassis-id:
+  /lldp/state/chassis-id-type:
+  /lldp/state/system-name:
 
-## Protocol/RPC Parameter coverage
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
 
-LLDP:
-
-*   /lldp/config/enabled = true
-*   /lldp/interfaces/interface/config/enabled = true
+```
 
 ## Minimum DUT platform requirement
 
