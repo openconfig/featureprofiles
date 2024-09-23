@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
@@ -111,10 +112,6 @@ func TestCollectDebugFiles(t *testing.T) {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
 	}
 
-	// deviceDirCleanupCmds := []string{
-	// 	"run rm -rf /" + techDirectory,
-	// 	"mkdir " + techDirectory,
-	// }
 	commands := []string{}
 
 	if *coreCheck {
@@ -123,27 +120,13 @@ func TestCollectDebugFiles(t *testing.T) {
 		)
 	}
 
+
 	var wg sync.WaitGroup
 	for dutID, target := range targets.targetInfo {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
 		}
-		// ctx := context.Background()
-		// dut := ondatra.DUT(t, dutID)
-		// sshClient := dut.RawAPIs().CLI(t)
-		// for _, cmd := range deviceDirCleanupCmds {
-		// 	testt.CaptureFatal(t, func(t testing.TB) {
-		// 		if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-		// 			t.Logf("%s> %s",dutID, cmd)
-		// 			t.Log(result.Output())
-		// 		} else {
-		// 			t.Logf("%s> %s",dutID, cmd)
-		// 			t.Log(err.Error())
-		// 		}
-		// 		t.Logf("\n")
-		// 	})
-		// }
 		wg.Add(1)
 		go func(dutID string, target targetInfo) {
 			defer wg.Done()
@@ -179,7 +162,7 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 		"mkdir " + techDirectory,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	dut := ondatra.DUT(t, dutID)
 	sshClient := dut.RawAPIs().CLI(t)
@@ -187,10 +170,10 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 	for _, cmd := range deviceDirCleanupCmds {
 		testt.CaptureFatal(t, func(t testing.TB) {
 			if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-				t.Logf("%s> %s",dutID, cmd)
+				t.Logf("%s> %s", dutID, cmd)
 				t.Log(result.Output())
 			} else {
-				t.Logf("%s> %s",dutID, cmd)
+				t.Logf("%s> %s", dutID, cmd)
 				t.Log(err.Error())
 			}
 			t.Logf("\n")
@@ -204,34 +187,43 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 
 // executeCommandsInParallel executes commands in parallel
 func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, sshClient binding.CLIClient, commands []string) {
-	t.Log("Starting executeCommandsInParallel")
+	t.Log("Starting executeCommandsInParallel for DUT: %s", dutID)
+	exeCommands := make(chan string)
 	var wg sync.WaitGroup
-	commandResults := make(chan string, len(commands))
 
-	for _, cmd := range commands {
+	// Start a fixed number of worker goroutines
+	numWorkers := 4
+	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go func(cmd string) {
+		go func() {
 			defer wg.Done()
-			testt.CaptureFatal(t, func(t testing.TB) {
-				if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-					commandResults <- fmt.Sprintf("%s> %s\n%s\n", dutID, cmd, result.Output())
-				} else {
-					commandResults <- fmt.Sprintf("%s> %s\n%s\n", dutID, cmd, err.Error())
-				}
-			})
-		}(cmd)
+			for cmd := range exeCommands {
+				executeCommand(t, ctx, dutID, sshClient, cmd)
+			}
+		}()
 	}
 
-	go func() {
-		wg.Wait()
-		close(commandResults)
-	}()
-
-	for result := range commandResults {
-		t.Log(result)
+	// iterate the commands and send command  to the workers
+	for _, command := range commands {
+		exeCommands <- command
 	}
-	t.Log("Completed executeCommandsInParallel")
+ 
+	close(exeCommands)
+	wg.Wait()
+	t.Log("Completed executeCommandsInParallel for DUT: %s", dutID)
 }
+
+func executeCommand(t *testing.T, ctx context.Context, dutID string, sshClient binding.CLIClient, cmd string) {
+	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+		t.Logf("%s> %s", dutID, cmd)
+		t.Log(result.Output())
+	} else {
+		t.Logf("%s> %s", dutID, cmd)
+		t.Log(err.Error())
+	}
+	t.Logf("\n")
+}
+
 
 // copyDebugFiles copies debug files from the target to the local machine
 func copyDebugFiles(t *testing.T, d targetInfo) {
