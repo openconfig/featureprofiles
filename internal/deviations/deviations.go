@@ -1146,6 +1146,7 @@ func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
 }
 
+// ComponentMfgDateUnsupported returns true if component's mfg-date leaf is unsupported
 func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
 }
