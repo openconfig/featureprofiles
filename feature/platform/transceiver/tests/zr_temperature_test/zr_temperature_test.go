@@ -75,9 +75,9 @@ func TestZRTemperatureState(t *testing.T) {
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
-	component1 := gnmi.OC().Component(transceiverName)
+	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
-		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, compWithTemperature.SubcomponentAny().State())
 		for _, s := range subcomponents {
 			subc, ok := s.Val()
 			if ok {
@@ -85,21 +85,21 @@ func TestZRTemperatureState(t *testing.T) {
 				if sensorComponent.GetType() == sensorType {
 					scomponent := gnmi.OC().Component(sensorComponent.GetName())
 					if scomponent != nil {
-						component1 = scomponent
+						compWithTemperature = scomponent
 					}
 				}
 			}
 		}
 	}
-	p1StreamInstant := samplestream.New(t, dut1, component1.Temperature().Instant().State(), 10*time.Second)
+	p1StreamInstant := samplestream.New(t, dut1, compWithTemperature.Temperature().Instant().State(), 10*time.Second)
 	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
 	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
 		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
-		p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
-		p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
+		p1StreamAvg := samplestream.New(t, dut1, compWithTemperature.Temperature().Avg().State(), 10*time.Second)
+		p1StreamMin := samplestream.New(t, dut1, compWithTemperature.Temperature().Min().State(), 10*time.Second)
+		p1StreamMax := samplestream.New(t, dut1, compWithTemperature.Temperature().Max().State(), 10*time.Second)
 
 		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
 		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
@@ -140,9 +140,9 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	i.Enabled = ygot.Bool(false)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
-	component1 := gnmi.OC().Component(transceiverName)
+	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
-		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, compWithTemperature.SubcomponentAny().State())
 		for _, s := range subcomponents {
 			subc, ok := s.Val()
 			if ok {
@@ -150,16 +150,16 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 				if sensorComponent.GetType() == sensorType {
 					scomponent := gnmi.OC().Component(sensorComponent.GetName())
 					if scomponent != nil {
-						component1 = scomponent
+						compWithTemperature = scomponent
 					}
 				}
 			}
 		}
 	}
-	p1StreamInstant := samplestream.New(t, dut1, component1.Temperature().Instant().State(), 10*time.Second)
-	p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
-	p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
-	p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
+	p1StreamInstant := samplestream.New(t, dut1, compWithTemperature.Temperature().Instant().State(), 10*time.Second)
+	p1StreamAvg := samplestream.New(t, dut1, compWithTemperature.Temperature().Avg().State(), 10*time.Second)
+	p1StreamMin := samplestream.New(t, dut1, compWithTemperature.Temperature().Min().State(), 10*time.Second)
+	p1StreamMax := samplestream.New(t, dut1, compWithTemperature.Temperature().Max().State(), 10*time.Second)
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
