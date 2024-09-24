@@ -608,11 +608,14 @@ message Metadata {
     // SFlow source address update is unsupported
     // Arista: b/357914789
     bool sflow_source_address_update_unsupported = 217;
+    // Linklocal mask length is not 64
+    // Cisco: b/368271859
+    bool link_local_mask_len = 218;
     //  Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
     // Juniper: b/353280742
-    bool gribi_unresolvable_nexthops_unsupported = 218;
+    bool gribi_unresolvable_nexthops_unsupported = 219;
     //  Devices requires autonegotiation to be disabled and requires port speed and duplex to be set.
-    bool explicit_auto_negotiation_disable_required = 219;
+    bool explicit_auto_negotiation_disable_required = 220;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

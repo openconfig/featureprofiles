@@ -1136,6 +1136,11 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
 
+// LinklocalMaskLen returns true if linklocal mask length is not 64
+func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
+}
+
 // GRIBIUnresolvableNexthopsUnsupported returns true when devices do not support programming
 // gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
 func GRIBIUnresolvableNexthopsUnsupported(dut *ondatra.DUTDevice) bool {
