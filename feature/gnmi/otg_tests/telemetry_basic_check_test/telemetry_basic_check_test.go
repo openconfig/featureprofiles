@@ -15,6 +15,7 @@
 package telemetry_basic_check_test
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -399,9 +400,8 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
 			break
 		}
-		gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Type().State())
-		got, present := gotV.Val()
-		if present && got == chassisType {
+		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
+		if got == chassisType {
 			t.Logf("Found chassis component as an ancestor of component %s", comp)
 			break
 		}
@@ -779,33 +779,6 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.P
 	return inPkts, outPkts
 }
 
-func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice,
-	dp1, dp2 *ondatra.Port, inTarget, outTarget uint64) (uint64, uint64) {
-	inWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(),
-		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
-			got, present := v.Val()
-			return present && got >= inTarget
-		})
-
-	outWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(),
-		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
-			got, present := v.Val()
-			return present && got >= outTarget
-		})
-
-	inPktsV, ok := inWatcher.Await(t)
-	if !ok {
-		t.Fatalf("InPkts counter did not update in time")
-	}
-	outPktsV, ok := outWatcher.Await(t)
-	if !ok {
-		t.Fatalf("OutPkts counter did not update in time")
-	}
-	inPkts, _ := inPktsV.Val()
-	outPkts, _ := outPktsV.Val()
-	return inPkts, outPkts
-}
-
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -876,26 +849,20 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 
 	otgutils.LogFlowMetrics(t, otg, config)
-	ateInPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
-	ateOutPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	ateInPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
+	ateOutPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
 
 	if ateOutPkts == 0 {
 		t.Errorf("Get(out packets for flow %q: got %v, want nonzero", flowName, ateOutPkts)
 	}
-	lossPct := float32((ateOutPkts-ateInPkts)*100) / float32(ateOutPkts)
+	lossPct := (ateOutPkts - ateInPkts) * 100 / ateOutPkts
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
-	if deviations.InterfaceCountersUpdateDelayed(dut) {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2,
-			dutInPktsBeforeTraffic+uint64(ateOutPkts), dutOutPktsBeforeTraffic+uint64(ateOutPkts))
-	} else {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateOutPkts) {
+	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
 		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
 	}
 	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
@@ -953,10 +920,58 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func explicitP4RTNodes() map[string]string {
+	return map[string]string{
+		"port1": *args.P4RTNodeName1,
+		"port2": *args.P4RTNodeName2,
+	}
+}
+
+var nokiaPortNameRE = regexp.MustCompile("ethernet-([0-9]+)/([0-9]+)")
+
+// inferP4RTNodesNokia infers the P4RT node name from the port name for Nokia devices.
+func inferP4RTNodesNokia(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
+	res := make(map[string]string)
+	for _, p := range dut.Ports() {
+		m := nokiaPortNameRE.FindStringSubmatch(p.Name())
+		if len(m) != 3 {
+			continue
+		}
+
+		fpc := m[1]
+		port, err := strconv.Atoi(m[2])
+		if err != nil {
+			t.Fatalf("Error generating P4RT Node Name: %v", err)
+		}
+		asic := 0
+		if port > 18 {
+			asic = 1
+		}
+		res[p.ID()] = fmt.Sprintf("SwitchChip%s/%d", fpc, asic)
+	}
+
+	if _, ok := res["port1"]; !ok {
+		res["port1"] = *args.P4RTNodeName1
+	}
+	if _, ok := res["port2"]; !ok {
+		res["port2"] = *args.P4RTNodeName2
+	}
+	return res
+}
+
 // P4RTNodesByPort returns a map of <portID>:<P4RTNodeName> for the reserved ondatra
 // ports using the component and the interface OC tree.
 func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 	t.Helper()
+	if deviations.ExplicitP4RTNodeComponent(dut) {
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			return inferP4RTNodesNokia(t, dut)
+		default:
+			return explicitP4RTNodes()
+		}
+	}
+
 	ports := make(map[string][]string) // <hardware-port>:[<portID>]
 	for _, p := range dut.Ports() {
 		hp := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
