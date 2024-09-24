@@ -15,11 +15,10 @@
 package cfgplugins
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -33,30 +32,6 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
-// opticalChannelComponentFromPort returns the name of the optical channel component for the given
-// port.
-func opticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
-	t.Helper()
-	if deviations.MissingPortToOpticalChannelMapping(dut) {
-		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-		return fmt.Sprintf("%s-Optical0", transceiverName)
-	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
-	}
-}
-
 // InterfaceConfig configures the interface with the given port.
 func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
@@ -65,8 +40,9 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+	gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
 	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
 		Frequency:         ygot.Uint64(targetFrequencyMHz),
@@ -76,7 +52,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
 func ValidateInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	t.Helper()
-	ocComponent := opticalChannelComponentFromPort(t, dut, dp)
+	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
 
 	outputPower := gnmi.Get(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().TargetOutputPower().State())
