@@ -12,7 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"strconv"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
@@ -120,7 +119,6 @@ func TestCollectDebugFiles(t *testing.T) {
 		)
 	}
 
-
 	var wg sync.WaitGroup
 	for dutID, target := range targets.targetInfo {
 		fileNamePrefix := ""
@@ -207,7 +205,7 @@ func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, 
 	for _, command := range commands {
 		exeCommands <- command
 	}
- 
+
 	close(exeCommands)
 	wg.Wait()
 	t.Log("Completed executeCommandsInParallel for DUT: %s", dutID)
@@ -223,7 +221,6 @@ func executeCommand(t *testing.T, ctx context.Context, dutID string, sshClient b
 	}
 	t.Logf("\n")
 }
-
 
 // copyDebugFiles copies debug files from the target to the local machine
 func copyDebugFiles(t *testing.T, d targetInfo) {
