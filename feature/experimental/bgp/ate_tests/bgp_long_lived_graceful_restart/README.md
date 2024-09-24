@@ -76,9 +76,15 @@ BGP Long-Lived Graceful Restart
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received 
 *   /neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised 
 
-## Protocol/RPC Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-N/A
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
 
 ## Minimum DUT platform requirement
 

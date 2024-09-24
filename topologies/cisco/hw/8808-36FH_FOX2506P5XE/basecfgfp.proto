@@ -383,6 +383,7 @@ replace: {
   "ssh server vrf default\n"
   "hw-module profile pbr vrf-redirect\n"
   "hw-module profile qos qos-stats-push-collection\n"
+  "logging buffered 100000000\n"
   "!\n"
   "end\n"
   }

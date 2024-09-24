@@ -20,10 +20,12 @@ package per_np_hash_rotate_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
@@ -37,11 +39,61 @@ const (
 	lbHashSeparationOffset = 7
 )
 
-// setperNPHashConfig configures per NP hash-rotate valie for a LC with
+// setperNPHashConfig configures per NP hash-rotate value for an LC with
 // cef platform load-balancing algorithm adjust <> instance <> location <>.
-func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int, lcLoc string) {
+func setPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal, npVal int, lcLoc string, setConf bool) {
 	t.Helper()
-	configCli := fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v", hashVal, npVal, lcLoc)
+	var configCli string
+	if !setConf {
+		configCli = configCli + "no "
+	}
+	configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v", hashVal, npVal, lcLoc)
+	config.TextWithGNMI(context.Background(), t, dut, configCli)
+}
+
+type NpuHash struct {
+	hashValMap  map[string][]int
+	npList      []int
+	unsetConfig string
+}
+
+// setBulkperNPHashConfig configures per NP hash-rotate value for a list of LCs with
+// cef platform load-balancing algorithm adjust <> instance <> location <>.
+func (h *NpuHash) setBulkPerNPHashConfig(t *testing.T, dut *ondatra.DUTDevice, lcs []string, setConf bool) {
+	if !setConf {
+		if h.unsetConfig == "" {
+			t.Errorf("No config to unset")
+		} else {
+			config.TextWithGNMI(context.Background(), t, dut, h.unsetConfig)
+		}
+	} else {
+		var configCli, unConfigCli string
+		hashValMap := make(map[string][]int)
+		for _, lcLoc := range lcs {
+			for _, npVal := range h.npList {
+				npHash := rand.Intn(34) + 1 //Random value between 1-35
+				hashValMap[lcLoc] = append(hashValMap[lcLoc], npHash)
+
+				cmd := fmt.Sprintf("cef platform load-balancing algorithm adjust %v instance %v location %v\n", npHash, npVal, lcLoc)
+				configCli = configCli + cmd
+				unConfigCli = unConfigCli + "no " + cmd
+			}
+		}
+		h.hashValMap = hashValMap
+		h.unsetConfig = unConfigCli
+		config.TextWithGNMI(context.Background(), t, dut, configCli)
+	}
+}
+
+// setGlobalNPHashConfig configures per NP hash-rotate value for an LC with
+// cef platform load-balancing algorithm adjust <>.
+func setGlobalHashConfig(t *testing.T, dut *ondatra.DUTDevice, hashVal int, setConf bool) {
+	t.Helper()
+	var configCli string
+	if !setConf {
+		configCli = configCli + "no "
+	}
+	configCli = configCli + fmt.Sprintf("cef platform load-balancing algorithm adjust %d", hashVal)
 	config.TextWithGNMI(context.Background(), t, dut, configCli)
 }
 
@@ -75,13 +127,13 @@ func verifyPerNPHashCLIVal(cliHashVal int) int {
 
 // getPerLCPerNPHashValTable returns a map of LC and corresponding per NP hash rotate value using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val_all_npu" location <LC#> CLI.
-func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice) map[string][]int {
-	t.Helper()
+func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice, lcList []string) map[string][]int {
 	hashValMap := make(map[string][]int)
-	//get per LC per NP hash-rotate value from the device
+	// get per LC per NP hash-rotate value from the device
 	for _, lc := range lcList {
 		debugCLI := fmt.Sprintf("show controllers npu debugshell 0 'script device_hash_rotate_info get_val_all_npu' location %v", lc)
 		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
+		t.Log("debug cli output:\n", cliResp)
 		npList := parseDebugCLIOutput(t, cliResp)
 		hashValMap[lc] = npList
 	}
@@ -91,13 +143,23 @@ func getPerLCPerNPHashTable(t *testing.T, dut *ondatra.DUTDevice) map[string][]i
 // getPerLCPerNPHashVal returns int val for a given NP and LC using
 // show controllers npu debugshell 0 "script device_hash_rotate_info get_val" location <LC#> CLI.
 func getPerLCPerNPHashVal(t *testing.T, dut *ondatra.DUTDevice, np int, lc string) int {
-	t.Helper()
 	var hashVal int
 	//get per LC per NP hash-rotate value from the device
 	debugCLI := fmt.Sprintf("show controllers npu debugshell %v 'script device_hash_rotate_info get_val' location %v", np, lc)
-	cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
-	npList := parseDebugCLIOutput(t, cliResp)
-	hashVal = npList[0]
+	attempt := 3
+	for attempt >= 1 {
+		cliResp := config.CMDViaGNMI(context.Background(), t, dut, debugCLI)
+		npList := parseDebugCLIOutput(t, cliResp)
+		t.Logf("debug cli output and nplist %v\n%v", debugCLI, npList)
+		if len(npList) > 0 {
+			hashVal = npList[0]
+			break
+		} else {
+			attempt = attempt - 1
+			time.Sleep(5 * time.Second)
+		}
+	}
+
 	return hashVal
 }
 
@@ -122,10 +184,29 @@ func parseDebugCLIOutput(t *testing.T, cliOut string) []int {
 
 // getOFARouterID returns uint32 OFA router-id using show ofa objects global location <> CLI.
 func getOFARouterID(t *testing.T, dut *ondatra.DUTDevice, lcloc string) uint32 {
-	var rtr string
-	ofaGlObj := fmt.Sprintf("show ofa objects global location %v | include router", lcloc)
-	cliResp := config.CMDViaGNMI(context.Background(), t, dut, ofaGlObj)
-	cliSplit := strings.Split(cliResp, "=> ")
+	var rtr, lineHavingRouterID string
+	ofaGlObj := fmt.Sprintf("show ofa objects global location %v", lcloc)
+
+	attempt := 5
+	for attempt >= 1 {
+		cliResp := config.CMDViaGNMI(context.Background(), t, dut, ofaGlObj)
+		lines := strings.Split(cliResp, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "router_id") {
+				lineHavingRouterID = line
+				break
+			}
+		}
+		if lineHavingRouterID == "" {
+			t.Log("Router-ID not found in the CLI output. Retrying...\n", cliResp)
+			attempt = attempt - 1
+			time.Sleep(5 * time.Second)
+			continue
+		} else {
+			attempt = 0
+		}
+	}
+	cliSplit := strings.Split(lineHavingRouterID, "=> ")
 	rtr = strings.ReplaceAll(cliSplit[1], "\n", "")
 	t.Log("OFA Router-ID is", rtr)
 	rtrID, err := strconv.ParseUint(rtr, 0, 32)
@@ -146,4 +227,15 @@ func getPIRouterID(t *testing.T, dut *ondatra.DUTDevice) string {
 	cliRep2 := strings.ReplaceAll(cliSplit2[0], " ", "")
 	id = cliRep2
 	return id
+}
+
+// setHwProfilePbrVrfRedirect configures hw-module profile pbr vrf-redirect CLI.
+func setHwProfilePbrVrfRedirect(t *testing.T, dut *ondatra.DUTDevice, setConf bool) {
+	t.Helper()
+	var configCli string
+	if !setConf {
+		configCli = configCli + "no "
+	}
+	configCli = configCli + "hw-module profile pbr vrf-redirect"
+	config.TextWithGNMI(context.Background(), t, dut, configCli)
 }
