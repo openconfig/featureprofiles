@@ -185,7 +185,7 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 
 // executeCommandsInParallel executes commands in parallel
 func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, sshClient binding.CLIClient, commands []string) {
-	t.Log("Starting executeCommandsInParallel for DUT: %s", dutID)
+	t.Logf("Starting executeCommandsInParallel for DUT: %s", dutID)
 	exeCommands := make(chan string)
 	var wg sync.WaitGroup
 
@@ -208,7 +208,7 @@ func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, 
 
 	close(exeCommands)
 	wg.Wait()
-	t.Log("Completed executeCommandsInParallel for DUT: %s", dutID)
+	t.Logf("Completed executeCommandsInParallel for DUT: %s", dutID)
 }
 
 func executeCommand(t *testing.T, ctx context.Context, dutID string, sshClient binding.CLIClient, cmd string) {
