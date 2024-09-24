@@ -1135,3 +1135,12 @@ func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
+
+// UseParentComponentForTemperatureTelemetry returns true if parent component supports temperature telemetry
+func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
+}
+
+func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
+}

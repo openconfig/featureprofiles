@@ -608,6 +608,10 @@ message Metadata {
     // SFlow source address update is unsupported
     // Arista: b/357914789
     bool sflow_source_address_update_unsupported = 217;
+    // use parent component for temperature telemetry
+    bool use_parent_component_for_temperature_telemetry = 218;
+    // component manufactured date is unsupported
+    bool component_mfg_date_unsupported = 219;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

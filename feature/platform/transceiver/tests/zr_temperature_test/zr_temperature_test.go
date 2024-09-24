@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -30,10 +30,7 @@ import (
 )
 
 const (
-	sensorType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
-	dp16QAM           = 1
-	targetOutputPower = -10
-	frequency         = 193500000
+	sensorType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
 )
 
 func TestMain(m *testing.M) {
@@ -43,19 +40,6 @@ func TestMain(m *testing.M) {
 // Topology:
 //
 //	dut:port1 <--> port2:dut
-
-func interfaceConfig(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port) {
-	d := &oc.Root{}
-	i := d.GetOrCreateInterface(dp.Name())
-	i.Enabled = ygot.Bool(true)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	OCcomponent := components.OpticalChannelComponentFromPort(t, dut1, dp)
-	gnmi.Replace(t, dut1, gnmi.OC().Component(OCcomponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPower),
-		Frequency:         ygot.Uint64(frequency),
-	})
-}
 
 func verifyTemperatureSensorValue(t *testing.T, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
 	temperatureSample := pStream.Next()
@@ -83,8 +67,8 @@ func TestZRTemperatureState(t *testing.T) {
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
 	intUpdateTime := 2 * time.Minute
-	interfaceConfig(t, dut1, dp1)
-	interfaceConfig(t, dut1, dp2)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR
@@ -92,15 +76,17 @@ func TestZRTemperatureState(t *testing.T) {
 		t.Fatalf("%s Transceiver is not 400ZR its of type: %v", transceiverName, dp1.PMD())
 	}
 	component1 := gnmi.OC().Component(transceiverName)
-	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
-	for _, s := range subcomponents {
-		subc, ok := s.Val()
-		if ok {
-			sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
-			if sensorComponent.GetType() == sensorType {
-				scomponent := gnmi.OC().Component(sensorComponent.GetName())
-				if scomponent != nil {
-					component1 = scomponent
+	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
+		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+		for _, s := range subcomponents {
+			subc, ok := s.Val()
+			if ok {
+				sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
+				if sensorComponent.GetType() == sensorType {
+					scomponent := gnmi.OC().Component(sensorComponent.GetName())
+					if scomponent != nil {
+						component1 = scomponent
+					}
 				}
 			}
 		}
@@ -139,8 +125,8 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	interfaceConfig(t, dut1, dp1)
-	interfaceConfig(t, dut1, dp2)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	intUpdateTime := 2 * time.Minute
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
@@ -152,17 +138,20 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(false)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	component1 := gnmi.OC().Component(transceiverName)
-	subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
-	for _, s := range subcomponents {
-		subc, ok := s.Val()
-		if ok {
-			sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
-			if sensorComponent.GetType() == sensorType {
-				scomponent := gnmi.OC().Component(sensorComponent.GetName())
-				if scomponent != nil {
-					component1 = scomponent
+	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
+		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, component1.SubcomponentAny().State())
+		for _, s := range subcomponents {
+			subc, ok := s.Val()
+			if ok {
+				sensorComponent := gnmi.Get[*oc.Component](t, dut1, gnmi.OC().Component(subc.GetName()).State())
+				if sensorComponent.GetType() == sensorType {
+					scomponent := gnmi.OC().Component(sensorComponent.GetName())
+					if scomponent != nil {
+						component1 = scomponent
+					}
 				}
 			}
 		}
@@ -171,7 +160,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	p1StreamAvg := samplestream.New(t, dut1, component1.Temperature().Avg().State(), 10*time.Second)
 	p1StreamMin := samplestream.New(t, dut1, component1.Temperature().Min().State(), 10*time.Second)
 	p1StreamMax := samplestream.New(t, dut1, component1.Temperature().Max().State(), 10*time.Second)
-	// Wait 120 sec cooling off period
+	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
