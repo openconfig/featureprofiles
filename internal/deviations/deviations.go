@@ -1136,7 +1136,7 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
 
-// LinklocalMaskLen returns true if linklocal mask length is not 64
+// LinkLocalMaskLen returns true if linklocal mask length is not 64
 func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
 }
