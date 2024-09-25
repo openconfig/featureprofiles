@@ -83,9 +83,8 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	for _, port := range ports {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
-			streamFecOtn := &samplestream.SampleStream[uint64]{}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-			streamFecOtn = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+			streamFecOtn := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
 			defer streamFecOtn.Close()
 			validateFecUncorrectableBlocks(t, streamFecOtn)
 
