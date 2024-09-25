@@ -1,6 +1,7 @@
 package zr_logical_channels_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 const (
 	targetOutputPower = -9
 	frequency         = 193100000
-	dp16QAM           = 1
 	samplingInterval  = 10 * time.Second
 	timeout           = 10 * time.Minute
 	otnIndex1         = uint32(4001)
@@ -33,12 +33,13 @@ var (
 		IPv4:    "192.0.2.1",
 		IPv4Len: 30,
 	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
 	}
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +48,11 @@ func TestMain(m *testing.M) {
 
 func Test400ZRLogicalChannels(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -61,10 +66,10 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(p2.Name()).Transceiver().State())
 
-	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc1, otnIndex1, ethernetIndex1)
 	cfgplugins.ConfigETHChannel(t, dut, p1.Name(), tr1, otnIndex1, ethernetIndex1)
-	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc2, otnIndex2, ethernetIndex2)
 	cfgplugins.ConfigETHChannel(t, dut, p2.Name(), tr2, otnIndex2, ethernetIndex2)
 

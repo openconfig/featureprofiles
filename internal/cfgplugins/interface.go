@@ -78,6 +78,7 @@ func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnable
 
 // ConfigOpticalChannel configures the optical channel.
 func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+	gnmi.Update(t, dut, gnmi.OC().Component(och).Name().Config(), och)
 	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		OperationalMode:   ygot.Uint16(operationalMode),
 		Frequency:         ygot.Uint64(frequency),

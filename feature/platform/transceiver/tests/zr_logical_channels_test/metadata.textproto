@@ -14,3 +14,12 @@ platform_exceptions: {
     missing_port_to_optical_channel_component_mapping: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}
