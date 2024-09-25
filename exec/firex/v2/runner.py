@@ -1147,7 +1147,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir, inactivity_timeout=0)
     except Exception as error:
         logger.warning(f'Failed to collect debug files with error: {error}') 
     finally:
