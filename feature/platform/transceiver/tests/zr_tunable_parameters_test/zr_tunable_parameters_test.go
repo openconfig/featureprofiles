@@ -1,13 +1,11 @@
 package zr_tunable_parameters_test
 
 import (
-	"flag"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -18,7 +16,9 @@ import (
 )
 
 const (
+	samplingInterval   = 10 * time.Second
 	frequencyTolerance = 1800
+	dp16QAM            = 1
 )
 
 var (
@@ -32,28 +32,20 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
 	}
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
-
 func Test400ZRTunableFrequency(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
 	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), 10*time.Second)
 	defer streamOC1.Close()
 	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), 10*time.Second)
@@ -91,12 +83,12 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
-						OperationalMode:   ygot.Uint16(operationalMode),
+						OperationalMode:   ygot.Uint16(dp16QAM),
 					})
 					gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
-						OperationalMode:   ygot.Uint16(operationalMode),
+						OperationalMode:   ygot.Uint16(dp16QAM),
 					})
 					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -106,21 +98,15 @@ func Test400ZRTunableFrequency(t *testing.T) {
 		})
 	}
 }
-
 func Test400ZRTunableOutputPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
 	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), 10*time.Second)
 	defer streamOC1.Close()
 	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), 10*time.Second)
@@ -149,12 +135,12 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
-					OperationalMode:   ygot.Uint16(operationalMode),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				})
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
-					OperationalMode:   ygot.Uint16(operationalMode),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				})
 				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -163,21 +149,15 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 		}
 	}
 }
-
 func Test400ZRInterfaceFlap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
-	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
+	oc1 := opticalChannelFromPort(t, dut, p1)
+	oc2 := opticalChannelFromPort(t, dut, p2)
 	streamOC1 := samplestream.New(t, dut, gnmi.OC().Component(oc1).State(), 10*time.Second)
 	defer streamOC1.Close()
 	streamOC2 := samplestream.New(t, dut, gnmi.OC().Component(oc2).State(), 10*time.Second)
@@ -187,12 +167,12 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
-		OperationalMode:   ygot.Uint16(operationalMode),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
-		OperationalMode:   ygot.Uint16(operationalMode),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	})
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -221,7 +201,6 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component]{streamOC1, streamOC2}, frequency, targetPower)
 	})
 }
-
 func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component], frequency uint64, outputPower float64) {
 	dut := ondatra.DUT(t, "dut")
 	var ocs []*oc.Component_OpticalChannel
@@ -243,7 +222,7 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		avg := oc.GetCarrierFrequencyOffset().GetAvg()
 		min := oc.GetCarrierFrequencyOffset().GetMin()
 		max := oc.GetCarrierFrequencyOffset().GetMax()
-		if got, want := opm, uint16(operationalMode); got != want {
+		if got, want := opm, uint16(dp16QAM); got != want {
 			t.Errorf("Optical-Channel: operational-mode: got %v, want %v", got, want)
 		}
 		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
@@ -299,4 +278,11 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			t.Errorf("Optical-Channel: frequency: %v, want: %v", got, want)
 		}
 	}
+}
+
+// opticalChannelFromPort returns the connected optical channel component name for a given ondatra port.
+func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 }
