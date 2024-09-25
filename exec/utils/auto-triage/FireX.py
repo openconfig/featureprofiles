@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import json
 import glob
+import datetime
 
 
 class FireX:
@@ -29,7 +30,7 @@ class FireX:
             })
         return testsuites_metadata
     
-    def get_testsuites(self, vectorstore, file, run_info):
+    def get_testsuites(self, vectorstore, ddts, database, file, run_info):
         tree = ET.parse(file)
         root = tree.getroot()
 
@@ -41,8 +42,9 @@ class FireX:
             testcases = testsuite.findall("testcase")
 
             failures_count = int(stats.get("failures", 0))
+            errors_count = int(stats.get("errors", 0))
 
-            if failures_count == 0: 
+            if failures_count == 0 and errors_count == 0: 
                 continue
 
             data = {
@@ -52,11 +54,12 @@ class FireX:
                 "lineup": run_info["lineup"],
                 "tests": int(stats.get("tests", 0)),
                 "failures": failures_count,
-                "errors": int(stats.get("errors", 0)),
+                "errors": errors_count,
                 "disabled": int(stats.get("disabled", 0)),
                 "skipped": int(stats.get("skipped", 0)),
                 "timestamp" : str(stats.get("timestamp", 0)),
-                "testcases": []
+                "testcases": [],
+                "bugs": []
             }
 
             keys = [
@@ -73,8 +76,29 @@ class FireX:
                         "value"
                     )
 
-            for testcase in testcases:
+            existing_bugs, existing = database.inherit_bugs(data["group"], data["plan_id"])
 
+            if existing:
+                for bug in existing_bugs[0]["bugs"]:
+                    name = bug["name"]
+                    if bug["type"] == "DDTS":
+                        document = ddts.search(name)
+                        if document and document.get("CLOSED", None) is None:
+                            data["bugs"].append({
+                                "name": name,
+                                "type": bug["type"],
+                                "username": "Cisco InstaTriage",
+                                "updated": datetime.datetime.now()
+                            })
+                    elif bug["type"] == "TechZone":
+                        data["bugs"].append({
+                            "name": name,
+                            "type": bug["type"],
+                            "username": "Cisco InstaTriage",
+                            "updated": datetime.datetime.now()
+                        })
+                    
+            for testcase in testcases:
                 failure = testcase.find("failure")
 
                 testcase_data = {
@@ -82,7 +106,12 @@ class FireX:
                     "time": float(testcase.get("time"))
                 }
 
-                if failure is None:
+                if errors_count > 0:
+                    # Aborted
+                    testcase_data["status"] = "aborted"
+                    testcase_data["triage_status"] = "New"
+                    testcase_data["label"] = ""
+                elif failure is None:
                     # Passed Testcase
                     testcase_data["status"] = "passed"
                     testcase_data["label"] = "Test Passed. No Label Required."

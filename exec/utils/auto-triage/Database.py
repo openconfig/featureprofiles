@@ -1,4 +1,6 @@
 from pymongo import MongoClient
+import datetime
+from bson import ObjectId
 
 class Database:
     def __init__(self):
@@ -60,4 +62,36 @@ class Database:
         if document:
             return True
         return False
+
+    def inherit_bugs(self, group, plan):
+        day = datetime.datetime.now() - datetime.timedelta(days = 2)
+        id = ObjectId.from_datetime(day)
+
+        bugs = list(self._data.aggregate([
+            {
+                '$match': {
+                    "_id": {
+                        "$gt": id
+                    },
+                    'group': group, 
+                    'plan_id': plan, 
+                    'bugs.0': {
+                        '$exists': True,
+
+                    }
+                }
+            },
+            {
+                "$sort": {
+                    "_id": -1
+                }
+            },
+            {
+                '$project': {
+                    'bugs': 1
+                }
+            }
+        ]))     
+
+        return bugs, len(bugs) > 0
 

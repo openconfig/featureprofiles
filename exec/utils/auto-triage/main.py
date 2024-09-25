@@ -3,6 +3,7 @@ import argparse
 from Database import Database
 from FireX import FireX
 from Vectorstore import Vectorstore
+from DDTS import DDTS
 
 
 parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
@@ -13,6 +14,7 @@ args = parser.parse_args()
 database = Database()
 firex = FireX()
 vectorstore = Vectorstore()
+ddts = DDTS()
 
 def main():
     # Get Metdata from run.json
@@ -30,7 +32,7 @@ def main():
     vectorstore.create_index(datapoints)
     
     # Add Testsuite Data
-    documents = firex.get_testsuites(vectorstore, args.xunit_file, run_info)
+    documents = firex.get_testsuites(vectorstore, ddts, database, args.xunit_file, run_info)
 
     database.insert_logs(documents)
 
