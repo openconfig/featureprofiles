@@ -1,7 +1,6 @@
 package zr_pm_test
 
 import (
-	"flag"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 )
 
 const (
+	dp16QAM             = uint16(1)
 	samplingInterval    = 10 * time.Second
 	minAllowedQValue    = 7.0
 	maxAllowedQValue    = 14.0
@@ -26,6 +26,7 @@ const (
 	inactivePreFECBER   = 0.0
 	inactiveESNR        = 0.0
 	timeout             = 10 * time.Minute
+	flapInterval        = 30 * time.Second
 	otnIndexBase        = uint32(4000)
 	ethernetIndexBase   = uint32(40000)
 )
@@ -33,8 +34,6 @@ const (
 var (
 	frequencies         = []uint64{191400000, 196100000}
 	targetOpticalPowers = []float64{-9, -13}
-	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
-	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -43,11 +42,7 @@ func TestMain(m *testing.M) {
 
 func TestPM(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
+
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	var (
@@ -76,7 +71,7 @@ func TestPM(t *testing.T) {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
 			for _, p := range dut.Ports() {
-				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
+				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, dp16QAM)
 				cfgplugins.ConfigOTNChannel(t, dut, ochs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
 				cfgplugins.ConfigETHChannel(t, dut, p.Name(), trs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
 			}
