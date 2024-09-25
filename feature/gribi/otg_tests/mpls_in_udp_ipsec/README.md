@@ -1,4 +1,4 @@
-# TE-18.6 gRIBI MPLS in UDP Encapsulation for IPSec
+# TE-18.6 gRIBI MPLS in UDP encapsulation for IPSec
 
 Use the gRIBI applied ip entries from TE-18.1 gRIBI. Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate matching packets with IPSec encryption in MPLS in UDP.
@@ -94,7 +94,7 @@ network_instances: {
               dst_udp_port: "outer_dst_udp_port"
               ip_ttl: "outer_ip-ttl"
               dscp: "outer_dscp"
-              key_chain_name: "ipsec_keychain"
+              key_chain_name: "ipsec_keychain"  # TODO updating the OC aft models to support key_chain_name
             }
           }
         }
@@ -162,6 +162,9 @@ network_instances: {
 
 ```yaml
 paths:
+  # keychain config
+  /keychains/keychain/keys/key/send-lifetime/config/start-time
+  /keychains/keychain/keys/key/send-lifetime/config/end-time
 
   # qos classifier config
   /qos/classifiers/classifier/config/name:
