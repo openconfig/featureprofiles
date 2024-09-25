@@ -1140,3 +1140,18 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
 }
+
+// OTNChannelTRIBUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
+func OTNChannelTRIBUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
+}
+
+// ETHChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
+func ETHChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
+}
+
+// FECUncorrectableBlocksUnsupported returns true if FEC uncorrectable blocks are unsupported
+func FECUncorrectableBlocksUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFecUncorrectableBlocksUnsupported()
+}

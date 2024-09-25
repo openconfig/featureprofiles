@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -83,10 +84,14 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	for _, port := range ports {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
-
+			streamFecOtn := &samplestream.SampleStream[uint64]{}
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-
-			streamFecOtn := samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+			if deviations.FECUncorrectableBlocksUnsupported(dut) {
+				streamFecOtn = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableWords().State(), sampleInterval)
+				// for validation, validateFecUncorrectableBlocks can be used as the type (uint64) is same for FecUncorrectableWords and FecUncorrectableBlocks
+			} else {
+				streamFecOtn = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndexes[dp.Name()]).Otn().FecUncorrectableBlocks().State(), sampleInterval)
+			}
 			defer streamFecOtn.Close()
 			validateFecUncorrectableBlocks(t, streamFecOtn)
 
@@ -98,13 +103,13 @@ func TestZrUncorrectableFrames(t *testing.T) {
 			// Disable interface
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			// Wait for the cooling off period
+			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			// Enable interface
 			i.Enabled = ygot.Bool(true)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			// Wait for the cooling off period
+			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 			validateFecUncorrectableBlocks(t, streamFecOtn)

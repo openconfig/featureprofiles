@@ -558,7 +558,7 @@ message Metadata {
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
     // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
-    bool community_match_with_redistribution_unsupported = 195;  
+    bool community_match_with_redistribution_unsupported = 195;
     // Devices that do not support components/component/state/install-component
     // and components/component/state/install-position.
     bool install_position_and_install_component_unsupported = 196;
@@ -611,6 +611,12 @@ message Metadata {
     // Linklocal mask length is not 64
     // Cisco: b/368271859
     bool link_local_mask_len = 218;
+    // trib protocol field under otn channel config unsupported
+    bool otn_channel_trib_unsupported = 219;
+    // ingress parameters under eth channel config unsupported
+    bool eth_channel_ingress_parameters_unsupported = 220;
+    // FEC uncorrectable blocks unsupported
+    bool fec_uncorrectable_blocks_unsupported = 221;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
