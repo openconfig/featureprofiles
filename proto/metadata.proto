@@ -575,7 +575,7 @@ message Metadata {
     // weighted ecmp feature verification using fixed packet
     bool weighted_ecmp_fixed_packet_verification = 202;
     // Override default NextHop scale while enabling encap/decap scale
-    // CISCO: 
+    // CISCO:
     bool override_default_nh_scale = 203;
     // Devices that donot support setting bgp extended community set
     bool bgp_extended_community_set_unsupported = 204;
@@ -611,10 +611,14 @@ message Metadata {
     // Linklocal mask length is not 64
     // Cisco: b/368271859
     bool link_local_mask_len = 218;
+    // use parent component for temperature telemetry
+    bool use_parent_component_for_temperature_telemetry = 219;
+    // component manufactured date is unsupported
+    bool component_mfg_date_unsupported = 220;
     // trib protocol field under otn channel config unsupported
-    bool otn_channel_trib_unsupported = 219;
+    bool otn_channel_trib_unsupported = 221;
     // ingress parameters under eth channel config unsupported
-    bool eth_channel_ingress_parameters_unsupported = 220;
+    bool eth_channel_ingress_parameters_unsupported = 222;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
