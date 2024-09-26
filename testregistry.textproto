@@ -582,6 +582,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.35"
+  description: "Extended routes retention"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.51"
   description: "BGP multipath ECMP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
