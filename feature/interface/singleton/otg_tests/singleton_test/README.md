@@ -207,7 +207,6 @@ paths:
   /interfaces/interface/ethernet/state/aggregate-id:
   /interfaces/interface/ethernet/state/port-speed:
   /interfaces/interface/state/admin-status:
-  /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/description:
   /interfaces/interface/state/type:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
