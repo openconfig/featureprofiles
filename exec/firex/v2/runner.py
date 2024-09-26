@@ -315,6 +315,11 @@ def _add_extra_properties_to_xml(ts, test_name, reserved_testbed, core_files=[])
         'name': 'b4.num_core_files',
         'value': str(len(core_files))
     })
+
+    ET.SubElement(props, 'property', attrib={
+        'name': 'b4.testbed',
+        'value': reserved_testbed["id"]
+    })
     
     if len(core_files) > 0:
         e = ET.SubElement(ts, 'testcase', attrib = {
@@ -664,7 +669,7 @@ def b4_chain_provider(ws, testsuite_id,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         collect_dut_info=True, override_test_args_from_env=True, test_debug=False, test_verbose=False,
@@ -693,7 +698,7 @@ def RunGoTest(self: FireXTask, ws, testsuite_id, test_log_directory_path, xunit_
             os.path.join(test_log_directory_path, "testbed_info.txt"))
     
     with open(reserved_testbed['test_list_file'], "a+") as fp:
-        fp.write(f'{test_name}\n')
+        fp.write(f'{skuid}\n')
     
     go_args = ''
     test_args = test_args or ''
@@ -1142,7 +1147,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
     try:
         env = dict(os.environ)
         env.update(_get_go_env(ws))
-        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir)
+        check_output(collect_debug_cmd, env=env, cwd=internal_fp_repo_dir, inactivity_timeout=0)
     except Exception as error:
         logger.warning(f'Failed to collect debug files with error: {error}') 
     finally:
@@ -1544,12 +1549,8 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 def PushResultsToMongo(self, uid, xunit_results, lineup=None, efr=None):
     logger.print("Pushing results to MongoDB...")
     try:
-        influx_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
-        cmd = f'{influx_reporter_bin} {uid} {xunit_results}'
-        if lineup: 
-            cmd += f' --lineup {lineup}'
-        if efr: 
-            cmd += f' --efr {efr}'
+        mongo_reporter_bin = "/auto/slapigo/firex/helpers/bin/firex2mongo"
+        cmd = f'{mongo_reporter_bin} {uid} {xunit_results}'
         logger.print(check_output(cmd))
     except:
         logger.warning(f'Failed to push results to MongoDB. Ignoring...')

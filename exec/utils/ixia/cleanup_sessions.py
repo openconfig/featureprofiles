@@ -21,7 +21,7 @@ for target in sys.argv[1].split(','):
     for session in test_platform.Sessions.find():
         created_on_str = session._properties['createdOn']
         created_on = datetime.datetime.fromisoformat(created_on_str)
-        if created_on < datetime.datetime.now(created_on.tzinfo)-datetime.timedelta(days=1):
+        if created_on < datetime.datetime.now(created_on.tzinfo)-datetime.timedelta(hours=6):
             print(f"Removing stale session: {session.Id}")
             session.remove()
     
@@ -31,7 +31,7 @@ for target in sys.argv[1].split(','):
     for session in test_platform.Sessions.find():
         created_on_str = session._properties['createdOn']
         created_on = datetime.datetime.fromisoformat(created_on_str)
-        if created_on < datetime.datetime.now(created_on.tzinfo)-datetime.timedelta(days=1):
+        if created_on < datetime.datetime.now(created_on.tzinfo)-datetime.timedelta(hours=6):
             print(f"Force deleting stale session: {session.Id}")
             api_url = f"{u.scheme}://{u.hostname}:{port}/ixnetworkweb/api/v1/sessions/{session.Id}"
             requests.delete(api_url, headers={"X-Api-Key": api_key}, verify=False)

@@ -1,28 +1,39 @@
-from vectorstore import VectorStore
 import argparse
-from pymongo import MongoClient
+
+from Database import Database
+from FireX import FireX
+from Vectorstore import Vectorstore
+from DDTS import DDTS
+
 
 parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
 parser.add_argument('run_id', help="FireX Run ID")
-parser.add_argument('xunit_file', help="xUnit Result File")
-parser.add_argument('--lineup', default='', help="Image Lineup")
-parser.add_argument('--efr', default='', help="Image EFR")
-parser.add_argument('--group', default='', help="Reporting Group")
+parser.add_argument('xunit_file', help="XUnit Result File")
 args = parser.parse_args()
 
-client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/")
-database = client["auto-triage"]
-groups = database["groups"]
+database = Database()
+firex = FireX()
+vectorstore = Vectorstore()
+ddts = DDTS()
 
-watchlist = groups.find(filter = {}, projection = {
-    "group": 1
-})
+def main():
+    # Get Metdata from run.json
+    run_info = firex.get_run_information(args.xunit_file)
 
-watchlist_groups = [x["group"] for x in list(watchlist)]
+    # Only Consider Subscribed Groups
+    if database.is_subscribed(run_info["group"]) == False:
+        return
+    
+    # Add FireX Metadata
+    database.insert_metadata(run_info)
+    
+    # Create FAISS Index
+    datapoints = database.get_datapoints()
+    vectorstore.create_index(datapoints)
+    
+    # Add Testsuite Data
+    documents = firex.get_testsuites(vectorstore, ddts, database, args.xunit_file, run_info)
 
-if args.group in watchlist_groups:
-    vs = VectorStore()
-    documents = vs.create_documents(file = args.xunit_file, group = args.group, efr = args.efr, run_id = args.run_id, lineup = args.image_lineup)
+    database.insert_logs(documents)
 
-    if len(documents) > 0:
-        vs.insert_many(documents)
+main()

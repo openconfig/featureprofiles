@@ -551,8 +551,8 @@ func TestPathz(t *testing.T) {
 
 			// Verify the pathz policy statistics.
 			expectedStats := map[string]int{
-				"ProbeRequests": 1,
-				"ProbeErrors":   1,
+				"ProbeRequests": 3,
+				"ProbeErrors":   3,
 			}
 
 			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
@@ -1809,12 +1809,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -1891,12 +1887,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
 			// Reload router
 			perf.ReloadRouter(t, dut)
@@ -1972,12 +1964,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys", func(t *testing.T) {
@@ -2543,24 +2531,22 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, true, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
@@ -3103,30 +3089,18 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 3)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 3)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Invalid username in Group", func(t *testing.T) {
@@ -3420,30 +3394,18 @@ func TestPathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 5)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
@@ -3652,30 +3614,18 @@ func TestPathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 5)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Deny/Permit", func(t *testing.T) {
@@ -3885,30 +3835,18 @@ func TestPathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 7)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Wildcard Keys", func(t *testing.T) {
@@ -4117,34 +4055,22 @@ func TestPathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User With Triggers", func(t *testing.T) {
@@ -4409,36 +4335,24 @@ func TestPathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 8)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 9)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, true, 1, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -4467,12 +4381,12 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after process restart.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
 
 			// Reload router
 			perf.ReloadRouter(t, dut)
@@ -4500,12 +4414,12 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after router reload.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
@@ -4600,16 +4514,10 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, true, 0, 11)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -4957,10 +4865,6 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Conflict Between Users with triggers", func(t *testing.T) {
@@ -5127,16 +5031,12 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -5192,8 +5092,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after process restart.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 
 			// Reload router
 			perf.ReloadRouter(t, dut)
@@ -5248,8 +5148,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after router reload.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Longest Prefix Match Among Users", func(t *testing.T) {
@@ -5402,10 +5302,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
@@ -5558,10 +5456,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 6)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Longest Prefix Among Groups", func(t *testing.T) {
@@ -5754,10 +5650,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Conflict Among Groups", func(t *testing.T) {
@@ -5950,7 +5844,11 @@ func TestPathz(t *testing.T) {
 
 			// Verify the policy info
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
 			perf.RestartProcess(t, dut, "emsd")
@@ -6005,12 +5903,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
 
 			// Reload router
 			perf.ReloadRouter(t, dut)
@@ -6065,8 +5959,8 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after router reload.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy File System Behaviour - Process Restart Emsd", func(t *testing.T) {
@@ -6222,12 +6116,12 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Delete Pathz backup policy file and verify the behaviour
 			pathz.DeletePolicyData(t, dut, "pathz_policy.bak")
@@ -6271,12 +6165,12 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after deleting bakup policy file.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 6, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 6, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
 			// Perform eMSD process restart after deleting Pathz backup file.
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -8200,6 +8094,136 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, 0, "", true)
 		}
 	})
+	t.Run("Scale Pathz Policy Rules with Router Reload", func(t *testing.T) {
+		// Pathz Rules Scale Test (5800 Pathz Rules) with router reload.
+		for _, d := range parseBindingFile(t) {
+
+			// Perform eMSD process restart before capturing intial emsd process memory.
+			t.Logf("Restarting emsd at %s", time.Now())
+			perf.RestartProcess(t, dut, "emsd")
+			t.Logf("Restart emsd finished at %s", time.Now())
+
+			// Get the initial emsd memory usage
+			intial_emsd_memory := pathz.EmsdMemoryCheck(t, dut)
+			t.Logf("Initial emsd memory usage: %v", intial_emsd_memory)
+
+			// Initialize the verifier
+			verifier := pathz.NewVerifier()
+
+			// Sample memory usage before the operation
+			verifier.SampleBefore(t, dut)
+
+			pathzRulesPath := "testdata/pathz_policy.txt"
+			copyPathzRules := "/mnt/rdsfs/ems/gnsi"
+
+			target := fmt.Sprintf("%s:%v", d.sshIp, d.sshPort)
+			t.Logf("Copying Pathz rules file to %s (%s) over scp", d.dut, target)
+			sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
+			scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
+			if err != nil {
+				t.Fatalf("Error initializing scp client: %v", err)
+			}
+			defer scpClient.Close()
+
+			// Copy Pathz policy file to DUT
+			resp := scpClient.CopyFileToRemote(pathzRulesPath, copyPathzRules, &scp.FileTransferOption{})
+			t.Logf("copying file got %v", resp)
+			if resp == nil || strings.Contains(resp.Error(), "Function not implemented") {
+				t.Logf("SCP successful: File copied successfully")
+			} else {
+				t.Fatalf("SCP attempt failed: %s", resp.Error())
+			}
+
+			// guarantee a few timestamps before emsd restart occurs
+			time.Sleep(10 * time.Second)
+
+			// Reload router
+			perf.ReloadRouter(t, dut)
+
+			// Perform GET operations for active policy instance after process restart.
+			client := start(t)
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			t.Logf("Active Response : %v", actv_res)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+
+			// Verify gNMI Operations.
+			isPermissionDeniedError(t, dut, "undefined_rule")
+
+			// Get and store the result in portNum
+			portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
+
+			if portNum == uint16(0) || portNum > uint16(0) {
+				t.Logf("Got the expected port number")
+			} else {
+				t.Fatalf("Unexpected value for port number: %v", portNum)
+			}
+
+			// Verify the policy counters after router reload.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+
+			time.Sleep(10 * time.Second)
+
+			// Sample memory usage after the operation
+			verifier.SampleAfter(t, dut)
+
+			// Verify memory usage
+			if !verifier.Verify(t) {
+				t.Errorf("Memory usage verification failed")
+			}
+
+			// Check top CPU utilization.
+			pathz.TopCpuMemoryUtilization(t, dut)
+
+			// Delete Pathz policy file and verify the behaviour
+			pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
+
+			// guarantee a few timestamps before reload.
+			time.Sleep(10 * time.Second)
+
+			// Reload router after deleting pathz policy file.
+			perf.ReloadRouter(t, dut)
+
+			// guarantee a few timestamps to settle memory.
+			time.Sleep(300 * time.Second)
+
+			// Perform GET operations for active policy instance after process restart.
+			client = start(t)
+			actv_res, _ = client.Get(context.Background(), getReq_Actv)
+			t.Logf("Active Response : %v", actv_res)
+
+			if actv_res != nil {
+				t.Fatalf("Pathz Get request is failed on device %s", dut.Name())
+			}
+
+			// Sample memory usage after Deleting Pathz policy file.
+			verifier.SampleAfter(t, dut)
+
+			// Verify memory usage
+			if !verifier.Verify(t) {
+				t.Errorf("Memory usage verification failed")
+			}
+
+			// Check top CPU utilization.
+			pathz.TopCpuMemoryUtilization(t, dut)
+
+			// Verify gNMI Operations after Deleting Pathz policy file.
+			performOperations(t, dut)
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, 0, "", true)
+
+			// Get the final emsd memory usage
+			final_emsd_memory := pathz.EmsdMemoryCheck(t, dut)
+			t.Logf("Final emsd memory usage: %v", final_emsd_memory)
+		}
+	})
 	t.Run("Scale Pathz Policy Rules with ProcessRestart", func(t *testing.T) {
 		// Pathz Rules Scale Test (5800 Pathz Rules) with process restart.
 		for _, d := range parseBindingFile(t) {
@@ -8336,140 +8360,18 @@ func TestPathz(t *testing.T) {
 			t.Logf("Final emsd memory usage: %v", final_emsd_memory)
 		}
 	})
-	t.Run("Scale Pathz Policy Rules with Router Reload", func(t *testing.T) {
-		// Pathz Rules Scale Test (5800 Pathz Rules) with router reload.
-		for _, d := range parseBindingFile(t) {
-
-			// Perform eMSD process restart before capturing intial emsd process memory.
-			t.Logf("Restarting emsd at %s", time.Now())
-			perf.RestartProcess(t, dut, "emsd")
-			t.Logf("Restart emsd finished at %s", time.Now())
-
-			// Get the initial emsd memory usage
-			intial_emsd_memory := pathz.EmsdMemoryCheck(t, dut)
-			t.Logf("Initial emsd memory usage: %v", intial_emsd_memory)
-
-			// Initialize the verifier
-			verifier := pathz.NewVerifier()
-
-			// Sample memory usage before the operation
-			verifier.SampleBefore(t, dut)
-
-			pathzRulesPath := "testdata/pathz_policy.txt"
-			copyPathzRules := "/mnt/rdsfs/ems/gnsi"
-
-			target := fmt.Sprintf("%s:%v", d.sshIp, d.sshPort)
-			t.Logf("Copying Pathz rules file to %s (%s) over scp", d.dut, target)
-			sshConf := scp.NewSSHConfigFromPassword(d.sshUser, d.sshPass)
-			scpClient, err := scp.NewClient(target, sshConf, &scp.ClientOption{})
-			if err != nil {
-				t.Fatalf("Error initializing scp client: %v", err)
-			}
-			defer scpClient.Close()
-
-			// Copy Pathz policy file to DUT
-			resp := scpClient.CopyFileToRemote(pathzRulesPath, copyPathzRules, &scp.FileTransferOption{})
-			t.Logf("copying file got %v", resp)
-			if resp == nil || strings.Contains(resp.Error(), "Function not implemented") {
-				t.Logf("SCP successful: File copied successfully")
-			} else {
-				t.Fatalf("SCP attempt failed: %s", resp.Error())
-			}
-
-			// guarantee a few timestamps before emsd restart occurs
-			time.Sleep(10 * time.Second)
-
-			// Reload router
-			perf.ReloadRouter(t, dut)
-
-			// Perform GET operations for active policy instance after process restart.
-			client := start(t)
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			t.Logf("Active Response : %v", actv_res)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-
-			// Verify gNMI Operations.
-			isPermissionDeniedError(t, dut, "undefined_rule")
-
-			// Get and store the result in portNum
-			portNum := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Port().State())
-
-			if portNum == uint16(0) || portNum > uint16(0) {
-				t.Logf("Got the expected port number")
-			} else {
-				t.Fatalf("Unexpected value for port number: %v", portNum)
-			}
-
-			// Verify the policy counters after router reload.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-
-			time.Sleep(10 * time.Second)
-
-			// Sample memory usage after the operation
-			verifier.SampleAfter(t, dut)
-
-			// Verify memory usage
-			if !verifier.Verify(t) {
-				t.Errorf("Memory usage verification failed")
-			}
-
-			// Check top CPU utilization.
-			pathz.TopCpuMemoryUtilization(t, dut)
-
-			// Delete Pathz policy file and verify the behaviour
-			pathz.DeletePolicyData(t, dut, "pathz_policy.txt")
-
-			// guarantee a few timestamps before reload.
-			time.Sleep(10 * time.Second)
-
-			// Reload router after deleting pathz policy file.
-			perf.ReloadRouter(t, dut)
-
-			// guarantee a few timestamps to settle memory.
-			time.Sleep(300 * time.Second)
-
-			// Perform GET operations for active policy instance after process restart.
-			client = start(t)
-			actv_res, _ = client.Get(context.Background(), getReq_Actv)
-			t.Logf("Active Response : %v", actv_res)
-
-			if actv_res != nil {
-				t.Fatalf("Pathz Get request is failed on device %s", dut.Name())
-			}
-
-			// Sample memory usage after Deleting Pathz policy file.
-			verifier.SampleAfter(t, dut)
-
-			// Verify memory usage
-			if !verifier.Verify(t) {
-				t.Errorf("Memory usage verification failed")
-			}
-
-			// Check top CPU utilization.
-			pathz.TopCpuMemoryUtilization(t, dut)
-
-			// Verify gNMI Operations after Deleting Pathz policy file.
-			performOperations(t, dut)
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, 0, "", true)
-
-			// Get the final emsd memory usage
-			final_emsd_memory := pathz.EmsdMemoryCheck(t, dut)
-			t.Logf("Final emsd memory usage: %v", final_emsd_memory)
-		}
-	})
 	t.Run("Scale Pathz Policy Rules file & gNMI SET Request with Emsd Restart", func(t *testing.T) {
 		// Pathz Rules Scale Test (5800 Pathz Rules) with gNMI SET Scale operations and eMSD Restart.
 		for _, d := range parseBindingFile(t) {
 			dut := ondatra.DUT(t, "dut")
+
+			// Function to check the platform status
+			Resp := pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
 
 			// Perform eMSD process restart before capturing intial emsd process memory.
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -8707,16 +8609,26 @@ func TestPathz(t *testing.T) {
 			//Reload router
 			perf.ReloadRouter(t, dut)
 
-			time.Sleep(10 * time.Second)
+			// Function to check the platform status
+			Resp := pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
 
 			// Perform GET operations for active policy instance after router reload.
 			client := start(t)
+
 			getReq_Actv := &pathzpb.GetRequest{
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 			}
 
+			time.Sleep(10 * time.Second)
+
 			actv_res, err := client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %v", actv_res)
+			t.Logf("Error Received : %v", err)
 			if err != nil {
 				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
 			}
@@ -8769,7 +8681,13 @@ func TestPathz(t *testing.T) {
 			//Reload router
 			perf.ReloadRouter(t, dut)
 
-			time.Sleep(30 * time.Second)
+			// Function to check the platform status
+			Resp = pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
 
 			// Perform GET operations for active policy instance after router reload.
 			client = start(t)
@@ -8975,6 +8893,7 @@ func TestPathz(t *testing.T) {
 			// Perform GET operations for active policy instance after process restart.
 			actv_res, _ = client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %v", actv_res)
+			t.Logf("Error Received : %v", err)
 
 			if actv_res != nil {
 				t.Fatalf("Pathz Get request is failed on device %s", dut.Name())
@@ -9120,8 +9039,16 @@ func TestPathz(t *testing.T) {
 
 			// Reload router & verify the behaviour.
 			perf.ReloadRouter(t, dut)
-			client = start(t)
 
+			// Function to check the platform status
+			Resp := pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
+
+			client = start(t)
 			actv_res, err = client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %v", actv_res)
 			if err != nil {
@@ -9175,8 +9102,13 @@ func TestPathz(t *testing.T) {
 			perf.ReloadRouter(t, dut)
 			client = start(t)
 
-			// guarantee a few timestamps before emsd restart occurs
-			time.Sleep(10 * time.Second)
+			// Function to check the platform status
+			Resp = pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
 
 			// Perform GET operations for active policy instance after process restart.
 			actv_res, _ = client.Get(context.Background(), getReq_Actv)
@@ -9607,6 +9539,14 @@ func TestPathz(t *testing.T) {
 			// Reload router after deleting Authz Policy & verify the behaviour.
 			perf.ReloadRouter(t, dut)
 			client = start(t)
+
+			// Function to check the platform status
+			Resp := pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
 
 			// Perform GET operations for sandbox policy instance after router reload.
 			sand_res_after_router_reload, _ := client.Get(context.Background(), getReq_Sand)
@@ -10934,12 +10874,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
@@ -11017,12 +10953,10 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -11099,12 +11033,12 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("RPSO: Test Pathz Policy with Invalid User", func(t *testing.T) {
@@ -11262,11 +11196,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", true, false, 1, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -11409,10 +11340,10 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("RPSO: Test Pathz Policy with Wildcard Keys", func(t *testing.T) {
@@ -11579,12 +11510,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 1)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -11639,8 +11566,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 
 			// Perform eMSD process restart
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -11696,8 +11623,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after process restart.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("RPSO: Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
@@ -11794,8 +11721,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 
@@ -12080,8 +12007,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -12144,8 +12071,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters after RP Switchover.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("RPSO: Test Pathz Policy with gNMI.SET Operation using XR Model", func(t *testing.T) {
@@ -12247,8 +12174,8 @@ func TestRPSO_Pathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			// pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			// pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
@@ -12563,21 +12490,21 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
 
-			// Perform GET operations for sandbox policy instance after router reload
+			// Perform GET operations for sandbox policy instance after RP Switchover
 			client = start(t)
 			sand_res_after_RPSwitch, _ := client.Get(context.Background(), getReq_Sand)
 			if d := cmp.Diff(get_res, sand_res_after_RPSwitch, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 			}
 
-			// Perform GET operations for active policy instance after router reload
+			// Perform GET operations for active policy instance after RP Switchover
 			actv_res_after_RPSwitch, _ := client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %s", actv_res_after_RPSwitch)
 			if d := cmp.Diff(get_res, actv_res_after_RPSwitch, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff after router reload: %s", d)
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
 			}
 
-			// Verify gNMI Operations after Router Reload
+			// Verify gNMI Operations after RP Switchover.
 			performOperations(t, dut)
 
 			resp := gnmi.Update(t, dut, path.Config(), true)
@@ -13475,7 +13402,7 @@ func TestRPSO_Pathz(t *testing.T) {
 
 			// Verify memory usage after removing gNMI Set Request with 19 MB.
 			if !verifier.Verify(t) {
-				t.Errorf("Memory usage verification failed removing gNMI Set Request with 19 MB.")
+				t.Errorf("Memory usage verification failed removing gNMI Set Request with 5 MB.")
 			}
 			// Check top CPU utilization after removing gNMI Set Request with 19 MB.
 			pathz.TopCpuMemoryUtilization(t, dut)
