@@ -1151,12 +1151,12 @@ func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
 }
 
-// OTNChannelTRIBUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
-func OTNChannelTRIBUnsupported(dut *ondatra.DUTDevice) bool {
+// OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
+func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
 }
 
-// ETHChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
-func ETHChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
+// EthChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
+func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
 }

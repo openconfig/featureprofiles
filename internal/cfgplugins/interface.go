@@ -89,7 +89,7 @@ func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, freq
 // ConfigOTNChannel configures the OTN channel.
 func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
 	t.Helper()
-	if deviations.OTNChannelTRIBUnsupported(dut) {
+	if deviations.OTNChannelTribUnsupported(dut) {
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
@@ -133,7 +133,7 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 // ConfigETHChannel configures the ETH channel.
 func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, transceiverName string, otnIndex, ethIndex uint32) {
 	t.Helper()
-	if deviations.ETHChannelIngressParametersUnsupported(dut) {
+	if deviations.EthChannelIngressParametersUnsupported(dut) {
 		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
 			Description:        ygot.String("ETH Logical Channel"),
 			Index:              ygot.Uint32(ethIndex),

@@ -46,13 +46,13 @@ func configInterface(t *testing.T, dut1 *ondatra.DUTDevice, dp *ondatra.Port, en
 	i.Enabled = ygot.Bool(enable)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp.Name()).Config(), i)
-	component := components.OpticalChannelComponentFromPort(t, dut1, dp)
-	//Set config container leaf for optical channel
-	setConfigLeaf := gnmi.OC().Component(component)
-	gnmi.Update(t, dut1, setConfigLeaf.Config(), &oc.Component{
-		Name: ygot.String(component),
+	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp)
+	// Set config container leaf for optical channel
+	component := gnmi.OC().Component(componentName)
+	gnmi.Replace(t, dut1, component.Config(), &oc.Component{
+		Name: ygot.String(componentName),
 	})
-	gnmi.Replace(t, dut1, gnmi.OC().Component(component).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+	gnmi.Replace(t, dut1, component.OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetOutputPower),
 		Frequency:         ygot.Uint64(frequency),
 	})
