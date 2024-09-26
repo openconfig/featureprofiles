@@ -169,3 +169,57 @@ a new testbed configuration with the desired port types.
 ## Minimum DUT Platform Requirement
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+    /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
+    /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
+    /interfaces/interface/ethernet/state/mac-address:
+    /interfaces/interface/state/counters/in-broadcast-pkts:
+    /interfaces/interface/state/counters/in-discards:
+    /interfaces/interface/state/counters/in-errors:
+    /interfaces/interface/state/counters/in-multicast-pkts:
+    /interfaces/interface/state/counters/in-octets:
+    /interfaces/interface/state/counters/in-unicast-pkts:
+    /interfaces/interface/state/counters/in-unknown-protos:
+    /interfaces/interface/state/counters/out-broadcast-pkts:
+    /interfaces/interface/state/counters/out-discards:
+    /interfaces/interface/state/counters/out-errors:
+    /interfaces/interface/state/counters/out-multicast-pkts:
+    /interfaces/interface/state/counters/out-octets:
+    /interfaces/interface/state/counters/out-pkts:
+    /interfaces/interface/state/counters/out-unicast-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
+    /interfaces/interface/state/oper-status:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts:
+    /interfaces/interface/ethernet/state/aggregate-id:
+    /interfaces/interface/ethernet/state/port-speed:
+    /interfaces/interface/state/admin-status:
+    /interfaces/interface/state/counters/out-octets:
+    /interfaces/interface/state/description:
+    /interfaces/interface/state/type:
+    /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
+    /interfaces/interface/state/hardware-port:
+    /interfaces/interface/state/id:
+    /interfaces/interface/state/counters/in-fcs-errors:
+    /interfaces/interface/state/counters/carrier-transitions:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: false
+    gNMI.Subscribe:
+      on_change: false
+```
