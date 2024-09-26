@@ -248,7 +248,6 @@ decapsulate MPLS in UDP.  # TODO: Move to dedicated README
 openconfig-network-instance:
   network-instances:
     - network-instance: "DEFAULT"
-      afts:
         policy-forwarding:
           policies:
             policy: "default decap rule"
