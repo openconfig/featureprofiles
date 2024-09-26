@@ -1136,6 +1136,21 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
 
+// LinkLocalMaskLen returns true if linklocal mask length is not 64
+func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
+}
+
+// UseParentComponentForTemperatureTelemetry returns true if parent component supports temperature telemetry
+func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
+}
+
+// ComponentMfgDateUnsupported returns true if component's mfg-date leaf is unsupported
+func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
+}
+
 // InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
 // does not return the latest counter values.
 func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
