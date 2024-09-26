@@ -397,6 +397,24 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.6"
+  description: "GUE Decapsulation & Policy-based VRF selection"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.7"
+  description: "Policy-based VRF selection"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.8"
+  description: "Policy-based VRF selection , encap & DSCP marking"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
