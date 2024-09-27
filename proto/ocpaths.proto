@@ -88,25 +88,27 @@ message GNMIRpc {
   bool set = 2;
   bool subscribe = 3;
 
-  // Mode, describes how updates are triggered for the request.
-  enum Mode {
-    NO_READ_SUPPORT = 0;  // No requirement / support for path.
-    STREAM = 1;           // Values streamed by the target (Sec. 3.5.1.5.2).
-    ONCE = 2;  // Values sent once-off by the target (Sec. 3.5.1.5.1).
-    POLL = 3;  // Values sent in response to a poll request (Sec. 3.5.1.5.3).
+  // SubscribeMode, describes how updates are triggered for the request.
+  enum SubscribeMode {
+    UNSPECIFIED_SUBSCRIBE_MODE = 0;
+    NO_READ_SUPPORT = 1;  // No requirement / support for path.
+    STREAM = 2;           // Values streamed by the target (Sec. 3.5.1.5.2).
+    ONCE = 3;  // Values sent once-off by the target (Sec. 3.5.1.5.1).
+    POLL = 4;  // Values sent in response to a poll request (Sec. 3.5.1.5.3).
   }
-  repeated Mode mode = 4;
+  repeated SubscribeMode sub_mode = 4;
 
-  // SubscriptionMode is the mode of a streamed subscription, specifying how the
+  // StreamMode is the mode of a streamed subscription, specifying how the
   // target must return values for that subscription.
   // Reference: gNMI Specification Section 3.5.1.3
-  enum SubscriptionMode {
-    NO_STREAMING_SUPPORT = 0;  // No requirement / support for streaming path.
-    TARGET_DEFINED = 1;        // The target selects for each element.
-    ON_CHANGE = 2;  // The target sends an update on element value change.
-    SAMPLE = 3;     // The target samples values according to the interval.
+  enum StreamMode {
+    UNSPECIFIED_STREAM_MODE = 0;
+    NO_STREAMING_SUPPORT = 1;  // No requirement / support for streaming path.
+    TARGET_DEFINED = 2;        // The target selects for each element.
+    ON_CHANGE = 3;  // The target sends an update on element value change.
+    SAMPLE = 4;     // The target samples values according to the interval.
   }
-  repeated SubscriptionMode sub_mode = 5;
+  repeated StreamMode stream_mode = 5;
 
   // If listed as part of a requirement, sample_interval_nanoseconds is the
   // maximum allowable interval between updates.
