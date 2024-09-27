@@ -156,6 +156,34 @@ network_instances: {
     }
   }
 }
+
+network_instances: {
+  network_instance: {
+    afts {                    #TODO add valid key currently installed in hardware
+      keychains {
+        keychain {
+          keys {
+            key {
+              key-id: 123456
+              send-lifetime {
+                config {
+                  start-time: 1727414006  
+                  end-time: 17274510000
+                }
+              }
+              receive-lifetime {
+                config {
+                  start-time: 1727415000
+                  end-time: 17274520000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
@@ -163,8 +191,12 @@ network_instances: {
 ```yaml
 paths:
   # keychain config
+  /keychains/keychain/keys/
+  /keychains/keychain/keys/key/key-id
   /keychains/keychain/keys/key/send-lifetime/config/start-time
   /keychains/keychain/keys/key/send-lifetime/config/end-time
+  /keychains/keychain/keys/key/receive-lifetime/config/start-time
+  /keychains/keychain/keys/key/receive-lifetime/config/end-time
 
   # qos classifier config
   /qos/classifiers/classifier/config/name:
