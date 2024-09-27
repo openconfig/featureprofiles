@@ -101,3 +101,12 @@ TODO: OpenConfig definition required for Tunnel protocol under interfaces/interf
         *   state/counters/out-forwarded-pkts 
         *   state/counters/out-forwarded-octets 
         *   state/counters/out-discarded-pkts
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

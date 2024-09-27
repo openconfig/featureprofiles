@@ -72,3 +72,12 @@ Validate Interface based Ipv6 GRE Tunnel Config.
   - state/counters/out-forwarded-octets
   - state/counters/out-discarded-pkt
   - Fragmentation and assembly counters Filter counters Output to display the traffic is spread across the different tunnel subnet ranges/NH groups/Interfaces
+
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

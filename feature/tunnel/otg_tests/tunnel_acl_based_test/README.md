@@ -14,10 +14,20 @@ Verify the DSCP value of original packet header after GRE acl based tunnel encap
 *   verify dscp value of original packet after encapsulation.
 *   verify that no traffic drops in all flows.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-*   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name
-*   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-type
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type:
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Validation coverage
 
