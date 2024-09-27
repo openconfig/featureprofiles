@@ -34,7 +34,7 @@ func TestCoreFileDecode(t *testing.T) {
 		"bundlemgr_checker", "ifmgr", "netio", "pkt_trace_agent",
 	}
 	targets := NewTargets(t)
-	for dutID, _ := range targets.targetInfo {
+	for dutID := range targets.targetInfo {
 		dut := ondatra.DUT(t, dutID)
 		t.Logf("Start dumping core for device : %s", dutID)
 		for _, process := range processList {
