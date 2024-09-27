@@ -1,6 +1,7 @@
 package zr_logical_channels_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -33,12 +35,13 @@ var (
 		IPv4:    "192.0.2.1",
 		IPv4Len: 30,
 	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
 	}
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -47,7 +50,11 @@ func TestMain(m *testing.M) {
 
 func Test400ZRLogicalChannels(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
@@ -80,13 +87,13 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-	validateEthernetChannelTelemetry(t, otnIndex1, ethernetIndex1, ethChan1)
-	validateEthernetChannelTelemetry(t, otnIndex2, ethernetIndex2, ethChan2)
-	validateOTNChannelTelemetry(t, otnIndex1, ethernetIndex1, oc1, otnChan1)
-	validateOTNChannelTelemetry(t, otnIndex2, ethernetIndex2, oc2, otnChan2)
+	validateEthernetChannelTelemetry(t, dut, otnIndex1, ethernetIndex1, ethChan1)
+	validateEthernetChannelTelemetry(t, dut, otnIndex2, ethernetIndex2, ethChan2)
+	validateOTNChannelTelemetry(t, dut, otnIndex1, ethernetIndex1, oc1, otnChan1)
+	validateOTNChannelTelemetry(t, dut, otnIndex2, ethernetIndex2, oc2, otnChan2)
 }
 
-func validateEthernetChannelTelemetry(t *testing.T, otnChIdx, ethernetChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
+func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx, ethernetChIdx uint32, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
 	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("Ethernet Channel telemetry stream not received in last 10 seconds")
@@ -121,11 +128,6 @@ func validateEthernetChannelTelemetry(t *testing.T, otnChIdx, ethernetChIdx uint
 			want: oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE.String(),
 		},
 		{
-			desc: "Assignment: Index",
-			got:  ec.GetAssignment(0).GetIndex(),
-			want: uint32(0),
-		},
-		{
 			desc: "Assignment: Logical Channel",
 			got:  ec.GetAssignment(0).GetLogicalChannel(),
 			want: otnChIdx,
@@ -146,6 +148,25 @@ func validateEthernetChannelTelemetry(t *testing.T, otnChIdx, ethernetChIdx uint
 			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 		},
 	}
+	var assignmentIndexTestcase struct {
+		desc string
+		got  any
+		want any
+	}
+	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
+		assignmentIndexTestcase = struct {
+			desc string
+			got  any
+			want any
+		}{desc: "Assignment: Index", got: ec.GetAssignment(0).GetIndex(), want: uint32(1)}
+	} else {
+		assignmentIndexTestcase = struct {
+			desc string
+			got  any
+			want any
+		}{desc: "Assignment: Index", got: ec.GetAssignment(0).GetIndex(), want: uint32(0)}
+	}
+	tcs = append(tcs, assignmentIndexTestcase)
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			if diff := cmp.Diff(tc.got, tc.want); diff != "" {
@@ -155,7 +176,7 @@ func validateEthernetChannelTelemetry(t *testing.T, otnChIdx, ethernetChIdx uint
 	}
 }
 
-func validateOTNChannelTelemetry(t *testing.T, otnChIdx uint32, ethChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
+func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx uint32, ethChIdx uint32, opticalChannel string, stream *samplestream.SampleStream[*oc.TerminalDevice_Channel]) {
 	val := stream.Next() // value received in the gnmi subscription within 10 seconds
 	if val == nil {
 		t.Fatalf("OTN Channel telemetry stream not received in last 10 seconds")
@@ -185,11 +206,6 @@ func validateOTNChannelTelemetry(t *testing.T, otnChIdx uint32, ethChIdx uint32,
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN.String(),
 		},
 		{
-			desc: "Optical Channel Assignment: Index",
-			got:  cc.GetAssignment(0).GetIndex(),
-			want: uint32(0),
-		},
-		{
 			desc: "Optical Channel Assignment: Optical Channel",
 			got:  cc.GetAssignment(0).GetOpticalChannel(),
 			want: opticalChannel,
@@ -209,31 +225,60 @@ func validateOTNChannelTelemetry(t *testing.T, otnChIdx uint32, ethChIdx uint32,
 			got:  cc.GetAssignment(0).GetAssignmentType().String(),
 			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
 		},
-		{
-			desc: "Ethernet Assignment: Index",
-			got:  cc.GetAssignment(1).GetIndex(),
-			want: uint32(1),
-		},
-		{
-			desc: "Ethernet Assignment: Logical Channel",
-			got:  cc.GetAssignment(1).GetLogicalChannel(),
-			want: ethChIdx,
-		},
-		{
-			desc: "Ethernet Assignment: Description",
-			got:  cc.GetAssignment(1).GetDescription(),
-			want: "OTN to ETH",
-		},
-		{
-			desc: "Ethernet Assignment: Allocation",
-			got:  cc.GetAssignment(1).GetAllocation(),
-			want: float64(400),
-		},
-		{
-			desc: "Ethernet Assignment: Type",
-			got:  cc.GetAssignment(1).GetAssignmentType().String(),
-			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
-		},
+	}
+	var assignmentIndexTestcase struct {
+		desc string
+		got  any
+		want any
+	}
+	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
+		assignmentIndexTestcase = struct {
+			desc string
+			got  any
+			want any
+		}{desc: "Assignment: Index", got: cc.GetAssignment(0).GetIndex(), want: uint32(1)}
+	} else {
+		assignmentIndexTestcase = struct {
+			desc string
+			got  any
+			want any
+		}{desc: "Assignment: Index", got: cc.GetAssignment(0).GetIndex(), want: uint32(0)}
+	}
+	tcs = append(tcs, assignmentIndexTestcase)
+
+	if !deviations.OTNChannelTribUnsupported(dut) {
+		ethAssignmentTestcases := []struct {
+			desc string
+			got  any
+			want any
+		}{
+			{
+				desc: "Ethernet Assignment: Index",
+				got:  cc.GetAssignment(1).GetIndex(),
+				want: uint32(1),
+			},
+			{
+				desc: "Ethernet Assignment: Logical Channel",
+				got:  cc.GetAssignment(1).GetLogicalChannel(),
+				want: ethChIdx,
+			},
+			{
+				desc: "Ethernet Assignment: Description",
+				got:  cc.GetAssignment(1).GetDescription(),
+				want: "OTN to ETH",
+			},
+			{
+				desc: "Ethernet Assignment: Allocation",
+				got:  cc.GetAssignment(1).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Ethernet Assignment: Type",
+				got:  cc.GetAssignment(1).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
+			},
+		}
+		tcs = append(tcs, ethAssignmentTestcases...)
 	}
 
 	for _, tc := range tcs {
