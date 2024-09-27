@@ -1160,3 +1160,8 @@ func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
 }
+
+// EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
+func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
+}
