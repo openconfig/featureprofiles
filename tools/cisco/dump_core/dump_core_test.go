@@ -1,15 +1,18 @@
 package basetest
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/testt"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -44,10 +47,26 @@ func TestCoreFileDecode(t *testing.T) {
 		t.Run(fmt.Sprintf("dump core files for device %s", dutName), func(t *testing.T) {
 			t.Logf("Start dumping core for device: %s", dutName)
 			for _, process := range processes {
-				process := process // Capture the current value of process
 				t.Logf("Dumping core for device: %s, process name: %s", dutName, process)
-				t.Logf("%s>dumpcore running %s location 0/RP0/CPU0\n", dutName, process)
-				dut.CLI().RunResult(t, fmt.Sprintf("dumpcore running %s location 0/RP0/CPU0\n", process))
+				commands := []string{
+					fmt.Sprintf("dumpcore running %s location 0/RP0/CPU0\n", process),
+					fmt.Sprintf("dir harddisk:%s*core*\n", process),
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+				defer cancel()
+				sshClient := dut.RawAPIs().CLI(t)
+				for _, cmd := range commands {
+					testt.CaptureFatal(t, func(t testing.TB) {
+						if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+							t.Logf("%s> %s", dutName, cmd)
+							t.Log(result.Output())
+						} else {
+							t.Logf("%s> %s", dutName, cmd)
+							t.Log(err.Error())
+						}
+						t.Logf("\n")
+					})
+				}
 			}
 			t.Logf("Finished dumping core for device: %s", dutName)
 		})
