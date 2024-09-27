@@ -206,9 +206,42 @@ func TestSFlowTraffic(t *testing.T) {
 	cfgplugins.NewStaticRouteCfg(srBatch, staticRouteV6, dut)
 	srBatch.Set(t, dut)
 
+	/* TODO: implement this when a suitable ygot.diffBatch function exists
+		// Validate DUT sampling config matches what we set it to
+		diff, err := ygot.Diff(gotSamplingConfig, sfBatch)
+		if err != nil {
+			t.Errorf("Error attempting to compare sflow config: %v", err.Error())
+		}
+		if diff.String() != "" {
+			t.Errorf("Want empty string, got: %v", helpers.GNMINotifString(diff))
+		}
+	})
+	*/
+
+	t.Run("SFLOW-1.2_TestFlowFixed", func(t *testing.T) {
+		t.Run("SFLOW-1.2.1_IPv4", func(t *testing.T) {
+			configSflow(t, dut, loopbackIntfName, IPv4)
+			enableCapture(t, ate, config, IPv4)
+			testFlowFixed(t, ate, config, IPv4)
+		})
+		t.Run("SFLOW-1.2.2_IPv6", func(t *testing.T) {
+			configSflow(t, dut, loopbackIntfName, IPv6)
+			enableCapture(t, ate, config, IPv6)
+			testFlowFixed(t, ate, config, IPv6)
+		})
+	})
+}
+
+func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, ip IPType) {
+
 	t.Run("SFLOW-1.1_ReplaceDUTConfigSFlow", func(t *testing.T) {
 		sfBatch := &gnmi.SetBatch{}
-		cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6)
+		switch ip {
+		case IPv4:
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv4)
+		case IPv6:
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv6)
+		}
 		sfBatch.Set(t, dut)
 
 		gotSamplingConfig := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().Config())
@@ -225,28 +258,6 @@ func TestSFlowTraffic(t *testing.T) {
 		t.Logf("Got sampling config: %v", json)
 	})
 
-	/* TODO: implement this when a suitable ygot.diffBatch function exists
-		// Validate DUT sampling config matches what we set it to
-		diff, err := ygot.Diff(gotSamplingConfig, sfBatch)
-		if err != nil {
-			t.Errorf("Error attempting to compare sflow config: %v", err.Error())
-		}
-		if diff.String() != "" {
-			t.Errorf("Want empty string, got: %v", helpers.GNMINotifString(diff))
-		}
-	})
-	*/
-
-	t.Run("SFLOW-1.2_TestFlowFixed", func(t *testing.T) {
-		t.Run("SFLOW-1.2.1_IPv4", func(t *testing.T) {
-			enableCapture(t, ate, config, IPv4)
-			testFlowFixed(t, ate, config, IPv4)
-		})
-		t.Run("SFLOW-1.2.2_IPv6", func(t *testing.T) {
-			enableCapture(t, ate, config, IPv6)
-			testFlowFixed(t, ate, config, IPv6)
-		})
-	})
 }
 
 func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
