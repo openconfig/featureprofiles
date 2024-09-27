@@ -901,7 +901,7 @@ type Metadata_Deviations struct {
 	OtnChannelTribUnsupported bool `protobuf:"varint,221,opt,name=otn_channel_trib_unsupported,json=otnChannelTribUnsupported,proto3" json:"otn_channel_trib_unsupported,omitempty"`
 	// ingress parameters under eth channel config unsupported
 	EthChannelIngressParametersUnsupported bool `protobuf:"varint,222,opt,name=eth_channel_ingress_parameters_unsupported,json=ethChannelIngressParametersUnsupported,proto3" json:"eth_channel_ingress_parameters_unsupported,omitempty"`
-	// Cisco numbering for eth channel assignment starting from 1 instead of 0
+	// Cisco numbering for eth channel assignment starts from 1 instead of 0
 	EthChannelAssignmentCiscoNumbering bool `protobuf:"varint,223,opt,name=eth_channel_assignment_cisco_numbering,json=ethChannelAssignmentCiscoNumbering,proto3" json:"eth_channel_assignment_cisco_numbering,omitempty"`
 }
 
