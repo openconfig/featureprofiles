@@ -53,10 +53,6 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	// Configure ATE
-	otg := ondatra.ATE(t, "ate")
-	topo := configureOTG(t, otg)
-
 	for _, tc := range test {
 
 		// Configure DUT based on chain type
@@ -72,6 +68,10 @@ func TestFibChains(t *testing.T) {
 		case "popgate_unoptimized":
 			configureDUTforPopGate(t, dut)
 		}
+		// Configure ATE
+		otg := ondatra.ATE(t, "ate")
+		topo := configureOTG(t, otg)
+
 		// configure gRIBI client
 		c := gribi.Client{
 			DUT:         dut,
