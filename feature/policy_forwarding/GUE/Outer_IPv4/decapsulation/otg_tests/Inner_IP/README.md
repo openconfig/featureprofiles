@@ -2,14 +2,12 @@
 
 ## Summary
 
-This is to test the the functionality of policy-based forwarding (PF) to decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use case of IPv4, IPv6 and MPLS encapsulated traffic
-in IPv4 GUE tuennel. The tests are meant for `Tunnel Interface` or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that the DUT performs the following action.
+This is to test the the functionality of policy-based forwarding (PF) to decapsulate Generic UDP Encapsulation (GUE) traffic. These tests verify the use case of IPv4, and IPv6 encapsulated traffic in IPv4 GUE tuennel. The tests are meant for `Tunnel Interface` or `Policy Based` implementation of IPv4 GUE tunnel. The tests validate that the DUT performs the following action.
 
  - Decapsulate the outer (transport) layer 3 and GUE headers of GUE packets destined to locally-configured decap VIP and forward them based on the exposed inner (payload) L3 header.
  - GUE Inner protocol type must be derived from a unique DST port. If not specifically configured, then the following default DST UDP port will be used.
     - For inner IPv4 - GUE UDP port 6080
     - For inner IPv6 - GUE UDP port 6615
-    - For inner MPLS over IP - GUE UDP port 6635  
  - Post decapsulation the DUT should copy outer TTL(and decrement) to inner header and maintain the inner DSCP vaule.
     - If explicit configration is present to not copy the TTL, then it will be honored. 
  - Decapsulate the packet only if it matches the locally configured GUE VIP and associated UDP port/port-range.
