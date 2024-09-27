@@ -36,7 +36,8 @@ class Database:
                     {"$unwind": "$testcases"},
                     {
                         "$match": {
-                            "testcases.label": {"$in": valid_labels}
+                            "testcases.label": {"$in": valid_labels},
+                            "testcases.status": "failed"
                         }
                     },
                     {
