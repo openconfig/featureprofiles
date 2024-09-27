@@ -13,14 +13,6 @@ import (
 )
 
 func TestFibChains(t *testing.T) {
-	// Configure DUT
-	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut, true)
-
-	// Configure ATE
-	otg := ondatra.ATE(t, "ate")
-	topo := configureOTG(t, otg)
-	fa4.ttl = ttl
 
 	test := []struct {
 		name      string
@@ -30,24 +22,56 @@ func TestFibChains(t *testing.T) {
 	}{
 		{
 			name:      "TestEncapDcgateOptimized",
-			desc:      "SFRR_07: Verify when backup NextHopGroup is also unviable, the cluster traffic is NOT encap-ed and falls back to the BGP routes in the DEFAULT VRF",
+			desc:      "Verify TTL and DSCP values in Encap Dcgate Optimized chain with triggers",
 			fn:        testEncapDcgateOptimized,
 			chainType: "dcgate_cluster_optimized",
 		},
 		{
 			name:      "TestTransitDcgateOptimized",
-			desc:      "TFRR_12a: Verify for dcgate (hit in DECAP_TE_VRF) case, if the re-encap tunnels are also unviable, the packets are decapped and routed according to the BGP routes in the DEFAULT VRF.",
+			desc:      "Verify TTL and DSCP values in Transit Dcgate Optimized chain with triggers",
 			fn:        testTransitDcgateOptimized,
 			chainType: "dcgate_wan_optimized",
 		},
 		{
 			name:      "TestTransitDcgateUnoptimized",
-			desc:      "testTransitDcgateUnoptimized",
+			desc:      "Verify TTL and DSCP values in Transit Dcgate UnOptimized chain with triggers",
 			fn:        testTransitDcgateUnoptimized,
 			chainType: "dcgate_wan_unoptimized",
 		},
+		{
+			name:      "TestPopGateOptimized",
+			desc:      "Verify TTL and DSCP values in PopGate Optimized chain with triggers",
+			fn:        testPopGateOptimized,
+			chainType: "popgate_optimized",
+		},
+		{
+			name:      "TestPopGateUnOptimized",
+			desc:      "Verify TTL and DSCP values in PopGate UnOptimized chain with triggers",
+			fn:        testPopGateUnOptimized,
+			chainType: "popgate_unoptimized",
+		},
 	}
+
+	dut := ondatra.DUT(t, "dut")
+	// Configure ATE
+	otg := ondatra.ATE(t, "ate")
+	topo := configureOTG(t, otg)
+
 	for _, tc := range test {
+
+		// Configure DUT based on chain type
+		switch tc.chainType {
+		case "dcgate_cluster_optimized":
+			configureDUT(t, dut, true)
+		case "dcgate_wan_optimized":
+			configureDUT(t, dut, false)
+		case "dcgate_wan_unoptimized":
+			configureDUT(t, dut, false)
+		case "popgate_optimized":
+			configureDUTforPopGate(t, dut)
+		case "popgate_unoptimized":
+			configureDUTforPopGate(t, dut)
+		}
 		// configure gRIBI client
 		c := gribi.Client{
 			DUT:         dut,
@@ -61,9 +85,9 @@ func TestFibChains(t *testing.T) {
 
 		defer c.Close(t)
 		c.BecomeLeader(t)
+		defer c.FlushAll(t)
 
 		// Flush all existing AFT entries on the router
-		// defer c.FlushAll(t)
 		c.FlushAll(t)
 
 		tcArgs := &testArgs{
@@ -75,9 +99,6 @@ func TestFibChains(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.desc)
-			if tc.skip {
-				t.SkipNow()
-			}
 			tc.fn(t, tcArgs)
 		})
 	}
@@ -137,7 +158,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 	t.Run("traffic through primary path", func(t *testing.T) {
 		weights := []float64{1, 0, 0, 0}
 		args.capture_ports = []string{"port2"}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 	t.Run("traffic through primary path inner ttl0", func(t *testing.T) {
 		weights := []float64{1, 0, 0, 0}
@@ -151,7 +172,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 
 		// packet gets dropped by router with below trap - show controllers npu stats traps-all instance 0 location 0/RP0/CPU0 | ex 0 0
 		// V4_HEADER_ERROR_OR_TTL0(D*)                   0    68   RPLC_CPU    272   1586  0    67         150        IFG     64      0                    154
-		testTraffic(t, args, weights, false) // expect no traffic
+		testEncapTrafficTtlDscp(t, args, weights, false) // expect no traffic
 
 		// restore flow
 		defer func() {
@@ -171,7 +192,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 
 		// packet gets dropped by router with below trap - show controllers npu stats traps-all instance 0 location 0/RP0/CPU0 | ex 0 0
 		// TTL_OR_HOP_COUNT_1_RX                         0    153  RPLC_CPU    277   1538  5    67         150        IFG     64      154                  0
-		testTraffic(t, args, weights, false) // expect no traffic
+		testEncapTrafficTtlDscp(t, args, weights, false) // expect no traffic
 
 		// restore flow
 		defer func() {
@@ -197,7 +218,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 0, 1}
 		args.capture_ports = []string{"port5"}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 	t.Run("mismatch in encap vrf with backup nhg", func(t *testing.T) {
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
@@ -227,7 +248,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 0, 1}
 		args.capture_ports = []string{"port5"}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary and backup to tunnel1", func(t *testing.T) {
 		t.Log("Shutdown link carrying primary and backup for tunnel1 traffic to vip1")
@@ -236,7 +257,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
 		weights := []float64{0, 0, 1, 0}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown link carrying traffic to vip2", func(t *testing.T) {
 		t.Log("Shutdown link carrying tunnel1 traffic to vip2")
@@ -248,7 +269,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)}
 
 		weights := []float64{0, 0, 1, 0}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 Shutdown link carrying decap encap traffic to vip3", func(t *testing.T) {
 		t.Log("Shutdown link carrying decap encap traffic to vip3")
@@ -258,11 +279,10 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		testTraffic(t, args, weights, true)
+		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
 }
 
-// TFRR_12a, TFRR_13, TFRR_14
 func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 	oSrcIp := faTransit.src
 	oDstIp := faTransit.dst
@@ -310,7 +330,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 
 		// packet gets dropped by router with below trap - show controllers npu stats traps-all instance 0 location 0/RP0/CPU0 | ex 0 0
 		// V4_HEADER_ERROR_OR_TTL0(D*)                   0    68   RPLC_CPU    272   1586  0    67         150        IFG     64      0                    154
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, false) // traffic should get dropped
+		testTransitTrafficWithTtlDscp(t, args, weights, false) // traffic should get dropped
 
 		// restore flow
 		defer func() {
@@ -332,7 +352,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 
 		// packet gets dropped by router with below trap - show controllers npu stats traps-all instance 0 location 0/RP0/CPU0 | ex 0 0
 		// TTL_OR_HOP_COUNT_1_RX                         0    153  RPLC_CPU    277   1538  5    67         150        IFG     64      154                  0
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, false) // traffic should get dropped
+		testTransitTrafficWithTtlDscp(t, args, weights, false) // traffic should get dropped
 
 		// restore flow
 		defer func() {
@@ -352,7 +372,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	})
@@ -375,10 +395,9 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		defer func() {
-			// configFallBackVrf(t, args.dut, []string{vrfEncapA})
 			args.client.DeleteIPv4(t, "0.0.0.0/0", vrfTransit, fluent.InstalledInFIB)
 			args.client.DeleteIPv6(t, "0::0/0", vrfTransit, fluent.InstalledInFIB)
 
@@ -397,12 +416,12 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
 		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
@@ -413,12 +432,12 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		weights := []float64{0, 0, 1, 0}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
 		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
@@ -433,10 +452,10 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("match in decap nomatch in encap", func(t *testing.T) {
 		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
@@ -460,11 +479,11 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
 		// ondatra.Debug().Breakpoint(t, "before starting traffic")
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 		// ondatra.Debug().Breakpoint(t, "after stopping traffic")
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		t.Log("add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -499,7 +518,6 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	args.client.AddNHG(t, baseNHG(20), map[uint64]uint64{baseNH(20): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	// configure repair path with backup
-	// configureVIP3NHGWithRepairTunnelHavingBackupDecapAction(t, args)
 	// backup to repair
 	args.client.AddNH(t, baseNH(5), "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
 	args.client.AddNHG(t, baseNHG(5), map[uint64]uint64{baseNH(5): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -517,7 +535,6 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	configureVIP2(t, args)
 	args.client.AddNH(t, vipNH(2), vipIP2, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
 	args.client.AddNHG(t, vipNHG(2), map[uint64]uint64{vipNH(2): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: baseNHG(20)})
-	// args.client.AddNHG(t, vipNHG(2), map[uint64]uint64{vipNH(2): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: tunNHG(3)})
 	args.client.AddIPv4(t, cidr(tunnelDstIP2, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	// set packet attributes
 	faTransit.innerDscp = dscpEncapA1
@@ -536,14 +553,12 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
-		// ondatra.Debug().Breakpoint(t, "testTransitDcgateOptimized")
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	})
 	t.Run("match in decap goto encap", func(t *testing.T) {
 		t.Log("Add decap prefix back to decap vrf to decap traffic and schedule to match in encap vrf")
-		// ondatra.Debug().Breakpoint(t, "testTransitDcgateOptimized - 2")
 
 		// verify traffic passes through primary NHG
 		faTransit.innerDscp = dscpEncapA1
@@ -553,13 +568,12 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// ondatra.Debug().Breakpoint(t, "testTransitDcgateOptimized - 3")
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
 		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
@@ -570,17 +584,15 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		weights := []float64{0, 0, 1, 0}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
 		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
-		// gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port4").Name()).Subinterface(0).Enabled().Config(), false)
-		// defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port4").Name()).Subinterface(0).Enabled().Config(), true)
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
 
@@ -591,7 +603,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("match in decap nomatch in encap", func(t *testing.T) {
 		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
@@ -614,54 +626,18 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
-		// ondatra.Debug().Breakpoint(t, "before starting traffic")
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
-		// ondatra.Debug().Breakpoint(t, "after stopping traffic")
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		t.Log("add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		// ondatra.Debug().Breakpoint(t, "at the end")
 	})
 }
 
-func TestPopGateUnOptimizedFibchain(t *testing.T) {
-	// setup
-	// Configure DUT
-	dut := ondatra.DUT(t, "dut")
-	configureDUTforPopGate(t, dut)
-
-	// Configure ATE
-	otg := ondatra.ATE(t, "ate")
-	topo := configureOTG(t, otg)
-
-	// configure gRIBI client
-	c := gribi.Client{
-		DUT:         dut,
-		FIBACK:      true,
-		Persistence: true,
-	}
-
-	if err := c.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	defer c.Close(t)
-	c.BecomeLeader(t)
-
-	// Flush all existing AFT entries on the router
-	defer c.FlushAll(t)
-
-	args := &testArgs{
-		client: &c,
-		dut:    dut,
-		ate:    otg,
-		topo:   topo,
-	}
-
+func testPopGateUnOptimized(t *testing.T, args *testArgs) {
 	oSrcIp := faTransit.src
 	oDstIp := faTransit.dst
 	faTransit.src = ipv4OuterSrc111
@@ -709,7 +685,7 @@ func TestPopGateUnOptimizedFibchain(t *testing.T) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
 		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
@@ -720,12 +696,12 @@ func TestPopGateUnOptimizedFibchain(t *testing.T) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		weights := []float64{0, 0, 1, 0}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
 		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
@@ -741,43 +717,11 @@ func TestPopGateUnOptimizedFibchain(t *testing.T) {
 		weights := []float64{0, 0, 0, 1}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 }
 
-func TestPopGateOptimizedFibchain(t *testing.T) {
-	// setup
-	// Configure DUT
-	dut := ondatra.DUT(t, "dut")
-	configureDUTforPopGate(t, dut)
-
-	// Configure ATE
-	otg := ondatra.ATE(t, "ate")
-	topo := configureOTG(t, otg)
-
-	// configure gRIBI client
-	c := gribi.Client{
-		DUT:         dut,
-		FIBACK:      true,
-		Persistence: true,
-	}
-
-	if err := c.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	defer c.Close(t)
-	c.BecomeLeader(t)
-
-	// Flush all existing AFT entries on the router
-	defer c.FlushAll(t)
-
-	args := &testArgs{
-		client: &c,
-		dut:    dut,
-		ate:    otg,
-		topo:   topo,
-	}
+func testPopGateOptimized(t *testing.T, args *testArgs) {
 
 	oSrcIp := faTransit.src
 	oDstIp := faTransit.dst
@@ -822,7 +766,7 @@ func TestPopGateOptimizedFibchain(t *testing.T) {
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
 		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
@@ -833,12 +777,12 @@ func TestPopGateOptimizedFibchain(t *testing.T) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		weights := []float64{0, 0, 1, 0}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
 		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
@@ -854,6 +798,6 @@ func TestPopGateOptimizedFibchain(t *testing.T) {
 		weights := []float64{0, 0, 0, 1}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
-		testTransitTrafficWithDscp(t, args, weights, dscpEncapA1, true)
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 }
