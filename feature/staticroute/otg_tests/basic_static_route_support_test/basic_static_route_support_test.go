@@ -249,12 +249,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 			"1": oc.UnionString(atePort3.IPv4),
 		},
 	}
-	spV4, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut)
-	if err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	for index := range sV4.NextHops {
-		spV4.GetOrCreateNextHop(index).SetRecurse(true)
 	}
 	b.Set(t, dut)
 	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
@@ -271,12 +267,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 			"3": oc.UnionString(atePort4.IPv4),
 		},
 	}
-	spV4, err = cfgplugins.NewStaticRouteCfg(b, sV4, dut)
-	if err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	for index := range sV4.NextHops {
-		spV4.GetOrCreateNextHop(index).SetRecurse(true)
 	}
 	b.Set(t, dut)
 	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
@@ -291,12 +283,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 			"1": oc.UnionString(atePort3.IPv4),
 		},
 	}
-	spV4, err = cfgplugins.NewStaticRouteCfg(b, sV4, dut)
-	if err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	for index := range sV4.NextHops {
-		spV4.GetOrCreateNextHop(index).SetRecurse(true)
 	}
 	b.Set(t, dut)
 	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
