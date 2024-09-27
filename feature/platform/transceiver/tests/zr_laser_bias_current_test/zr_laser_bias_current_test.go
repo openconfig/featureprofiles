@@ -117,7 +117,6 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	i := d.GetOrCreateInterface(dp1.Name())
 	i.Enabled = ygot.Bool(false)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Name().Config(), dp1.Name())
 	gnmi.Replace(t, dut1, gnmi.OC().Interface(dp1.Name()).Config(), i)
 	componentName := components.OpticalChannelComponentFromPort(t, dut1, dp1)
 	component := gnmi.OC().Component(componentName)
