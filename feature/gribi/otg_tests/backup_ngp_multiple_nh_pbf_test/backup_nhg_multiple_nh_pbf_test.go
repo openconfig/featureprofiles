@@ -384,7 +384,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().Increment().SetStart(decapFlowSrc)
-	v4.Priority().Dscp().Phb().SetValues([]uint32{dscpEncapA1})
+	v4.Priority().Dscp().Phb().SetValue(dscpEncapA1)
 	v4.Dst().Increment().SetStart(dstPfxMin).SetCount(routeCount)
 
 	// use ip over ip packets since some vendors only support decap for backup
