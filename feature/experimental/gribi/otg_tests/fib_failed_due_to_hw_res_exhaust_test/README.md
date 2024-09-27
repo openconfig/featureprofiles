@@ -23,10 +23,18 @@ Validate gRIBI FIB_FAILED functionality.
 *   Pick any route that received FIB_PROGRAMMED. Validate that traffic hitting the route should be forwarded to port2 
 
 
-## Protocol/RPC Parameter coverage
-
-*   gRIBI
-    *   Flush
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Config parameter coverage
 
