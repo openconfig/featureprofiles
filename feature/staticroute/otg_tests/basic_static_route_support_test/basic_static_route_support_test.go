@@ -44,8 +44,8 @@ const (
 	trafficDuration         = 2 * time.Minute
 	lossTolerance           = float64(1)
 	ecmpTolerance           = uint64(2)
-	port1Tag                = "0x101"
-	port2Tag                = "0x102"
+	port1Tag                = "0x01"
+	port2Tag                = "0x02"
 	dummyV6                 = "2001:db8::192:0:2:d"
 	dummyMAC                = "00:1A:11:00:0A:BC"
 	explicitMetricTolerance = float64(2)
@@ -1162,7 +1162,7 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 
 	eth := v4F.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("MACTrackingv4").SetOffset(36).SetLength(12)
+	ethTag.SetName("MACTrackingv4").SetOffset(40).SetLength(8)
 
 	v6F := td.top.Flows().Add()
 	v6F.SetName(v6Flow).Metrics().SetEnable(true)
@@ -1181,7 +1181,7 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
-	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
+	ethTag.SetName("MACTrackingv6").SetOffset(40).SetLength(8)
 }
 
 func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName string) error {
