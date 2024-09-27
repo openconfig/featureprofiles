@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	techDirectory  = "harddisk:/firex_tech" // Directory for storing tech support files
-	scpCopyTimeout = 300 * time.Second      // Timeout for SCP copy operations
+	techDirectory        = "harddisk:/firex_tech" // Directory for storing tech support files
+	scpCopyTimeout       = 300 * time.Second      // Timeout for SCP copy operations
+	maxParallelExecutors = 4                      // maximum concurrent go routine for command execution and corefile decode
 )
 
 var (
@@ -190,8 +191,7 @@ func executeCommandsInParallel(t *testing.T, ctx context.Context, dutID string, 
 	var wg sync.WaitGroup
 
 	// Start a fixed number of worker goroutines
-	numWorkers := 4
-	for i := 0; i < numWorkers; i++ {
+	for i := 0; i < maxParallelExecutors; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -350,8 +350,7 @@ func findCoreFile(t *testing.T, pathToMonitor string) {
 	var wg sync.WaitGroup
 
 	// Start a fixed number of worker goroutines
-	numWorkers := 4
-	for i := 0; i < numWorkers; i++ {
+	for i := 0; i < maxParallelExecutors; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
