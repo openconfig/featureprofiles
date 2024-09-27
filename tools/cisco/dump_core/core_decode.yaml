@@ -20,6 +20,6 @@ featureprofiles_internal_core_decode:
             testbeds:
                 - 8808-2DUT
             test_name: core_decode
-            test_path: tools/cisco/core_decode
+            test_path: tools/cisco/dump_core
             test_timeout: 7200
             test_branch: krinata2_core_decode
