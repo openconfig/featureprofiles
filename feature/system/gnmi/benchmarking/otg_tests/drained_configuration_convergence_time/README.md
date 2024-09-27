@@ -35,21 +35,24 @@ defined in the case):
         *   Measure time between t=0 and all BGP received routes on ATE to
             report changed metric.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-    *   BGP
-        *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-        *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
-        *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/as-number
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-    *   ISIS
-        *   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric
-        *   /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit
+```yaml
+paths:
+  ## Config Parameter coverage
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/state/metric:
+  /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/state/set-bit:
 
-## Telemetry Parameter coverage
-    
-    *   ISIS
-        *   /interfaces/interfaces/levels/level/adjacencies/adjacency/state/adjacency-state
-    *   BGP    
-        *   /afi-safis/afi-safi/state/prefixes/sent
-        *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor
+  ## Telemetry Parameter coverage
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:  
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```

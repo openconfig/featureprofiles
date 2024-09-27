@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/feature/experimental/system/gnmi/benchmarking/internal/setup"
+	"github.com/openconfig/featureprofiles/feature/system/gnmi/benchmarking/internal/setup"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"

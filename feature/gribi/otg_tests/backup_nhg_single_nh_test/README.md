@@ -31,21 +31,18 @@ containing a single NH.
     *   Interface DUT port-2 is disabled.
 *   Remove the entry for 192.0.2.254/32.
 
-## Config Parameter coverage
-
-No new configuration covered.
-
-## Telemetry Parameter coverage
-
-No new telemetry covered.
-
-## Protocol/RPC Parameter coverage
-
-*   gRIBI
-    *   Modify
-        *   ModifyRequest
-            *   NextHopGroup
-                *   backup_nexthop_group
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
 
 ## Minimum DUT platform requirement
 
