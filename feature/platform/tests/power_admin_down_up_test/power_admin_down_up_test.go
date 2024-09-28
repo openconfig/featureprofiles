@@ -25,22 +25,6 @@ func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
-	removable_fabrics := make([]string, 0)
-	for _, f := range fs {
-		compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
-		if compMtyPresent && compMtyVal {
-			continue
-		}
-		if gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
-			removable_fabrics = append(removable_fabrics, f)
-		}
-	}
-	t.Logf("removable_fabrics are %v", removable_fabrics)
-	fs = removable_fabrics
-	if len(fs) == 0 {
-		t.Skipf("Get Fabric card list for %q: got 0, want > 0", dut.Model())
-	}
-
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
 
