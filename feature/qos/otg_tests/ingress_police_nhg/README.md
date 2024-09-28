@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use the gRIBI applied ip entries from TE-18.1 gRIBI. Configure an ingress scheduler
+Use the gRIBI applied IP entries from TE-18.1 gRIBI. Configure an ingress scheduler
 to police traffic using a 1 rate, 2 color policer. Configure a classifier to match
 traffic on a next-hop-group.  Apply the configuration to a VLAN on an aggregate
 interface.  Send traffic to validate the policer.
@@ -23,9 +23,9 @@ Use TE-18.1 test environment setup.
 * Generate config for 2 forwarding-groups mapped to "dummy" input queues
   * Note that the DUT is not required to have an input queue, the dummy queue
     satisfies the OC schema which requires defining nodes mapping
-    classfier->fwd_group->queue->scheduler
-* Generate config for 2 schedulder-policies to police traffic
-* Generate config to apply classifer and scheduler to DUT subinterface with vlan.
+    classfier->forwarding-group->queue->scheduler
+* Generate config for 2 scheduler-policies to police traffic
+* Generate config to apply classifer and scheduler to DUT subinterface.  (TODO: include interface config details with 802.1Q tags)
 * Use gnmi.Replace to push the config to the DUT.
 
 ```yaml
@@ -42,7 +42,7 @@ openconfig-qos:
           conditions:
             next-hop-group:
                 config:
-                    name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+                    name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id (what about MBB / gribi is not transactional, a delete might fail and and add might succeed)
           actions:
             config:
               target-group: "input_dest_A"
@@ -82,15 +82,15 @@ openconfig-qos:
             config:
               target-group: "input_dest_B"
 
-
+  # TODO: Add link to OC qos overview documentation, pending: https://github.com/openconfig/public/pull/1190/files?short_path=11f0b86#diff-11f0b8695aa64acdd535b0d47141c0a373e01f63099a423a21f61a542eda0052
   forwarding-groups:
     - forwarding-group: "input_dest_A"
       config:
-        name: "input packets"
+        name: "input_dest_A"
         output-queue: dummy_input_queue_A
     - forwarding-group: "input_dest_B"
       config:
-        name: "input packets"
+        name: "input_dest_B"
         output-queue: dummy_input_queue_B
 
   queues:
@@ -114,6 +114,7 @@ openconfig-qos:
             - input: "my input policer 1Gb"
               config:
                 id: "my input policer 1Gb"
+                input-type: QUEUE
                 # instead of QUEUE, how about a new enum, FWD_GROUP (current options are QUEUE, IN_PROFILE, OUT_PROFILE)
                 queue: dummy_input_queue_A
           one-rate-two-color:
@@ -181,7 +182,7 @@ openconfig-qos:
 
 ```
 
-### TE-18.2.2 push gRIBI aft encap rules with next-hop-group-id
+### TE-18.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
 
 Create a gRIBI client and send this proto message to the DUT to create AFT
 entries.  Note the next-hop-groups here include a `next_hop_group_id` field
@@ -192,114 +193,68 @@ which matches the
 * [TODO: gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
 
 ```proto
-network_instances: {
-  network_instance: {
-    afts {
-      #
-      # entries used for "group_A"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet
-          next_hop_group: 100
-        }
+#
+# aft entries used for network instance "NI_A"
+IPv6Entry {2001:DB8:2::2/128 (NI_A)} -> NHG#100 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF}
+}
+
+# this nexthop specifies a MPLS in UDP encapsulation
+NH#101 -> {
+  encap-headers {
+    encap-header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [101,]
       }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet
-          next_hop_group: 100
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 100
-          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          next_hops {                 # reference to a next-hop
-            next_hop: {
-              index: 100
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 100
-          network_instance: "group_A"
-          encap-headers {
-            encap-header {
-              index: 1
-              pushed_mpls_label_stack: [100,]
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              src_ip: "outer_ipv6_src"
-              dst_ip: "outer_ipv6_dst_A"
-              dst_udp_port: "outer_dst_udp_port"
-              ip_ttl: "outer_ip-ttl"
-              dscp: "outer_dscp"
-            }
-          }
-        }
-      }
-      #
-      # entries used for "group_B"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_B"
-          next_hop_group: 200
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_B"
-          next_hop_group: 200
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 200
-          next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-          next_hops {                 # reference to a next-hop
-            next_hop: {
-              index: 200
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 200
-          network_instance: "group_B"
-          encap-headers {
-            encap-header {
-              index: 1
-              type : OPENCONFIG_AFT_TYPES:MPLS
-              mpls {
-                pushed_mpls_label_stack: [200,]
-              }
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              type: OPENCONFIG_AFT_TYPES:UDP
-              udp {
-                src_ip: "outer_ipv6_src"
-                dst_ip: "outer_ipv6_dst_B"
-                dst_udp_port: "outer_dst_udp_port"
-                ip_ttl: "outer_ip-ttl"
-                dscp: "outer_dscp"
-              }
-            }
-          }
-        }
+    }
+    encap-header {
+      index: 2
+      udp {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_A"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+        dscp: "outer_dscp"
       }
     }
   }
+  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  network_instance: "DEFAULT"
 }
-```
 
+#
+# entries used for network-instance "NI_B"
+IPv6Entry {2001:DB8:2::2/128 (NI_B)} -> NHG#200 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
+  {NH#201, DEFAULT VRF}
+}
+
+NH#201 -> {
+  encap-headers {
+    encap-header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [201,]
+      }
+    }
+    encap-header {
+      index: 2
+      udp {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_B"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+        dscp: "outer_dscp"
+      }
+    }
+  }
+  next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  network_instance: "DEFAULT"
+}
+
+```
 
 ### TE-18.2.3 Test traffic
 
