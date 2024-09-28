@@ -160,9 +160,9 @@ openconfig-qos:
               config:
                 name: "dest_A"
                 type: "IPV4"
-            scheduler-policy:
-              state:
-                name: limit_group_A_1Gb
+          scheduler-policy:
+            config:
+              name: limit_group_A_1Gb
     - interface: "PortChannel1.200"
         config:
           interface-id: "PortChannel1.200"
@@ -173,13 +173,8 @@ openconfig-qos:
                 name: "dest_B"
                 type: "IPV4"
           scheduler-policy:
-            state:
+            config:
               name: limit_group_B_2Gb
-
-            scheduler-policy:
-              state:
-                name: limit_group_A_1Gb
-
 ```
 
 ### TE-18.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
@@ -259,18 +254,17 @@ NH#201 -> {
 ### TE-18.2.3 Test traffic
 
 * Send traffic
-  * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
-  * Send traffic from ATE port 1 to DUT for to dest_B and is conforming to
-    cir.
+  * Send flow A traffic from ATE port 1 to DUT for dest_A at 0.7Gbps (note cir is 1Gbps).
+  * Send flow B traffic from ATE port 1 to DUT for to dest_B at 1.5Gbps (note cir is 2Gbps).
   * Validate packets are received by ATE port 2.
-    * Validate qos interface scheduler counters
-    * Validate afts next hop counters
+    * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
+    * Validate at OTG that 0 packets are lost on flow A and flow B
   * Validate outer packet ipv6 flow label assignment
     * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
       * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
       * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
-  * Increase traffic on flow to dest_B to 2Gbps
-    * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
+  * Increase traffic on flow to dest_A to 2Gbps
+    * Validate that flow dest_A experiences ~50% packet loss (+/- 1%)
 
 #### OpenConfig Path and RPC Coverage
 
@@ -289,13 +283,18 @@ paths:
   /qos/classifiers/classifier/terms/term/config/id:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
-  # qos policer config - TODO: a new OC subtree (/qos/policer-policies, essentially copying/moving policer action from schedulers)
-  # /qos/policer-policies/policer-policy/config/name:
-  # /qos/policer-policies/policer-policy/config/policers/policer/config/sequence:
-  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/cir:
-  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/bc:
-  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/config/cir:
-  # /qos/policer-policies/policer-policy/config/policers/policer/one-rate-two-color/exceed-action/config/drop:
+  # qos forwarding-groups config
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+
+  # qos queue config
+  /qos/queues/queue/config/name:
+
+  # qos interfaces config
+  /qos/interfaces/interface/config/interface-id:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
+  /qos/interfaces/interface/input/scheduler-policy/config/name:
 
   # qos interface scheduler counters
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
