@@ -42,12 +42,12 @@ func TestCoreFileDecode(t *testing.T) {
 	}
 
 	for _, device := range b.Duts {
-		dutName := device.Name
-		dut := ondatra.DUT(t, dutName)
-		t.Run(fmt.Sprintf("dump core files for device %s", dutName), func(t *testing.T) {
-			t.Logf("Start dumping core for device: %s", dutName)
+		dutID := device.Id
+		dut := ondatra.DUT(t, dutID)
+		t.Run(fmt.Sprintf("dump core files for device %s", dutID), func(t *testing.T) {
+			t.Logf("Start dumping core for device: %s", dutID)
 			for _, process := range processes {
-				t.Logf("Dumping core for device: %s, process name: %s", dutName, process)
+				t.Logf("Dumping core for device: %s, process name: %s", dutID, process)
 				commands := []string{
 					fmt.Sprintf("dumpcore running %s location 0/RP0/CPU0\n", process),
 					fmt.Sprintf("dir harddisk:%s*core*\n", process),
@@ -58,17 +58,17 @@ func TestCoreFileDecode(t *testing.T) {
 				for _, cmd := range commands {
 					testt.CaptureFatal(t, func(t testing.TB) {
 						if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-							t.Logf("%s> %s", dutName, cmd)
+							t.Logf("%s> %s", dutID, cmd)
 							t.Log(result.Output())
 						} else {
-							t.Logf("%s> %s", dutName, cmd)
+							t.Logf("%s> %s", dutID, cmd)
 							t.Log(err.Error())
 						}
 						t.Logf("\n")
 					})
 				}
 			}
-			t.Logf("Finished dumping core for device: %s", dutName)
+			t.Logf("Finished dumping core for device: %s", dutID)
 		})
 	}
 }
