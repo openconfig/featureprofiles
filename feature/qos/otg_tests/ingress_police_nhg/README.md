@@ -251,7 +251,7 @@ NH#201 -> {
 
 ```
 
-### TE-18.2.3 Test traffic
+### TE-18.2.3 Test flow policing
 
 * Send traffic
   * Send flow A traffic from ATE port 1 to DUT for dest_A at 0.7Gbps (note cir is 1Gbps).
@@ -259,12 +259,20 @@ NH#201 -> {
   * Validate packets are received by ATE port 2.
     * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
     * Validate at OTG that 0 packets are lost on flow A and flow B
-  * Validate outer packet ipv6 flow label assignment
-    * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
-      * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
-      * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
   * Increase traffic on flow to dest_A to 2Gbps
     * Validate that flow dest_A experiences ~50% packet loss (+/- 1%)
+  * Stop traffic
+
+### TE-18.2.3 IPv6 flow label validiation
+
+  * Send 100 packets for flow A and flow B.  (Use an OTG fixed packet count flow)
+  * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
+    * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol.
+    * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
+    * To validate the flow label, use the ATE to verify that the packets for 
+      * flow A all have the same flow label
+      * flow B have the same flow label
+      * flow A and B labels do not match
 
 #### OpenConfig Path and RPC Coverage
 
