@@ -82,7 +82,7 @@ openconfig-qos:
             config:
               target-group: "input_dest_B"
 
-  # TODO: Add link to OC qos overview documentation, pending: https://github.com/openconfig/public/pull/1190/files?short_path=11f0b86#diff-11f0b8695aa64acdd535b0d47141c0a373e01f63099a423a21f61a542eda0052
+  # TODO: link to OC qos ingress policer documentation, pending: https://github.com/openconfig/public/pull/1190/files?short_path=11f0b86#diff-11f0b8695aa64acdd535b0d47141c0a373e01f63099a423a21f61a542eda0052
   forwarding-groups:
     - forwarding-group: "input_dest_A"
       config:
@@ -115,7 +115,6 @@ openconfig-qos:
               config:
                 id: "my input policer 1Gb"
                 input-type: QUEUE
-                # instead of QUEUE, how about a new enum, FWD_GROUP (current options are QUEUE, IN_PROFILE, OUT_PROFILE)
                 queue: dummy_input_queue_A
           one-rate-two-color:
             config:
@@ -138,7 +137,6 @@ openconfig-qos:
             - input: "my input policer 2Gb"
               config:
                 id: "my input policer 2Gb"
-                # instead of QUEUE, how about a new enum, FWD_GROUP (current options are QUEUE, IN_PROFILE, OUT_PROFILE)
                 input-type: QUEUE
                 queue: dummy_input_queue_B
           one-rate-two-color:
@@ -149,32 +147,32 @@ openconfig-qos:
             exceed-action:
               config:
                 drop: TRUE
-
   interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1.100"
-        config:
-          interface-id: "PortChannel1.100"
-        input:
-          classifers:
-            - classifier:
-              config:
-                name: "dest_A"
-                type: "IPV4"
-          scheduler-policy:
+    - interface:
+      config:
+        interface-id: "PortChannel1.100"
+      input:
+        classifiers:
+          - classifier:
             config:
-              name: limit_group_A_1Gb
-    - interface: "PortChannel1.200"
-        config:
-          interface-id: "PortChannel1.200"
-        input:
-          classifers:
-            - classifier:
-              config:
-                name: "dest_B"
-                type: "IPV4"
-          scheduler-policy:
+              name: "dest_A"
+              type: "IPV4"
+        scheduler-policy:
+          config:
+            name: "limit_group_A_1Gb"
+    - interface:
+      config:
+        interface-id: "PortChannel1.200"
+      input:
+        classifiers:
+          - classifier:
             config:
-              name: limit_group_B_2Gb
+              name: "dest_B"
+              type: "IPV4"
+        scheduler-policy:
+          config:
+            name: "limit_group_B_1Gb"
+
 ```
 
 ### TE-18.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
