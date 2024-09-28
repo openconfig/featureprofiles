@@ -60,12 +60,12 @@ B <-- EBGP(ASN200) --> C[Port2:ATE];
 * Test Flows used for verification
   * IPv4Prefix1 <-> IPv4Prefix4, IPv6Prefix1 <-> IPv6Prefix4
   * IPv4Prefix2 <-> IPv4Prefix5, IPv6Prefix2 <-> IPv6Prefix5
-  * IPv4Prefix3 <-> IPv4Prefix6, IPv6Prefix3 <-> IPv6Prefix6
+  * IPv4Prefix3 <-> IPv4Prefix6, IPv6Prefix3 <-> IPv6Prefix6<br><br><br>
+
+   
 
 
-...
-
-* RT-1.35.1 Validate Graceful-Restart (Baseline)
+**RT-1.35.1: Validate Graceful-Restart (Baseline)**
 
   ```
     TODO: Following OC-paths need to be added to the Yang model
@@ -92,150 +92,138 @@ B <-- EBGP(ASN200) --> C[Port2:ATE];
     * IPv4Prefix3 and IPv6Prefix3 has community TEST-IBGP and NEW-IBGP in that order. Also, ensure that these prefixes have an AS-PATH of "100, 100, 100"
     * Start traffic as per the Test flows above and ensure 100% success
 
-    If any of the above verifications fail, then the test is a failure.
+    If any of the above verifications fail, then the test is a failure.<br><br><br>
 
+   
 
-...
-
-    
-* RT-1.35.2
-  a. Restarting DUT speaker whose BGP process was killed gracefully. In this case ERR policy is attached to the BGP neighborship.
-    * Trigger DUT session restart by gracefully killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
-    * Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
-    * Once the BGP process on DUT is killed, configure both ATEs to delay the BGP reestablishment for 330 secs longer than the `HOLD-TIME` and start regular traffic between ATEs as directed above and verify that the packets are treated as follows. If not, the Test Must fail.
-      * Traffic between prefixes IPv4Prefix1, IPv6Prefix1, IPv4Prefix4 and IPv6Prefix4 MUST be successful until the "restart timer" expires and dropped after that.
-      * Traffic between prefixes IPv4Prefix2, IPv6Prefix2, IPv4Prefix5 and IPv6Prefix5 MUST be successful until the ERR retention-time expires and dropped after that. The routes for these prefixes must also have the community STALE added to the end of the community-list as recieved at the ATE end (as per RT-1.35.1.b and RT-1.35.1.c).
-      * Traffic between prefixes IPv4Prefix3, IPv6Prefix3, IPv4Prefix6 and IPv6Prefix6 MUST be successful until the retention-time expires and dropped after that. The routes for these prefixes must also have the Local-Preference of "0" and the community value of "STALE" attached to the end of the community-list (as called out in RT-1.35.1.b and RT-1.35.1.c) as received by the ATEs.
-    * Post 330 secs, the ATEs are allowed to form BGP neighborship with the DUT. Readvertisements of the EBGP and IBGP prefixes will takeplace and the state of the routes and their BGP attributes as well as traffic flow is expected to be the same as the baseline results in RT-1.35.1 above. If not, then the test Must fail.
-
-  b. Restarting DUT speaker whose BGP process was killed gracefully after removing the ERR policy
-    * In this case too, Once the BGP process on the DUT is killed, configure both ATEs to delay the BGP reestablishment for 330 secs longer than the `HOLD-TIME` and start regular trafficbetween between ATEs as directed above and verify that the packets are treated as follows. If not, the Test Must fail.
-      * When ERR has no ERR policy attached, behavior is expected to be as defined in RFC 8538 and RFC 4724 i.e. traffic flow between prefixes is successful only until the "restart timer" expires. After that, 100% packet drop is expected.
-      * Since there isnt any ERR policy attached, changes to the community and Local-Pref attributes as defined in the ERR policy (STALE-ROUTE-POLICY) isnt expected. That is, the community-list attached to the routes learnt from the DUT as well as their local-preference values will be the same as the baseline test above i.e. RT-1.35.1. If not, then the test Must fail
-    * Post 330 secs, the ATEs are allowed to form the BGP neighborship with the DUT. Readvertisements of the EBGP and IBGP prefixes will takeplace and the state of the routes and their BGP attributes as well as traffic flow is expected to be the same as the baseline results in RT-1.35.1 above. Also, traffic must be 100% successful. If not, then the test Must fail.
  
+**RT-1.35.2**
 
-...
+  ***`a. Restarting DUT speaker whose BGP process was killed gracefully. In this case ERR policy is attached to the BGP neighborship.`***
+  * Trigger DUT session restart by gracefully killing the BGP process in the DUT. Please use the `gNOI.killProcessRequest_Signal_Term` as per [gNOI_proto](https://github.com/openconfig/gnoi/blob/main/system/system.proto#L326).
+  * Please kill the right process to restart BGP. For Juniper it is the `RPD` process. For Arista and Cisco this is the `BGP` process. For Nokia this is `sr_bgp_mgr`.
+  * Once the BGP process on DUT is killed, configure both ATEs to delay the BGP reestablishment for 330 secs longer than the `HOLD-TIME` and start regular traffic between ATEs as directed above and verify that the packets are treated as follows. If not, the Test Must fail.
+    * Traffic between prefixes IPv4Prefix1, IPv6Prefix1, IPv4Prefix4 and IPv6Prefix4 MUST be successful until the "restart timer" expires and dropped after that.
+    * Traffic between prefixes IPv4Prefix2, IPv6Prefix2, IPv4Prefix5 and IPv6Prefix5 MUST be successful until the ERR retention-time expires and dropped after that. The routes for these prefixes must also have the community STALE added to the end of the community-list as recieved at the ATE end (as per RT-1.35.1.b and RT-1.35.1.c).
+    * Traffic between prefixes IPv4Prefix3, IPv6Prefix3, IPv4Prefix6 and IPv6Prefix6 MUST be successful until the retention-time expires and dropped after that. The routes for these prefixes must also have the Local-Preference of "0" and the community value of "STALE" attached to the end of the community-list (as called out in RT-1.35.1.b and RT-1.35.1.c) as received by the ATEs.
+  * Post 330 secs, the ATEs are allowed to form BGP neighborship with the DUT. Readvertisements of the EBGP and IBGP prefixes will takeplace and the state of the routes and their BGP attributes as well as traffic flow is expected to be the same as the baseline results in RT-1.35.1 above. If not, then the test Must fail.
 
-* RT-1.35.3
-  a. Restarting DUT speaker whose BGP process was killed abruptly. In this case ERR policy is attached to the BGP neighborship.
-    * use `gNOI.killProcessRequest_Signal_KILL` this time as per `gNOI proto`
-    * Expected behavior is the same as RT-1.35.2.a
+  ***`b. Restarting DUT speaker whose BGP process was killed gracefully after removing the ERR policy`***
+  * In this case too, Once the BGP process on the DUT is killed, configure both ATEs to delay the BGP reestablishment for 330 secs longer than the `HOLD-TIME` and start regular trafficbetween between ATEs as directed above and verify that the packets are treated as follows. If not, the Test Must fail.
+    * When ERR has no ERR policy attached, behavior is expected to be as defined in RFC 8538 and RFC 4724 i.e. traffic flow between prefixes is successful only until the "restart timer" expires. After that, 100% packet drop is expected.
+    * Since there isnt any ERR policy attached, changes to the community and Local-Pref attributes as defined in the ERR policy (STALE-ROUTE-POLICY) isnt expected. That is, the community-list attached to the routes learnt from the DUT as well as their local-preference values will be the same as the baseline test above i.e. RT-1.35.1. If not, then the test Must fail
+  * Post 330 secs, the ATEs are allowed to form the BGP neighborship with the DUT. Readvertisements of the EBGP and IBGP prefixes will takeplace and the state of the routes and their BGP attributes as well as traffic flow is expected to be the same as the baseline results in RT-1.35.1 above. Also, traffic must be 100% successful. If not, then the test Must fail.<br><br><br>
+
+**RT-1.35.3**
+
+  ***`a. Restarting DUT speaker whose BGP process was killed abruptly. In this case ERR policy is attached to the BGP neighborship.`***
+  * use `gNOI.killProcessRequest_Signal_KILL` this time as per `gNOI proto`
+  * Expected behavior is the same as RT-1.35.2.a<br>
  
-  b. Restarting DUT speaker whose BGP process was killed abruptly after ERR policy was removed
-    * Expected behavior is the same as RT-1.35.2.b
+  ***`b. Restarting DUT speaker whose BGP process was killed abruptly after ERR policy was removed.`***
+  * Expected behavior is the same as RT-1.35.2.b<br><br><br>
+
+   
+
   
 
-...
+**RT-1.35.4**
 
-* RT-1.35.4
-  a. DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed. In this case ERR policy is attached to the BGP neighborship.
-    * Send Graceful restart trigger from ATE:Port1
-    * Expected behavior is the same as RT-1.35.2.a
-    * Repeat by sending Graceful restart trigger from ATE:Port2 with the same expected behavior as RT-1.35.2.a
+  ***`a. DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed. In this case ERR policy is attached to the BGP neighborship.`***
+  * Send Graceful restart trigger from ATE:Port1
+  * Expected behavior is the same as RT-1.35.2.a
+  * Repeat by sending Graceful restart trigger from ATE:Port2 with the same expected behavior as RT-1.35.2.a<br>
 
-  b. DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed after ERR policy was removed
-    * Send Graceful restart trigger from ATE:Port1
-    * Expected behavior is the same as RT-1.35.2.b
-    * Repeat by sending Graceful restart trigger from ATE:Port2 with the same expected behavior as RT-1.35.2.b
+  ***`b. DUT Helper for a restarting EBGP speaker whose BGP process was gracefully killed after ERR policy was removed.`***
+  * Send Graceful restart trigger from ATE:Port1
+  * Expected behavior is the same as RT-1.35.2.b
+  * Repeat by sending Graceful restart trigger from ATE:Port2 with the same expected behavior as RT-1.35.2.b<br><br><br>
   
+**RT-1.35.5**
 
-...
-
-* RT-1.35.5
-  a. DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly. In this case ERR policy is attached to the BGP neighborship.
-    * Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1 to delay the BGP reestablishment for 330 secs over the Hold-time. Expected behavior in this case is the same as RT-1.35.2.a
-    * Post 330Secs over Hold-time expiry, BGP on ATE:Port1 is expected to be up and all traffic is expected to be successful.
-    * Repeat the same test on ATE:Port2
+  ***`a. DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly. In this case ERR policy is attached to the BGP neighborship.`***
+  * Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1 to delay the BGP reestablishment for 330 secs over the Hold-time. Expected behavior in this case is the same as RT-1.35.2.a
+  * Post 330Secs over Hold-time expiry, BGP on ATE:Port1 is expected to be up and all traffic is expected to be successful.<br>
+  * Repeat the same test on ATE:Port2
   
-  b. DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly after ERR policy was removed
-    * Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1 to delay the BGP reestablishment for 330 secs over the Hold-time. Expected behavior in this case is the same as RT-1.35.2.b
-    * Post 330Secs over Hold-time expiry, BGP on ATE:Port1 is expected to be up and all traffic is expected to be successful.
-    * Repeat the same test on ATE:Port2
+  ***`b. DUT Helper for a restarting EBGP speaker whose BGP process was killed abruptly after ERR policy was removed.`***
+  * Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1 to delay the BGP reestablishment for 330 secs over the Hold-time. Expected behavior in this case is the same as RT-1.35.2.b
+  * Post 330Secs over Hold-time expiry, BGP on ATE:Port1 is expected to be up and all traffic is expected to be successful.
+  * Repeat the same test on ATE:Port2<br><br><br>
+
+   
+
  
-
-...
+**RT-1.35.6**
   
-* RT-1.35.6
+```TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review in https://github.com/openconfig/gnoi/pull/214```
   
-```
-  TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review in https://github.com/openconfig/gnoi/pull/214
-```
-  
-  a. Expected behavior when "Administrative Reset" Notification (rfc4486) sent to the peer while the ERR policy is attached to the neighborship
+  ***`a. Expected behavior when "Administrative Reset" Notification (rfc4486) sent to the peer while the ERR policy is attached to the neighborship.`***
    *   Start traffic as per the flows above
    *   Trigger BGP Notification (code 6 subocde 4) from DUT:Port1 towards ATE:Port1. Please use the `gNOI.ClearBGPNeighborRequest_GRACEFUL` message.
    *   Cease notification of Code 6, subcode 4 will result in tcp connection reset but the routes aren't flushed
    *   Configure ATE:Port1 to not send/accept any more TCP conenctions from the DUT:Port1 until the "reset timer" on the DUT expires.
      *   Expected behavior is the same as RT-1.35.2.a
    *   Revert ATE configurtion to allow for the BGP sessions to be up. Restart traffic and confirm that there is zero packet loss. Expected behavior is same as the base test in RT-1.35.1
-   *   Restart the above procedure for the EBGP peering between DUT:Port-2 and ATE:Port-2
+   *   Restart the above procedure for the EBGP peering between DUT:Port-2 and ATE:Port-2<br>
 
   
-  b. Expected behavior when "Administrative Reset" Notification sent to the peer and ERR policy isnt attached.
-   *   Follow the same process as RT-1.35.6.a. However since the ERR policy isnt attached, expected behavior is the same as RT-1.35.2.b
+   ***`b. Expected behavior when "Administrative Reset" Notification sent to the peer and ERR policy isnt attached.`***
+   *   Follow the same process as RT-1.35.6.a. However since the ERR policy isnt attached, expected behavior is the same as RT-1.35.2.b<br><br><br>
+
    
 
-...
+**RT-1.35.7**
 
-* RT-1.35.7
-
-```
-  TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review in https://github.com/openconfig/gnoi/pull/214
-```
+```TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review in https://github.com/openconfig/gnoi/pull/214```
   
-  a. Expected behavior when "Administrative Reset" Notification (rfc4486) received from the peer while ERR policy is attached on the neighborship.
-    * Follow the same procedure as RT-1.35.6.a above. However this time, Trigger BGP Notification (code 6 subocde 4) from ATE:Port1 towards DUT:Port1. Please use the `gNOI.ClearBGPNeighborRequest_GRACEFUL` message.
-      * Expected result is same as RT-1.35.2.a above
-   *   Revert ATE configurtion to allow for the BGP sessions to be up. Restart traffic and confirm that there is zero packet loss. Expected behavior is same as the base test in RT-1.35.1
-    * Restart the above procedure for the EBGP peering between DUT:Port-2 and ATE:Port-2
+  ***`a. Expected behavior when "Administrative Reset" Notification (rfc4486) received from the peer while ERR policy is attached on the neighborship.`***
+  * Follow the same procedure as RT-1.35.6.a above. However this time, Trigger BGP Notification (code 6 subocde 4) from ATE:Port1 towards DUT:Port1. Please use the `gNOI.ClearBGPNeighborRequest_GRACEFUL` message.
+    * Expected result is same as RT-1.35.2.a above
+  * Revert ATE configurtion to allow for the BGP sessions to be up. Restart traffic and confirm that there is zero packet loss. Expected behavior is same as the base test in RT-1.35.1
+    * Restart the above procedure for the EBGP peering between DUT:Port-2 and ATE:Port-2<br>
     
-  b. Expected behavior when  "Administrative Reset" Notification (rfc4486) is received from the peer and ERR policy isnt attached on the neighborship
-    * Start traffic and then follow the same process as RT-1.35.7.a above. The only exception in this case is that the ERR policy isn't attached. Expected behavior is the same as the baseline test RT-1.35.2.b above.
- 
+   ***`b. Expected behavior when  "Administrative Reset" Notification (rfc4486) is received from the peer and ERR policy isnt attached on the neighborship.`***
+   * Start traffic and then follow the same process as RT-1.35.7.a above. The only exception in this case is that the ERR policy isn't attached. Expected behavior is the same as the baseline test RT-1.35.2.b above.<br><br><br>
 
-...
- 
-* RT-1.35.8
 
-```
-  TODO: gNOI.ClearBGPNeighborRequest_HARD used in this case is under review in https://github.com/openconfig/gnoi/pull/214
-```
+
+   
+ 
+**RT-1.35.8**
+
+```TODO: gNOI.ClearBGPNeighborRequest_HARD used in this case is under review in https://github.com/openconfig/gnoi/pull/214```
   
-  a. Expected behavior when "Hard Reset" Notification sent by the DUT and the ERR policy is attached per neighbor
-   *   Start traffic as per the flows above
-   *   Trigger BGP "HARD RESET" Notification from the DUT:Port1 and DUT:Port2 towards ATE:Port1 and ATE:Port2 respectively by using `gNOI.ClearBGPNeighborRequest_HARD` message of the gNOI PROTO.
-       *   As per [rfc8538#section-3.1](https://datatracker.ietf.org/doc/html/rfc8538#section-3.1), when "N bit" exchanged between peers (i.e. GR negotiated), the "HARD RESET" notification of code 6 subcode 9 must be sent to the peer. However, the subcode for "Administrative Reset" i.e. code 6 subcode 4 must be carried in the data portion of subcode 9 notification message.
-       *   On receipt of the "HARD RESET" Notification message from the DUT, the ATEs MUST flush all the routes. Hence, 100% packet loss MUST be experienced on all the flows irrespective of the ERR configuration and the `STALE-ROUTE-POLICY`. The test MUST fail if this isnt the behavior seen.
-       *   As soon as the BGP peerings are up again between the ATEs and the DUT, traffic flow must be successful and the expected behavior must be the same as RT-1.35.1       
+  ***`a. Expected behavior when "Hard Reset" Notification sent by the DUT and the ERR policy is attached per neighbor.`***
+ *   Start traffic as per the flows above
+ *   Trigger BGP "HARD RESET" Notification from the DUT:Port1 and DUT:Port2 towards ATE:Port1 and ATE:Port2 respectively by using `gNOI.ClearBGPNeighborRequest_HARD` message of the gNOI PROTO.
+     *   As per [rfc8538#section-3.1](https://datatracker.ietf.org/doc/html/rfc8538#section-3.1), when "N bit" exchanged between peers (i.e. GR negotiated), the "HARD RESET" notification of code 6 subcode 9 must be sent to the peer. However, the subcode for "Administrative Reset" i.e. code 6 subcode 4 must be carried in the data portion of subcode 9 notification message.
+     *   On receipt of the "HARD RESET" Notification message from the DUT, the ATEs MUST flush all the routes. Hence, 100% packet loss MUST be experienced on all the flows irrespective of the ERR configuration and the `STALE-ROUTE-POLICY`. The test MUST fail if this isnt the behavior seen.
+     *   As soon as the BGP peerings are up again between the ATEs and the DUT, traffic flow must be successful and the expected behavior must be the same as RT-1.35.1<br>
   
-  b. Expected behavior when Hard Notification Sent to the peer and the ERR policy isn't attached on the neighbor sessions
+   ***`b. Expected behavior when Hard Notification Sent to the peer and the ERR policy isn't attached on the neighbor sessions.`***
    *   Start traffic as per the flows above.
    *   Follow the steps in RT-1.35.8.a above. The expected results in this case is the same as RT-1.35.8.a since HARD RESET notification MUST result in disconnecting TCP session plus flush all routes irrespective of the ERR configuration
-   *   Once the BGP sessions are up between the DUTs and the ATE, the expected behavior must be the same as RT-1.35.1
-      
-     
-    
-     
-* RT-1.35.9
+   *   Once the BGP sessions are up between the DUTs and the ATE, the expected behavior must be the same as RT-1.35.1<br><br><br>
+   
 
-```
-  TODO: gNOI.ClearBGPNeighborRequest_HARD used in this case is under review in https://github.com/openconfig/gnoi/pull/214
-```
 
-  a. Expected behavior when Hard Notification received from the peer while ERR policy is attached on the BGP neigborship
+
+**RT-1.35.9**
+
+```TODO: gNOI.ClearBGPNeighborRequest_HARD used in this case is under review in https://github.com/openconfig/gnoi/pull/214```
+
+  ***`a. Expected behavior when Hard Notification received from the peer while ERR policy is attached on the BGP neigborship.`***
    *   Start traffic as per the flows above
    *   Trigger BGP "HARD RESET" Notification from the ATE:Port1 to DUT:Port1 by sending `gNOI.ClearBGPNeighborRequest_HARD` message to ATE:Port1. When this happens and the DUT reeives BGP cease notification with subcode 9, the DUT is expected to FLUSH all IBGP learnt routes irrespective of the ERR configuration and therefore traffic between the flows will see 100% failure.
    *   Once the IBGP peering is reestablished, expected behavior is the same as RT-1.35.1
-   *   Repeat the above process by sending gNOI.ClearBGPNeighborRequest_HARD to the ATE:Port2. Expected behavior here is the same as seen for the IBGP peering.
+   *   Repeat the above process by sending gNOI.ClearBGPNeighborRequest_HARD to the ATE:Port2. Expected behavior here is the same as seen for the IBGP peering.<br>
   
-  b. Expected behavior when Hard Notification received from the peer when ERR policy removed
+   ***`b. Expected behavior when Hard Notification received from the peer when ERR policy removed.`***
    *   Start traffic as per the flows above.
    *   Follow the steps in RT-1.35.9.a above. The expected results in this case is the same as RT-1.35.9.a since HARD RESET notification MUST result in disconnecting TCP session plus flush all routes irrespective of the ERR configuration
    *   Once the BGP sessions are up between the DUTs and the ATE, the expected behavior must be the same as RT-1.35.1
 
-  
-* RT-1.35.9
-  * Expected behavior when routes have added communities part of the regular import and export policies apart from the ERR policy
+
 
   
