@@ -225,5 +225,65 @@ B <-- EBGP(ASN200) --> C[Port2:ATE];
    *   Once the BGP sessions are up between the DUTs and the ATE, the expected behavior must be the same as RT-1.35.1
 
 
+**RT-1.35.10**
+   *   Repeat the tests above, with ERR configuration under the peer-group hierarchy.
+
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+
+
+  # BGP conifguration:
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as
+      /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled
+      /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time
+      /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time
+    
+  # Policy-Definition
+      /routing-policy/policy-definitions/policy-definition/config/name
+      /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+      /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
+      /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
+      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
+      /routing-policy/policy-definitions/policy-definition/config/
+      /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+      /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
+      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/
+      options
+      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
+      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+        
+  # Apply Policy at Peer-Group level
+      afi-safis/afi-safi/apply-policy/config/import-policy
+      afi-safis/afi-safi/apply-policy/config/export-policy
+  
+  # Telemetry Parameter Coverage
+  
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/afi-safi-name
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/advertised
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/peer-restart-time
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/graceful-restart/state/received
+      /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/restart-time
+      /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/state/stale-routes-time
+  
+      /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/restart-time
+      /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/enabled
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+  gnoi:
+    system.System.KillProcess:
+    bgp.ClearBGPNeighborRequest.Hard:
+```
 
   
