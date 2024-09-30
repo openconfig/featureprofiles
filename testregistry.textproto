@@ -381,19 +381,37 @@ test: {
 test: {
   id: "PF-1.1"
   description: "IPv4/IPv6 policy-forwarding to indirect NH matching DSCP/TC"
-  readme: "https://github.com/openconfig/featureprofiles/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/match_dscp_indirect_next_hop/README.md"
   exec: " "
 }
 test: {
   id: "PF-1.2"
   description: "Policy-based traffic GRE Encapsulation to IPv4 GRE tunnel"
-  readme: "https://github.com/openconfig/featureprofiles/feature/policy_forwarding/encapsulation/otg_tests/encap_gre_ipv4/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/encap_gre_ipv4/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.3"
+  description: "Policy-based Static GUE Encapsulation to IPv4 tunnel"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.4"
+  description: "Interface based GUE Decapsulation to IPv4 tunnel"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.5"
+  description: "Interface based MPLSoGUE Decapsulation to IPv4 tunnel"
+  readme: " "
   exec: " "
 }
 test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
-  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/breakout_configuration/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
   exec: " "
 }
 test: {
@@ -568,17 +586,23 @@ test: {
 test: {
   id: "RT-1.32"
   description: "BGP policy actions - MED, LocPref, prepend, flow-control"
-  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/actions-MED_LocPref_prepend_flow-control/README.md"
   exec: " "
 }
 test: {
   id: "RT-1.33"
-  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/policybase/otg_tests/prefix_set_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/prefix_set_test/README.md"
 }
 test: {
   id: "RT-1.34"
   description: "Administrative Distance test for iBGP and eBGP"
-  readme: "https://github.com/openconfig/featureprofiles/feature/bgp/admin_distance/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/admin_distance/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.35"
+  description: "Extended routes retention"
+  readme: ""
   exec: " "
 }
 test: {
@@ -679,7 +703,7 @@ test: {
 test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
-  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/lsp_updates_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/lsp_updates_test/README.md"
 }
 test: {
   id: "RT-2.6"
@@ -971,6 +995,11 @@ test: {
 test: {
   id: "TE-17.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md"
+}
+test {
+  id: "TE-18.1"
+  description: "MPLS in UDP Encapsulation with QoS scheduler"
+  readme: ""
 }
 test: {
   id: "TE-18.2"
@@ -1519,7 +1548,7 @@ test: {
 test: {
   id: "gNMI-1.20"
   description: "Telemetry: Optics Thresholds"
-  readme: "https://github.com/openconfig/featureprofiles/feature/experimental/platform/tests/optics_thresholds_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/optics_thresholds_test/README.md"
   exec: " "
 }
 test: {
