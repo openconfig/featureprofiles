@@ -108,8 +108,8 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
 
-	for _, platform := range knePlatformList {
-		if bs.DUT.Model() == platform {
+	for _, kneDevice := range knePlatformList {
+		if bs.DUT.Model() == kneDevice {
 			flow.Rate().SetPps(1000)
 		}
 	}
