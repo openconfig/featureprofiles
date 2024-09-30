@@ -103,6 +103,9 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
+	if bs.DUT.Model() == "ncptx" {
+		flow.Rate().SetPps(1000)
+	}
 
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
