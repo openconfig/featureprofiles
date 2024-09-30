@@ -49,6 +49,10 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+var (
+	knePlatformList = []string{"ncptx"}
+)
+
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 	devices := bs.ATETop.Devices().Items()
 	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
@@ -103,8 +107,11 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
-	if bs.DUT.Model() == "ncptx" {
-		flow.Rate().SetPps(1000)
+
+	for _, platform := range knePlatformList {
+		if bs.DUT.Model() == platform {
+			flow.Rate().SetPps(1000)
+		}
 	}
 
 	e := flow.Packet().Add().Ethernet()
