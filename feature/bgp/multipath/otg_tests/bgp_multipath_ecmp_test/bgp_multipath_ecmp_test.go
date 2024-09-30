@@ -15,6 +15,7 @@
 package bgp_multipath_ecmp_test
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"testing"
@@ -40,6 +41,7 @@ const (
 	pathID           = 1
 	maxPaths         = 2
 	trafficPps       = 100000
+	kneTrafficPps    = 1000
 	totalPackets     = 12000000
 	lossTolerancePct = 0
 	lbToleranceFms   = 20
@@ -50,7 +52,7 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	knePlatformList = []string{"ncptx"}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
@@ -108,10 +110,8 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
 
-	for _, kneDevice := range knePlatformList {
-		if bs.DUT.Model() == kneDevice {
-			flow.Rate().SetPps(1000)
-		}
+	if slices.Contains(kneDeviceModelList, bs.DUT.Model()) {
+		flow.Rate().SetPps(kneTrafficPps)
 	}
 
 	e := flow.Packet().Add().Ethernet()
