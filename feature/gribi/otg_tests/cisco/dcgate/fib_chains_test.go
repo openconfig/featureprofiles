@@ -200,7 +200,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 			args.flows = []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)}
 		}()
 	})
-	t.Run("mismatch in encap vrf with fallback vrf", func(t *testing.T) {
+	t.Run("mismatch in encap vrf and encap with fallback vrf", func(t *testing.T) {
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapB, fluent.InstalledInFIB)
 		args.client.DeleteIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
@@ -220,7 +220,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
-	t.Run("mismatch in encap vrf with backup nhg", func(t *testing.T) {
+	t.Run("mismatch in encap vrf and encap vrf with backup nhg", func(t *testing.T) {
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapB, fluent.InstalledInFIB)
 		args.client.DeleteIPv6(t, cidr(ipv6EntryPrefix, ipv6EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
@@ -250,8 +250,8 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
-	t.Run("frr1 shutdown primary and backup to tunnel1", func(t *testing.T) {
-		t.Log("Shutdown link carrying primary and backup for tunnel1 traffic to vip1")
+	t.Run("frr1 shutdown primary path for tunnel1", func(t *testing.T) {
+		t.Log("Shutdown link carrying primary traffic for tunnel1 to vip1")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -260,8 +260,8 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 1, 0}
 		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
-	t.Run("frr1 shutdown link carrying traffic to vip2", func(t *testing.T) {
-		t.Log("Shutdown link carrying tunnel1 traffic to vip2")
+	t.Run("frr1 shutdown link carrying backup tunnel traffic to vip2", func(t *testing.T) {
+		t.Log("Shutdown link carrying backup tunnel2 traffic to vip2")
 		shutPorts(t, args, []string{"port2", "port3"})
 		defer unshutPorts(t, args, []string{"port2", "port3"})
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
@@ -272,7 +272,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 1, 0}
 		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
-	t.Run("frr2 Shutdown link carrying decap encap traffic to vip3", func(t *testing.T) {
+	t.Run("frr2 shutdown link carrying decap encap traffic to vip3", func(t *testing.T) {
 		t.Log("Shutdown link carrying decap encap traffic to vip3")
 		shutPorts(t, args, []string{"port2", "port3", "port4"})
 		defer unshutPorts(t, args, []string{"port2", "port3", "port4"})
@@ -317,7 +317,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 	faTransit.ttl = ttl
 	faTransit.innerTtl = 50
 
-	t.Run("match in decap inner ttl0", func(t *testing.T) {
+	t.Run("match in decap outer ttl0", func(t *testing.T) {
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
 		faTransit.ttl = 0
@@ -339,7 +339,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 			args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		}()
 	})
-	t.Run("match in decap inner ttl1", func(t *testing.T) {
+	t.Run("match in decap outer ttl1", func(t *testing.T) {
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
 		faTransit.ttl = 1
@@ -361,8 +361,8 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 			args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		}()
 	})
-	t.Run("miss in decap fallback to transit", func(t *testing.T) {
-		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf  vrfTransit.")
+	t.Run("miss in decap then fallback to transit", func(t *testing.T) {
+		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		// verify traffic passes through primary NHG
@@ -408,7 +408,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 
 	})
 	t.Run("match in decap goto encap", func(t *testing.T) {
-		t.Log("Add decap prefix back to decap vrf to decap traffic and schedule to match in encap vrf")
+		t.Log("Add decap prefix back to decap vrf to decapsulate traffic and then schedule to match in encap vrf")
 		// verify traffic passes through primary NHG
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
@@ -425,7 +425,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
-		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
+		t.Log("Shutdown primary path for transit tunnel and verify traffic goes via repair path tunnel")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -441,7 +441,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
-		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
+		t.Log("Shutdown transit and repair tunnel paths and verify traffic passes through default vrf")
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
 
@@ -484,7 +484,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		t.Log("add back prefix to encap vrf")
+		t.Log("Add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	})
@@ -540,7 +540,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	faTransit.innerTtl = 50
 
 	t.Run("miss in decap fallback to transit", func(t *testing.T) {
-		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf  vrfTransit.")
+		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		// verify traffic passes through primary NHG
@@ -556,7 +556,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	})
 	t.Run("match in decap goto encap", func(t *testing.T) {
-		t.Log("Add decap prefix back to decap vrf to decap traffic and schedule to match in encap vrf")
+		t.Log("Add decap prefix back to decap vrf to decapsulate traffic and schedule to match in encap vrf")
 
 		// verify traffic passes through primary NHG
 		faTransit.innerDscp = dscpEncapA1
@@ -574,7 +574,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
-		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
+		t.Log("Shutdown primary path for transit path tunnel and verify traffic goes via repair path tunnel")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -590,7 +590,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
-		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
+		t.Log("Shutdown transit and repair tunnel paths and verify traffic passes through default vrf")
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
 
@@ -674,7 +674,7 @@ func testPopGateUnOptimized(t *testing.T, args *testArgs) {
 	faTransit.innerTtl = 50
 
 	t.Run("traffic via primary transit path", func(t *testing.T) {
-		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf  vrfTransit.")
+		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		// verify traffic passes through primary NHG
@@ -686,7 +686,7 @@ func testPopGateUnOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
-		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
+		t.Log("Shutdown primary path for Transit tunnel and verify traffic goes via repair path tunnel")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -702,7 +702,7 @@ func testPopGateUnOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
-		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
+		t.Log("Shutdown transit and repair tunnel paths and verify traffic passes through default vrf")
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
 
@@ -755,7 +755,7 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 	faTransit.innerTtl = 50
 
 	t.Run("traffic via primary transit path", func(t *testing.T) {
-		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf  vrfTransit.")
+		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		// verify traffic passes through primary NHG
@@ -767,7 +767,7 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
-		t.Log("Shutdown primary path for TransitVrf tunnel and verify traffic goes via repair path tunnel")
+		t.Log("Shutdown primary path for Transit tunnel and verify traffic goes via repair path tunnel")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -783,7 +783,7 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
-		t.Log("Shutdown repair tunnel path also and verify traffic passes through default vrf")
+		t.Log("Shutdown transit and repair tunnel paths and verify traffic passes through default vrf")
 		shutPorts(t, args, []string{"port3", "port4"})
 		defer unshutPorts(t, args, []string{"port3", "port4"})
 
