@@ -808,7 +808,6 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-	flow.Rate().SetPps(100)
 
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
 	e1 := flow.Packet().Add().Ethernet()
