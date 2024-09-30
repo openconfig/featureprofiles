@@ -65,6 +65,8 @@ Now export the container to a tarball.
 
 ```shell
 $ docker save -o /tmp/cntrsrv.tar cntrsrv:latest
+$ docker tag cntrsrv:latest cntrsrv:upgrade
+$ docker save -o /tmp/cntrsrv-upgrade.tar cntrsrv:upgrade
 $ docker rmi cntrsrv:latest
 ```
 
@@ -98,6 +100,16 @@ Using the container started as part of CNTR-1.2, validate that the container can
 be stopped, and is subsequently no longer listed in the `gnoi.Containerz.List`
 API.
 
+## CNTR-1.5: Create a volume on the DUT.
+
+Validate the the DUT is capable of creating a volume, reading it back
+and removing it. 
+
+## CNTR-1.6: Upgrade a container on the DUT.
+
+Using the same container started as part of CNTR-1.1, validate that the container
+can upgraded. 
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the RPCs intended to be covered by this test.
@@ -110,4 +122,8 @@ rpcs:
     containerz.Containerz.StopContainer:
     containerz.Containerz.Log:
     containerz.Containerz.ListContainer:
+    containerz.Containerz.CreateVolume:
+    containerz.Containerz.RemoveVolume:
+    containerz.Containerz.ListVolume:
+    containerz.Containerz.UpgradeContainer:
 ```
