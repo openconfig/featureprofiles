@@ -56,21 +56,22 @@ tunnel and static route.
     -   Destination network IPv6-DST-NET with protocol next hop PNH-IPv6.
 
 8.  DUT is configured with an IPv4 GUE tunnel with destination IPv4-DST-GUE
-    without any explicit tunnel DSCP or TTL values.
+    without any explicit tunnel Type of Service (ToS) or Time to Live (TTL)
+    values.
 
 9.  DUT is configured with the following static routes:
 
     -   To PNH-IPv4, next hop is the statically configured IPv4 GUE tunnel.
     -   To PNH-IPv6, next hop is the statically configured IPv4 GUE tunnel.
 
-### PF-1.3.1: IPv4 traffic GUE encapsulation without explicit DSCP/TTL configuration on tunnel
+### PF-1.3.1: IPv4 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
 
 ATE action:
 
 *   Generate **IPv4 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -82,21 +83,21 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x80**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x80**.
+    *   Inner header ToS is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **9**.
     *   Inner header TTL is **9**.
 
-### PF-1.3.2: IPv6 traffic GUE encapsulation without explicit DSCP/TTL configuration on tunnel
+### PF-1.3.2: IPv6 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
 
 ATE action:
 
 *   Generate **IPv6 traffic** from ATE:Port1 to random IP addresses in
     IPv6-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -108,22 +109,22 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x80**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x80**.
+    *   Inner header Traffic Class is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **9**.
     *   Inner header Hop Limit is **9**.
 
-### PF-1.3.3: IPv4 traffic GUE encapsulation with explicit DSCP configuration on tunnel
+### PF-1.3.3: IPv4 traffic GUE encapsulation with explicit ToS configuration on tunnel
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with DSCP value *0x60*.
+*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
 *   Generate **IPv4 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -135,22 +136,22 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x60**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x60**.
+    *   Inner header ToS is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **9**.
     *   Inner header TTL is **9**.
 
-### PF-1.3.4: IPv6 traffic GUE encapsulation with explicit DSCP configuration on tunnel
+### PF-1.3.4: IPv6 traffic GUE encapsulation with explicit ToS configuration on tunnel
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with DSCP value *0x60*.
+*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
 *   Generate **IPv6 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -162,9 +163,9 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x60**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x60**.
+    *   Inner header Traffic Class is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **9**.
     *   Inner header Hop Limit is **9**.
@@ -173,12 +174,12 @@ Verify:
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT without an explicit DSCP value.
+*   Re-configure the IPv4 GUE tunnel on the DUT without an explicit ToS value.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate **IPv4 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -190,9 +191,9 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x80**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x80**.
+    *   Inner header ToS is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **20**.
     *   Inner header TTL is **9**.
@@ -201,12 +202,12 @@ Verify:
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT without an explicit DSCP value.
+*   Re-configure the IPv4 GUE tunnel on the DUT without an explicit ToS value.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate **IPv6 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -218,23 +219,23 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x80**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x80**.
+    *   Inner header Traffic Class is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **20**.
     *   Inner header Hop Limit is **9**.
 
-### PF-1.3.7: IPv4 traffic GUE encapsulation with explicit DSCP and TTL configuration on tunnel
+### PF-1.3.7: IPv4 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with DSCP value *0x60*.
+*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate **IPv4 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -246,23 +247,23 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x60**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x60**.
+    *   Inner header ToS is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **20**.
     *   Inner header TTL is **9**.
 
-### PF-1.3.8: IPv6 traffic GUE encapsulation with explicit DSCP and TTL configuration on tunnel
+### PF-1.3.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with DSCP value *0x60*.
+*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
 *   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate **IPv6 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using a random combination source addresses at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *10*.
 
 Verify:
@@ -274,9 +275,9 @@ Verify:
 *   All packets egressing DUT ports 2 to 5 are GUE encapsulated.
 *   ECMP hashing works (equal traffic) over the two LAG interfaces.
 *   LAG hashing works (equal traffic) over the two Singleton ports.
-*   DSCP for all GUE encapsulated packets:
-    *   GUE header DSCP is **0x60**.
-    *   Inner header DSCP is **0x80**.
+*   ToS for all GUE encapsulated packets:
+    *   GUE header ToS is **0x60**.
+    *   Inner header Traffic Class is **0x80**.
 *   TTL for all GUE encapsulated packets:
     *   GUE header TTL is **20**.
     *   Inner header Hop Limit is **9**.
@@ -288,7 +289,7 @@ ATE action:
 *   Generate **IPv4 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using source address of ATE:Port1 at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set TTL of the packets to *1*.
 
 Verify:
@@ -304,7 +305,7 @@ ATE action:
 *   Generate **IPv6 traffic** from ATE:Port1 to random IP addresses in
     IPv4-DST-NET using source address of ATE:Port1 at linerate.
     *   Use 512 bytes frame size.
-    *   Set DSCP value of *0x80* for all packets.
+    *   Set ToS value of *0x80* for all packets.
     *   Set Hop Limit of the packets to *1*.
 
 Verify:
@@ -331,4 +332,3 @@ rpcs:
     gNMI.Subscribe:
       on_change: true
 ```
-
