@@ -6,7 +6,7 @@ This test ensures NOS is able to host multiple VRFs and at the sametime perform 
 ## Procedure
 Test environment setup
 
-  ## Topology
+### Topology
 Create the following connections:
 ```mermaid
 graph LR; 
@@ -30,7 +30,7 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;
 A2 <-- EBGP(ASN100:ASN200) --> C2;
 ```
 
-Advertisements:
+### Advertisements:
 
 	ATE1:Port1 advertises following prefixes over IBGP to DUT:Port1
 		- IPv4Prefix1/24 IPv6Prefix1/64
@@ -52,7 +52,7 @@ Advertisements:
 	ATE1:Port2 advertises following tunnel endpoint prefix to ATE2:Port2
 		- IPv4Prefix11/28
 
-Flows:
+### Flows:
 
 	From ATE1:Port1 to ATE2:Port1
 		- IPv4Prefix1/24 to IPv4Prefix6/24 [DSCP:BE1]
@@ -96,14 +96,14 @@ Flows:
     
 
 **RT-3.3.2: BE1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1**
-  * ATE2:Port1 sends "Prefix1 to Prefix6" traffic encaped inside tunnel destination IPv4Prefix12
-  * ATE2:Port1 sends the following flows as is
+  * ATE2:Port1 sends "Prefix1 to Prefix6" IPv4 and IPv6 traffic encaped inside tunnel destination IPv4Prefix12
+  * ATE2:Port1 sends the following IPv4 and IPv6 flows as is
     * Prefix6/24 to IPv4Prefix1/24 [DSCP:BE1]
     * Prefix7/24 to IPv4Prefix2/24 [DSCP:AF1]
     * Prefix8/24 to IPv4Prefix3/24 [DSCP:AF2]
     * Prefix9/24 to IPv4Prefix4/24 [DSCP:AF3]
     * Prefix10/24 to IPv4Prefix5/24 [DSCP:AF4]
-  * ATE1:Port1 continues sending the folllowing traffic
+  * ATE1:Port1 continues sending the folllowing IPv4 and IPv6 traffic
     * Prefix2 to Prefix7 with DSCP:AF1
     * Prefix3 to Prefix8 with DSCP:AF2
     * Prefix4 to Prefix9 with DSCP:AF3
@@ -117,16 +117,16 @@ Flows:
 **RT-3.3.3 to RT-3.3.6: ATE2:Port1 simulates different traffic classes (BE1 to AF4) of FLOWS from ATE1:Port1 being GUE tunneled inside IPv4Prefix12 and sent to DUT:Port2**
   * Follow each step in RT-3.3.2 for the following subtest cases
     * RT-3.3.3: BE1 and AF1 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6" and "Prefix2 to Prefix7" are sent inside the tunnel, ATE1:Port1 musn't send these flows
+      * Since "Prefix1 to Prefix6" and "Prefix2 to Prefix7" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
     
     * RT-3.3.3: BE1, AF1 and AF2 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7" and "Prefix3 to Prefix8" are sent inside the tunnel, ATE1:Port1 musn't send these flows
+      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7" and "Prefix3 to Prefix8" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
     * RT-3.3.3: BE1, AF1, AF2 and AF3 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8" and "Prefix4 to Prefix9" are sent inside the tunnel, ATE1:Port1 musn't send these flows
+      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8" and "Prefix4 to Prefix9" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
     * RT-3.3.3: BE1, AF1, AF2, AF3 and AF4 traffic from ATE1:Port1 to ATE2:Port1 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE2:Port1
-      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8", "Prefix4 to Prefix9" and "Prefix5 to Prefix10" are sent inside the tunnel, ATE1:Port1 musn't send these flows
+      * Since "Prefix1 to Prefix6", "Prefix2 to Prefix7", "Prefix3 to Prefix8", "Prefix4 to Prefix9" and "Prefix5 to Prefix10" IPv4 and IPv6 flows are sent inside the tunnel, ATE1:Port1 musn't send these flows
         
   * Verification steps are the same as that of RT-3.3.2
 
