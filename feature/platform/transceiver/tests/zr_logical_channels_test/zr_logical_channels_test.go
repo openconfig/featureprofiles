@@ -2,6 +2,7 @@ package zr_logical_channels_test
 
 import (
 	"flag"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 const (
 	targetOutputPower = -9
 	frequency         = 193100000
-	dp16QAM           = 1
 	samplingInterval  = 10 * time.Second
 	timeout           = 10 * time.Minute
 	otnIndex1         = uint32(4001)
@@ -68,10 +68,10 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(p2.Name()).Transceiver().State())
 
-	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc1, otnIndex1, ethernetIndex1)
 	cfgplugins.ConfigETHChannel(t, dut, p1.Name(), tr1, otnIndex1, ethernetIndex1)
-	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, dp16QAM)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc2, otnIndex2, ethernetIndex2)
 	cfgplugins.ConfigETHChannel(t, dut, p2.Name(), tr2, otnIndex2, ethernetIndex2)
 
@@ -127,46 +127,75 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 			got:  ec.GetTribProtocol().String(),
 			want: oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE.String(),
 		},
-		{
-			desc: "Assignment: Logical Channel",
-			got:  ec.GetAssignment(0).GetLogicalChannel(),
-			want: otnChIdx,
-		},
-		{
-			desc: "Assignment: Description",
-			got:  ec.GetAssignment(0).GetDescription(),
-			want: "ETH to OTN",
-		},
-		{
-			desc: "Assignment: Allocation",
-			got:  ec.GetAssignment(0).GetAllocation(),
-			want: float64(400),
-		},
-		{
-			desc: "Assignment: Type",
-			got:  ec.GetAssignment(0).GetAssignmentType().String(),
-			want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
-		},
 	}
-	var assignmentIndexTestcase struct {
+	var assignmentIndexTestcases []struct {
 		desc string
 		got  any
 		want any
 	}
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignmentIndexTestcase = struct {
+		assignmentIndexTestcases = []struct {
 			desc string
 			got  any
 			want any
-		}{desc: "Assignment: Index", got: ec.GetAssignment(0).GetIndex(), want: uint32(1)}
+		}{
+			{
+				desc: "Assignment: Index",
+				got:  ec.GetAssignment(1).GetIndex(),
+				want: uint32(1)},
+			{
+				desc: "Assignment: Logical Channel",
+				got:  ec.GetAssignment(1).GetLogicalChannel(),
+				want: otnChIdx,
+			},
+			{
+				desc: "Assignment: Description",
+				got:  ec.GetAssignment(1).GetDescription(),
+				want: "ETH to OTN",
+			},
+			{
+				desc: "Assignment: Allocation",
+				got:  ec.GetAssignment(1).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Assignment: Type",
+				got:  ec.GetAssignment(1).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
+			}}
 	} else {
-		assignmentIndexTestcase = struct {
+		assignmentIndexTestcases = []struct {
 			desc string
 			got  any
 			want any
-		}{desc: "Assignment: Index", got: ec.GetAssignment(0).GetIndex(), want: uint32(0)}
+		}{
+			{
+				desc: "Assignment: Index",
+				got:  ec.GetAssignment(0).GetIndex(),
+				want: uint32(0),
+			},
+			{
+				desc: "Assignment: Logical Channel",
+				got:  ec.GetAssignment(0).GetLogicalChannel(),
+				want: otnChIdx,
+			},
+			{
+				desc: "Assignment: Description",
+				got:  ec.GetAssignment(0).GetDescription(),
+				want: "ETH to OTN",
+			},
+			{
+				desc: "Assignment: Allocation",
+				got:  ec.GetAssignment(0).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Assignment: Type",
+				got:  ec.GetAssignment(0).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
+			}}
 	}
-	tcs = append(tcs, assignmentIndexTestcase)
+	tcs = append(tcs, assignmentIndexTestcases...)
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			if diff := cmp.Diff(tc.got, tc.want); diff != "" {
@@ -205,49 +234,81 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			got:  cc.GetLogicalChannelType().String(),
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN.String(),
 		},
-		{
-			desc: "Optical Channel Assignment: Optical Channel",
-			got:  cc.GetAssignment(0).GetOpticalChannel(),
-			want: opticalChannel,
-		},
-		{
-			desc: "Optical Channel Assignment: Description",
-			got:  cc.GetAssignment(0).GetDescription(),
-			want: "OTN to Optical Channel",
-		},
-		{
-			desc: "Optical Channel Assignment: Allocation",
-			got:  cc.GetAssignment(0).GetAllocation(),
-			want: float64(400),
-		},
-		{
-			desc: "Optical Channel Assignment: Type",
-			got:  cc.GetAssignment(0).GetAssignmentType().String(),
-			want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
-		},
 	}
-	var assignmentIndexTestcase struct {
+	var opticalChannelAssignmentIndexTestcases []struct {
 		desc string
 		got  any
 		want any
 	}
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
-		assignmentIndexTestcase = struct {
+		ciscoOpticalChannelFormat := strings.ReplaceAll(opticalChannel, "/", "_") // Ex: OpticalChannel0_0_0_18
+		opticalChannelAssignmentIndexTestcases = []struct {
 			desc string
 			got  any
 			want any
-		}{desc: "Assignment: Index", got: cc.GetAssignment(0).GetIndex(), want: uint32(1)}
+		}{
+			{
+				desc: "Assignment: Index",
+				got:  cc.GetAssignment(1).GetIndex(),
+				want: uint32(1),
+			},
+			{
+				desc: "Optical Channel Assignment: Optical Channel",
+				got:  cc.GetAssignment(1).GetOpticalChannel(),
+				want: ciscoOpticalChannelFormat,
+			},
+			{
+				desc: "Optical Channel Assignment: Description",
+				got:  cc.GetAssignment(1).GetDescription(),
+				want: "OTN to Optical Channel",
+			},
+			{
+				desc: "Optical Channel Assignment: Allocation",
+				got:  cc.GetAssignment(1).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Optical Channel Assignment: Type",
+				got:  cc.GetAssignment(1).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
+			},
+		}
 	} else {
-		assignmentIndexTestcase = struct {
+		opticalChannelAssignmentIndexTestcases = []struct {
 			desc string
 			got  any
 			want any
-		}{desc: "Assignment: Index", got: cc.GetAssignment(0).GetIndex(), want: uint32(0)}
+		}{
+			{
+				desc: "Assignment: Index",
+				got:  cc.GetAssignment(0).GetIndex(),
+				want: uint32(0)},
+			{
+				desc: "Optical Channel Assignment: Optical Channel",
+				got:  cc.GetAssignment(0).GetOpticalChannel(),
+				want: opticalChannel,
+			},
+			{
+				desc: "Optical Channel Assignment: Description",
+				got:  cc.GetAssignment(0).GetDescription(),
+				want: "OTN to Optical Channel",
+			},
+			{
+				desc: "Optical Channel Assignment: Allocation",
+				got:  cc.GetAssignment(0).GetAllocation(),
+				want: float64(400),
+			},
+			{
+				desc: "Optical Channel Assignment: Type",
+				got:  cc.GetAssignment(0).GetAssignmentType().String(),
+				want: oc.Assignment_AssignmentType_OPTICAL_CHANNEL.String(),
+			},
+		}
 	}
-	tcs = append(tcs, assignmentIndexTestcase)
+	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
 
 	if !deviations.OTNChannelTribUnsupported(dut) {
-		ethAssignmentTestcases := []struct {
+		logicalChannelAssignmentTestcases := []struct {
 			desc string
 			got  any
 			want any
@@ -278,7 +339,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 			},
 		}
-		tcs = append(tcs, ethAssignmentTestcases...)
+		tcs = append(tcs, logicalChannelAssignmentTestcases...)
 	}
 
 	for _, tc := range tcs {
