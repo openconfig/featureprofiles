@@ -1,0 +1,84 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides 1 DUT, 1 DUM (dummy device) and ATE.
+# Dummy device is used to support DUT for hashing verification.
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+}
+
+duts {
+  id: "dum"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+  ports {
+    id: "port3"
+  }
+  ports {
+    id: "port4"
+  }
+  ports {
+    id: "port5"
+  }
+}
+
+ates {
+  id: "ate"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dum:port1"
+  b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "dum:port2"
+}
+
+links {
+  a: "dut:port3"
+  b: "dum:port3"
+}
+
+links {
+  a: "dut:port4"
+  b: "dum:port4"
+}
+
+links {
+  a: "dut:port5"
+  b: "dum:port5"
+}
+
