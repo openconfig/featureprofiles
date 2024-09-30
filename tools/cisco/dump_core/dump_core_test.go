@@ -43,7 +43,9 @@ func TestCoreFileDecode(t *testing.T) {
 
 	for _, device := range b.Duts {
 		dutID := device.Id
-		dut := ondatra.DUT(t, dutID)
+		dutMap := map[string]*ondatra.DUTDevice{}
+		dutMap[dutID] = ondatra.DUT(t, dutID)
+		// dut := ondatra.DUT(t, dutID)
 		t.Run(fmt.Sprintf("dump core files for device %s", dutID), func(t *testing.T) {
 			t.Logf("Start dumping core for device: %s", dutID)
 			for _, process := range processes {
@@ -54,7 +56,7 @@ func TestCoreFileDecode(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 				defer cancel()
-				sshClient := dut.RawAPIs().CLI(t)
+				sshClient := dutMap[dutID].RawAPIs().CLI(t)
 				for _, cmd := range commands {
 					testt.CaptureFatal(t, func(t testing.TB) {
 						if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
