@@ -80,7 +80,7 @@ func Test400ZRTunableFrequency(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			for freq := tc.startFreq; freq <= tc.endFreq; freq += tc.freqStep {
 				t.Run(fmt.Sprintf("Freq: %v", freq), func(t *testing.T) {
-					opticalChannel1Config :=&oc.Component_OpticalChannel{
+					opticalChannel1Config := &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
 					}
@@ -143,13 +143,13 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				}
 				opticalChannel2Config := &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
-					Frequency:         ygot.Uint64(tc.frequency),	
+					Frequency:         ygot.Uint64(tc.frequency),
 				}
 				if !deviations.OperationalModeUnsupported(dut) {
 					opticalChannel1Config.SetOperationalMode(dp16QAM)
 					opticalChannel2Config.SetOperationalMode(dp16QAM)
 				}
-				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(),opticalChannel1Config )
+				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
 				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
@@ -173,11 +173,11 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	defer streamOC2.Close()
 	targetPower := float64(-9)
 	frequency := uint64(193100000)
-	opticalChannel1Config :=  &oc.Component_OpticalChannel{
+	opticalChannel1Config := &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
 	}
-	opticalChannel2Config:=&oc.Component_OpticalChannel{
+	opticalChannel2Config := &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
 	}
@@ -185,8 +185,8 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 		opticalChannel1Config.SetOperationalMode(dp16QAM)
 		opticalChannel2Config.SetOperationalMode(dp16QAM)
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(),opticalChannel1Config)
-	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(),opticalChannel2Config )
+	gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
+	gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	t.Run("Telemetry before flap", func(t *testing.T) {
