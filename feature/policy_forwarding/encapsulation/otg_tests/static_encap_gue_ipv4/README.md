@@ -318,11 +318,11 @@ Verify:
 
 ```yaml
 paths:
-    # TODO: propose new OC paths for GUE encap based on the protocol next hop of a route
+    # TODO propose new OC paths for GUE encap based on the protocol next hop of a route
 
     # telemetry
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
-    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
 
 rpcs:
   gnmi:
