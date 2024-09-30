@@ -252,10 +252,11 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 	})
 	t.Run("frr1 shutdown primary and backup to tunnel1", func(t *testing.T) {
 		t.Log("Shutdown link carrying primary and backup for tunnel1 traffic to vip1")
-
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port2").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
+		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99} // tunnel traffic from repaired path with tunnelDstIP3
+		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		weights := []float64{0, 0, 1, 0}
 		testEncapTrafficTtlDscp(t, args, weights, true)
 	})
@@ -478,9 +479,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
-		// ondatra.Debug().Breakpoint(t, "before starting traffic")
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
-		// ondatra.Debug().Breakpoint(t, "after stopping traffic")
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
@@ -488,7 +487,6 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		t.Log("add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		// ondatra.Debug().Breakpoint(t, "at the end")
 	})
 }
 
