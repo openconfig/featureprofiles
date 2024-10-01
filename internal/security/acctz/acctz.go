@@ -209,7 +209,7 @@ func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), defaultSSHPort)
+		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
 	}
 
 	t.Logf("Target for ssh service: %s", target)

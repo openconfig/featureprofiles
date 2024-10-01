@@ -69,25 +69,16 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Get gNSI record subscribe client.
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
-	defer acctzSubClient.CloseSend()
-
-	// This will have to move up to RecordSubscribe call after this is brought into FP/Ondatra.
-	// https://github.com/openconfig/gnsi/pull/149/files
 	requestTimestamp := &timestamppb.Timestamp{
 		Seconds: 0,
 		Nanos:   0,
 	}
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
-		Timestamp: requestTimestamp,
-	})
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	var recordIdx int
 	var lastTimestampUnixMillis int64
