@@ -378,15 +378,16 @@ var (
 		topo:     gosnappi.NewConfig(),
 	}
 	faTransit = flowAttr{
-		src:      ipv4OuterSrc111,
-		dst:      tunnelDstIP1,
-		srcMac:   otgPort1.MAC,
-		dstMac:   dutPort1.MAC,
-		srcPort:  otgSrcPort,
-		dstPorts: otgDstPorts,
-		ttl:      ttl,
-		innerTtl: innerTtl,
-		topo:     gosnappi.NewConfig(),
+		src:       ipv4OuterSrc111,
+		dst:       tunnelDstIP1,
+		srcMac:    otgPort1.MAC,
+		dstMac:    dutPort1.MAC,
+		srcPort:   otgSrcPort,
+		dstPorts:  otgDstPorts,
+		ttl:       ttl,
+		innerTtl:  innerTtl,
+		innerDscp: dscpEncapNoMatch, // at egress outer DSCP will be copied to inner DSCP
+		topo:      gosnappi.NewConfig(),
 	}
 )
 
