@@ -1165,3 +1165,8 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}

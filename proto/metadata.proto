@@ -621,6 +621,9 @@ message Metadata {
     bool eth_channel_ingress_parameters_unsupported = 222;
     // Cisco numbering for eth channel assignment starts from 1 instead of 0
     bool eth_channel_assignment_cisco_numbering = 223;
+    // operational_mode_unsupported is set to true for devices that do not support optical_channel  leaf operational-mode
+    // Juniper: b/355456031
+    bool operational_mode_unsupported = 224;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
