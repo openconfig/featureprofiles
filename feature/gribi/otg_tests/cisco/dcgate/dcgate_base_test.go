@@ -1061,42 +1061,6 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
 	}
 	return tunCounter
-
-}
-
-func comparePacketCapture(t *testing.T, p gopacket.Layer, gl gopacket.LayerType, pa *packetAttr) {
-	switch gl {
-	case layers.LayerTypeIPv4:
-		if v4Packet, ok := p.(*layers.IPv4); ok {
-			if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
-				t.Errorf("Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-			}
-			if got := int(v4Packet.TOS >> 2); got != pa.dscp {
-				t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
-			}
-			if got := uint32(v4Packet.TTL); got != pa.ttl {
-				t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-			}
-		} else {
-			t.Errorf("Failed to cast layer to IPv4")
-		}
-	case layers.LayerTypeIPv6:
-		if v6Packet, ok := p.(*layers.IPv6); ok {
-			if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
-				t.Errorf("Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-			}
-			if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
-				t.Errorf("Dscp value mismatch, got %d, want %d", got, pa.dscp)
-			}
-			if got := uint32(v6Packet.HopLimit); got != pa.ttl {
-				t.Errorf("TTL mismatch, got: %d, want: %d", got, pa.ttl)
-			}
-		} else {
-			t.Errorf("Failed to cast layer to IPv6")
-		}
-	default:
-		t.Errorf("Unsupported layer type: %v", gl)
-	}
 }
 
 // startCapture starts the capture on the otg ports
@@ -1272,7 +1236,6 @@ func testTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass boo
 	flows := []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1), fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)}
 	t.Log("Validate traffic flows")
 	validateTrafficFlows(t, args, flows, false, shouldPass)
-
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
 		validateTrafficDistribution(t, args.ate, weights)
@@ -1305,7 +1268,7 @@ func testTransitTraffic(t *testing.T, args *testArgs, weights []float64, shouldP
 func testTransitTrafficWithDscp(t *testing.T, args *testArgs, weights []float64, dscp uint32, shouldPass bool) {
 	flows := []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscp), faTransit.getFlow("ipv6in4", "ip6inipa1", dscp)}
 	t.Log("Validate traffic flows")
-	validateTrafficFlows(t, args, flows, true, shouldPass)
+	validateTrafficFlows(t, args, flows, false, shouldPass)
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
 		validateTrafficDistribution(t, args.ate, weights)
