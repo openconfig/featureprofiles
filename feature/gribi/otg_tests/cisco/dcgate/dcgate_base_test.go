@@ -1271,7 +1271,7 @@ func unconfigFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 func testTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass bool) {
 	flows := []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1), fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)}
 	t.Log("Validate traffic flows")
-	validateTrafficFlows(t, args, flows, true, shouldPass)
+	validateTrafficFlows(t, args, flows, false, shouldPass)
 
 	if shouldPass {
 		t.Log("Validate hierarchical traffic distribution")
