@@ -1259,7 +1259,7 @@ func configFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 	}
 }
 
-// CLI to configure falback vrf
+// CLI to unconfigure falback vrf
 func unconfigFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 	ctx := context.Background()
 	for _, v := range vrf {
@@ -1267,23 +1267,6 @@ func unconfigFallBackVrf(t *testing.T, dut *ondatra.DUTDevice, vrf []string) {
 		config.TextWithGNMI(ctx, t, dut, fConf)
 	}
 }
-
-// for _, port := range tc.capturePorts {
-// 	enableCapture(t, otg.OTG(), topo, []string{port})
-// 	t.Log("Start capture and send traffic")
-// 	sendTraffic(t, tcArgs, tc.flows, true)
-// 	t.Log("Validate captured packet attributes")
-// 	var tunCounter = validatePacketCapture(t, tcArgs, []string{port}, &tc.pattr)
-// 	if tc.validateEncapRatio {
-// 		validateTunnelEncapRatio(t, tunCounter)
-// 	}
-// 	clearCapture(t, otg.OTG(), topo)
-// }
-// }
-// t.Log("Validate traffic flows")
-// validateTrafficFlows(t, tcArgs, tc.flows, false, true)
-// t.Log("Validate hierarchical traffic distribution")
-// validateTrafficDistribution(t, otg, tc.weights)
 
 func testTraffic(t *testing.T, args *testArgs, weights []float64, shouldPass bool) {
 	flows := []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1), fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)}
