@@ -18,9 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
@@ -45,8 +47,8 @@ func prettyPrint(i interface{}) string {
 
 func TestAccountzRecordSubscribePartial(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	acctz.SetupGrpcUsers(t, dut)
-	var records []acctz.Record
+	acctz.SetupUsers(t, dut, false)
+	var records []*acctzpb.RecordResponse
 
 	// Put enough time between the test starting and any prior events so we can easily know where
 	// our records start.
@@ -68,22 +70,15 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Get gNSI record subscribe client.
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
-
-	// This will have to move up to RecordSubscribe call after this is brought into FP/Ondatra.
-	// https://github.com/openconfig/gnsi/pull/149/files
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: &timestamppb.Timestamp{
 			Seconds: 0,
 			Nanos:   0,
 		},
 	})
 	if err != nil {
-		t.Fatalf("Failed sending accountz record request, error: %s", err)
+		t.Fatalf("Failed sending first accountz record request, error: %s", err)
 	}
 
 	firstResponse, err := acctzSubClient.Recv()
@@ -92,18 +87,14 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	}
 
 	// Fetch fresh client.
-	acctzClient = dut.RawAPIs().GNSI(t).Acctz()
-	acctzSubClient, err = acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
-	}
-
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
+	acctzClient = dut.RawAPIs().GNSI(t).AcctzStream()
+	acctzSubClient, err = acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: firstResponse.Timestamp,
 	})
 	if err != nil {
-		t.Fatalf("Failed sending accountz record request, error: %s", err)
+		t.Fatalf("Failed sending second accountz record request, error: %s", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	secondResponse, err := acctzSubClient.Recv()
 	if err != nil {
@@ -115,8 +106,16 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	}
 
 	var recordIdx int
-
 	var lastTimestampUnixMillis int64
+	r := make(chan recordRequestResult)
+
+	// Ignore proto fields which are set internally by the DUT (cannot be matched exactly)
+	// and compare them manually later.
+	popts := []cmp.Option{protocmp.Transform(),
+		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
+		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "channel_id"),
+	}
 
 	for {
 		if recordIdx >= len(records) {
@@ -124,8 +123,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 			break
 		}
 
-		r := make(chan recordRequestResult)
-
+		// Read single acctz record from stream into channel.
 		go func(r chan recordRequestResult) {
 			var response *acctzpb.RecordResponse
 			response, err = acctzSubClient.Recv()
@@ -138,6 +136,8 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		var done bool
 		var resp recordRequestResult
 
+		// Read acctz record from channel for evaluation.
+		// Timeout and exit if no records received on the channel for some time.
 		select {
 		case rr := <-r:
 			resp = rr
@@ -154,62 +154,26 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
-		if resp.record.GetHistoryIstruncated() {
-			t.Fatalf("History is truncated but it shouldn't be, Record Details: %s", prettyPrint(resp.record))
-		}
-
 		if !resp.record.Timestamp.AsTime().After(startTime) {
 			// Skipping record, was before test start time.
 			continue
 		}
 
-		// Check that the timestamp for the record is between our start/stop times for our rpc.
 		timestamp := resp.record.Timestamp.AsTime()
 		if timestamp.UnixMilli() == lastTimestampUnixMillis {
 			// This ensures that timestamps are actually changing for each record.
-			t.Fatalf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(resp.record))
+			t.Errorf("Timestamp is the same as the previous timestamp, this shouldn't be possible!, Record Details: %s", prettyPrint(resp.record))
 		}
 		lastTimestampUnixMillis = timestamp.UnixMilli()
 
-		// -2 for a little breathing room since things may not be perfectly synced up time-wise.
-		if records[recordIdx].StartTime.Unix()-2 > timestamp.Unix() {
-			t.Fatalf(
-				"Record timestamp is prior to rpc start time timestamp, rpc start timestamp %d, record timestamp %d, Record Details: %s",
-				records[recordIdx].StartTime.Unix()-2,
-				timestamp.Unix(),
-				prettyPrint(resp.record),
-			)
+		// Verify acctz proto bits.
+		if diff := cmp.Diff(resp.record, records[recordIdx], popts...); diff != "" {
+			t.Errorf("got diff in got/want: %s", diff)
 		}
 
-		// Done time (that we recorded when making the rpc) + 2 second for some breathing room.
-		if records[recordIdx].DoneTime.Unix()+2 < timestamp.Unix() {
-			t.Fatalf(
-				"Record timestamp is after rpc end timestamp, rpc end timestamp %d, record timestamp %d, Record Details: %s",
-				records[recordIdx].DoneTime.Unix()+2,
-				timestamp.Unix(),
-				prettyPrint(resp.record),
-			)
-		}
-
-		serviceType := resp.record.GetGrpcService().GetServiceType()
-		if records[recordIdx].RPCType != serviceType {
-			t.Fatalf("Service type not correct, got %q, want %q, Record Details: %s", serviceType, records[recordIdx].RPCType, prettyPrint(resp.record))
-		}
-
-		servicePath := resp.record.GetGrpcService().GetRpcName()
-		if records[recordIdx].RPCPath != servicePath {
-			t.Fatalf("Service path not correct, got %q, want %q, Record Details: %s", servicePath, records[recordIdx].RPCPath, prettyPrint(resp.record))
-		}
-
-		if records[recordIdx].RPCPayload != "" {
-			// It seems like it *could* truncate payloads so that may come up at some point
-			// which would obviously make this comparison not work, but for the simple RPCs in
-			// this test that probably shouldn't be happening.
-			gotServicePayload := resp.record.GetGrpcService().GetProtoVal().String()
-			wantServicePayload := records[recordIdx].RPCPayload
-			if !strings.EqualFold(gotServicePayload, wantServicePayload) {
-				t.Fatalf("Service payloads not correct, got %q, want %q, Record Details: %s", gotServicePayload, wantServicePayload, prettyPrint(resp.record))
-			}
+		// Verify record timestamp is after request timestamp.
+		if !timestamp.After(firstResponse.Timestamp.AsTime()) {
+			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", firstResponse.Timestamp.AsTime(), prettyPrint(resp.record))
 		}
 
 		// This channel check maybe should just go away entirely -- see:
@@ -217,61 +181,14 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		channelID := resp.record.GetSessionInfo().GetChannelId()
-		if !records[recordIdx].Succeeded {
-			if channelID != "aaa_session_id: 0" {
-				t.Fatalf("Auth was not successful for this record, but channel id was set, got %q, Record Details: %s", channelID, prettyPrint(resp.record))
-			}
-		} else if channelID == "aaa_session_id: 0" {
-			t.Fatalf("Auth was successful for this record, but channel id was not set, got %q, Record Details: %s", channelID, prettyPrint(resp.record))
+		if resp.record.GetSessionInfo().GetChannelId() == "" {
+			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
 		}
 
-		sessionStatus := resp.record.GetSessionInfo().GetStatus()
-		if records[recordIdx].ExpectedStatus != sessionStatus {
-			t.Fatalf("Session status not correct, got %q, want %q, Record Details: %s", sessionStatus, records[recordIdx].ExpectedStatus, prettyPrint(resp.record))
-		}
-
-		authenType := resp.record.GetSessionInfo().GetAuthn().GetType()
-		if records[recordIdx].ExpectedAuthenType != authenType {
-			t.Fatalf("AuthenType not correct, got %q, want %q, Record Details: %s", authenType, records[recordIdx].ExpectedAuthenType, prettyPrint(resp.record))
-		}
-
-		authenStatus := resp.record.GetSessionInfo().GetAuthn().GetStatus()
-		if records[recordIdx].ExpectedAuthenStatus != authenStatus {
-			t.Fatalf("AuthenStatus not correct, got %q, want %q, Record Details: %s", authenStatus, records[recordIdx].ExpectedAuthenStatus, prettyPrint(resp.record))
-		}
-
-		authenCause := resp.record.GetSessionInfo().GetAuthn().GetCause()
-		if records[recordIdx].ExpectedAuthenCause != authenCause {
-			t.Fatalf("AuthenCause not correct, got %q, want %q, Record Details: %s", authenCause, records[recordIdx].ExpectedAuthenCause, prettyPrint(resp.record))
-		}
-
-		userIdentity := resp.record.GetSessionInfo().GetUser().GetIdentity()
-		if records[recordIdx].ExpectedIdentity != userIdentity {
-			t.Fatalf("Identity not correct, got %q, want %q, Record Details: %s", userIdentity, records[recordIdx].ExpectedIdentity, prettyPrint(resp.record))
-		}
-
-		if records[recordIdx].Succeeded {
-			// Verify the l4 bits align, this is only set if auth is successful so do it down here.
-			localAddr := resp.record.GetSessionInfo().GetLocalAddress()
-			if records[recordIdx].LocalIP != localAddr {
-				t.Fatalf("Local address not correct, got %q, want %q, Record Details: %s", localAddr, records[recordIdx].LocalIP, prettyPrint(resp.record))
-			}
-
-			localPort := resp.record.GetSessionInfo().GetLocalPort()
-			if records[recordIdx].LocalPort != localPort {
-				t.Fatalf("Local port not correct, got %d, want %d, Record Details: %s", localPort, records[recordIdx].LocalPort, prettyPrint(resp.record))
-			}
-
-			remoteAddr := resp.record.GetSessionInfo().GetRemoteAddress()
-			if records[recordIdx].RemoteIP != remoteAddr {
-				t.Fatalf("Remote address not correct, got %q, want %q, Record Details: %s", remoteAddr, records[recordIdx].RemoteIP, prettyPrint(resp.record))
-			}
-
-			remotePort := resp.record.GetSessionInfo().GetRemotePort()
-			if records[recordIdx].RemotePort != remotePort {
-				t.Fatalf("Remote port not correct, got %d, want %d, Record Details: %s", remotePort, records[recordIdx].RemotePort, prettyPrint(resp.record))
-			}
+		// Verify authz detail is populated for denied rpcs.
+		authzInfo := resp.record.GetGrpcService().GetAuthz()
+		if authzInfo.Status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY && authzInfo.GetDetail() == "" {
+			t.Errorf("Authorization detail is not populated for record: %v", prettyPrint(resp.record))
 		}
 
 		t.Logf("Processed Record: %s", prettyPrint(resp.record))
