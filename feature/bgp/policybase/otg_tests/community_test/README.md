@@ -64,10 +64,16 @@ BGP policy configuration for Community Sets
       * actions/config/policy-result = ACCEPT_ROUTE
 
   3. Send traffic from ATE port-2 to all prefix-sets.
-    * Verify traffic is received on ATE port 1 for accepted prefixes.
-    * Verify traffic is not received on ATE port 1 for rejected prefixes.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "100:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "100:1".
 
-  4. Update the community-set named `update_comm_set` with "200:2" as member and repeat Step-2 and Step-3.
+  4. Update the community-set named `update_comm_set` with "200:2" as member.
+
+  5. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "200:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "200:1". 
+
+
 
 ### Expected community matches
 
