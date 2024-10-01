@@ -75,22 +75,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47701"
+    target: "10.85.84.225:47701"
   }
   gnmi {
-    target: "10.85.84.159:47701" 
+    target: "10.85.84.225:47701" 
   }
   gribi{
-    target: "10.85.84.159:47702"
+    target: "10.85.84.225:47702"
   }
   p4rt{
-    target: "10.85.84.159:47703"
+    target: "10.85.84.225:47703"
   }
   gnsi{
-    target: "10.85.84.159:47701"
+    target: "10.85.84.225:47701"
   }
   ssh{
-    target: "10.85.84.159:47722"
+    target: "10.85.84.225:47722"
     skip_verify: true
   }
 
