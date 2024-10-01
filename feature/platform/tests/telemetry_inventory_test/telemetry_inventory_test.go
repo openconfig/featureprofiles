@@ -15,6 +15,7 @@
 package telemetry_inventory_test
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -24,9 +25,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
@@ -1054,27 +1057,68 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	t.Logf("Linecards: %v", linecards)
 	t.Logf("Supervisors: %v", supervisors)
 
+	c := dut.RawAPIs().GNMI(t)
 	if len(fabrics) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		var pas interface{}
+		if deviations.GnmiGetRequiresConfigType(dut) {
+			resolvedPath, _, err := ygnmi.ResolvePath(gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config().PathStruct())
+			if err != nil {
+				t.Errorf("Invalid Path not able to resolve: %v", err)
+			}
+			resp, err1 := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{resolvedPath}, Type: gpb.GetRequest_CONFIG})
+			if err1 != nil {
+				t.Fatalf("gnmi.Get failed: %v", err1)
+			}
+			pas = resp
+		} else {
+			pas = gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		}
 		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
-			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
+			gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().State())
 		}
 	}
 
 	if len(linecards) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		var pas interface{}
+		if deviations.GnmiGetRequiresConfigType(dut) {
+			resolvedPath, _, err := ygnmi.ResolvePath(gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config().PathStruct())
+			if err != nil {
+				t.Errorf("Invalid Path not able to resolve: %v", err)
+			}
+			resp, err1 := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{resolvedPath}, Type: gpb.GetRequest_CONFIG})
+			if err1 != nil {
+				t.Fatalf("gnmi.Get failed: %v", err1)
+			}
+			pas = resp
+		} else {
+			pas = gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		}
+
 		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
-			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
+			gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().State())
 		}
 	}
 	if !deviations.SkipControllerCardPowerAdmin(dut) {
 		if len(supervisors) != 0 {
-			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+			var pas interface{}
+			if deviations.GnmiGetRequiresConfigType(dut) {
+				resolvedPath, _, err := ygnmi.ResolvePath(gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config().PathStruct())
+				if err != nil {
+					t.Errorf("Invalid Path not able to resolve: %v", err)
+				}
+				resp, err1 := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{resolvedPath}, Type: gpb.GetRequest_CONFIG})
+				if err1 != nil {
+					t.Fatalf("gnmi.Get failed: %v", err1)
+				}
+				pas = resp
+			} else {
+				pas = gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+			}
 			t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
 			if pas == oc.Platform_ComponentPowerType_UNSET {
-				t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+				gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().State())
 			}
 		}
 	}

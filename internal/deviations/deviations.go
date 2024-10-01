@@ -1165,3 +1165,8 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
+
+// GnmiGetRequiresConfigType returns true for devices that require type to be specified as config
+func GnmiGetRequiresConfigType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetRequiresConfigType()
+}

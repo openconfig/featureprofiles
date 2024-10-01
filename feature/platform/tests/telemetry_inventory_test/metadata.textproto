@@ -33,6 +33,7 @@ platform_exceptions: {
     model_name_unsupported: true
     storage_component_unsupported: true
     switch_chip_id_unsupported: true
+    gnmi_get_requires_config_type: true
   }
 }
 platform_exceptions: {
