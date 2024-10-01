@@ -3,6 +3,11 @@ import json
 import glob
 import datetime
 
+from DDTS import DDTS
+from TechZone import TechZone
+
+ddts = DDTS()
+techzone = TechZone()
 
 class FireX:
     def get_run_information(self, file):
@@ -29,8 +34,84 @@ class FireX:
                 "tag": os_version,
             })
         return testsuites_metadata
-    
-    def get_testsuites(self, vectorstore, ddts, database, file, run_info):
+
+    def _create_testsuites(self, vectorstore, testcases, errors_count):
+        testsuites = []
+
+        for testcase in testcases:
+            failure = testcase.find("failure")
+
+            testcase_data = {
+                "name": testcase.get("name"),
+                "time": float(testcase.get("time"))
+            }
+
+            if errors_count > 0:
+                # Aborted
+                testcase_data["status"] = "aborted"
+                testcase_data["triage_status"] = "New"
+                testcase_data["label"] = ""
+            elif failure is None:
+                # Passed Testcase
+                testcase_data["status"] = "passed"
+                testcase_data["label"] = "Test Passed. No Label Required."
+            else:
+                # Failed Testcase
+                testcase_data["message"] = failure.get("message")
+                testcase_data["logs"] = str(failure.text).strip()
+                testcase_data["status"] = "failed"
+                testcase_data["triage_status"] = "New"
+
+                labels = vectorstore.query(
+                    failure.text if failure.text is not None else "",
+                )
+
+                if len(labels) > 0:
+                    testcase_data["generated_labels"] = labels
+                    testcase_data["generated"] = True
+                    testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+                else:
+                    testcase_data["label"] = ""
+            testsuites.append(testcase_data)
+        return testsuites
+
+    def _create_testsuites_with_inheritance(self, database, testcases, group, plan, errors_count):
+
+        historial_testsuite = database.get_historical_testsuite(group, plan)
+
+        testsuites = []
+
+        for testcase_index in range(len(testcases)):
+            testcase = testcases[testcase_index]
+            history = historial_testsuite["testcases"][testcase_index]
+
+            failure = testcase.find("failure")
+
+            testcase_data = {
+                "name": testcase.get("name"),
+                "time": float(testcase.get("time"))
+            }
+
+            if errors_count > 0:
+                # Aborted
+                testcase_data["status"] = "aborted"
+                testcase_data["triage_status"] = history["triage_status"]
+                testcase_data["label"] = history["label"]
+            elif failure is None:
+                # Passed Testcase
+                testcase_data["status"] = "passed"
+                testcase_data["label"] = "Test Passed. No Label Required."
+            else:
+                # Failed Testcase
+                testcase_data["message"] = failure.get("message")
+                testcase_data["logs"] = str(failure.text).strip()
+                testcase_data["status"] = "failed"
+                testcase_data["triage_status"] = history["triage_status"]
+                testcase_data["label"] = history["label"]
+            testsuites.append(testcase_data)
+        return testsuites
+
+    def get_testsuites(self, vectorstore, database, file, run_info):
         tree = ET.parse(file)
         root = tree.getroot()
 
@@ -82,58 +163,13 @@ class FireX:
                 for bug in existing_bugs[0]["bugs"]:
                     name = bug["name"]
                     if bug["type"] == "DDTS":
-                        document = ddts.search(name)
-                        if document and document.get("CLOSED", None) is None:
-                            data["bugs"].append({
-                                "name": name,
-                                "type": bug["type"],
-                                "username": "Cisco InstaTriage",
-                                "updated": datetime.datetime.now()
-                            })
+                        if ddts.is_open(name):
+                            data["bugs"].append(ddts.inherit(name))
                     elif bug["type"] == "TechZone":
-                        data["bugs"].append({
-                            "name": name,
-                            "type": bug["type"],
-                            "username": "Cisco InstaTriage",
-                            "updated": datetime.datetime.now()
-                        })
-                    
-            for testcase in testcases:
-                failure = testcase.find("failure")
-
-                testcase_data = {
-                    "name": testcase.get("name"),
-                    "time": float(testcase.get("time"))
-                }
-
-                if errors_count > 0:
-                    # Aborted
-                    testcase_data["status"] = "aborted"
-                    testcase_data["triage_status"] = "New"
-                    testcase_data["label"] = ""
-                elif failure is None:
-                    # Passed Testcase
-                    testcase_data["status"] = "passed"
-                    testcase_data["label"] = "Test Passed. No Label Required."
-                else:
-                    # Failed Testcase
-                    testcase_data["message"] = failure.get("message")
-                    testcase_data["logs"] = str(failure.text).strip()
-                    testcase_data["status"] = "failed"
-                    testcase_data["triage_status"] = "New"
-
-                    labels = vectorstore.query(
-                        failure.text if failure.text is not None else "",
-                    )
-
-                    if len(labels) > 0:
-                        testcase_data["generated_labels"] = labels
-                        testcase_data["generated"] = True
-                        testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
-                    else:
-                        testcase_data["label"] = ""
-
-                data["testcases"].append(testcase_data)
+                        data["bugs"].append(techzone.inherit(name))
+                data["testcases"] = self._create_testsuites_with_inheritance(database, testcases, data["group"], data["plan_id"], data["errors"])
+            else:
+                data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"])
             documents.append(data)
         return documents
 

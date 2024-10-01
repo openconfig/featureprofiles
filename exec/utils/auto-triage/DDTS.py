@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from datetime import datetime
 
 class DDTS:
     def __init__(self):
@@ -9,9 +10,22 @@ class DDTS:
         self._database = self._client["bugdata"]
         self._ddts = self._database["qddtsdata"]
 
-    def search(self, id):
+    def _search(self, id):
         query = { "_id": id }
         projection = { "_id": 1, "Status": 1, "Submitted-on": 1, "CLOSED": 1 }
 
         return self._ddts.find_one(query, projection)
+
+    def is_open(self, id):
+        document = self._search(id)
+        if document and document.get("CLOSED", None) is None:
+            return True
+        return False
         
+    def inherit(self, name):
+        return {
+            "name": name,
+            "type": "DDTS",
+            "username": "Cisco InstaTriage",
+            "updated": datetime.now()
+        }
