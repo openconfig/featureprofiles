@@ -120,7 +120,7 @@ Flows from ATE2:Port3 to DUT:Port4
     * Statement5: traffic matching DSCP AF3, Punt to Non-default vrf
     * Statement5: traffic matching DSCP AF4, Punt to Non-default vrf<br>
   * Expectations:
-    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate.
+    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate and is the same as what it was prior to encap.
     * Unencaped BE1-AF4 traffic received from ATE2:Port3 must be routed to ATE1:Port1 via the DEFAULT VRF in the DUT based on LPM lookup of the IBGP learnt routes.<br><br><br>
 
     
@@ -136,7 +136,7 @@ Flows from ATE2:Port3 to DUT:Port4
     * IPv4Prefix1/24, IPv6Prefix1/64 with a local-preference of 200 and VPNH of IPv4Prefix17 and IPv6Prefix17
   * Start all the Flows from ATE2:Port3 to DUT:Port4, both GUE encaped as well as unencaped.<br>
   * Expectations:
-    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate.
+    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate and is the same as what it was prior to encap.
     * Unencaped BE1 traffic is punted to default VRF and then GUE encaped to IPv4Prefix11/28, its TOS Byte updated as per the table above plus, ttl value from the inner header is copied to the outer header.
     * Unencaped AF1-AF4 traffic received from ATE2:Port3 must be routed to ATE1:Port1 via the DEFAULT VRF in the DUT based on LPM lookup of the IBGP learnt routes from ATE1:Port1.
     * All traffic flows must be 100% successful<br><br><br>
@@ -154,9 +154,17 @@ Flows from ATE2:Port3 to DUT:Port4
     * IPv4Prefix1/24, IPv6Prefix1/64, IPv4Prefix1/24, IPv6Prefix1/64 with a local-preference of 200 and VPNH of IPv4Prefix17 and IPv6Prefix17
   * Start all the Flows from ATE2:Port3 to DUT:Port4, both GUE encaped as well as unencaped.<br>
   * Expectations:
-    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate.
+    * All GUE encaped traffic received in the Default VRF destined for IPv4Prefix12/28 is decaped and sent back to ATE2:Port3 based on LPM lookup of EBGP learnt routes. Ensure that the DSCP vaule from Outer header is copied to the inner header. Also, ensure that the TTL value of the inner header is accurate and is the same as what it was prior to encap.
     * Unencaped BE1-AF1 traffic is punted to default VRF and then GUE encaped to IPv4Prefix11/28, its TOS Byte updated as per the table above plus, ttl value from the inner header is copied to the outer header.
     * Unencaped AF2-AF4 traffic received from ATE2:Port3 must be routed to ATE1:Port1 via the DEFAULT VRF in the DUT based on LPM lookup of the IBGP learnt routes from ATE1:Port1.<br><br><br>
 
-**RT-3.32.4: BE1-AF4 traffic migration to Default VRF, GUE encap and then route to ATE2:Port3**
+**RT-3.32.4 to RT-3.32.6: BE1-AF4 traffic migration to Default VRF, GUE encap and then route to ATE2:Port3**
   * Follow RT-3.32.2 and RT-3.32.3 for migrating rest of the traffic i.e. AF2-AF3 to Default VRF, encap, remark and send out DUT:Port4 towards ATE2:Port3
+
+**RT-3.32.7: BE1-AF4 traffic fallback to DUT:Port1 towards ATE1:Port1**
+  * Start all traffic flows
+  * Stop advertising "Prefix14 and Prefix15 over the EBGP session between DUT:Port4 and ATE2:Port3. This will result in the IBGP session via DUT:Port3 and ATE2:Port2 to be down.<br>
+
+  * Expectations:
+    * Zero traffic loss expected as the unencaped BE1-AF4 traffic flows from ATE2:Port3 is expected to be routed by the DUT via the lower local-preference routes that the DUT learnt on its IBGP peering with ATE1:Port1.
+
