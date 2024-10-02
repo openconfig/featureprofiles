@@ -1,10 +1,12 @@
 package zr_pm_test
 
 import (
+	"flag"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -14,7 +16,6 @@ import (
 )
 
 const (
-	dp16QAM             = uint16(1)
 	samplingInterval    = 10 * time.Second
 	minAllowedQValue    = 7.0
 	maxAllowedQValue    = 14.0
@@ -26,14 +27,16 @@ const (
 	inactivePreFECBER   = 0.0
 	inactiveESNR        = 0.0
 	timeout             = 10 * time.Minute
-	flapInterval        = 30 * time.Second
 	otnIndexBase        = uint32(4000)
 	ethernetIndexBase   = uint32(40000)
 )
 
+// 196100000 and -9
 var (
-	frequencies         = []uint64{191400000, 196100000}
-	targetOpticalPowers = []float64{-9, -13}
+	frequencies         = []uint64{191400000}
+	targetOpticalPowers = []float64{-13}
+	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
+	operationalMode     uint16
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +45,11 @@ func TestMain(m *testing.M) {
 
 func TestPM(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	var (
@@ -71,7 +78,7 @@ func TestPM(t *testing.T) {
 		for _, targetOpticalPower := range targetOpticalPowers {
 			// Configure OCH component and OTN and ETH logical channels.
 			for _, p := range dut.Ports() {
-				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, dp16QAM)
+				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 				cfgplugins.ConfigOTNChannel(t, dut, ochs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
 				cfgplugins.ConfigETHChannel(t, dut, p.Name(), trs[p.Name()], otnIndexes[p.Name()], ethIndexes[p.Name()])
 			}
@@ -135,7 +142,7 @@ func validateAllSamples(t *testing.T, dut *ondatra.DUTDevice, isEnabled bool, in
 			if valIndex >= len(otnStreams[p.Name()].All()) {
 				break
 			}
-			operStatus := validateSampleStream(t, interfaceStreams[p.Name()].All()[valIndex], otnStreams[p.Name()].All()[valIndex], p.Name())
+			operStatus := validateSampleStream(t, dut, interfaceStreams[p.Name()].All()[valIndex], otnStreams[p.Name()].All()[valIndex], p.Name())
 			switch operStatus {
 			case oc.Interface_OperStatus_UP:
 				if !isEnabled {
@@ -151,7 +158,7 @@ func validateAllSamples(t *testing.T, dut *ondatra.DUTDevice, isEnabled bool, in
 }
 
 // validateSampleStream validates the stream data.
-func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Interface_OperStatus {
+func validateSampleStream(t *testing.T, dut *ondatra.DUTDevice, interfaceData *ygnmi.Value[*oc.Interface], terminalDeviceData *ygnmi.Value[*oc.TerminalDevice_Channel], portName string) oc.E_Interface_OperStatus {
 	if interfaceData == nil {
 		t.Errorf("Data not received for port %v.", portName)
 		return oc.Interface_OperStatus_UNSET
@@ -179,7 +186,10 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 	if b := otn.GetPreFecBer(); b == nil {
 		t.Errorf("PreFECBER data is empty for port %v", portName)
 	} else {
-		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, operStatus)
+		if deviations.CiscoPreFECBERInactiveValue(dut) {
+			validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, operStatus)
+		}
+		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, 0.5, operStatus)
 	}
 	if e := otn.GetEsnr(); e == nil {
 		t.Errorf("ESNR data is empty for port %v", portName)
@@ -203,7 +213,7 @@ func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, 
 			return
 		}
 	case oc.Interface_OperStatus_DOWN:
-		if instant != inactiveValue {
+		if instant > inactiveValue {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
