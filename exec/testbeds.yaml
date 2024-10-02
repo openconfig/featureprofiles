@@ -73,7 +73,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40053
       gnmi_port: 50053
       rest_port: 30053
