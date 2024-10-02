@@ -155,6 +155,9 @@ var (
 	noMatchWeight = []float64{
 		1, 0, 0, 0,
 	}
+	// %loss tolerance for traffic received when there should be 100% loss
+	// make non-zero to allow for some packet gain
+	lossTolerance = float32(0.0)
 )
 
 var (
@@ -898,8 +901,8 @@ func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, c
 				t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
 			}
 		} else {
-			if got := ((outPkts - inPkts) * 100) / outPkts; got != 100 {
-				t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
+			if got := ((outPkts - inPkts) * 100) / outPkts; got < (100 - lossTolerance) {
+				t.Fatalf("LossPct for flow %s: got %v, want %v", flow.Name(), got, (100 - lossTolerance))
 			}
 		}
 
