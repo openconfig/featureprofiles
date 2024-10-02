@@ -1,11 +1,8 @@
-# TE-18.4 Classify traffic on input using destination mac and police using 1 rate, 2 color marker
+# TE-18.4 Classify traffic on input matching all packets and police using 1 rate, 2 color marker
 
 ## Summary
 
-Use the gRIBI applied ip entries from TE-18.1 gRIBI. Configure an ingress scheduler
-to police traffic using a 1 rate, 2 color policer. Configure a classifier to match
-traffic on a destination mac.  Apply the configuration to a VLAN on an aggregate
-interface.  Send traffic to validate the policer.
+Use the gRIBI applied ip entries from TE-18.1 gRIBI. Configure an ingress scheduler to police traffic using a 1 rate, 2 color policer. Attach the scheduler to the interface without a classifier. Lack of match conditions will cause all packets to be matched. Send traffic to validate the policer.
 
 ## Topology
 
@@ -19,11 +16,8 @@ Use TE-18.1 test environment setup.
 
 ### TE-18.4.1 Generate and push configuration
 
-* Generate config for 2 scheduler polices with an input rate limit.  
-* Generate config for 2 classifiers which match on destination mac.
-* Generate config for 2 input policies which map the scheduler and classifers
-  together.
-* Generate config to apply classifer and scheduler to DUT subinterface with vlan.
+* Generate config for 2 scheduler polices with an input rate limit.
+* Apply scheduler to DUT subinterface with vlan.
 * Use gnmi.Replace to push the config to the DUT.
 
 ```yaml
@@ -63,26 +57,6 @@ openconfig-qos:
             exceed-action:
               config:
                 drop: TRUE
-  classifers:
-    - classifer: “dest_A”
-      config:
-        name: “dest_A”
-      terms:
-        - term:   # repeated for address in destination A
-          config:
-            id: "match_1_dest_A"
-          conditions:
-            destination-mac
-    - classifer: “dest_B”
-      config:
-        name: “dest_B”
-      terms:
-        - term:
-          config:
-            id: "match_1_dest_B"
-          conditions:
-            destination-mac: dut_port1_mac_address    # use the mac address from dut port1    
-
   input-policies:       # new OC subtree input-policies (/qos/input-policies)
     - input-policy: "limit_group_A_2Gb"
       config:
@@ -149,7 +123,6 @@ paths:
   # qos classifier config
   /qos/classifiers/classifier/config/name:
   /qos/classifiers/classifier/terms/term/config/id:
-  /qos/classifiers/classifier/terms/term/conditions/l2/config/destination-mac:
   #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
 
   # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
