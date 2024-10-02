@@ -20,19 +20,18 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/gribigo/client"
-	"github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ygot/ygot"
-
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gribigo/client"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -198,6 +197,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configNetworkInstanceInterface(t, dut, vrf1, p1.Name(), uint32(0))
 	// create VRF "vrfB"
 	configNetworkInstance(t, dut, vrf2)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
@@ -253,40 +253,39 @@ func TestBackup(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
-	t.Run("IPv4BackUpSwitch", func(t *testing.T) {
-		t.Logf("Name: IPv4BackUpSwitch")
-		t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
+	// Configure the gRIBI client clientA
+	client := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+	defer client.Close(t)
 
-		// Configure the gRIBI client clientA
-		client := gribi.Client{
-			DUT:         dut,
-			FIBACK:      true,
-			Persistence: true,
-		}
-		defer client.Close(t)
+	// Flush all entries after the test
+	defer client.FlushAll(t)
 
-		// Flush all entries after the test
-		defer client.FlushAll(t)
+	if err := client.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
 
-		if err := client.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection can not be established")
-		}
+	// Make client leader
+	client.BecomeLeader(t)
 
-		// Make client leader
-		client.BecomeLeader(t)
+	// Flush past entries before running the tc
+	client.FlushAll(t)
 
-		// Flush past entries before running the tc
-		client.FlushAll(t)
+	t.Logf("Name: IPv4BackUpSwitch")
+	t.Logf("Description: Set primary and backup path with gribi and shutdown the primary path validating traffic switching over backup path")
 
-		tcArgs := &testArgs{
-			ctx:    ctx,
-			dut:    dut,
-			client: &client,
-			ate:    ate,
-			top:    top,
-		}
-		tcArgs.testIPv4BackUpSwitch(t)
-	})
+	tcArgs := &testArgs{
+		ctx:    ctx,
+		client: &client,
+		dut:    dut,
+		ate:    ate,
+		top:    top,
+	}
+
+	tcArgs.testIPv4BackUpSwitch(t)
 }
 
 // testIPv4BackUpSwitch Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH
@@ -384,7 +383,7 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 
 // createFlow returns a flow from atePort1 to the dstPfx
 func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
-
+	a.top.Flows().Clear()
 	flow := a.top.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(300)

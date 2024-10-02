@@ -23,32 +23,30 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
+	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/binding/ixweb"
+	opb "github.com/openconfig/ondatra/proto"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	grpb "github.com/openconfig/gribi/v1/proto/service"
-	opb "github.com/openconfig/ondatra/proto"
-	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 var (
 	// To be stubbed out by unit tests.
-	grpcDialContextFn = grpc.DialContext
+	grpcDialContextFn = grpc.NewClient
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
 
@@ -91,7 +89,7 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
-	resv, err := reservation(tb, b.r)
+	resv, err := reservation(ctx, tb, b.r)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +140,7 @@ func (d *staticDUT) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known DUT service %v", svc)
 	}
 	bopts := d.r.grpc(d.dev, params)
-	return makeDialer(d.Name(), params, bopts)
+	return makeDialer(params, bopts)
 }
 
 func (d *staticDUT) reset(ctx context.Context) error {
@@ -239,7 +237,7 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
-	return makeDialer(a.Name(), params, bopts)
+	return makeDialer(params, bopts)
 }
 
 func (a *staticATE) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
@@ -276,167 +274,118 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
-// allerrors implements the error interface and will accumulate and
-// report all errors.
-type allerrors []error
-
-var _ = error(allerrors{})
-
-func (errs allerrors) Error() string {
-	// Shortcut for no error or a single error.
-	switch len(errs) {
-	case 0:
-		return ""
-	case 1:
-		return errs[0].Error()
+func reservation(ctx context.Context, tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
+	if r.Dynamic {
+		return dynamicReservation(ctx, tb, r)
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%d errors occurred:", len(errs))
-	for _, err := range errs {
-		// Replace indentation for proper nesting.
-		fmt.Fprintf(&b, "\n  * %s", strings.ReplaceAll(err.Error(), "\n", "\n    "))
-	}
-	return b.String()
+	resv, errs := staticReservation(tb, r)
+	return resv, errors.Join(errs...)
 }
 
-func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
-	var errs allerrors
+func staticReservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+	var errs []error
+
+	bduts := make(map[string]*bindpb.Device)
+	for _, bdut := range r.Duts {
+		bduts[bdut.Id] = bdut
+	}
+	bates := make(map[string]*bindpb.Device)
+	for _, bate := range r.Ates {
+		bates[bate.Id] = bate
+	}
 
 	duts := make(map[string]binding.DUT)
 	for _, tdut := range tb.Duts {
-		bdut := r.dutByID(tdut.Id)
-		if bdut == nil {
+		bdut, ok := bduts[tdut.Id]
+		if !ok {
 			errs = append(errs, fmt.Errorf("missing binding for DUT %q", tdut.Id))
 			continue
 		}
-		d, err := dims(tdut, bdut)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error binding DUT %q: %w", tdut.Id, err))
-			duts[tdut.Id] = nil // mark it "found"
-			continue
-		}
+		dims, dimErrs := staticDims(tdut, bdut)
+		errs = append(errs, dimErrs...)
 		duts[tdut.Id] = &staticDUT{
-			AbstractDUT: &binding.AbstractDUT{Dims: d},
+			AbstractDUT: &binding.AbstractDUT{Dims: dims},
 			r:           r,
 			dev:         bdut,
-		}
-	}
-	for _, bdut := range r.Duts {
-		if _, ok := duts[bdut.Id]; !ok {
-			errs = append(errs, fmt.Errorf("binding DUT %q not found in testbed", bdut.Id))
 		}
 	}
 
 	ates := make(map[string]binding.ATE)
 	for _, tate := range tb.Ates {
-		bate := r.ateByID(tate.Id)
-		if bate == nil {
+		bate, ok := bates[tate.Id]
+		if !ok {
 			errs = append(errs, fmt.Errorf("missing binding for ATE %q", tate.Id))
 			continue
 		}
-		d, err := dims(tate, bate)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error binding ATE %q: %w", tate.Id, err))
-			ates[tate.Id] = nil // mark it "found"
-			continue
-		}
+		dims, dimErrs := staticDims(tate, bate)
+		errs = append(errs, dimErrs...)
 		ates[tate.Id] = &staticATE{
-			AbstractATE: &binding.AbstractATE{Dims: d},
+			AbstractATE: &binding.AbstractATE{Dims: dims},
 			r:           r,
 			dev:         bate,
 		}
 	}
-	for _, bate := range r.Ates {
-		if _, ok := ates[bate.Id]; !ok {
-			errs = append(errs, fmt.Errorf("binding ATE %q not found in testbed", bate.Id))
-		}
-	}
 
-	if errs != nil {
-		return nil, errs
-	}
-
-	resv := &binding.Reservation{
+	return &binding.Reservation{
 		DUTs: duts,
 		ATEs: ates,
-	}
-	return resv, nil
+	}, errs
 }
 
-func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, error) {
-	portmap, err := ports(td.Ports, bd.Ports)
-	if err != nil {
-		return nil, err
+func staticDims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
+	var errs []error
+
+	// Check that the bound device matches the testbed device.
+	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED && bd.Vendor != tdVendor {
+		errs = append(errs, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", bd.Vendor, tdVendor))
 	}
-	dims := &binding.Dims{
+	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" && bd.HardwareModel != tdHardwareModel {
+		errs = append(errs, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", bd.HardwareModel, tdHardwareModel))
+	}
+	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" && bd.SoftwareVersion != tdSoftwareVersion {
+		errs = append(errs, fmt.Errorf("binding software version %v and testbed software version %v do not match", bd.SoftwareVersion, tdSoftwareVersion))
+	}
+
+	portmap, portErrs := staticPorts(td.Ports, bd)
+	errs = append(errs, portErrs...)
+
+	return &binding.Dims{
 		Name:            bd.Name,
 		Vendor:          bd.GetVendor(),
 		HardwareModel:   bd.GetHardwareModel(),
 		SoftwareVersion: bd.GetSoftwareVersion(),
 		Ports:           portmap,
-	}
-	// Populate empty binding dimensions with testbed dimensions.
-	// TODO(prinikasn): Remove testbed override once all vendors are using binding dimensions exclusively.
-	if tdVendor := td.GetVendor(); tdVendor != opb.Device_VENDOR_UNSPECIFIED {
-		if dims.Vendor != opb.Device_VENDOR_UNSPECIFIED && dims.Vendor != tdVendor {
-			return nil, fmt.Errorf("binding vendor %v and testbed vendor %v do not match", dims.Vendor, tdVendor)
-		}
-		dims.Vendor = tdVendor
-	}
-	if tdHardwareModel := td.GetHardwareModel(); tdHardwareModel != "" {
-		if dims.HardwareModel != "" && dims.HardwareModel != tdHardwareModel {
-			return nil, fmt.Errorf("binding hardware model %v and testbed hardware model %v do not match", dims.HardwareModel, tdHardwareModel)
-		}
-		dims.HardwareModel = tdHardwareModel
-	}
-	if tdSoftwareVersion := td.GetSoftwareVersion(); tdSoftwareVersion != "" {
-		if dims.SoftwareVersion != "" && dims.SoftwareVersion != tdSoftwareVersion {
-			return nil, fmt.Errorf("binding software version %v and testbed software version %v do not match", dims.SoftwareVersion, tdSoftwareVersion)
-		}
-		dims.SoftwareVersion = tdSoftwareVersion
-	}
-
-	return dims, nil
+	}, errs
 }
 
-func ports(tports []*opb.Port, bports []*bindpb.Port) (map[string]*binding.Port, error) {
-	var errs allerrors
+func staticPorts(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+	var errs []error
+
+	bports := make(map[string]*bindpb.Port)
+	for _, bport := range bd.Ports {
+		bports[bport.Id] = bport
+	}
 
 	portmap := make(map[string]*binding.Port)
 	for _, tport := range tports {
+		bport, ok := bports[tport.Id]
+		if !ok {
+			errs = append(errs, fmt.Errorf("missing binding for port %q on %q", tport.Id, bd.Id))
+			continue
+		}
+		if tport.Speed != opb.Port_SPEED_UNSPECIFIED && tport.Speed != bport.Speed {
+			errs = append(errs, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, tport.Speed))
+		}
+		if tport.GetPmd() != opb.Port_PMD_UNSPECIFIED && tport.GetPmd() != bport.Pmd {
+			errs = append(errs, fmt.Errorf("binding port PMD %v and testbed port PMD %v do not match", bport.Pmd, tport.GetPmd()))
+		}
 		portmap[tport.Id] = &binding.Port{
-			Speed: tport.Speed,
+			Name:  bport.Name,
+			PMD:   bport.Pmd,
+			Speed: bport.Speed,
 		}
 	}
-	for _, bport := range bports {
-		if p, ok := portmap[bport.Id]; ok {
-			p.Name = bport.Name
-			// If port speed is empty populate from testbed ports.
-			if bport.Speed != opb.Port_SPEED_UNSPECIFIED {
-				if p.Speed != opb.Port_SPEED_UNSPECIFIED && p.Speed != bport.Speed {
-					return nil, fmt.Errorf("binding port speed %v and testbed port speed %v do not match", bport.Speed, p.Speed)
-				}
-				p.Speed = bport.Speed
-			}
-			// Populate the PMD type if configured.
-			if bport.Pmd != opb.Port_PMD_UNSPECIFIED {
-				if p.PMD != opb.Port_PMD_UNSPECIFIED && p.PMD != bport.Pmd {
-					return nil, fmt.Errorf("binding port PMD type %v and testbed port PMD type %v do not match", bport.Pmd, p.PMD)
-				}
-				p.PMD = bport.Pmd
-			}
-		}
-	}
-	for id, p := range portmap {
-		if p.Name == "" {
-			errs = append(errs, fmt.Errorf("testbed port %q is missing in binding", id))
-		}
-	}
-
-	if errs != nil {
-		return nil, errs
-	}
-	return portmap, nil
+	return portmap, errs
 }
 
 func (b *staticBind) reserveIxSessions(ctx context.Context) error {
@@ -524,7 +473,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{grpc.WithBlock()}
+	opts := []grpc.DialOption{grpc.WithDisableRetry()}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
@@ -564,7 +513,7 @@ func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 	return opts, nil
 }
 
-func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
+func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, error) {
 	opts, err := dialOpts(bopts)
 	if err != nil {
 		return nil, err
@@ -574,12 +523,12 @@ func makeDialer(name string, params *svcParams, bopts *bindpb.Options) (*introsp
 		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
-				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				_, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, bopts.Target, opts...)
+			return grpcDialContextFn(target, opts...)
 		},
-		DialTarget: fmt.Sprintf("%s:%d", name, params.port),
+		DialTarget: bopts.Target,
 		DialOpts:   opts,
 	}, nil
 }

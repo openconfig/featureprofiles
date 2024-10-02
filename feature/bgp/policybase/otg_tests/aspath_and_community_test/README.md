@@ -1,4 +1,4 @@
-# RT-2.4: BGP Policy AS Path Set and Community Set
+# RT-7.4: BGP Policy AS Path Set and Community Set
 
 ## Summary
 
@@ -6,7 +6,7 @@ BGP policy configuration for AS Paths and Community Sets
 
 ## Procedure
 
-* RT-2.4.1 - Test setup
+* RT-7.4.1 - Test setup
   * Generate config for 2 DUT ports, with DUT port 1 eBGP session to ATE port 1.
 
   * Generate config for ATE 2 ports, with ATE port 1 eBGP session to DUT port 1.
@@ -22,7 +22,7 @@ BGP policy configuration for AS Paths and Community Sets
   * Generate traffic from ATE port-2 to all prefixes
   * Validate that traffic is received on ATE port-1 for all prefixes
 
-* RT-2.4.1 - Validate single routing-policy containing as-path-set and ext-community-set
+* RT-7.4.2 - Validate single routing-policy containing as-path-set and ext-community-set
 
   * Create a as-path-set named `any_my_regex_aspath` with members
     * `{ as-path-set-member = [ "(10[0-9]]|200)" ] }`
@@ -126,3 +126,53 @@ import-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received
 * /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed
+
+### OpenConfig Path and RPC Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths
+  ### Policy definition
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  ### Policy for community-set match
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+
+  ## State paths
+  ### Policy definition state
+
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
+
+  ### Policy for community-set match state
+
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/state/community-set:
+
+  ### Paths to verify policy state
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+
+  ### Paths to verify prefixes sent and received
+
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/sent:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Get:
+    gNMI.Subscribe:
+```
+

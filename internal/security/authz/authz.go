@@ -28,12 +28,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
-	"github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+
+	authzpb "github.com/openconfig/gnsi/authz"
 )
 
 // Spiffe is an struct to save an Spiffe id and its svid.
@@ -115,15 +116,15 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if err != nil {
 		t.Fatalf("Could not marshal the policy %s", prettyPrint(policy))
 	}
-	autzRotateReq := &authz.RotateAuthzRequest_UploadRequest{
-		UploadRequest: &authz.UploadRequest{
+	autzRotateReq := &authzpb.RotateAuthzRequest_UploadRequest{
+		UploadRequest: &authzpb.UploadRequest{
 			Version:   version,
 			CreatedOn: createdOn,
 			Policy:    string(policy),
 		},
 	}
 	t.Logf("Sending Authz.Rotate request on device: \n %s", prettyPrint(autzRotateReq))
-	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: autzRotateReq, ForceOverwrite: forcOverwrite})
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: autzRotateReq, ForceOverwrite: forcOverwrite})
 	if err != nil {
 		t.Fatalf("Error while uploading prob request reply %v", err)
 	}
@@ -137,8 +138,8 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if !cmp.Equal(p, tempPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
 	}
-	finalizeRotateReq := &authz.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authz.FinalizeRequest{}}
-	err = rotateStream.Send(&authz.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
+	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
+	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
 	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
 	if err != nil {
 		t.Fatalf("Error while finalizing rotate request  %v", err)
@@ -158,13 +159,13 @@ func NewAuthorizationPolicy(name string) *AuthorizationPolicy {
 }
 
 // Get read the applied policy from device dut. this is test api and fails the test when it fails.
-func Get(t testing.TB, dut *ondatra.DUTDevice) (*authz.GetResponse, *AuthorizationPolicy) {
+func Get(t testing.TB, dut *ondatra.DUTDevice) (*authzpb.GetResponse, *AuthorizationPolicy) {
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
-	resp, err := gnsiC.Authz().Get(context.Background(), &authz.GetRequest{})
+	resp, err := gnsiC.Authz().Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed on device %s: %v", dut.Name(), err)
 	}
@@ -218,13 +219,13 @@ func (o *HardVerify) isVerifyOpt() {}
 // Verify uses prob to validate if the user access for a certain rpc is expected.
 // It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
 func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
-	expectedRes := authz.ProbeResponse_ACTION_PERMIT
+	expectedRes := authzpb.ProbeResponse_ACTION_PERMIT
 	expectedExecErr := codes.OK
 	hardVerify := false
 	for _, opt := range opts {
 		switch opt.(type) {
 		case *ExceptDeny:
-			expectedRes = authz.ProbeResponse_ACTION_DENY
+			expectedRes = authzpb.ProbeResponse_ACTION_DENY
 			expectedExecErr = codes.PermissionDenied
 		case *HardVerify:
 			hardVerify = true
@@ -236,9 +237,9 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	if err != nil {
 		t.Fatalf("Could not connect gnsi %v", err)
 	}
-	resp, err := gnsiC.Authz().Probe(context.Background(), &authz.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path})
+	resp, err := gnsiC.Authz().Probe(context.Background(), &authzpb.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path})
 	if err != nil {
-		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authz.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path}), dut.Name())
+		t.Fatalf("Prob Request %s failed on dut %s", prettyPrint(&authzpb.ProbeRequest{User: spiffe.ID, Rpc: rpc.Path}), dut.Name())
 	}
 
 	if resp.GetAction() != expectedRes {
