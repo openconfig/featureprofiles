@@ -611,11 +611,18 @@ message Metadata {
     // Linklocal mask length is not 64
     // Cisco: b/368271859
     bool link_local_mask_len = 218;
-    //  Devices do not support programming gribi next-hop/tunnel entries with unviable next-hop/tunnel-destination address.
-    // Juniper: b/353280742
-    bool gribi_unresolvable_nexthops_unsupported = 219;
+    // use parent component for temperature telemetry
+    bool use_parent_component_for_temperature_telemetry = 219;
+    // component manufactured date is unsupported
+    bool component_mfg_date_unsupported = 220;
+    // trib protocol field under otn channel config unsupported
+    bool otn_channel_trib_unsupported = 221;
+    // ingress parameters under eth channel config unsupported
+    bool eth_channel_ingress_parameters_unsupported = 222;
+    // Cisco numbering for eth channel assignment starts from 1 instead of 0
+    bool eth_channel_assignment_cisco_numbering = 223;
     //  Devices requires autonegotiation to be disabled and requires port speed and duplex to be set.
-    bool explicit_auto_negotiation_disable_required = 220;
+    bool explicit_auto_negotiation_disable_required = 224;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

@@ -1162,25 +1162,23 @@ func TestEncapFrr(t *testing.T) {
 				}
 				res := args.client.Results(t)
 				operIndexList := []uint64{1000, 1001}
-				if !deviations.GRIBIUnresolvableNexthopsUnsupported(dut) {
-					for _, operIndex := range operIndexList {
-						chk.HasResult(t, res,
-							fluent.OperationResult().
-								WithOperationType(constants.Add).
-								WithNextHopOperation(operIndex).
-								WithProgrammingResult(fluent.InstalledInFIB).
-								AsResult(),
-							chk.IgnoreOperationID(),
-						)
-						chk.HasResult(t, res,
-							fluent.OperationResult().
-								WithOperationType(constants.Add).
-								WithNextHopGroupOperation(operIndex).
-								WithProgrammingResult(fluent.InstalledInFIB).
-								AsResult(),
-							chk.IgnoreOperationID(),
-						)
-					}
+				for _, operIndex := range operIndexList {
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopGroupOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
 				}
 			}
 			if tc.TestID == "teVrf111NoMatch" {
@@ -1198,32 +1196,30 @@ func TestEncapFrr(t *testing.T) {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
 				res := args.client.Results(t)
-				if !deviations.GRIBIUnresolvableNexthopsUnsupported(dut) {
-					chk.HasResult(t, res,
-						fluent.OperationResult().
-							WithOperationType(constants.Add).
-							WithNextHopOperation(201).
-							WithProgrammingResult(fluent.InstalledInFIB).
-							AsResult(),
-						chk.IgnoreOperationID(),
-					)
-					chk.HasResult(t, res,
-						fluent.OperationResult().
-							WithOperationType(constants.Add).
-							WithNextHopOperation(202).
-							WithProgrammingResult(fluent.InstalledInFIB).
-							AsResult(),
-						chk.IgnoreOperationID(),
-					)
-					chk.HasResult(t, res,
-						fluent.OperationResult().
-							WithOperationType(constants.Add).
-							WithNextHopGroupOperation(101).
-							WithProgrammingResult(fluent.InstalledInFIB).
-							AsResult(),
-						chk.IgnoreOperationID(),
-					)
-				}
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(201).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(202).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopGroupOperation(101).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
