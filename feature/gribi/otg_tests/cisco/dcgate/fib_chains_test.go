@@ -140,8 +140,7 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, 202, vipIP2, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddNHG(t, 301, map[uint64]uint64{201: 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 503})
 	args.client.AddNHG(t, 302, map[uint64]uint64{202: 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	// args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), 301, vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.client.AddIPv4(t, cidr(tunnelDstIP3, 32), 301, vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), 301, vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv4(t, cidr(tunnelDstIP2, 32), 302, vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	args.client.AddNH(t, 401, "Encap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: tunnelDstIP1, VrfName: vrfTransit})
