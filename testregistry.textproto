@@ -409,6 +409,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.6"
+  description: "Static GUEv1 encap with IPv4 tunnel NH for IPv4 and IPv6 destination prefixes learnt over BGP plus Policybased GUEv1 Decap"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
