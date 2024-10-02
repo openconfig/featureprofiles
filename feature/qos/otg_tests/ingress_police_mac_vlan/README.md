@@ -2,7 +2,9 @@
 
 ## Summary
 
-Use the gRIBI applied ip entries from TE-18.1 gRIBI. Configure an ingress scheduler to police traffic using a 1 rate, 2 color policer. Attach the scheduler to the interface without a classifier. Lack of match conditions will cause all packets to be matched. Send traffic to validate the policer.
+Use the gRIBI applied ip entries from TE-18.1 gRIBI. 
+Configure an ingress scheduler to police traffic using a 1 rate, 2 color policer and attach the scheduler to the interface without a classifier. Lack of match conditions will cause all packets to be matched. 
+Send traffic to validate the policer.
 
 ## Topology
 
@@ -119,19 +121,6 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/bc:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
-
-  # qos classifier config
-  /qos/classifiers/classifier/config/name:
-  /qos/classifiers/classifier/terms/term/config/id:
-  #/qos/classifiers/classifier/terms/term/conditions/next-hop-group/config/name: # TODO: new OC leaf to be added
-
-  # qos input-policies config - TODO: a new OC subtree (/qos/input-policies)
-  # /qos/input-policies/input-policy/config/name:
-  # /qos/input-policies/input-policy/config/classifier:
-  # /qos/input-policies/input-policy/config/scheduler-policy:
-
-  # qos interface config
-  #/qos/interfaces/interface/subinterface/input/config/policies:   # TODO:  new OC leaf-list (/qos/interfaces/interface/input/config/policies)
 
   # qos interface scheduler counters
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
