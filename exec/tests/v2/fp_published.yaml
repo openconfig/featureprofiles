@@ -311,6 +311,13 @@ tests:
     mustpass: true
     priority: 39
     groups: [ancx]
+  - name: RT-5.8 (IPv6 Link Local)
+    path: feature/interface/ip/ipv6_link_local/otg_tests/ipv6_link_local_test
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 39
+    groups: [Common]    
   - name: RT-3.2 (Multiple Protocol-DSCP Rules for VRF Selection)
     path: feature/experimental/policy/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test
     owners:

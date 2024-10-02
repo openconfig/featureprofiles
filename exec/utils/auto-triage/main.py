@@ -32,7 +32,7 @@ def main():
     vectorstore.create_index(datapoints)
     
     # Add Testsuite Data
-    documents = firex.get_testsuites(vectorstore, ddts, database, args.xunit_file, run_info)
+    documents = firex.get_testsuites(vectorstore, database, args.xunit_file, run_info)
 
     database.insert_logs(documents)
 
