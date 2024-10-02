@@ -125,7 +125,7 @@ def _gnmi_set_file_template(conf):
 
 def _otg_docker_compose_template(control_port, gnmi_port, rest_port, version):
     return f"""
-version: "2"
+version: "2.1"
 services:
   controller:
     image: ghcr.io/open-traffic-generator/keng-controller:{version["controller"]}
