@@ -391,6 +391,24 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.3"
+  description: "Policy-based Static GUE Encapsulation to IPv4 tunnel"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.4"
+  description: "Interface based GUE Decapsulation to IPv4 tunnel"
+  readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.5"
+  description: "Interface based MPLSoGUE Decapsulation to IPv4 tunnel"
+  readme: " "
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
@@ -582,6 +600,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.35"
+  description: "Extended routes retention"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.51"
   description: "BGP multipath ECMP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
@@ -715,6 +739,24 @@ test: {
   id: "RT-3.2"
   description: "Policy based VRF selection with multiple protocol and DSCP values"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-3.3"
+  description: "Multiple VRFs and GUE DECAP in Default VRF"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-3.31"
+  description: "DSCP based traffic steering from default VRF to non-Default VRF using Policy based VRF selection plus GUE DECAP"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "RT-3.32"
+  description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection plus GUE DECAP and ENCAP"
+  readme: ""
   exec: " "
 }
 test: {

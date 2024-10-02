@@ -558,7 +558,7 @@ message Metadata {
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
     // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
-    bool community_match_with_redistribution_unsupported = 195;  
+    bool community_match_with_redistribution_unsupported = 195;
     // Devices that do not support components/component/state/install-component
     // and components/component/state/install-position.
     bool install_position_and_install_component_unsupported = 196;
@@ -575,7 +575,7 @@ message Metadata {
     // weighted ecmp feature verification using fixed packet
     bool weighted_ecmp_fixed_packet_verification = 202;
     // Override default NextHop scale while enabling encap/decap scale
-    // CISCO: 
+    // CISCO:
     bool override_default_nh_scale = 203;
     // Devices that donot support setting bgp extended community set
     bool bgp_extended_community_set_unsupported = 204;
