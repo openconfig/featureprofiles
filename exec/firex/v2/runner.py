@@ -1018,12 +1018,12 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     return reserved_testbed
 
-@app.task(bind=True, soft_time_limit=1*5*60, time_limit=1*5*60)
+@app.task(bind=True, soft_time_limit=1*10*60, time_limit=1*10*60)
 def CheckTestbed(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Checking testbed connectivity...")
     cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/tbchecks ' \
-            f'-timeout 2m ' \
+            f'-timeout 5m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["testbed_file"]} ' \
