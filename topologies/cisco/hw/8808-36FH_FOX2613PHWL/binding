@@ -23,19 +23,19 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:60699"
+    target: "10.85.84.225:60699"
   }
   gnmi {
-    target: "10.85.84.159:60699"
+    target: "10.85.84.225:60699"
   }
   gribi{
-    target: "10.85.84.159:60699"
+    target: "10.85.84.225:60699"
   }
   ssh{
-    target: "10.85.84.159:58005" 
+    target: "10.85.84.225:58005" 
   }
   p4rt{
-    target: "10.85.84.159:60699"
+    target: "10.85.84.225:60699"
   }
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
