@@ -51,7 +51,6 @@ platform_exceptions:  {
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
     encap_tunnel_shut_backup_nhg_zero_traffic: true
-    explicit_auto_negotiation_disable_required: true
   }
 }
 

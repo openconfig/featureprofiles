@@ -1165,9 +1165,3 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
-
-// ExplicitAutoNegotiationDisableRequired returns true for device requires autonegotiation
-// to be disabled and explicit port speed and duplex mode set
-func ExplicitAutoNegotiationDisableRequired(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetExplicitAutoNegotiationDisableRequired()
-}

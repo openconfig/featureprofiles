@@ -253,15 +253,6 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if deviations.ExplicitAutoNegotiationDisableRequired(dut) {
-		if p.PMD() == ondatra.PMD100GBASEFR {
-			e := i.GetOrCreateEthernet()
-			e.AutoNegotiate = ygot.Bool(false)
-			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-		}
-	}
-
 	ipv4, ok := portsIPv4[id]
 	if !ok {
 		return nil
