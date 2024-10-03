@@ -36,7 +36,8 @@ class Database:
                     {"$unwind": "$testcases"},
                     {
                         "$match": {
-                            "testcases.label": {"$in": valid_labels}
+                            "testcases.label": {"$in": valid_labels},
+                            "testcases.status": "failed",
                         }
                     },
                     {
@@ -63,6 +64,21 @@ class Database:
             return True
         return False
 
+    def get_historical_testsuite(self, group, plan):
+        filter = {
+            "group": group,
+            "plan_id": plan
+        }
+
+        projection = {
+            "testcases": 1
+        }
+        
+        sort = [["timestamp", -1]]
+
+        return self._data.find_one(filter = filter, projection = projection, sort = sort)
+
+
     def inherit_bugs(self, group, plan):
         day = datetime.datetime.now() - datetime.timedelta(days = 2)
         id = ObjectId.from_datetime(day)
@@ -77,7 +93,6 @@ class Database:
                     'plan_id': plan, 
                     'bugs.0': {
                         '$exists': True,
-
                     }
                 }
             },

@@ -6,7 +6,7 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40055
       gnmi_port: 50055
       rest_port: 30055
@@ -61,7 +61,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40054
       gnmi_port: 50054
       rest_port: 30054
@@ -73,7 +73,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40053
       gnmi_port: 50053
       rest_port: 30053
@@ -97,7 +97,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40052
       gnmi_port: 50052
       rest_port: 30052

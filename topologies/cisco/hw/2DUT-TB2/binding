@@ -69,22 +69,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.159:47701"
+    target: "10.85.84.225:47701"
   }
   gnmi {
-    target: "10.85.84.159:47701" 
+    target: "10.85.84.225:47701" 
   }
   gribi{
-    target: "10.85.84.159:47702"
+    target: "10.85.84.225:47702"
   }
   p4rt{
-    target: "10.85.84.159:47703"
+    target: "10.85.84.225:47703"
   }
   gnsi{
-    target: "10.85.84.159:47701"
+    target: "10.85.84.225:47701"
   }
   ssh{
-    target: "10.85.84.159:47722"
+    target: "10.85.84.225:47722"
     skip_verify: true
   }
   ports {
@@ -278,7 +278,7 @@ duts {
 # Pass: roZes123 
 
 # Proxy config
-# ucs : 10.85.84.159
+# ucs : 10.85.84.225
 # user: root
 # pass: roZes!23
 # config: /etc/rinetd.conf
@@ -313,32 +313,32 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-   target: "10.85.84.159:47402"
-   #target: "10.85.84.159:9339" 
+   target: "10.85.84.225:47402"
+   #target: "10.85.84.225:9339" 
   }
   gnmi {
-      target: "10.85.84.159:47402"
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9339" 
+      target: "10.85.84.225:47402"
+     # default grpc mapping : 57777  target: "10.85.84.225:47402"
+     #target: "10.85.84.225:9339" 
   }
   gribi{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9340"
-     target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.225:47402"
+     #target: "10.85.84.225:9340"
+     target: "10.85.84.225:47402"
   }
   ssh{
-    target: "10.85.84.159:47403"
+    target: "10.85.84.225:47403"
     skip_verify: true
   }
   p4rt{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9559"
-     target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.225:47402"
+     #target: "10.85.84.225:9559"
+     target: "10.85.84.225:47402"
   }
   gnsi{
-     # default grpc mapping : 57777  target: "10.85.84.159:47402"
-     #target: "10.85.84.159:9559"
-     target: "10.85.84.159:47402"
+     # default grpc mapping : 57777  target: "10.85.84.225:47402"
+     #target: "10.85.84.225:9559"
+     target: "10.85.84.225:47402"
   }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.

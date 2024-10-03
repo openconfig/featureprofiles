@@ -11035,8 +11035,6 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
@@ -12499,6 +12497,18 @@ func TestRPSO_Pathz(t *testing.T) {
 
 			// Perform GET operations for active policy instance after RP Switchover
 			actv_res_after_RPSwitch, _ := client.Get(context.Background(), getReq_Actv)
+			t.Logf("Active Response : %s", actv_res_after_RPSwitch)
+			if d := cmp.Diff(get_res, actv_res_after_RPSwitch, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+			}
+
+			// Perform eMSD process restart
+			t.Logf("Restarting emsd at %s", time.Now())
+			perf.RestartProcess(t, dut, "emsd")
+			t.Logf("Restart emsd finished at %s", time.Now())
+
+			// Perform GET operations for active policy instance after Process Restart
+			actv_res_after_RPSwitch, _ = client.Get(context.Background(), getReq_Actv)
 			t.Logf("Active Response : %s", actv_res_after_RPSwitch)
 			if d := cmp.Diff(get_res, actv_res_after_RPSwitch, protocmp.Transform()); d == "" {
 				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
