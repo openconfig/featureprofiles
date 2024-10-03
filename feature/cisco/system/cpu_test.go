@@ -25,7 +25,7 @@ import (
 )
 
 // /system/cpus/cpu/state/index
-func TestCPUIndex(t *testing.T) {
+func testCPUIndex(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/index", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -40,7 +40,7 @@ func TestCPUIndex(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/total
-func TestCPUTotalInstant(t *testing.T) {
+func testCPUTotalInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -54,7 +54,7 @@ func TestCPUTotalInstant(t *testing.T) {
 	})
 }
 
-func TestCPUTotalAvg(t *testing.T) {
+func testCPUTotalAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestCPUTotalAvg(t *testing.T) {
 	})
 }
 
-func TestCPUTotalMin(t *testing.T) {
+func testCPUTotalMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestCPUTotalMin(t *testing.T) {
 	})
 }
 
-func TestCPUTotalMax(t *testing.T) {
+func testCPUTotalMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestCPUTotalMax(t *testing.T) {
 	})
 }
 
-func TestCPUTotalInterval(t *testing.T) {
+func testCPUTotalInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestCPUTotalInterval(t *testing.T) {
 	})
 }
 
-func TestCPUTotalMinTime(t *testing.T) {
+func testCPUTotalMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestCPUTotalMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUTotalMaxTime(t *testing.T) {
+func testCPUTotalMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/total/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -139,7 +139,7 @@ func TestCPUTotalMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/user
-func TestCPUUserInstant(t *testing.T) {
+func testCPUUserInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -153,7 +153,7 @@ func TestCPUUserInstant(t *testing.T) {
 	})
 }
 
-func TestCPUUserAvg(t *testing.T) {
+func testCPUUserAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestCPUUserAvg(t *testing.T) {
 	})
 }
 
-func TestCPUUserMin(t *testing.T) {
+func testCPUUserMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestCPUUserMin(t *testing.T) {
 	})
 }
 
-func TestCPUUserMax(t *testing.T) {
+func testCPUUserMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -195,7 +195,7 @@ func TestCPUUserMax(t *testing.T) {
 	})
 }
 
-func TestCPUUserInterval(t *testing.T) {
+func testCPUUserInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -209,7 +209,7 @@ func TestCPUUserInterval(t *testing.T) {
 	})
 }
 
-func TestCPUUserMinTime(t *testing.T) {
+func testCPUUserMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestCPUUserMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUUserMaxTime(t *testing.T) {
+func testCPUUserMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/user/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -238,7 +238,7 @@ func TestCPUUserMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/kernel
-func TestCPUKernelInstant(t *testing.T) {
+func testCPUKernelInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -252,7 +252,7 @@ func TestCPUKernelInstant(t *testing.T) {
 	})
 }
 
-func TestCPUKernelAvg(t *testing.T) {
+func testCPUKernelAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -266,7 +266,7 @@ func TestCPUKernelAvg(t *testing.T) {
 	})
 }
 
-func TestCPUKernelMin(t *testing.T) {
+func testCPUKernelMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -280,7 +280,7 @@ func TestCPUKernelMin(t *testing.T) {
 	})
 }
 
-func TestCPUKernelMax(t *testing.T) {
+func testCPUKernelMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -294,7 +294,7 @@ func TestCPUKernelMax(t *testing.T) {
 	})
 }
 
-func TestCPUKernelInterval(t *testing.T) {
+func testCPUKernelInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -308,7 +308,7 @@ func TestCPUKernelInterval(t *testing.T) {
 	})
 }
 
-func TestCPUKernelMinTime(t *testing.T) {
+func testCPUKernelMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestCPUKernelMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUKernelMaxTime(t *testing.T) {
+func testCPUKernelMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/kernel/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -337,7 +337,7 @@ func TestCPUKernelMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/nice
-func TestCPUNiceInstant(t *testing.T) {
+func testCPUNiceInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -351,7 +351,7 @@ func TestCPUNiceInstant(t *testing.T) {
 	})
 }
 
-func TestCPUNiceAvg(t *testing.T) {
+func testCPUNiceAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -365,7 +365,7 @@ func TestCPUNiceAvg(t *testing.T) {
 	})
 }
 
-func TestCPUNiceMin(t *testing.T) {
+func testCPUNiceMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestCPUNiceMin(t *testing.T) {
 	})
 }
 
-func TestCPUNiceMax(t *testing.T) {
+func testCPUNiceMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -393,7 +393,7 @@ func TestCPUNiceMax(t *testing.T) {
 	})
 }
 
-func TestCPUNiceInterval(t *testing.T) {
+func testCPUNiceInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestCPUNiceInterval(t *testing.T) {
 	})
 }
 
-func TestCPUNiceMinTime(t *testing.T) {
+func testCPUNiceMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -421,7 +421,7 @@ func TestCPUNiceMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUNiceMaxTime(t *testing.T) {
+func testCPUNiceMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/nice/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -436,7 +436,7 @@ func TestCPUNiceMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/idle
-func TestCPUIdleInstant(t *testing.T) {
+func testCPUIdleInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -450,7 +450,7 @@ func TestCPUIdleInstant(t *testing.T) {
 	})
 }
 
-func TestCPUIdleAvg(t *testing.T) {
+func testCPUIdleAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -464,7 +464,7 @@ func TestCPUIdleAvg(t *testing.T) {
 	})
 }
 
-func TestCPUIdleMin(t *testing.T) {
+func testCPUIdleMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -478,7 +478,7 @@ func TestCPUIdleMin(t *testing.T) {
 	})
 }
 
-func TestCPUIdleMax(t *testing.T) {
+func testCPUIdleMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -492,7 +492,7 @@ func TestCPUIdleMax(t *testing.T) {
 	})
 }
 
-func TestCPUIdleInterval(t *testing.T) {
+func testCPUIdleInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -506,7 +506,7 @@ func TestCPUIdleInterval(t *testing.T) {
 	})
 }
 
-func TestCPUIdleMinTime(t *testing.T) {
+func testCPUIdleMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -520,7 +520,7 @@ func TestCPUIdleMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUIdleMaxTime(t *testing.T) {
+func testCPUIdleMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/idle/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -535,7 +535,7 @@ func TestCPUIdleMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/wait
-func TestCPUWaitInstant(t *testing.T) {
+func testCPUWaitInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -549,7 +549,7 @@ func TestCPUWaitInstant(t *testing.T) {
 	})
 }
 
-func TestCPUWaitAvg(t *testing.T) {
+func testCPUWaitAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -563,7 +563,7 @@ func TestCPUWaitAvg(t *testing.T) {
 	})
 }
 
-func TestCPUWaitMin(t *testing.T) {
+func testCPUWaitMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -577,7 +577,7 @@ func TestCPUWaitMin(t *testing.T) {
 	})
 }
 
-func TestCPUWaitMax(t *testing.T) {
+func testCPUWaitMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -591,7 +591,7 @@ func TestCPUWaitMax(t *testing.T) {
 	})
 }
 
-func TestCPUWaitInterval(t *testing.T) {
+func testCPUWaitInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -605,7 +605,7 @@ func TestCPUWaitInterval(t *testing.T) {
 	})
 }
 
-func TestCPUWaitMinTime(t *testing.T) {
+func testCPUWaitMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -619,7 +619,7 @@ func TestCPUWaitMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUWaitMaxTime(t *testing.T) {
+func testCPUWaitMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/wait/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -634,7 +634,7 @@ func TestCPUWaitMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/hardware-interrupt
-func TestCPUHardwareInterruptInstant(t *testing.T) {
+func testCPUHardwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -648,7 +648,7 @@ func TestCPUHardwareInterruptInstant(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptAvg(t *testing.T) {
+func testCPUHardwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -662,7 +662,7 @@ func TestCPUHardwareInterruptAvg(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptMin(t *testing.T) {
+func testCPUHardwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -676,7 +676,7 @@ func TestCPUHardwareInterruptMin(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptMax(t *testing.T) {
+func testCPUHardwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -690,7 +690,7 @@ func TestCPUHardwareInterruptMax(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptInterval(t *testing.T) {
+func testCPUHardwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -704,7 +704,7 @@ func TestCPUHardwareInterruptInterval(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptMinTime(t *testing.T) {
+func testCPUHardwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -718,7 +718,7 @@ func TestCPUHardwareInterruptMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUHardwareInterruptMaxTime(t *testing.T) {
+func testCPUHardwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/hardware-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -733,7 +733,7 @@ func TestCPUHardwareInterruptMaxTime(t *testing.T) {
 }
 
 // /system/cpus/cpu/state/software-interrupt
-func TestCPUSoftwareInterruptInstant(t *testing.T) {
+func testCPUSoftwareInterruptInstant(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/instant", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -747,7 +747,7 @@ func TestCPUSoftwareInterruptInstant(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptAvg(t *testing.T) {
+func testCPUSoftwareInterruptAvg(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/avg", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -761,7 +761,7 @@ func TestCPUSoftwareInterruptAvg(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptMin(t *testing.T) {
+func testCPUSoftwareInterruptMin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/min", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -775,7 +775,7 @@ func TestCPUSoftwareInterruptMin(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptMax(t *testing.T) {
+func testCPUSoftwareInterruptMax(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/max", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -789,7 +789,7 @@ func TestCPUSoftwareInterruptMax(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptInterval(t *testing.T) {
+func testCPUSoftwareInterruptInterval(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/interval", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -803,7 +803,7 @@ func TestCPUSoftwareInterruptInterval(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptMinTime(t *testing.T) {
+func testCPUSoftwareInterruptMinTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/mintime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {
@@ -817,7 +817,7 @@ func TestCPUSoftwareInterruptMinTime(t *testing.T) {
 	})
 }
 
-func TestCPUSoftwareInterruptMaxTime(t *testing.T) {
+func testCPUSoftwareInterruptMaxTime(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	t.Run("Testing /system/cpus/cpu/state/software-interrupt/maxtime", func(t *testing.T) {
 		t.Run("Subscribe", func(t *testing.T) {

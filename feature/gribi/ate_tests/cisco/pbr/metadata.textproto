@@ -1,0 +1,14 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "PBR"
+description: "PBR"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    gribi_mac_override_with_static_arp: true
+  }
+}

@@ -61,6 +61,7 @@ between 2 DUTs.
             its teardown.
         *   TeardownDuration: The amount time required to bring the interface
             back to pre-test state.
+    *       Verify generator interface oper-state is 'TESTING'
 *   Set another device as the FAR_END (reflector) device for Packet Based Link
     Qual.
     *   Issue gnoi.LinkQualification Create RPC to the device and provide
@@ -71,6 +72,7 @@ between 2 DUTs.
         *   EndpointType: Qualification_end set as FAR_END.
         *   RPCSyncedTiming:
             *   Reflector timers should be same as the ones on the generator.
+        *   Verify reflector interface oper-state is 'TESTING'
 *   Get the result by issuing gnoi.LinkQualification Get RPC to gather the
     result of link qualification. Provide the following parameter:
     *   Id: The identifier used above on the NEAR_END side.
@@ -81,6 +83,17 @@ between 2 DUTs.
         *   Ensure that RPC status code is 0 for succuss.
         *   Packets sent count matches with packets received.
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-*   None
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+rpcs:
+  gnoi:
+    packet_link_qualification.LinkQualification.Capabilities:
+    packet_link_qualification.LinkQualification.Create:
+    packet_link_qualification.LinkQualification.Delete:
+    packet_link_qualification.LinkQualification.Get:
+    packet_link_qualification.LinkQualification.List:
+```

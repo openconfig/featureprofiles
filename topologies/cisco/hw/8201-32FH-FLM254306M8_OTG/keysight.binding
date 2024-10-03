@@ -1,0 +1,115 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 5.78.26.29 255.255.0.0
+#!
+
+# console 
+# telnet 10.85.84.53 2009
+
+options {
+  username: "cisco"
+  password: "cisco"
+}
+
+duts {
+  id: "dut"
+  name: "otg-churchil"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+    }
+  vendor: CISCO
+  hardware_model: '8201'
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cisco"
+    password: "cisco"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.80.9:57923"
+  }
+  gnmi {
+    target: "10.85.80.9:57923"
+  }
+  gribi{
+    target: "10.85.80.9:57923"
+  }
+  ssh{
+    target: "10.85.80.9:57779"
+  }
+  p4rt{
+    target: "10.85.80.9:57923"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "TenGigE0/0/0/27/0"  # Change this to the actual port name.
+    speed: S_10GB
+  }
+  ports {
+    id: "port2"
+    name: "TenGigE0/0/0/27/1"  # Change this to the actual port name.
+    speed: S_10GB
+  }
+  ports {
+    id: "port3"
+    name: "TenGigE0/0/0/27/2" # Change this to the actual port name.
+    speed: S_10GB
+  }
+  ports {
+    id: "port4"
+    name: "TenGigE0/0/0/27/3"  # Change this to the actual port name.
+    speed: S_10GB
+  }
+}
+
+
+ates {
+  id: "ate"
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+    target: "10.85.84.119"
+    username: "admin"
+    password: "Admin@123"
+    skip_verify: true
+  }
+  
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "3/9"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
+  }
+  ports {
+    id: "port2"
+    name: "3/10"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
+  }
+  ports {
+    id: "port3"
+    name: "3/11"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
+  }
+  ports {
+    id: "port4"
+    name: "3/12"  # Change this to the ixia-c-hw port location.
+    speed: S_10GB
+  }
+}

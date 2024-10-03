@@ -13,7 +13,6 @@ BGP always compare MED
         *   DUT Port3 (AS 65501) ---eBGP 2--- OTG Port3 (AS 65503)
 *   Associate eBGP neighbors #1 and #2 with MED values of 100 and 50 on the advertised routes.
 *   Enable “always-compare-med” knob on the DUT.
-*   TODO : Verify BGP routes with lowest MED are advertised to OTG Port1.
 *   Validate traffic flowing to the prefixes received from eBGP neighbor #2 from DUT (OTG Port3).
 *   Disable MED settings on DUT and OTG ports. 
 *   Validate the change of traffic flow because of the change (OTG Port2).

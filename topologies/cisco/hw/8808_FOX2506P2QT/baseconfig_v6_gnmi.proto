@@ -5,11 +5,10 @@ replace: {
     val: {
       ascii_val:
   "hostname SF-D\n"
-  "username cisco\n"
+  "username cafyauto\n"
   " group root-lr\n"
   " group cisco-support\n"
-  " secret 5 $1$k6Xn$rD8WIoP896Jy9RND3FZKa1\n"
-  " password 7 1511021F0725\n"
+  " secret 10 $6$784NN1WFKqYZBN1.$KIQu/2oSAswHI96C93PrZeIkEXAykwZLHGQspixzi74jTB7nc/shH4.8fYxK5umNfANNIKSlE6XArT6rsUVEB.\n"
   "!\n"
   "grpc\n"
   " port 57416\n"

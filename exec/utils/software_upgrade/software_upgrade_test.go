@@ -25,7 +25,7 @@ import (
 const (
 	imageDestination = "/harddisk:/8000-x64.iso"
 	installStatusCmd = "sh install request"
-	imgCopyTimeout   = 900 * time.Second
+	imgCopyTimeout   = 1800 * time.Second
 	sshCmdTimeout    = 30 * time.Second
 	statusCheckDelay = 60 * time.Second
 )
@@ -130,6 +130,16 @@ func TestSoftwareUpgrade(t *testing.T) {
 		if !verifyInstall(t, dut, lineup, efr) {
 			t.Fatalf("Found unexpected image after install on %v", dut.ID())
 		}
+
+		//TODO: remove one configuration inconsistency issue is resolved
+		time.Sleep(5 * time.Second)
+		testt.CaptureFatal(t, func(t testing.TB) {
+			if ret, err := sendCLI(t, dut, "clear configuration inconsistency"); err == nil {
+				t.Logf("%s", ret)
+			} else {
+				t.Logf("Error running command: %v. Ignoring...", err)
+			}
+		})
 	}
 }
 
@@ -143,6 +153,25 @@ func copyImageSCP(t testing.TB, d *targetInfo, imagePath string) {
 	}
 	defer scpClient.Close()
 
+	ticker := time.NewTicker(1 * time.Minute)
+	tickerQuit := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				t.Logf("Copying image...")
+			case <-tickerQuit:
+				return
+			}
+		}
+	}()
+
+	defer func() {
+		ticker.Stop()
+		tickerQuit <- true
+	}()
+
 	if err := scpClient.CopyFileToRemote(imagePath, imageDestination, &scp.FileTransferOption{
 		Timeout: imgCopyTimeout,
 	}); err != nil {
@@ -154,7 +183,7 @@ func copyImageGNOI(t testing.TB, dut *ondatra.DUTDevice, imagePath string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), imgCopyTimeout)
 	defer cancel()
-	fileClient, err := dut.RawAPIs().GNOI().New(t).File().Put(ctx)
+	fileClient, err := dut.RawAPIs().GNOI(t).File().Put(ctx)
 	if err != nil {
 		t.Fatalf("Could not create gNOI file client: %v", err)
 	}
@@ -215,7 +244,9 @@ func sendCLI(t testing.TB, dut *ondatra.DUTDevice, cmd string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sshCmdTimeout)
 	defer cancel()
 	sshClient := dut.RawAPIs().CLI(t)
-	return sshClient.SendCommand(ctx, cmd)
+	t.Logf("Running: %s", cmd)
+	out, err := sshClient.RunCommand(ctx, cmd)
+	return out.Output(), err
 }
 
 func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
@@ -229,7 +260,7 @@ func shouldInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr stri
 }
 
 func verifyInstall(t testing.TB, dut *ondatra.DUTDevice, lineup string, efr string) bool {
-	if len(lineup) == 0 || len(efr) == 0 {
+	if len(lineup) == 0 || len(efr) == 0 || strings.HasPrefix(efr, "sha") {
 		return true
 	}
 

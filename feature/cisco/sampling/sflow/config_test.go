@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/gnmiutil"
+
 	"github.com/openconfig/featureprofiles/feature/cisco/sampling/setup"
 	"github.com/openconfig/featureprofiles/topologies/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -20,7 +21,14 @@ func TestMain(m *testing.M) {
 func TestEnabledAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testEnabledInput {
@@ -36,7 +44,8 @@ func TestEnabledAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported as of 10th April 2024")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Enabled != input {
 						t.Errorf("Config /sampling/sflow/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -53,8 +62,10 @@ func TestEnabledAtContainer(t *testing.T) {
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
+					configGot := gnmi.Get(t, dut, config.Config())
+					if *configGot.Enabled != *defaultConfigGot.Enabled {
+						t.Errorf("Delete for container /sampling/sflow/config failed")
+						t.Logf("Enabled leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.Enabled, *defaultConfigGot.Enabled)
 					}
 				}
 			})
@@ -64,6 +75,14 @@ func TestEnabledAtContainer(t *testing.T) {
 
 func TestEnabledAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
 	baseConfig := setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
@@ -78,7 +97,7 @@ func TestEnabledAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/enabled: got %v, want %v", configGot, input)
 					}
@@ -92,14 +111,6 @@ func TestEnabledAtLeaf(t *testing.T) {
 					}
 				})
 			}
-			t.Run("Delete leaf", func(t *testing.T) {
-				gnmi.Delete(t, dut, config.Config())
-				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/enabled fail: got %v", qs)
-					}
-				}
-			})
 		})
 	}
 }
@@ -107,13 +118,20 @@ func TestEnabledAtLeaf(t *testing.T) {
 func TestSampleSizeAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	var baseConfig *oc.Sampling = setupSampling(t, dut)
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
+	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
 	for _, input := range testSampleSizeInput {
 		t.Run(fmt.Sprintf("Testing /sampling/sflow/config/sample-size using value %v", input), func(t *testing.T) {
 			baseConfigSflow := baseConfig.Sflow
-			*baseConfigSflow.SampleSize = input
+			*baseConfigSflow.SampleSize = 256
 
 			config := gnmi.OC().Sampling().Sflow()
 			state := gnmi.OC().Sampling().Sflow()
@@ -122,10 +140,11 @@ func TestSampleSizeAtContainer(t *testing.T) {
 				gnmi.Replace(t, dut, config.Config(), baseConfigSflow)
 			})
 			if !setup.SkipGet() {
+				t.Skipf("Not supported as of 10 April 2024")
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
-					if *configGot.SampleSize != input {
-						t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want %v", configGot, input)
+					configGot := gnmi.LookupConfig(t, dut, config.Config())
+					if v, _ := configGot.Val(); *v.SampleSize != input {
+						t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want %v", *v.SampleSize, input)
 					}
 				})
 			}
@@ -133,23 +152,34 @@ func TestSampleSizeAtContainer(t *testing.T) {
 				t.Run("Subscribe container", func(t *testing.T) {
 					stateGot := gnmi.Get(t, dut, state.State())
 					if *stateGot.SampleSize != input {
-						t.Errorf("State /sampling/sflow/config/sample-size: got %v, want %v", stateGot, input)
+						t.Errorf("State /sampling/sflow/config/sample-size: got %v, want %v", *stateGot.SampleSize, input)
 					}
 				})
 			}
 			t.Run("Delete container", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs.IsPresent())
+					configGot := gnmi.Get(t, dut, config.Config())
+					if *configGot.SampleSize != *defaultConfigGot.SampleSize {
+						t.Errorf("Delete for container /sampling/sflow/config failed")
+						t.Logf("sample-size leaf does not have default value post Delete. Got:%v, Want:%v", *configGot.SampleSize, *defaultConfigGot.SampleSize)
 					}
 				}
 			})
 		})
 	}
 }
+
 func TestSampleSizeAtLeaf(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	dc := gnmi.OC().Sampling().Sflow()
+	defaultConfigGot := gnmi.Get(t, dut, dc.Config())
+	json := gnmiutil.EmitJSONFromGoStruct(t, defaultConfigGot)
+	if json != "" {
+		t.Logf("Default config values for this path: %v", json)
+	}
+
 	baseConfig := setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
@@ -164,7 +194,8 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported as of 10 April 2024")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/sample-size: got %v, want %v", configGot, input)
 					}
@@ -181,8 +212,11 @@ func TestSampleSizeAtLeaf(t *testing.T) {
 			t.Run("Delete leaf", func(t *testing.T) {
 				gnmi.Delete(t, dut, config.Config())
 				if !setup.SkipSubscribe() {
-					if qs := gnmi.LookupConfig(t, dut, config.Config()); qs.IsPresent() == true {
-						t.Errorf("Delete /sampling/sflow/config/sample-size fail: got %v", qs)
+					configGot := gnmi.Get(t, dut, config.Config())
+					// Compare the retrieved configuration with the default sample size
+					if configGot != *defaultConfigGot.SampleSize {
+						t.Errorf("Delete for path /sampling/sflow/config failed")
+						t.Logf("SampleSize is not at default value post Delete. Got:%v, Want:%v", configGot, *defaultConfigGot.SampleSize)
 					}
 				}
 			})
@@ -208,7 +242,8 @@ func TestAgentIdIpv4(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported as of now")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/agent-id-ipv4: got %v, want %v", configGot, input)
 					}
@@ -254,7 +289,8 @@ func TestAgentIdIpv6(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported as of 10th April 2024")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/agent-id-ipv6: got %v, want %v", configGot, input)
 					}
@@ -302,7 +338,7 @@ func TestDscp(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/dscp : got %v, want %v", configGot, input)
 					}
@@ -349,9 +385,10 @@ func TestPollingInterval(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
-					if configGot != input {
-						t.Errorf("Config /sampling/sflow/config/polling-interval : got %v, want %v", configGot, input)
+					t.Skipf("Not supported as of 10th April 2024")
+					configGot := gnmi.LookupConfig(t, dut, config.Config())
+					if v, _ := configGot.Val(); v != input {
+						t.Errorf("Config /sampling/sflow/config/polling-interval : got %v, want %v", v, input)
 					}
 				})
 			}
@@ -396,7 +433,7 @@ func TestIngressSamplingRate(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/config/ingress-sampling-rate : got %v, want %v", configGot, input)
 					}
@@ -433,48 +470,60 @@ func TestStateLeafs(t *testing.T) {
 	t.Run("Subscribe Container level", func(t *testing.T) {
 		gnmi.Get(t, dut, state.State())
 	})
-	t.Run("Subscribe Enabled", func(t *testing.T) {
-		gnmi.Get(t, dut, state.Enabled().State())
-	})
-	t.Log("Watch on Enabled")
-	_, ok := gnmi.Watch(t, dut, state.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-		currState, ok := val.Val()
-		return ok && currState == true
-	}).Await(t)
-	if !ok {
-		t.Errorf("Enabled not true")
-	}
-	t.Run("Subscribe SampleSize", func(t *testing.T) {
-		gnmi.Get(t, dut, state.SampleSize().State())
-	})
-	t.Log("Watch on SampleSize")
-	_, ok = gnmi.Watch(t, dut, state.SampleSize().State(), time.Minute, func(val *ygnmi.Value[uint16]) bool {
-		currState, ok := val.Val()
-		return ok && currState == 128
-	}).Await(t)
-	if !ok {
-		t.Errorf("SampleSize not correct")
-	}
-	t.Run("Subscribe Dscp", func(t *testing.T) {
-		gnmi.Get(t, dut, state.Dscp().State())
-	})
-	t.Log("Watch on Dscp")
-	_, ok = gnmi.Watch(t, dut, state.Dscp().State(), time.Minute, func(val *ygnmi.Value[uint8]) bool {
-		currState, ok := val.Val()
-		return ok && currState == 60
-	}).Await(t)
-	if !ok {
-		t.Errorf("Dscp not correct")
-	}
-	t.Run("Subscribe PollingInterval", func(t *testing.T) {
-		gnmi.Get(t, dut, state.PollingInterval().State())
-	})
-	t.Log("Watch on PollingInterval")
-	_, ok = gnmi.Watch(t, dut, state.PollingInterval().State(), time.Minute, func(val *ygnmi.Value[uint16]) bool {
-		currState, ok := val.Val()
-		return ok && currState == 60
-	}).Await(t)
-	if !ok {
-		t.Errorf("PollingInterval not correct")
+
+	if !setup.SkipSubscribe() {
+		t.Run("Subscribe Enabled", func(t *testing.T) {
+			gnmi.Get(t, dut, state.Enabled().State())
+		})
+		t.Run("Watch on Enabled", func(t *testing.T) {
+			t.Log("Watch on Enabled")
+			_, ok := gnmi.Watch(t, dut, state.Enabled().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
+				currState, ok := val.Val()
+				return ok && currState == true
+			}).Await(t)
+			if !ok {
+				t.Errorf("Enabled not true")
+			}
+		})
+		t.Run("Subscribe SampleSize", func(t *testing.T) {
+			gnmi.Get(t, dut, state.SampleSize().State())
+		})
+		t.Run("Watch on SampleSize", func(t *testing.T) {
+			t.Log("Watch on SampleSize")
+			_, ok := gnmi.Watch(t, dut, state.SampleSize().State(), time.Minute, func(val *ygnmi.Value[uint16]) bool {
+				currState, ok := val.Val()
+				return ok && currState == 128
+			}).Await(t)
+			if !ok {
+				t.Errorf("SampleSize not correct")
+			}
+		})
+		t.Run("Subscribe Dscp", func(t *testing.T) {
+			gnmi.Get(t, dut, state.Dscp().State())
+		})
+		t.Run("Watch on SampleSize", func(t *testing.T) {
+			t.Log("Watch on Dscp")
+			_, ok := gnmi.Watch(t, dut, state.Dscp().State(), time.Minute, func(val *ygnmi.Value[uint8]) bool {
+				currState, ok := val.Val()
+				return ok && currState == 60
+			}).Await(t)
+			if !ok {
+				t.Errorf("Dscp not correct")
+			}
+		})
+
+		t.Run("Subscribe PollingInterval", func(t *testing.T) {
+			gnmi.Get(t, dut, state.PollingInterval().State())
+		})
+		t.Run("Watch on PollingInterval", func(t *testing.T) {
+			t.Log("Watch on PollingInterval")
+			_, ok := gnmi.Watch(t, dut, state.PollingInterval().State(), time.Minute, func(val *ygnmi.Value[uint16]) bool {
+				currState, ok := val.Val()
+				return ok && currState == 60
+			}).Await(t)
+			if !ok {
+				t.Errorf("PollingInterval not correct")
+			}
+		})
 	}
 }

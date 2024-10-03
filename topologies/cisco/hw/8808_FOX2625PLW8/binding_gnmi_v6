@@ -26,8 +26,8 @@
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.84.53 2011
-#telnet: RP1 -  telnet 10.85.84.53 2012
+#telnet: RP0 -  telnet 10.85.84.47 2013
+#telnet: RP1 -  telnet 10.85.84.47 2014
 
 ##Exec server:
 #ssh ott2lab-as3
@@ -57,17 +57,11 @@ options {
 duts {
   id: "dut"
   name: "8808"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
-  # telnet RP0: 10.85.84.54 2005
-  # telnet RP1: 10.85.84.54 2006
-  # Mgmt RP0: 5.78.26.27
-  # Mgmt RP0: 5.78.26.28
-  # Rack Location : 22-18-27
-  # Exec server: ott2lab-as3
-  # Options inherited by all protocols on this device unless
-  # overridden by individual protocols.  Remove if not needed.
   options {
     insecure: false 
     skip_verify: true
@@ -98,38 +92,42 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/7/0/12/0"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port2"
     name: "TenGigE0/7/0/30/3"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port3"
     name: "TenGigE0/7/0/12/2" # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port4"
     name: "TenGigE0/7/0/12/3"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port5"
     name: "TenGigE0/7/0/30/0"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port6"
     name: "TenGigE0/7/0/30/1"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port7"
     name: "TenGigE0/7/0/30/2"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
    id: "port8"
    name: "TenGigE0/7/0/12/1"  # Change this to the actual port name.
-  }
-  ports {
-   id: "port9"
-   name: "TenGigE0/7/0/7/1"  # Change this to the actual port name.
+   speed: S_10GB       
   }
 }
 
@@ -142,7 +140,7 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-    target: "10.85.84.118"
+    target: "10.85.84.119"
     skip_verify: true
     username: "admin"
     password: "Admin@123"
@@ -164,37 +162,41 @@ ates {
   ports {
     id: "port1"
     name: "9/9"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port2"
     name: "9/16"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port3"
     name: "9/11"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port4"
     name: "9/12"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port5"
     name: "9/13" # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port6"
     name: "9/14"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
     id: "port7"
     name: "9/15"  # Change this to the actual port name.
+    speed: S_10GB       
   }
   ports {
    id: "port8"
    name: "9/10"  # Change this to the actual port name.
+   speed: S_10GB       
   }
-  ports {
-   id: "port9"
-   name: "9/26"  # Change this to the actual port name.
-  }  
 }

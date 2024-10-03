@@ -88,7 +88,7 @@ func testPing(t *testing.T, event *monitor.CachedConsumer, args ...interface{}) 
 		t.Fatalf("Failed to get a valid IPv6 loopback address: %+v", ipv6Addrs)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	pingRequest := &spb.PingRequest{
 		Destination: ipv4Addrs[0].GetIp(),
 		Source:      ipv4Addrs[0].GetIp(),

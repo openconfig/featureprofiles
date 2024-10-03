@@ -21,9 +21,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/openconfig/featureprofiles/feature/experimental/isis/otg_tests/internal/session"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -43,11 +43,11 @@ const (
 )
 
 // configureISIS configures isis configs on ts.DUT.
-func configureISIS(t *testing.T, ts *session.TestSession) {
+func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	d := ts.DUTConf
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
+	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
 	prot.Enabled = ygot.Bool(true)
 
 	isis := prot.GetOrCreateIsis()
@@ -58,6 +58,9 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	globalIsis.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalIsis.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalIsis.AuthenticationCheck = ygot.Bool(true)
+	if deviations.ISISGlobalAuthenticationNotRequired(ts.DUT) {
+		globalIsis.AuthenticationCheck = nil
+	}
 	globalIsis.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Level configs.
@@ -69,6 +72,11 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 	auth.AuthMode = oc.IsisTypes_AUTH_MODE_MD5
 	auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 	auth.AuthPassword = ygot.String(password)
+	if deviations.ISISExplicitLevelAuthenticationConfig(ts.DUT) {
+		auth.DisableCsnp = ygot.Bool(false)
+		auth.DisableLsp = ygot.Bool(false)
+		auth.DisablePsnp = ygot.Bool(false)
+	}
 
 	// Interface configs.
 	intfName := ts.DUTPort1.Name()
@@ -101,7 +109,7 @@ func configureISIS(t *testing.T, ts *session.TestSession) {
 }
 
 // configureOTG configures the interfaces and isis protocol on ATE.
-func configureOTG(t *testing.T, ts *session.TestSession) {
+func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	t.Helper()
 	ts.ATEIntf1.Isis().RouterAuth().AreaAuth().SetAuthType("md5").SetMd5(password)
 	ts.ATEIntf1.Isis().RouterAuth().DomainAuth().SetAuthType("md5").SetMd5(password)
@@ -113,14 +121,14 @@ func configureOTG(t *testing.T, ts *session.TestSession) {
 
 // TestIsisInterfacePassive verifies passive isis interface.
 func TestIsisInterfacePassive(t *testing.T) {
-	ts := session.MustNew(t).WithISIS()
+	ts := isissession.MustNew(t).WithISIS()
 
 	// Configure isis on dut.
 	configureISIS(t, ts)
 
 	configureOTG(t, ts)
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, session.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", session.ProtocolPath(ts.DUT).Config(), pcl)
+	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
 
@@ -129,7 +137,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 		t.Fatalf("Adjacency state invalid: %v", err)
 	}
 
-	statePath := session.ISISPath(ts.DUT)
+	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
 		intfName += ".0"
@@ -183,29 +191,33 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Expected neighbor system id not found, got %s, want %s", got, ateSysID)
 			}
 			// Checking isis area address.
-			want := []string{session.ATEAreaAddress, session.DUTAreaAddress}
+			want := []string{isissession.ATEAreaAddress, isissession.DUTAreaAddress}
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
 			// Checking dis system id.
-			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+				}
 			}
 			// Checking isis local extended circuit id.
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
 			}
 			// Checking multitopology.
-			if got := gnmi.Get(t, ts.DUT, adjPath.MultiTopology().State()); got != false {
-				t.Errorf("FAIL- Expected value for multi topology not found, got %t, want %t", got, false)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.MultiTopology().State()); got != false {
+					t.Errorf("FAIL- Expected value for multi topology not found, got %t, want %t", got, false)
+				}
 			}
 			// Checking neighbor circuit type.
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborCircuitType().State()); got != oc.Isis_LevelType_LEVEL_2 {
 				t.Errorf("FAIL- Expected value for circuit type not found, got %s, want %s", got, oc.Isis_LevelType_LEVEL_2)
 			}
 			// Checking neighbor ipv4 address.
-			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != session.ATEISISAttrs.IPv4 {
-				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, session.ATEISISAttrs.IPv4)
+			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborIpv4Address().State()); got != isissession.ATEISISAttrs.IPv4 {
+				t.Errorf("FAIL- Expected value for ipv4 address not found, got %s, want %s", got, isissession.ATEISISAttrs.IPv4)
 			}
 			// Checking isis neighbor extended circuit id.
 			if got := gnmi.Get(t, ts.DUT, adjPath.NeighborExtendedCircuitId().State()); got == 0 {
@@ -240,59 +252,81 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Restart support not present")
 			}
 			// Checking isis restart suppress.
-			if _, ok := gnmi.Lookup(t, ts.DUT, adjPath.RestartStatus().State()).Val(); !ok {
-				t.Errorf("FAIL- Restart suppress not present")
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if _, ok := gnmi.Lookup(t, ts.DUT, adjPath.RestartStatus().State()).Val(); !ok {
+					t.Errorf("FAIL- Restart suppress not present")
+				}
 			}
 		})
 		t.Run("System level counter checks", func(t *testing.T) {
 			// Checking authFail counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthFails().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting any authentication key failure, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthFails().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting any authentication key failure, got %d, want %d", got, 0)
+				}
 			}
 			// Checking authTypeFail counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthTypeFails().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting any authentication type mismatches, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().AuthTypeFails().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting any authentication type mismatches, got %d, want %d", got, 0)
+				}
 			}
 			// Checking corrupted lsps counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
+				}
 			}
 			// Checking database_overloads counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+				}
 			}
 			// Checking execeeded maximum seq number counters").
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
+				}
 			}
 			// Checking IdLenMismatch counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().IdLenMismatch().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero IdLen_Mismatch counter, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().IdLenMismatch().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero IdLen_Mismatch counter, got %d, want %d", got, 0)
+				}
 			}
 			// Checking LspErrors counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().LspErrors().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting any lsp errors, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().LspErrors().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting any lsp errors, got %d, want %d", got, 0)
+				}
 			}
 			// Checking MaxAreaAddressMismatches counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().MaxAreaAddressMismatches().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero MaxAreaAddressMismatches counter, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().MaxAreaAddressMismatches().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero MaxAreaAddressMismatches counter, got %d, want %d", got, 0)
+				}
 			}
 			// Checking OwnLspPurges counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().OwnLspPurges().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero OwnLspPurges counter, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().OwnLspPurges().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero OwnLspPurges counter, got %d, want %d", got, 0)
+				}
 			}
 			// Checking SeqNumSkips counters.
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
+			if !deviations.MissingValueForDefaults(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SeqNumSkips().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero SeqNumber skips, got %d, want %d", got, 0)
+				}
 			}
 			// Checking ManualAddressDropFromAreas counters.
-			if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
+			if !(deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) || deviations.MissingValueForDefaults(ts.DUT)) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ManualAddressDropFromAreas().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
 				}
 			}
 			// Checking PartChanges counters.
-			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
+			if !(deviations.ISISCounterPartChangesUnsupported(ts.DUT) || deviations.MissingValueForDefaults(ts.DUT)) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting partition changes, got %d, want %d", got, 0)
 				}

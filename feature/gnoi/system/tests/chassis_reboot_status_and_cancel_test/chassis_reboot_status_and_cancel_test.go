@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 
 func TestRebootStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	cases := []struct {
 		desc          string
@@ -136,7 +136,7 @@ func TestRebootStatus(t *testing.T) {
 
 func TestCancelReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 
 	rebootRequest := &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,

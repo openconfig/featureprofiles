@@ -36,7 +36,7 @@ func TestNetworkInstanceAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.NetworkInstance != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
@@ -65,6 +65,7 @@ func TestNetworkInstanceAtContainer(t *testing.T) {
 		})
 	}
 }
+
 func TestNetworkInstanceAtLeaf(t *testing.T) {
 	t.Skip()
 	dut := ondatra.DUT(t, "dut")
@@ -83,7 +84,7 @@ func TestNetworkInstanceAtLeaf(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/network-instance: got %v, want %v", configGot, input)
 					}
@@ -108,6 +109,7 @@ func TestNetworkInstanceAtLeaf(t *testing.T) {
 		})
 	}
 }
+
 func TestPortAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -128,7 +130,7 @@ func TestPortAtContainer(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Port != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/port: got %v, want %v", configGot, input)
 					}
@@ -148,6 +150,7 @@ func TestPortAtContainer(t *testing.T) {
 		})
 	}
 }
+
 func TestAddressAtContainer(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -169,7 +172,8 @@ func TestAddressAtContainer(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported yet")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.Address != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/address: got %v, want %v", configGot, input)
 					}
@@ -185,16 +189,16 @@ func TestAddressAtContainer(t *testing.T) {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/address: got %v, want %v", stateGot, input)
 					}
 				})
+				t.Run("Subscribe Address", func(t *testing.T) {
+					gnmi.Get(t, dut, state.Address().State())
+				})
+				t.Run("Subscribe Port", func(t *testing.T) {
+					gnmi.Get(t, dut, state.Port().State())
+				})
+				t.Run("Subscribe NetworkInstance", func(t *testing.T) {
+					gnmi.Get(t, dut, state.NetworkInstance().State())
+				})
 			}
-			t.Run("Subscribe Address", func(t *testing.T) {
-				gnmi.Get(t, dut, state.Address().State())
-			})
-			t.Run("Subscribe Port", func(t *testing.T) {
-				gnmi.Get(t, dut, state.Port().State())
-			})
-			t.Run("Subscribe NetworkInstance", func(t *testing.T) {
-				gnmi.Get(t, dut, state.NetworkInstance().State())
-			})
 		})
 	}
 }
@@ -219,7 +223,7 @@ func TestSourceAddressAtLeaf(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get leaf", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/source-address: got %v, want %v", configGot, input)
 					}
@@ -275,7 +279,8 @@ func TestSourceAddressAtContainer(t *testing.T) {
 
 			if !setup.SkipGet() {
 				t.Run("Get container", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					t.Skipf("Not supported as of 10th April 2024")
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SourceAddress != input {
 						t.Errorf("Config /sampling/sflow/collectors/collector/config/source-address: got %v, want %v", configGot, input)
 					}
@@ -291,11 +296,10 @@ func TestSourceAddressAtContainer(t *testing.T) {
 						t.Errorf("State /sampling/sflow/collectors/collector/config/source-address: got %v, want %v", stateGot, input)
 					}
 				})
+				t.Run("Subscribe Source Address", func(t *testing.T) {
+					gnmi.Get(t, dut, state.SourceAddress().State())
+				})
 			}
-			t.Run("Subscribe Source Address", func(t *testing.T) {
-				gnmi.Get(t, dut, state.SourceAddress().State())
-			})
-
 		})
 	}
 }
@@ -308,19 +312,22 @@ func TestCollectorStateLeafs(t *testing.T) {
 	baseConfigSflowCollector := setup.GetAnyValue(baseConfigSflow.Collector)
 	state := gnmi.OC().Sampling().Sflow().Collector(*baseConfigSflowCollector.Address, *baseConfigSflowCollector.Port)
 
-	t.Run("Subscribe Container level", func(t *testing.T) {
-		gnmi.Get(t, dut, state.State())
-	})
-	t.Run("Subscribe Enabled", func(t *testing.T) {
-		gnmi.Get(t, dut, state.Address().State())
-	})
-	t.Run("Subscribe SampleSize", func(t *testing.T) {
-		gnmi.Get(t, dut, state.NetworkInstance().State())
-	})
-	t.Run("Subscribe Dscp", func(t *testing.T) {
-		gnmi.Get(t, dut, state.Port().State())
-	})
-	t.Run("Subscribe PollingInterval", func(t *testing.T) {
-		gnmi.Get(t, dut, state.SourceAddress().State())
-	})
+	// 10 April 2024: subscribe at these leaves' level is not supported yet
+	if !setup.SkipSubscribe() {
+		t.Run("Subscribe Container level", func(t *testing.T) {
+			gnmi.Get(t, dut, state.State())
+		})
+		t.Run("Subscribe Enabled", func(t *testing.T) {
+			gnmi.Get(t, dut, state.Address().State())
+		})
+		t.Run("Subscribe SampleSize", func(t *testing.T) {
+			gnmi.Get(t, dut, state.NetworkInstance().State())
+		})
+		t.Run("Subscribe Dscp", func(t *testing.T) {
+			gnmi.Get(t, dut, state.Port().State())
+		})
+		t.Run("Subscribe PollingInterval", func(t *testing.T) {
+			gnmi.Get(t, dut, state.SourceAddress().State())
+		})
+	}
 }

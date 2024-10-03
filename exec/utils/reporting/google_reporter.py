@@ -36,10 +36,14 @@ def _get_test_id_name_map(logs_dir):
     return test_id_map
 
 def _did_fail(log_file):
-    with open(log_file, 'r') as file:
-        data = file.read()
-        if data.find('failures="0"') == -1: 
-            return True
+    try:
+        with open(log_file, 'r') as file:
+            data = file.read()
+            if data.find('failures="0"') == -1: 
+                return True
+    except:
+        print("Error processing file " + log_file)
+        return True
     return False
 
 def _did_pass(log_file):
@@ -80,7 +84,7 @@ parser.add_argument('--patches', default=False, action='store_true', help="inclu
 parser.add_argument('--patched-only', default=False, action='store_true', help="skip patched tests")
 parser.add_argument('--passed-only', default=False, action='store_true', help="skip failed tests")
 parser.add_argument('--skip-patched', default=False, action='store_true', help="skip patched tests")
-parser.add_argument('--update-failed', default=False, action='store_true', help="update failed tests only")
+parser.add_argument('--update-failed', default=True, action='store_true', help="update failed tests only")
 parser.add_argument('--set-property', action='store', type=str, nargs='*')
 args = parser.parse_args()
 
@@ -100,6 +104,9 @@ for firex_id in firex_ids.split(','):
     uname = firex_id.split('-')[1]
     base_logs_dir = constants.base_logs_dir.replace('gob4', uname)
     logs_dir = os.path.join(base_logs_dir, firex_id, 'tests_logs')
+    if not os.path.exists(logs_dir):
+	    logs_dir = logs_dir.replace("firex-logs-ott", "firex-logs-sjc", "firex-logs-rtp")
+    
     test_id_map = _get_test_id_name_map(logs_dir)
     # properties = {}
     # if set_properties != None:
@@ -114,8 +121,13 @@ for firex_id in firex_ids.split(','):
                 log_files = [str(p) for p in Path(logs_dir).glob(f"{test_id}/ondatra_logs.xml")]
                 if len(log_files) == 0: 
                     continue
+                
+                try:
+                    tree = ET.parse(log_files[0])
+                except:
+                    print("Skipped " + t['name'] + " due to erroneous xml")
+                    continue
 
-                tree = ET.parse(log_files[0])
                 test_out_dir = os.path.join(out_dir, _get_test_pkg(tree))
                 test_log_file = os.path.join(test_out_dir, "test.xml")
 

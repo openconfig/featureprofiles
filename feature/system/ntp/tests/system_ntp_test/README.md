@@ -14,13 +14,31 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
     *   4x IPv6 NTP server in non-default VRF
     *   4x IPv4 & 4x IPv6 NTP server in non-default VRF
 
-## Config Parameter Coverage
+Note:  [TODO]the source address of NTP need to be specified
 
-*   /system/ntp/config/enabled
-*   /system/ntp/servers/server/config/address
-*   /system/ntp/servers/server/config/network-instance
+## OpenConfig Path and RPC Coverage
 
-## Telemetry Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-*   /system/ntp/servers/server/state/address
-*   /system/ntp/servers/server/state/network-instance
+TODO(OCPATH): Populate path from test already written.
+
+```yaml
+paths:
+  ## Config paths
+  /system/ntp/config/enabled:
+  /system/ntp/servers/server/config/address:
+  #[TODO]/system/ntp/servers/server/config/source-address:
+  /system/ntp/servers/server/config/network-instance:
+
+  ## State paths
+  /system/ntp/servers/server/state/address:
+  #[TODO]/system/ntp/servers/server/state/source-address:
+  #[TODO]/system/ntp/servers/server/state/port:
+  /system/ntp/servers/server/state/network-instance:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

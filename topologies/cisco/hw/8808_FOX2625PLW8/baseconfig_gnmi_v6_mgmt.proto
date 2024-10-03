@@ -5,6 +5,12 @@ replace: {
     val: {
       ascii_val:
 "hostname xx25.den8808\n"
+"group BGP\n" 
+" router bgp '.*' instance '.*'\n"
+" nsr disable\n"
+" end-group\n"
+"!\n"
+"apply-group BGP\n"
 "clock timezone EST America/Toronto\n"
 "lpts punt police location 0/5/CPU0\n"
 " exception ttl-expiry rate 1500\n"
@@ -30,8 +36,7 @@ replace: {
 "username cisco\n"
 " group root-lr\n"
 " group cisco-support\n"
-" secret 5 $1$k6Xn$rD8WIoP896Jy9RND3FZKa1\n"
-" password 7 1511021F0725\n"
+" secret 10 $6$MaIdA07J8XZm6A0.$yeORzJ/jWzAYC.Y0WQ6ySU.ioOrm04uXKBu8.8WXAhUK0ha.ZnEAMIXnqICvPq.58DrFMIYS2R41O3JwvVfQZ0\n"
 "!\n"
 "aaa accounting exec default start-stop group google-tacacs group tacacs+\n"
 "aaa accounting system default start-stop group google-tacacs group tacacs+ none\n"

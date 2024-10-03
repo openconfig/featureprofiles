@@ -17,6 +17,7 @@ package backup_nh_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
@@ -177,11 +178,11 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	if action {
 		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(true).Operate(t)
 		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), true)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_UP)
+		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	} else {
 		// a.ate.Operations().NewSetInterfaceState().WithPhysicalInterface(ateP).WithStateEnabled(false).Operate(t)
 		gnmi.Replace(t, a.dut, gnmi.OC().Interface(dutP.Name()).Enabled().Config(), false)
-		// a.dut.Telemetry().Interface(dutP.Name()).OperStatus().Await(t, time.Minute, telemetry.Interface_OperStatus_DOWN)
+		gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 	}
 }
 

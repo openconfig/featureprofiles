@@ -1,11 +1,11 @@
 feature:
   dut:
     interface:
-      - id: $ports.peer_dut_1
+      - id: $ports.port1
         ipv4_address: 20.20.20.1
         ipv4_prefix_length: 24
   peer:
     interface:
-      - id: $ports.peer_dut_1
+      - id: $ports.port1
         ipv4_address: 20.20.20.2
         ipv4_prefix_length: 24

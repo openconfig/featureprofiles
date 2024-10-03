@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions: {
@@ -18,7 +19,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_gribi_under_network_instance: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
@@ -37,3 +37,4 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+tags: TAGS_TRANSIT

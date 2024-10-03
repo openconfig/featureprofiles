@@ -11,8 +11,7 @@ setting must not be interpreted as the actual egress port id.
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, and ATE port-3 to
-    DUT port-3.
+*   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2
 
 *   Install a set of routes on the device in both the default and TE VRFs.
 
@@ -20,29 +19,54 @@ setting must not be interpreted as the actual egress port id.
 
 *   Connect a P4RT client and configure the forwarding pipeline.
 
-*   Send an IPv4 traceroute reply from the client with submit_to_ingress_pipeline metadata  set to true.
+*   Send IPv4 traceroute packets from the client with varying size.
 
 *   Verify that the packet is received on the ATE on the port corresponding to the routing table in the default VRF.
 
-*   Repeat with an IPv6 traceroute reply and verify that it is received correctly by the ATE.
+*   Send an IPv6 traceroute packets from the client with varying size and verify that it is received correctly by the ATE.
 
+*   Repeat for each packet metadata combination shown in the table below.
+
+| egress_port | submit_to_ingress | padding | expected behaviour
+| ------ | ------ | ------ | ------ |
+| DUT port-2 | 0x0 | 0x0 | traffic received on ATE port-2
+| DUT port-2 | | 0x0 | traffic received on ATE port-2
+| DUT port-2 | | | traffic received on ATE port-2
+| DUT port-2 | 0x1 | 0x0 | traffic received on ATE port-1
+| | 0x1 | | traffic received on ATE port-1
+|  | 0x1 | 0x0 | traffic received on ATE port-1
+"TBD BY SWITCH" | 0x1 | 0x0 | traffic received on ATE port-1
+"TBD BY SWITCH" | 0x1 | | traffic received on ATE port-1
+| DUT port-2 | 0x1 | | traffic received on ATE port-1
+"TBD BY SWITCH" | 0x0 | 0x0 | no traffic received
+"TBD BY SWITCH" | 0x0 | | no traffic received
+"TBD BY SWITCH" | | 0x0 | no traffic received
+| "TBD BY SWITCH" | | | no traffic received
+|  | 0x0 | 0x0 | no traffic received
+| | 0x0 | | no traffic received
+| | | 0x0 | no traffic received
+| | | | no traffic received
 
 *   Validate:
 
-    *   Traffic can continue to be forwarded between ATE port-1 and port-2.
+    *   Traffic received over the appropriate ATE port.
+## OpenConfig Path and RPC Coverage
 
-    *   Through AFT telemetry that the route entries remain present.
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
 
-    *   Following daemon restart, the gRIBI client connection can be re-established.
+```yaml
+paths:
+  # config paths
+  /interfaces/interface/config/id:
+  /components/component/integrated-circuit/config/node-id:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  # state paths 
+  /interfaces/interface/state/id:
+  /components/component/integrated-circuit/state/node-id:
+    platform_type: ["INTEGRATED_CIRCUIT"]
 
-    *   Issuing a gRIBI Get RPC results in 203.0.113.0/24 being returned.
-
-
-## Protocol/RPC Parameter Coverage
-
-*  No new configuration covered.
-
-
-## Telemetry Parameter Coverage
-
-*  No new telemetry covered.
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

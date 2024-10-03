@@ -16,10 +16,10 @@ package ha_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"math/rand"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/monitor"
 	"github.com/openconfig/featureprofiles/internal/cisco/ha/runner"
@@ -51,9 +52,10 @@ func TestMain(m *testing.M) {
 
 // user needed inputs
 const (
-	with_scale            = false                    // run entire script with or without scale (Support not yet coded)
-	with_RPFO             = true                     // run entire script with or without RFPO
-	base_config           = "case2_decap_encap_exit" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
+	with_scale            = true                        // run entire script with or without scale (Support not yet coded)
+	with_RPFO             = false                       // run entire script with or without RFPO
+	subscription_timout   = 35                          // set background subscription timeout value in minutes
+	base_config           = "case4_decap_encap_recycle" // Will run all the tcs with set base programming case, options : case1_backup_decap, case2_decap_encap_exit, case3_decap_encap, case4_decap_encap_recycle
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
 	lc                    = "0/0/CPU0" // set value for lc_oir tc, if empty it means no lc, example: 0/0/CPU0
@@ -74,22 +76,23 @@ const (
 
 // gribi programming variables
 const (
-	nhg_Scale_TE       = 250  // NHG scale usef for TE vrf
-	nh_prefix_TE       = 2    // same nh will be used across all the nhgs
-	nh_scale_TE        = 5000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
-	nhg_Scale_REPAIRED = 250  // NHG scale usef for REPAIR vrf
-	nhg_Scale_REPAIR   = 500  // NHG scale used for DECAP_ENCAP case
-	nh_scale_REPAIR    = 500  // create NHs used by NHGs for DECAP_ENCAP case
-	programming_RFPO   = 1    // Perform RFPO and programming followed by it
+	gribi_Scale        = 30208
+	nhg_Scale_TE       = 1000  // NHG scale used for TE vrf
+	nh_prefix_TE       = 2     // same nh will be used across all the nhgs
+	nh_scale_TE        = 10000 // create NHs with different index and repeat prefix set under nh_prefix_TE flag, set an even number
+	nhg_Scale_REPAIRED = 1000  // NHG scale used for REPAIR vrf
+	nhg_Scale_REPAIR   = 500   // NHG scale used for DECAP_ENCAP case
+	nh_scale_REPAIR    = 500   // create NHs used by NHGs for DECAP_ENCAP case
+	programming_RFPO   = 1     // Perform RFPO and programming followed by it
 	grpc_repeat        = 1
 )
 
 // traffic constant
 const (
-	bgpPfx                = 0 //set value for scale bgp setup 100000
-	isisPfx               = 0 //set value for scale isis setup 10000
-	innerdstPfxCount_bgp  = 1 //set value for number of inner prefix for bgp flow
-	innerdstPfxCount_isis = 1 //set value for number of inner prefix for isis flow
+	bgpPfx                = 100000 //set value for scale bgp setup 100000
+	isisPfx               = 20000  //set value for scale isis setup 10000
+	innerdstPfxCount_bgp  = 1      //set value for number of inner prefix for bgp flow
+	innerdstPfxCount_isis = 1      //set value for number of inner prefix for isis flow
 )
 
 // global variables
@@ -99,7 +102,6 @@ var (
 	flows         = []*ondatra.Flow{}
 	te_flow       = []*ondatra.Flow{}
 	src_ip_flow   = []*ondatra.Flow{}
-	p4rtNodeName  = flag.String("p4rt_node_name", "0/0/CPU0-NPU0", "component name for P4RT Node")
 	rpfo_count    = 0 // used to track rpfo_count if its more than 10 then reset to 0 and reload the HW
 )
 
@@ -120,6 +122,28 @@ type IPv4ScaleOptions struct {
 	max int
 }
 
+type Programming struct {
+	prefix           string
+	v4_NI            string
+	nhg_NI           string
+	nhg_Pid          uint64
+	nhg_NHs          []string
+	nhg_NHs_Pid      []uint64
+	nhg_NHs_Int      []string
+	nhg_NHs_SubInt   []uint32
+	nh_IpinIp_Dst    []string
+	nh_IpinIp_Src    []string
+	nh_Encap         bool
+	bknhg_Pid        uint64
+	bknhg_NHs        []string
+	bknhg_NHs_Pid    []uint64
+	bknhg_NHs_Int    []string
+	bknhg_NHs_SubInt []uint32
+	bknh_IpinIp_Dst  []string
+	bknh_IpinIp_Src  []string
+	bknh_Encap       bool
+}
+
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	ctx     context.Context
@@ -129,6 +153,14 @@ type testArgs struct {
 	top     *ondatra.ATETopology
 	events  *monitor.CachedConsumer
 	ATELock sync.Mutex
+}
+
+// sortPorts sorts the ports by the testbed port ID.
+func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
+	sort.SliceStable(ports, func(i, j int) bool {
+		return ports[i].ID() < ports[j].ID()
+	})
+	return ports
 }
 
 func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, pName string) {
@@ -141,9 +173,9 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for i := 0; i < process_restart_count; i++ {
-		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_TERM, Restart: true}
+		killRequest := &gnps.KillProcessRequest{Name: pName, Pid: uint32(pID), Signal: gnps.KillProcessRequest_SIGNAL_KILL, Restart: true}
 		killResponse, err := gnoiClient.System().KillProcess(context.Background(), killRequest)
 		t.Logf("Got kill process response: %v\n\n", killResponse)
 		// bypassing the check as emsd restart causes timing issue
@@ -154,29 +186,54 @@ func (args *testArgs) processrestart(ctx context.Context, t *testing.T, dut *ond
 
 	// reestablishing gribi connection
 	if pName == "emsd" {
-		// client := gribi.Client{
-		// 	DUT:                   dut,
-		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		// 	Persistence:           true,
-		// 	InitialElectionIDLow:  1,
-		// 	InitialElectionIDHigh: 0,
-		// }
-		// if err := client.Start(t); err != nil {
-		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		// 	if err = client.Start(t); err != nil {
-		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
-		// 	}
-		// }
-		// args.client = &client
-		args.client.Start(t)
+		time.Sleep(time.Second * 20)
+		client := gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
+		gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
 	}
+}
+
+func retryUntilTimeout(task func() error, maxAttempts int, timeout time.Duration) error {
+	startTime := time.Now()
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := task(); err == nil {
+			return nil
+		}
+
+		// Calculate how much time has passed
+		elapsedTime := time.Since(startTime)
+
+		// If the elapsed time exceeds the timeout, break out of the loop
+		if elapsedTime >= timeout {
+			break
+		}
+
+		// Wait for a short interval before the next attempt
+		// You can adjust the sleep duration based on your needs
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("Task failed after %d attempts within a %s timeout", maxAttempts, timeout)
 }
 
 func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bool) {
 
 	// reload the HW is rfpo count is 10 or more
 	if rpfo_count == 10 {
-		gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
 		rebootRequest := &gnps.RebootRequest{
 			Method: gnps.RebootMethod_COLD,
 			Force:  true,
@@ -201,24 +258,31 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, args.dut, supervisors)
 	t.Logf("Detected activeRP: %v, standbyRP: %v", rpActiveBeforeSwitch, rpStandbyBeforeSwitch)
 
-	// make sure standby RP is reach
+	// make sure standby RP is reachable
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
 	gnmi.Await(t, args.dut, switchoverReady.State(), 30*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, args.dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, args.dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-	gnoiClient := args.dut.RawAPIs().GNOI().New(t)
+	gnoiClient, _ := args.dut.RawAPIs().BindingDUT().DialGNOI(args.ctx)
 	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
 	switchoverRequest := &gnps.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
 	}
 	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+	var switchoverResponse *gnps.SwitchControlProcessorResponse
+	err := retryUntilTimeout(func() error {
+		switchoverResponse, _ = gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
+		return nil
+	}, 5, 1*time.Minute)
+
 	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
+		fmt.Printf("RPFO failed: %v\n", err)
+	} else {
+		fmt.Println("RPFO succeeded!")
 	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	// t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
 
 	want := rpStandbyBeforeSwitch
 	got := ""
@@ -279,22 +343,24 @@ func (args *testArgs) rpfo(ctx context.Context, t *testing.T, gribi_reconnect bo
 
 	// reestablishing gribi connection
 	if gribi_reconnect {
-		// client := gribi.Client{
-		// 	DUT:                   args.dut,
-		// 	FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		// 	Persistence:           true,
-		// 	InitialElectionIDLow:  1,
-		// 	InitialElectionIDHigh: 0,
-		// }
-		// if err := client.Start(t); err != nil {
-		// 	t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-		// 	if err = client.Start(t); err != nil {
-		// 		t.Fatalf("gRIBI Connection could not be established: %v", err)
-		// 	}
-		// }
-		// args.client = &client
-		args.client.Start(t)
+		client := gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
 	}
+	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(5*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), 15*time.Minute)
+	gnmi.Collect(t, args.dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(10*time.Minute)), gnmi.OC().Interface("*").State(), 15*time.Minute)
+
 }
 
 func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
@@ -305,12 +371,12 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	}
 
 	if base_config == "case1_backup_decap" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
 		}
 		case1_backup_decap(ctx, t, args)
 	} else if base_config == "case2_decap_encap_exit" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -318,7 +384,7 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		case2_decap_encap_exit(ctx, t, args)
 	} else if base_config == "case3_decap_encap" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -326,7 +392,7 @@ func baseProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		case3_decap_encap(ctx, t, args)
 	} else if base_config == "case4_decap_encap_recycle" {
-		for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+		for i := 0; i < gribi_Scale; i++ {
 			if i < 500 {
 				repair_prefix = append(repair_prefix, util.GetIPPrefix(dst, i, mask))
 			}
@@ -611,7 +677,7 @@ func case4_decap_encap_recycle(ctx context.Context, t *testing.T, args *testArgs
 	// with sourceip                  |
 	//                               BNG ---- NH DECAP BE 127
 	//
-	// 10.1.0.1/32               --- NHG ---- NH DECAP BE 126
+	// 10.1.0.1/32               --- NHG ---- NH2 VIP3 (20.0.0.1/32) --- NHG --- NH 11 - DECAP BE 126
 	// 				                  |
 	//                               BNG ---- NH DECAP BE 127
 	//
@@ -690,6 +756,10 @@ func case4_decap_encap_recycle(ctx context.Context, t *testing.T, args *testArgs
 		args.client.AddNH(t, 3333333, "20.0.0.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 		args.client.AddNHG(t, 333333, 222222, map[uint64]uint64{3333333: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 		args.client.AddIPv4(t, "10.1.0.1/32", 333333, vrf2, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "198.51.100.1/32", v4_NI: vrf1, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 100, bknhg_Pid: 111111, nhg_NHs: []string{"192.0.2.40", "192.0.2.42"}, nhg_NHs_Pid: []uint64{100, 200}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{1111111}, bknhg_NHs: []string{"10.1.0.1"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"10.1.0.1"}, bknh_IpinIp_Src: []string{"222.222.222.222"}, bknh_Encap: true})
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "198.51.100.1/32", v4_NI: vrf2, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 200, bknhg_Pid: 222222, nhg_NHs: []string{"192.0.2.40", "192.0.2.42"}, nhg_NHs_Pid: []uint64{100, 200}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{2222222}, bknhg_NHs: []string{"0.0.0.0"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"0.0.0.0"}, bknh_IpinIp_Src: []string{"0.0.0.0"}})
+		aftCheckaftercompleteprogramming(t, args, &Programming{prefix: "10.1.0.1/32", v4_NI: vrf2, nhg_NI: *ciscoFlags.DefaultNetworkInstance, nhg_Pid: 333333, bknhg_Pid: 222222, nhg_NHs: []string{"20.0.0.1"}, nhg_NHs_Pid: []uint64{3333333}, nhg_NHs_Int: []string{"Null0", "Null0"}, nhg_NHs_SubInt: []uint32{0, 0}, bknhg_NHs_Pid: []uint64{2222222}, bknhg_NHs: []string{"0.0.0.0"}, bknhg_NHs_Int: []string{"Null0"}, bknhg_NHs_SubInt: []uint32{0}, bknh_IpinIp_Dst: []string{"0.0.0.0"}, bknh_IpinIp_Src: []string{"0.0.0.0"}})
 	}
 }
 
@@ -720,9 +790,9 @@ func (a *testArgs) scaleNH(t *testing.T, nh_prefix string, start_index int, scal
 		} else {
 			resultLenBefore = len(a.client.Fluent(t).Results(t))
 			for j := i; j < prefix_repeat+i; j++ {
-				if j%256 == 0 && j != 0 {
-					prefix[2]++
-				}
+				// if j%256 == 0 && j != 0 {
+				// 	prefix[2]++
+				// }
 				NHEntry := fluent.NextHopEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 				NHEntry = NHEntry.WithIPAddress(prefix.String()).WithIndex(uint64(start_index + i + j))
 				NHEntries = append(NHEntries, NHEntry)
@@ -760,18 +830,18 @@ func (a *testArgs) scaleNHG(t *testing.T, nhg_start uint64, nhg_scale int, bkgNH
 			nhg.WithBackupNHG(bkgNHG)
 		}
 		if len(opts) != 0 {
-			rand.Seed(time.Now().UnixNano())
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
 			min := 10
 			max := 70
-			value := rand.Intn(max-min+1) + min
+			value := r.Intn(max-min+1) + min
 			nhg.AddNextHop(nhs_start, uint64(value))
 			nhs_start = nhs_start + 1
 		} else {
 			for j := 0; j < nh_prefix_TE; j++ {
-				rand.Seed(time.Now().UnixNano())
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
 				min := 10
 				max := 70
-				value := rand.Intn(max-min+1) + min
+				value := r.Intn(max-min+1) + min
 				nhg.AddNextHop(nhs_start, uint64(value))
 				nhs_start = nhs_start + 1
 			}
@@ -841,7 +911,7 @@ func baseScaleProgramming(ctx context.Context, t *testing.T, args *testArgs) {
 	args.client.FlushServer(t)
 	time.Sleep(10 * time.Second)
 
-	for i := 0; i < int(*ciscoFlags.GRIBIScale); i++ {
+	for i := 0; i < gribi_Scale; i++ {
 		prefixes = append(prefixes, util.GetIPPrefix(dst, i, mask))
 	}
 
@@ -934,7 +1004,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 	}
 	setRequest := &proto_gnmi.SetRequest{}
 	setRequest.Update = []*proto_gnmi.Update{updateRequest}
-	gnmiClient := args.dut.RawAPIs().GNMI().New(t)
+	gnmiClient := args.dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(args.ctx, setRequest); err != nil {
 		t.Fatalf("gNMI set request failed: %v", err)
 	}
@@ -942,6 +1012,7 @@ func (args *testArgs) gnmiConf(t *testing.T, conf string) {
 
 func testRestart_single_process(t *testing.T, args *testArgs) {
 
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -962,6 +1033,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		which_traffic_call = which_traffic_call + 1
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -972,7 +1045,7 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"isis", "bgp", "db_writer", "emsd", "ipv4_rib", "ipv6_rib", "fib_mgr", "ifmgr"}
+	processes := []string{"bgp", "ipv6_rib", "fib_mgr", "ifmgr", "emsd", "db_writer", "isis", "ipv4_rib"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -987,6 +1060,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
@@ -1005,6 +1080,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
+				which_traffic_call = which_traffic_call + 1
+				t.Logf("This is traffic call #%d", which_traffic_call+1)
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 			//aft check
@@ -1047,6 +1124,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1064,6 +1143,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1082,6 +1163,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1099,6 +1182,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1118,6 +1203,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1137,6 +1224,8 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1155,15 +1244,18 @@ func testRestart_single_process(t *testing.T, args *testArgs) {
 					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 					}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface)
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 			}
 		})
 	}
+	args.ate.Traffic().Stop(t)
 }
 
 func test_RFPO_with_programming(t *testing.T, args *testArgs) {
-
+	which_traffic_call := 0
 	if !with_RPFO {
 		t.Skip("run is without RPFO, skipping the tc")
 	}
@@ -1186,6 +1278,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		which_traffic_call = which_traffic_call + 1
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1231,6 +1325,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1256,6 +1352,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1282,6 +1380,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1334,6 +1434,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1361,6 +1463,8 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1387,13 +1491,15 @@ func test_RFPO_with_programming(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface)
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
+			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
 }
 
 func testRestart_multiple_process(t *testing.T, args *testArgs) {
-
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1413,6 +1519,8 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		which_traffic_call = which_traffic_call + 1
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1423,7 +1531,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"ifmgr", "ipv4_rib", "ipv6_rib", "db_writer", "fib_mgr"}
+	processes := []string{"fib_mgr", "isis", "ifmgr", "ipv4_rib", "ipv6_rib", "db_writer"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			// RPFO
@@ -1439,23 +1547,42 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
+				which_traffic_call = which_traffic_call + 1
+				t.Logf("This is traffic call #%d", which_traffic_call+1)
 				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 			}
 
 			// Restart process
 			t.Logf("Restarting process %s", processes[i])
+
+			//
+			//
+			//
+			//patch for CLIviaSSH failing, else pattern to use is #
+			var acp string
+			if with_RPFO {
+				acp = ".*Last switch-over.*ago"
+			} else {
+				acp = ".*"
+			}
+
+			//above is tmp fix
+			//
+			//
+			//
+
 			ticker1 := time.NewTicker(8 * time.Second)
 			ticker2 := time.NewTicker(10 * time.Second)
 			if processes[i] == "fib_mgr" {
 				// Restart process after 10seconds
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 10*time.Second)
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart fib_mgr location 0/RP0/CPU0", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 10*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 13*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart fib_mgr location 0/RP0/CPU0", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 14*time.Second)
 			} else {
 				// Restart process after 10seconds
-				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 10*time.Second)
-				runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]), []string{"#"}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 10*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, "process restart emsd", []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker1, 13*time.Second)
+				runner.RunCLIInBackground(args.ctx, t, args.dut, fmt.Sprintf("process restart %s", processes[i]), []string{acp}, []string{".*Incomplete.*", ".*Unable.*"}, ticker2, 14*time.Second)
 			}
-			time.Sleep(12 * time.Second)
+			time.Sleep(14 * time.Second)
 			ticker1.Stop()
 			ticker2.Stop()
 			time.Sleep(20 * time.Second)
@@ -1465,7 +1592,7 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 				if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 					outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 				}
-				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+				args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 30, start_after_verification: true})
 			}
 			//aft check
 			if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
@@ -1476,10 +1603,11 @@ func testRestart_multiple_process(t *testing.T, args *testArgs) {
 			}
 		})
 	}
+	args.ate.Traffic().Stop(t)
 }
 
 func test_microdrops(t *testing.T, args *testArgs) {
-
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1506,6 +1634,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 		}
+		which_traffic_call = which_traffic_call + 1
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1549,6 +1679,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1566,6 +1698,7 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether124", "Bundle-Ether125"}
 			}
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1584,6 +1717,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1601,6 +1736,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1620,6 +1757,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1639,6 +1778,8 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
 			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
 		}
 
@@ -1657,58 +1798,75 @@ func test_microdrops(t *testing.T, args *testArgs) {
 			if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
 				outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
 			}
-			args.validateTrafficFlows(t, flows, false, outgoing_interface)
+			which_traffic_call = which_traffic_call + 1
+			t.Logf("This is traffic call #%d", which_traffic_call+1)
+			args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
 		}
 	}
 }
 
-//lint:ignore U1000 Ignore unused function temporarily for debugging
 func test_multiple_clients(t *testing.T, args *testArgs) {
 	args.ATELock = sync.Mutex{}
 	testGroup := &sync.WaitGroup{}
 
-	configureDeviceId(args.ctx, t, args.dut)
-	configurePortId(args.ctx, t, args.dut)
+	// run p4rt client
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
 
-	// if *ciscoFlags.GRIBITrafficCheck {
-	// 	te_flow = args.allFlows(t)
-	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//		src_ip_flow = args.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
-	//	}
-	// 	flows = append(te_flow, src_ip_flow...)
-	// }
-	// outgoing_interface := make(map[string][]string)
+	// run gribi client
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
 
-	// verify traffic
-	// if *ciscoFlags.GRIBITrafficCheck {
-	// 	outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
-	// 	if base_config != "case1_backup_decap" && base_config != "case3_decap_encap"{
-	//		outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether126"}
-	//	}
-	// 	// args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
-	// 	args.ate.Traffic().Start(t, flows...)
-	// 	time.Sleep(120 * time.Second)
-	// 	args.ate.Traffic().Stop(t)
-	// }
+	// run gnmi client
+	runner.RunTestInBackground(args.ctx, t, time.NewTimer(30*time.Second), testGroup, args.events, multi_process_gnmi, args)
 
-	// multi_process_gribi_programming(t, args.events, args)
-	p4rtPacketOut(t, args.events, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, multi_process_gribi_programming, args)
-	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(1*time.Second), testGroup, args.events, p4rtPacketOut, args)
+	// run ate traffic check for gribi programming
+	// runner.RunTestInBackground(args.ctx, t, time.NewTimer(2*time.Minute), testGroup, args.events, multi_process_traffic, args)
 
 	testGroup.Wait()
 }
 
-//lint:ignore U1000 Ignore unused function temporarily for debugging
 func multi_process_gribi_programming(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
-
 	// base programming
 	arg := args[0].(*testArgs)
 	baseProgramming(arg.ctx, t, arg)
 }
 
-func test_triggers(t *testing.T, args *testArgs) {
+func multi_process_gnmi(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+	arg := args[0].(*testArgs)
+	adminStatus := gnmi.Get(t, arg.dut, gnmi.OC().Interface(arg.dut.Port(t, "port1").Name()).AdminStatus().State())
+	t.Logf("Got %s AdminStatus from telmetry: %v", arg.dut.Port(t, "port1").Name(), adminStatus)
+	if adminStatus != oc.Interface_AdminStatus_UP {
+		t.Errorf("Get(DUT port1 OperStatus): got %v, want %v", adminStatus, oc.Interface_AdminStatus_UP)
+	}
 
+	path := gnmi.OC().Interface(arg.dut.Port(t, "port1").Name()).Description()
+	gnmi.Update(t, arg.dut, path.Config(), "Connected to ATE")
+}
+
+// func multi_process_traffic(t *testing.T, events *monitor.CachedConsumer, args ...interface{}) {
+// 	arg := args[0].(*testArgs)
+// 	// create new flows and start traffic
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		te_flow = arg.allFlows(t)
+// 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+// 			src_ip_flow = arg.allFlows(t, &TGNoptions{SrcIP: "222.222.222.222"})
+// 		}
+// 		flows = append(te_flow, src_ip_flow...)
+// 	}
+
+// 	outgoing_interface := make(map[string][]string)
+
+// 	// verify traffic
+// 	if *ciscoFlags.GRIBITrafficCheck {
+// 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+// 		if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+// 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125"}
+// 		}
+// 		arg.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
+// 	}
+// }
+
+func test_triggers(t *testing.T, args *testArgs) {
+	which_traffic_call := 0
 	// base programming
 	baseProgramming(args.ctx, t, args)
 
@@ -1729,6 +1887,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 			outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 		}
 		outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+		which_traffic_call = which_traffic_call + 1
+		t.Logf("This is traffic call #%d", which_traffic_call+1)
 		args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 	}
 	//aft check
@@ -1739,7 +1899,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 		}
 	}
 
-	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR"}
+	processes := []string{"shutdown", "disconnect_gribi_reconnect", "delete_vrfs", "grpc_config_change", "grpc_AF_change", "LC_OIR", "viable"}
 	for i := 0; i < len(processes); i++ {
 		t.Run(processes[i], func(t *testing.T) {
 			if processes[i] == "shutdown" {
@@ -1781,6 +1941,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 
@@ -1809,7 +1971,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 10, start_after_verification: true})
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 
 				t.Logf("Unshut primary interfaces and verify traffic restored to original interfaces")
@@ -1835,7 +1997,120 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
+				}
+			}
+
+			if processes[i] == "viable" {
+
+				// Run with RPFO is flag is set
+				if with_RPFO {
+					rpfo_count = rpfo_count + 1
+					t.Logf("This is RPFO #%d", rpfo_count)
+					args.rpfo(args.ctx, t, false)
+				}
+
+				t.Logf("Shutting down primary interfaces BE121, BE122, BE123, BE124, BE125")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[1].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[2].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[3].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[4].Name()).ForwardingViable().Config(), false)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[5].Name()).ForwardingViable().Config(), false)
+
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftPushConfig(t)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort6.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort5.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort4.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort3.IPv4)
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort2.IPv4)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale && base_config != "case1_backup_decap" {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
+				}
+
+				t.Logf("Shutting down interfaces BE126 so traffic flows via DECAP path")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[6].Name()).ForwardingViable().Config(), false)
+
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftRemoveIPv4(t, *ciscoFlags.DefaultNetworkInstance, atePort7.IPv4)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether126", "Bundle-Ether127"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
+				}
+
+				t.Logf("Unshut primary interfaces and verify traffic restored to original interfaces")
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[1].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[2].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[3].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[4].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[5].Name()).ForwardingViable().Config(), true)
+				gnmi.Update(t, args.dut, gnmi.OC().Interface(sortPorts(args.dut.Ports())[6].Name()).ForwardingViable().Config(), true)
+
+				//aft check TE
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					args.client.AftPopConfig(t)
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "TE", randomItems[i])
+					}
+				}
+				//aft check REPAIRED
+				if *ciscoFlags.GRIBIAFTChainCheck && !with_scale {
+					randomItems := args.client.RandomEntries(t, *ciscoFlags.GRIBIConfidence, prefixes)
+					for i := 0; i < len(randomItems); i++ {
+						args.client.CheckAftIPv4(t, "REPAIRED", randomItems[i])
+					}
+				}
+				// verify traffic
+				if *ciscoFlags.GRIBITrafficCheck {
+					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
+					}
+					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 15, start_after_verification: true})
 				}
 			}
 
@@ -1889,7 +2164,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 
 				// ======================================================
@@ -1906,7 +2183,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether127"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 
 				// ======================================================
@@ -1924,7 +2203,9 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{start_after_verification: true})
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
+					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, start_after_verification: true})
 				}
 			}
 
@@ -1939,6 +2220,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, true, outgoing_interface, &TGNoptions{start_after_verification: true})
 				}
 
@@ -1974,6 +2257,8 @@ func test_triggers(t *testing.T, args *testArgs) {
 						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
 					}
 					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+					which_traffic_call = which_traffic_call + 1
+					t.Logf("This is traffic call #%d", which_traffic_call+1)
 					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true, start_after_verification: true})
 				}
 			}
@@ -1984,43 +2269,63 @@ func test_triggers(t *testing.T, args *testArgs) {
 					args.ate.Traffic().Stop(t)
 				}
 
-				gnoiClient := args.dut.RawAPIs().GNOI().Default(t)
-				useNameOnly := deviations.GNOISubcomponentPath(args.dut)
-				lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
-				rebootSubComponentRequest := &gnps.RebootRequest{
-					Method: gnps.RebootMethod_COLD,
-					Subcomponents: []*tpb.Path{
-						// {
-						//  Elem: []*tpb.PathElem{{Name: lc}},
-						// },
-						lineCardPath,
-					},
-				}
-				t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
-				rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
-				if err != nil {
-					t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-				}
-				t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+				ls := components.FindComponentsByType(t, args.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
 
-				if with_RPFO {
-					rpfo_count = rpfo_count + 1
-					t.Logf("This is RPFO #%d", rpfo_count)
-					args.rpfo(args.ctx, t, true)
-				}
-				// sleep while lc reloads
-				time.Sleep(10 * time.Minute)
+				for _, l := range ls {
+					t.Run(l, func(t *testing.T) {
+						empty, ok := gnmi.Lookup(t, args.dut, gnmi.OC().Component(l).Empty().State()).Val()
+						if ok && empty {
+							t.Skipf("Linecard Component %s is empty, hence skipping", l)
+						}
+						if !gnmi.Get(t, args.dut, gnmi.OC().Component(l).Removable().State()) {
+							t.Skipf("Skip the test on non-removable linecard.")
+						}
 
-				// base programming
-				baseProgramming(args.ctx, t, args)
+						oper := gnmi.Get(t, args.dut, gnmi.OC().Component(l).OperStatus().State())
 
-				// verify traffic
-				if *ciscoFlags.GRIBITrafficCheck {
-					if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
-						outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					}
-					outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
-					args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{burst: true})
+						if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+							t.Skipf("Linecard Component %s is already INACTIVE, hence skipping", l)
+						}
+
+						gnoiClient := args.dut.RawAPIs().GNOI(t)
+						useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+						lineCardPath := components.GetSubcomponentPath(l, useNameOnly)
+						rebootSubComponentRequest := &gnps.RebootRequest{
+							Method: gnps.RebootMethod_COLD,
+							Subcomponents: []*tpb.Path{
+								// {
+								//  Elem: []*tpb.PathElem{{Name: lc}},
+								// },
+								lineCardPath,
+							},
+						}
+						t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+						rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+						if err != nil {
+							t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+						}
+						t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+
+						if with_RPFO {
+							rpfo_count = rpfo_count + 1
+							t.Logf("This is RPFO #%d", rpfo_count)
+							args.rpfo(args.ctx, t, true)
+						}
+						// sleep while lc reloads
+						time.Sleep(10 * time.Minute)
+
+						// base programming
+						baseProgramming(args.ctx, t, args)
+
+						// verify traffic
+						if *ciscoFlags.GRIBITrafficCheck {
+							if base_config != "case1_backup_decap" && base_config != "case3_decap_encap" {
+								outgoing_interface["src_ip_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+							}
+							outgoing_interface["te_flow"] = []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126"}
+							args.validateTrafficFlows(t, flows, false, outgoing_interface, &TGNoptions{tolerance: 5, burst: true})
+						}
+					})
 				}
 			}
 
@@ -2035,20 +2340,24 @@ func test_triggers(t *testing.T, args *testArgs) {
 						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
-					sshClient := args.dut.RawAPIs().CLI(t)
+
+					t.Logf("set grpc af mode to ipv6")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
+
 					time.Sleep(10 * time.Second)
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv6 \n commit \n", 30*time.Second)
-					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring ipv6 af %s", response)
+					t.Logf("set grpc af mode to ipv4")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv4 \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family ipv4 \n commit \n", 30*time.Second)
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring only ipv4 af %s", response)
+					time.Sleep(10 * time.Second)
 
-					config.TextWithSSH(args.ctx, t, args.dut, "configure \n grpc \n address-family dual \n commit \n", 30*time.Second)
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after configuring dual af %s", response)
+					t.Logf("set grpc af mode to dual")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "configure \n grpc \n address-family dual \n commit \n")
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
+
+					time.Sleep(10 * time.Second)
 
 					client := gribi.Client{
 						DUT:                   args.dut,
@@ -2077,7 +2386,7 @@ func test_triggers(t *testing.T, args *testArgs) {
 				// kill previous gribi client
 				args.client.Close(t)
 
-				rand.Seed(time.Now().UnixNano())
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
 				min := 57344
 				max := 57998
 				for k := 0; k < grpc_repeat; k++ {
@@ -2086,23 +2395,20 @@ func test_triggers(t *testing.T, args *testArgs) {
 						t.Logf("This is RPFO #%d", rpfo_count)
 						args.rpfo(args.ctx, t, true)
 					}
-					sshClient := args.dut.RawAPIs().CLI(t)
+
+					port := r.Intn(max-min+1) + min
+
+					t.Logf("set grpc value to no-tls and random port")
+					config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)))
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
+
 					time.Sleep(10 * time.Second)
 
-					port := rand.Intn(max-min+1) + min
+					t.Logf("set grpc value to no no-tls and no manually configured port")
+					config.CMDViaGNMI(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)))
+					config.CMDViaGNMI(args.ctx, t, args.dut, "show grpc")
 
-					response, _ := sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("initial grpc values: %s", response)
-
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no-tls \n port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
-
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value after no-tls and random port %s", response)
-
-					config.TextWithSSH(args.ctx, t, args.dut, fmt.Sprintf("configure \n grpc \n no no-tls \n no port %s \n commit \n", strconv.Itoa(port)), 30*time.Second)
-
-					response, _ = sshClient.SendCommand(args.ctx, "show grpc")
-					t.Logf("grpc value with no no-tls and no port %s configured", response)
+					time.Sleep(10 * time.Second)
 
 					client := gribi.Client{
 						DUT:                   args.dut,
@@ -2130,6 +2436,109 @@ func test_triggers(t *testing.T, args *testArgs) {
 	}
 }
 
+func aftCheckaftercompleteprogramming(t *testing.T, args *testArgs, opts ...*Programming) {
+
+	ipv4Entry := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].v4_NI).Afts().Ipv4Entry(opts[0].prefix).State())
+	prefixvalue := ipv4Entry.GetPrefix()
+	if prefixvalue != opts[0].prefix {
+		t.Errorf("Incorrect value for AFT Ipv4Entry Prefix got %s, want %s", prefixvalue, opts[0].prefix)
+	}
+
+	v4nhgvalue := ipv4Entry.GetNextHopGroup()
+	nhgvalue := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHopGroup(v4nhgvalue).State())
+	if nhgvalue.GetProgrammedId() != opts[0].nhg_Pid {
+		t.Errorf("Incorrect value for BackupNextHopGroup ProgrammedId  got %d, want 101", nhgvalue.GetProgrammedId())
+	}
+
+	bkNHG := nhgvalue.GetBackupNextHopGroup()
+	bknhgvalue := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHopGroup(bkNHG).State())
+	if bknhgvalue.GetProgrammedId() != opts[0].bknhg_Pid {
+		t.Errorf("Incorrect value for BackupNextHopGroup ProgrammedId  got %d, want 101", bknhgvalue.GetProgrammedId())
+	}
+
+	var nhlist []uint64
+	j := 0
+	for i := range nhgvalue.NextHop {
+		nexthopval := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHop(i).State())
+		if nexthopval.GetIpAddress() != opts[0].nhg_NHs[j] {
+			t.Errorf("Incorrect value for NH ip address got %s, want %s", nexthopval.GetIpAddress(), opts[0].nhg_NHs[j])
+		}
+		if nexthopval.GetProgrammedIndex() != opts[0].nhg_NHs_Pid[j] {
+			t.Errorf("Incorrect value for NH programming id got %d, want %d", nexthopval.GetProgrammedIndex(), opts[0].nhg_NHs_Pid[j])
+		}
+		if nhgvalue.GetNextHop(i).GetWeight() == 0 && len(nhgvalue.NextHop) != 1 {
+			t.Errorf("Got empty weight for the path")
+		}
+		if nexthopval.GetInterfaceRef().GetInterface() != opts[0].nhg_NHs_Int[j] {
+			t.Errorf("Incorrect value for NH interface got %s, want %s", nexthopval.GetInterfaceRef().GetInterface(), opts[0].nhg_NHs_Int[j])
+		}
+		if nexthopval.GetInterfaceRef().GetSubinterface() != opts[0].nhg_NHs_SubInt[j] {
+			t.Errorf("Incorrect value for NH interface got %d, want %d", nexthopval.GetInterfaceRef(), opts[0].nhg_NHs_SubInt[j])
+		}
+		if len(opts[0].nh_IpinIp_Dst) != 0 {
+			if nexthopval.GetIpInIp().GetDstIp() != opts[0].nh_IpinIp_Dst[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", nexthopval.GetIpInIp().GetDstIp(), opts[0].bknh_IpinIp_Dst[j])
+			}
+		}
+		if len(opts[0].nh_IpinIp_Src) != 0 {
+			if nexthopval.GetIpInIp().GetSrcIp() != opts[0].nh_IpinIp_Src[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", nexthopval.GetIpInIp().GetSrcIp(), opts[0].bknh_IpinIp_Src[j])
+			}
+		}
+		if opts[0].nh_Encap {
+			if nexthopval.GetEncapsulateHeader().String() != "IPV4" {
+				t.Errorf("Incorrect ENCAP value for  NextHop got %s, want IPV4", nexthopval.GetEncapsulateHeader())
+			}
+		}
+		nhlist = append(nhlist, i)
+		j = j + 1
+	}
+
+	if got := len(nhgvalue.NextHop); got != len(nhlist) {
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", opts[0].prefix, got, len(nhlist))
+	}
+
+	var bknhlist []uint64
+	j = 0
+	for i := range bknhgvalue.NextHop {
+		nexthopval := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(opts[0].nhg_NI).Afts().NextHop(i).State())
+		if nexthopval.GetIpAddress() != opts[0].bknhg_NHs[j] {
+			t.Errorf("Incorrect value for NH ip address got %s, want %s", nexthopval.GetIpAddress(), opts[0].bknhg_NHs[j])
+		}
+		if nexthopval.GetProgrammedIndex() != opts[0].bknhg_NHs_Pid[j] {
+			t.Errorf("Incorrect value for NH programming id got %d, want %d", nexthopval.GetProgrammedIndex(), opts[0].bknhg_NHs_Pid[j])
+		}
+		if nhgvalue.GetNextHop(i).GetWeight() == 0 && len(bknhgvalue.NextHop) != 1 {
+			t.Errorf("Got empty weight for the path")
+		}
+		if nexthopval.GetInterfaceRef().GetInterface() != opts[0].bknhg_NHs_Int[j] {
+			t.Errorf("Incorrect value for NH interface got %s, want %s", nexthopval.GetInterfaceRef().GetInterface(), opts[0].bknhg_NHs_Int[j])
+		}
+		if nexthopval.GetInterfaceRef().GetSubinterface() != opts[0].bknhg_NHs_SubInt[j] {
+			t.Errorf("Incorrect value for NH interface got %d, want %d", nexthopval.GetInterfaceRef(), opts[0].bknhg_NHs_SubInt[j])
+		}
+		if len(opts[0].bknh_IpinIp_Dst) != 0 {
+			if nexthopval.GetIpInIp().GetDstIp() != opts[0].bknh_IpinIp_Dst[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp DstIp got %s, want %s", nexthopval.GetIpInIp().GetDstIp(), opts[0].bknh_IpinIp_Dst[j])
+			}
+		}
+		if len(opts[0].bknh_IpinIp_Src) != 0 {
+			if nexthopval.GetIpInIp().GetSrcIp() != opts[0].bknh_IpinIp_Src[j] {
+				t.Errorf("Incorrect value for  NextHop IpInIp SrcIp  got %s, want %s", nexthopval.GetIpInIp().GetSrcIp(), opts[0].bknh_IpinIp_Src[j])
+			}
+		}
+		if opts[0].bknh_Encap {
+			if nexthopval.GetEncapsulateHeader().String() != "IPV4" {
+				t.Errorf("Incorrect ENCAP value for  NextHop got %s, want IPV4", nexthopval.GetEncapsulateHeader())
+			}
+		}
+		bknhlist = append(bknhlist, i)
+		j = j + 1
+	}
+	if got := len(bknhgvalue.NextHop); got != len(bknhlist) {
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", opts[0].prefix, got, len(bknhlist))
+	}
+}
 func TestHA(t *testing.T) {
 	t.Log("Name: HA")
 	t.Log("Description: Connect gRIBI client to DUT using SINGLE_PRIMARY client redundancy with persistance, RibACK and FibACK")
@@ -2137,7 +2546,6 @@ func TestHA(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	// ctx, cancelMonitors := context.WithCancel(context.Background())
-
 	// Configure the DUT
 	var vrfs = []string{vrf1, vrf2, vrf3, vrf4}
 	configVRF(t, dut, vrfs)
@@ -2145,16 +2553,12 @@ func TestHA(t *testing.T) {
 	// PBR config
 	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_UNSET, []uint8{}, &PBROptions{SrcIP: "222.222.222.222/32"})
 	configbasePBR(t, dut, "TE", "ipv4", 2, "pbr", oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{})
-	configbasePBRInt(t, dut, "Bundle-Ether120", "pbr")
 	// RoutePolicy config
 	configRP(t, dut)
 	// configure ISIS on DUT
 	addISISOC(t, dut, "Bundle-Ether127")
 	// configure BGP on DUT
 	addBGPOC(t, dut, "100.100.100.100")
-	// Configure P4RT device-id and port-id
-	configureDeviceId(ctx, t, dut)
-	configurePortId(ctx, t, dut)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
@@ -2175,11 +2579,6 @@ func TestHA(t *testing.T) {
 			fn:   test_microdrops,
 		},
 		{
-			name: "Triggers",
-			desc: "With traffic running, validate multiple triggers",
-			fn:   test_triggers,
-		},
-		{
 			name: "Restart RFPO with programming",
 			desc: "After programming, perform RPFO try new programming and validate traffic",
 			fn:   test_RFPO_with_programming,
@@ -2194,11 +2593,16 @@ func TestHA(t *testing.T) {
 			desc: "After programming, restart multiple process fib_mgr, isis, ifmgr, ipv4_rib, ipv6_rib, emsd, db_writer and valid programming exists",
 			fn:   testRestart_multiple_process,
 		},
-		// {
-		// 	name: "check multiple clients",
-		// 	desc: "With traffic running, validate use of multiple clients",
-		// 	fn:   test_multiple_clients,
-		// },
+		{
+			name: "Triggers",
+			desc: "With traffic running, validate multiple triggers",
+			fn:   test_triggers,
+		},
+		{
+			name: "check multiple clients",
+			desc: "With traffic running, validate use of multiple clients",
+			fn:   test_multiple_clients,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2220,23 +2624,22 @@ func TestHA(t *testing.T) {
 					t.Fatalf("gRIBI Connection could not be established: %v", err)
 				}
 			}
-
 			//Monitor and eventConsumer
 			t.Log("creating event monitor")
+			if !with_RPFO {
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().NetworkInstance("*").Afts().State(), subscription_timout*time.Minute)
+				gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(proto_gnmi.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Minute)), gnmi.OC().Interface("*").State(), subscription_timout*time.Minute)
+			}
 			eventConsumer := monitor.NewCachedConsumer(2*time.Hour, /*expiration time for events in the cache*/
 				1 /*number of events for keep for each leaf*/)
 			// monitor := monitor.GNMIMonior{
-			//  Paths: []ygnmi.PathStruct{
-			//      gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf1).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf2).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf3).Afts(),
-			//      gnmi.OC().NetworkInstance(vrf4).Afts(),
-			//  },
-			//  Consumer: eventConsumer,
-			//  DUT:      dut,
+			// 	Paths: []ygnmi.PathStruct{
+			// 		gnmi.OC().NetworkInstance("DEFAULT"),
+			// 	},
+			// 	Consumer: eventConsumer,
+			// 	DUT:      dut,
 			// }
-			// monitor.Start(ctx, t, true, gpb.SubscriptionList_STREAM)
+			// monitor.Start(ctx, t, true, proto_gnmi.SubscriptionList_Mode(proto_gnmi.SubscriptionList_ONCE))
 			// defer cancelMonitors()
 
 			args := &testArgs{

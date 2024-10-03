@@ -1,0 +1,56 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "f8eee005-f5dc-4c58-a7f2-444571bcd49f"
+plan_id: "TE-16.3"
+description: "encapsulation FRR scenarios"
+testbed: TESTBED_DUT_ATE_8LINKS
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+    gribi_mac_override_with_static_arp: true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true   
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    isis_level_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed:  true
+    explicit_interface_in_default_vrf:  true
+    interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_instance_enabled_required:  true
+    static_protocol_name: "STATIC"
+    gribi_mac_override_static_arp_static_route: true
+    omit_l2_mtu: true
+    backup_nhg_requires_vrf_with_decap: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_interface_afi_unsupported: true
+    encap_tunnel_shut_backup_nhg_zero_traffic: true
+  }
+}
+

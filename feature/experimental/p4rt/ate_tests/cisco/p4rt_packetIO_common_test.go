@@ -12,10 +12,10 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	wbb "github.com/openconfig/featureprofiles/internal/p4rtutils"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -1196,7 +1196,7 @@ func testEntryProgrammingPacketInWithGNOI(ctx context.Context, t *testing.T, arg
 	}
 	defer programmTableEntry(ctx, t, client, args.packetIO, true)
 
-	gnoi := args.dut.RawAPIs().GNOI().Default(t)
+	gnoi := args.dut.RawAPIs().GNOI(t)
 
 	gnoi.System().Traceroute(ctx, &spb.TracerouteRequest{
 		Destination: atePort1.IPv4,
@@ -1422,6 +1422,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 	aclEntryActionDefault := aclSetIPv4.GetOrCreateAclEntry(2).GetOrCreateActions()
 	aclEntryActionDefault.ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
+	aclInt := acl.GetOrCreateInterface(args.interfaces.in[0])
+	aclInt.GetOrCreateIngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+
 	// aclSetIPv6 := acl.GetOrCreateAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6)
 	// aclEntryIPv6 := aclSetIPv6.GetOrCreateAclEntry(1).GetOrCreateIpv6()
 	// aclEntryIPv6.HopLimit = ygot.Uint8(1)
@@ -1430,11 +1433,9 @@ func testEntryProgrammingPacketInWithAcl(ctx context.Context, t *testing.T, args
 
 	gnmi.Update(t, args.dut, gnmi.OC().Acl().Config(), acl)
 
-	gnmi.Update(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).SetName().Config(), "ttl-ipv4")
 	// args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).SetName().Update(t, "ttl-ipv6")
 	defer func() {
 		gnmi.Delete(t, args.dut, gnmi.OC().Acl().Config())
-		defer gnmi.Delete(t, args.dut, gnmi.OC().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv4", oc.Acl_ACL_TYPE_ACL_IPV4).Config())
 		// defer args.dut.Config().Acl().Interface(args.interfaces.in[0]).IngressAclSet("ttl-ipv6", telemetry.Acl_ACL_TYPE_ACL_IPV6).Delete(t)
 	}()
 

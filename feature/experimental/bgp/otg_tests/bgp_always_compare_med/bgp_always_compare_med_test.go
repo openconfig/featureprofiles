@@ -58,6 +58,7 @@ const (
 	plenIPv6                 = 126
 	setMEDPolicy100          = "SET-MED-100"
 	setMEDPolicy50           = "SET-MED-50"
+	rplAllowPolicy           = "ALLOW"
 	aclStatement20           = "20"
 	aclStatement30           = "30"
 	bgpMED100                = 100
@@ -127,6 +128,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i3 := dutDst2.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
+		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i3.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
@@ -149,8 +161,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst2.IPv4)
 	global.As = ygot.Uint32(localAs)
@@ -170,26 +182,41 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	pg3.PeerAs = ygot.Uint32(ateAS3)
 	pg3.PeerGroupName = ygot.String(peerGrpName3)
 
-	for _, nbr := range nbrs {
-		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv4.PeerGroup = ygot.String(nbr.peerGrp)
-		nv4.PeerAs = ygot.Uint32(nbr.as)
-		nv4.Enabled = ygot.Bool(true)
-		af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		af4.Enabled = ygot.Bool(true)
-		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		af6.Enabled = ygot.Bool(false)
-	}
-	return ni_proto
-}
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		rp2 := pg2.GetOrCreateApplyPolicy()
+		rp2.SetImportPolicy([]string{rplAllowPolicy})
 
-func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
-	t.Helper()
-	t.Logf("Starting traffic")
-	otg.StartTraffic(t)
-	time.Sleep(trafficDuration)
-	t.Logf("Stop traffic")
-	otg.StopTraffic(t)
+		rp3 := pg3.GetOrCreateApplyPolicy()
+		rp3.SetImportPolicy([]string{rplAllowPolicy})
+
+	} else {
+
+		pg2af4 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pg2af4.Enabled = ygot.Bool(true)
+
+		pg2rpl4 := pg2af4.GetOrCreateApplyPolicy()
+		pg2rpl4.SetImportPolicy([]string{rplAllowPolicy})
+
+		pg3af4 := pg3.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		pg3af4.Enabled = ygot.Bool(true)
+
+		pg3rpl4 := pg3af4.GetOrCreateApplyPolicy()
+		pg3rpl4.SetImportPolicy([]string{rplAllowPolicy})
+	}
+
+	for _, nbr := range nbrs {
+		if nbr.isV4 {
+			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
+			nv4.PeerGroup = ygot.String(nbr.peerGrp)
+			nv4.PeerAs = ygot.Uint32(nbr.as)
+			nv4.Enabled = ygot.Bool(true)
+			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
+		}
+	}
+	return niProto
 }
 
 func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state string) {
@@ -233,11 +260,13 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
 		t.Logf("Waiting for BGP neighbor to establish...")
+		var status *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]
 		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 			state, ok := val.Val()
 			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 		}).Await(t)
 		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
 			t.Fatal("No BGP neighbor formed")
 		}
 		state, _ := status.Val()
@@ -252,53 +281,43 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 // advertising some(faked) networks over BGP.
 func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
 	port3 := config.Ports().Add().SetName("port3")
 
 	iDut1Dev := config.Devices().Add().SetName(ateSrc.Name)
 	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	iDut1Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port1.Name())
+	iDut1Eth.Connection().SetPortName(port1.Name())
 	iDut1Ipv4 := iDut1Eth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
 	iDut1Ipv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
-	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	iDut1Ipv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	iDut2Dev := config.Devices().Add().SetName(ateDst1.Name)
 	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateDst1.Name + ".Eth").SetMac(ateDst1.MAC)
-	iDut2Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port2.Name())
+	iDut2Eth.Connection().SetPortName(port2.Name())
 	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(ateDst1.Name + ".IPv4")
 	iDut2Ipv4.SetAddress(ateDst1.IPv4).SetGateway(dutDst1.IPv4).SetPrefix(uint32(ateDst1.IPv4Len))
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(ateDst1.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(ateDst1.IPv6).SetGateway(dutDst1.IPv6).SetPrefix(uint32(ateDst1.IPv6Len))
 
 	iDut3Dev := config.Devices().Add().SetName(ateDst2.Name)
 	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(ateDst2.Name + ".Eth").SetMac(ateDst2.MAC)
-	iDut3Eth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(port3.Name())
+	iDut3Eth.Connection().SetPortName(port3.Name())
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateDst2.Name + ".IPv4")
 	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
-	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(ateDst2.Name + ".IPv6")
-	iDut3Ipv6.SetAddress(ateDst2.IPv6).SetGateway(dutDst2.IPv6).SetPrefix(uint32(ateDst2.IPv6Len))
 
 	// BGP seesion
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst1.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(iDut2Ipv4.Gateway()).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(ateDst2.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(ateAS3).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(ateDst1.Name + ".BGP4.Route")
 	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(iDut2Ipv4.Address()).
@@ -326,7 +345,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetRxNames([]string{bgpNeti1Bgp4PeerRoutes.Name()})
 	flow1ipv4.Size().SetFixed(512)
 	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().SetChoice("continuous")
+	flow1ipv4.Duration().Continuous()
 	e1 := flow1ipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(iDut1Eth.Mac())
 	v4 := flow1ipv4.Packet().Add().Ipv4()
@@ -341,7 +360,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetRxNames([]string{bgpNeti2Bgp4PeerRoutes.Name()})
 	flow2ipv4.Size().SetFixed(512)
 	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().SetChoice("continuous")
+	flow2ipv4.Duration().Continuous()
 	e2 := flow2ipv4.Packet().Add().Ethernet()
 	e2.Src().SetValue(iDut1Eth.Mac())
 	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
@@ -350,10 +369,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
-	time.Sleep(30 * time.Second)
 	otg.StartProtocols(t)
-	time.Sleep(30 * time.Second)
-
 	return config
 }
 
@@ -384,86 +400,99 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flow
 	}
 }
 
+// sendTraffic is used to send traffic.
+func sendTraffic(t *testing.T, otg *otg.OTG, c gosnappi.Config) {
+	t.Helper()
+	t.Logf("Starting traffic")
+	otg.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	t.Logf("Stop traffic")
+	otg.StopTraffic(t)
+}
+
 // setMED is used to configure routing policy to set BGP MED on DUT.
 func setMED(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	t.Helper()
+	dutPolicyConfPath2 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		PeerGroup(peerGrpName2)
+
+	dutPolicyConfPath3 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
+		PeerGroup(peerGrpName3)
+
+	// Apply setMed import policy on eBGP Peer1 - ATE Port2 - with MED 100.
+	// Apply setMed Import policy on eBGP Peer2 - ATE Port3 -  with MED 50.
+	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+		gnmi.Replace(t, dut, dutPolicyConfPath2.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
+		gnmi.Replace(t, dut, dutPolicyConfPath3.ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+	} else {
+		gnmi.Replace(t, dut, dutPolicyConfPath2.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy100})
+		gnmi.Replace(t, dut, dutPolicyConfPath3.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+			ApplyPolicy().ImportPolicy().Config(), []string{setMEDPolicy50})
+	}
+}
+
+// configPolicy is used to configure routing policies on the DUT.
+func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
+
 	rp := d.GetOrCreateRoutingPolicy()
 
 	pdef1 := rp.GetOrCreatePolicyDefinition(setMEDPolicy100)
-	stmt1, err := pdef1.AppendNewStatement(aclStatement20)
+	st, err := pdef1.AppendNewStatement(aclStatement20)
 	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
+		t.Fatal(err)
 	}
-	actions1 := stmt1.GetOrCreateActions()
+	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
+	}
+	actions1.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(setMEDPolicy50)
-	stmt2, err := pdef2.AppendNewStatement(aclStatement20)
+	st, err = pdef2.AppendNewStatement(aclStatement20)
 	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
+		t.Fatal(err)
 	}
-	actions2 := stmt2.GetOrCreateActions()
+	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
+	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
+		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
+	}
+	actions2.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	pdef3 := rp.GetOrCreatePolicyDefinition(rplAllowPolicy)
+	st, err = pdef3.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	action3 := st.GetOrCreateActions()
+	action3.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
-	// Apply setMed import policy on eBGP Peer1 - OTG Port2 - with MED 100.
-	dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy100})
-
-	// Apply setMed Import policy on eBGP Peer2 - OTG Port3 -  with MED 50.
-	dutPolicyConfPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().
-		PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy()
-	gnmi.Replace(t, dut, dutPolicyConfPath.Config(), []string{setMEDPolicy50})
 }
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
 func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32) {
 	t.Helper()
-	_, ok := gnmi.WatchAll(t,
-		otg,
-		gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
-		2*time.Minute,
-		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			return v.IsPresent()
-		}).Await(t)
 
-	if ok {
-		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		gotPrefixCount := len(bgpPrefixes)
-		if gotPrefixCount < routeCount {
-			t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		} else {
-			t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		}
+	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
+	gotPrefixCount := len(bgpPrefixes)
+	if gotPrefixCount < routeCount {
+		t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
+	} else {
+		t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	}
 
-	// TODO: Below code will be uncommented once MED retrieval is supported in OTG.
-	// https://github.com/openconfig/featureprofiles/issues/1837
-
-	/*
-		wantSetMED := []uint32{}
-		// Build wantSetMED to compare the diff.
-		for i := 0; i < routeCount; i++ {
-			wantSetMED = append(wantSetMED, uint32(wantMEDValue))
+	// compare Med val with expected for each of the recieved routes.
+	for _, prefix := range bgpPrefixes {
+		if prefix.GetMultiExitDiscriminator() != wantMEDValue {
+			t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
 		}
-
-		prefixPathAny := gnmi.OTG().BgpPeer(ateSrc.Name + ".BGP4.peer").UnicastIpv4PrefixAny()
-		gnmi.WatchAll(t, otg, prefixPathAny.State(), time.Minute, func(v *ygnmi.Value[string]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-		_, ok := gnmi.WatchAll(t, otg, prefixPathAny.Med().State(), 3*time.Minute, func(v *ygnmi.Value[otgtelemetry.E_UnicastIpv4Prefix_Origin]) bool {
-			gotSetMED, present := v.Val()
-			return present && cmp.Diff(wantSetMED, gotSetMED) == ""
-		}).Await(t)
-		if !ok {
-			t.Errorf("obtained MED on OTG is not as expected")
-		}
-	*/
+	}
+	t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -495,10 +524,16 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
+	if gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantInstalled
+	}).Await(t); !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
-	if gotSent := gnmi.Get(t, dut, prefixesv4.Sent().State()); gotSent != wantSent {
+	if gotSent, ok := gnmi.Watch(t, dut, prefixesv4.Sent().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
+		got, ok := v.Val()
+		return ok && got == wantSent
+	}).Await(t); !ok {
 		t.Errorf("Sent prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
@@ -516,6 +551,8 @@ func TestAlwaysCompareMED(t *testing.T) {
 	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	// Pushing a blank config to clear BGP related counters
+	ate.OTG().PushConfig(t, gosnappi.NewConfig())
 	d := &oc.Root{}
 
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
@@ -525,17 +562,26 @@ func TestAlwaysCompareMED(t *testing.T) {
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
 		t.Log("Configure Network Instance type.")
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		t.Logf("Start DUT BGP Config.")
 		gnmi.Delete(t, dut, dutConfPath.Config())
+		configPolicy(t, dut, d)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+	})
+
+	t.Run("Configure SET MED on DUT", func(t *testing.T) {
+		setMED(t, dut, d)
+	})
+
+	t.Run("Configure always compare med on DUT", func(t *testing.T) {
+		t.Log("Configure always compare med on DUT.")
+		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
 	})
 
 	otg := ate.OTG()
@@ -545,29 +591,26 @@ func TestAlwaysCompareMED(t *testing.T) {
 	})
 
 	t.Run("Verify port status on DUT", func(t *testing.T) {
+		t.Log("Verifying port status.")
 		verifyPortsUp(t, dut.Device)
 	})
 
 	t.Run("Verify BGP telemetry", func(t *testing.T) {
+		t.Log("Check BGP parameters.")
 		verifyBgpTelemetry(t, dut)
 		verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
+		t.Log("Check BGP Capabilities")
 		verifyBGPCapabilities(t, dut)
 	})
 
-	t.Run("Configure SET MED on DUT", func(t *testing.T) {
-		setMED(t, dut, d)
-	})
-
-	t.Run("Configure always compare med on DUT", func(t *testing.T) {
-		gnmi.Replace(t, dut, dutConfPath.Bgp().Global().RouteSelectionOptions().AlwaysCompareMed().Config(), true)
-	})
-
-	t.Run("Verify received BGP routes at OTG Port 1 have lowest MED", func(t *testing.T) {
+	t.Run("Verify received BGP routes at ATE Port 1 have lowest MED", func(t *testing.T) {
+		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1 is Peer with lowest MED 50 - eBGP Peer2.")
 		verifySetMed(t, otg, otgConfig, bgpMED50)
 	})
-	t.Run("Send and validate traffic from OTG Port1", func(t *testing.T) {
+
+	t.Run("Send and validate traffic from ATE Port1", func(t *testing.T) {
 		t.Log("Validate traffic flowing to the prefixes received from eBGP neighbor #2 from DUT (lowest MED-50).")
 		sendTraffic(t, otg, otgConfig)
 		verifyTraffic(t, ate, otgConfig, flow1, wantLoss)
@@ -575,12 +618,20 @@ func TestAlwaysCompareMED(t *testing.T) {
 	})
 
 	t.Run("Remove MED settings on DUT", func(t *testing.T) {
+		t.Log("Disable MED settings on DUT.")
 		dutPolicyConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-		gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config())
-		gnmi.Delete(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config())
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+		} else {
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+			gnmi.Replace(t, dut, dutPolicyConfPath.PeerGroup(peerGrpName3).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{rplAllowPolicy})
+		}
+
 	})
 
-	t.Run("Verify MED on received routes at OTG Port1 after removing MED settings", func(t *testing.T) {
+	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
+		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)
 		t.Log("Verify best route advertised to atePort1.")
 		verifySetMed(t, otg, otgConfig, uint32(0))

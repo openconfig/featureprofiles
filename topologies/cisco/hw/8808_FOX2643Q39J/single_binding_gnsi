@@ -64,6 +64,8 @@ options {
 duts {
   id: "dut"
   name: "8808"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
     #gnmi_set_file: "/Users/harikri4/featureprofiles/topologies/cisco_local/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto"
@@ -103,6 +105,7 @@ duts {
   }
   ssh{
     target: "5.78.9.13:4999"
+    skip_verify: true
   }
   p4rt{
     #target: "10.85.84.159:54999"
@@ -115,17 +118,21 @@ duts {
   ports {
     id: "port1"
     name: "HundredGigE0/0/0/30"  # Change this to the actual port name.
+    speed: S_100GB
   }
   ports {
     id: "port2"
     name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
+    speed: S_100GB
   }
   ports {
     id: "port3"
     name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
+    speed: S_100GB
   }
   ports {
    id: "port4"
    name: "HundredGigE0/0/0/10"  # Change this to the actual port name.
+   speed: S_100GB
   }
 }

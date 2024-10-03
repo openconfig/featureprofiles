@@ -4,24 +4,32 @@ package util
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/ygot/ytypes"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -123,7 +131,7 @@ func CheckTrafficPassViaRate(stats []*oc.Flow) []string {
 
 // ReloadDUT reloads the router using GNMI APIs
 func ReloadDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 		Method:  spb.RebootMethod_COLD,
 		Delay:   0,
@@ -146,7 +154,7 @@ func GNMIWithText(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, con
 			},
 		},
 	}
-	_, err := dut.RawAPIs().GNMI().Default(t).Set(ctx, r)
+	_, err := dut.RawAPIs().GNMI(t).Set(ctx, r)
 	if err != nil {
 		t.Errorf("There is error when applying the config")
 	}
@@ -193,7 +201,6 @@ func DoModifyOps(c *fluent.GRIBIClient, t testing.TB, ops []func(), wantACK flue
 	// If randomise is specified, we go and do the operations in a random order.
 	// In this case, the caller MUST
 	if randomise {
-		rand.Seed(time.Now().UnixNano())
 		rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
 	}
 
@@ -243,6 +250,37 @@ func GetCopyOfIpv4SubInterfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceN
 		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
 		copiedSubInterfaces[interfaceName] = &oc.Interface_Subinterface{}
 		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateIpv4()
+		for _, ipval := range a.Address {
+			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
+			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
+			ipv4addr.PrefixLength = ygot.Uint8(ipval.GetPrefixLength())
+		}
+
+	}
+	return copiedSubInterfaces
+}
+
+// GetInterface returns subinterface
+func GetInterface(interfaceName string, ipv4 string, prefixlen uint8, index uint32) *oc.Interface {
+	i := &oc.Interface{Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag, Enabled: ygot.Bool(true),
+		Name: ygot.String(interfaceName)}
+	s := i.GetOrCreateSubinterface(index)
+	s4 := s.GetOrCreateIpv4()
+	a := s4.GetOrCreateAddress(ipv4)
+	a.PrefixLength = ygot.Uint8(prefixlen)
+	return i
+}
+
+// GetCopyOfIpv4Interfaces returns subinterface ipv4 address
+func GetCopyOfIpv4Interfaces(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string, index uint32) map[string]*oc.Interface {
+	copiedSubInterfaces := make(map[string]*oc.Interface)
+	for _, interfaceName := range interfaceNames {
+		a := gnmi.Get(t, dut, gnmi.OC().Interface(interfaceName).Subinterface(index).Ipv4().State())
+		copiedSubInterfaces[interfaceName] = &oc.Interface{}
+		copiedSubInterfaces[interfaceName].Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+		copiedSubInterfaces[interfaceName].Enabled = ygot.Bool(true)
+		copiedSubInterfaces[interfaceName].Name = ygot.String(interfaceName)
+		ipv4 := copiedSubInterfaces[interfaceName].GetOrCreateSubinterface(index).GetOrCreateIpv4()
 		for _, ipval := range a.Address {
 			t.Logf("*** Copying address: %v/%v for interface %s", ipval.GetIp(), ipval.GetPrefixLength(), interfaceName)
 			ipv4addr := ipv4.GetOrCreateAddress(ipval.GetIp())
@@ -375,9 +413,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		if activate {
 			fimActivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -a %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim activate string %v", fimActivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimActivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimActivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Enabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not enabled", componentName, faultPointNumber)
@@ -389,9 +427,9 @@ func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []st
 		} else {
 			fimDeactivate = fmt.Sprintf("run ssh -oStrictHostKeyChecking=no 172.0.%s.1 /pkg/bin/fim_cli -c %s -r %s:%s", lineCard, componentName, faultPointNumber, returnValue)
 			t.Logf("The fim deactivate string %v", fimDeactivate)
-			fimRes, err := cliHandle.SendCommand(context.Background(), fimDeactivate)
+			fimRes, err := cliHandle.RunCommand(context.Background(), fimDeactivate)
 			time.Sleep(60 * time.Second)
-			if strings.Contains(fimRes, fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
+			if strings.Contains(fimRes.Output(), fmt.Sprintf("Disabling FP#%s", faultPointNumber)) {
 				t.Logf("Successfull Disabled Injected Fault for component %v on fault number %v", componentName, faultPointNumber)
 			} else {
 				t.Fatalf("FaultPointNumber for component %v on faultnumber %v not disabled", componentName, faultPointNumber)
@@ -465,4 +503,202 @@ func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTBGP, *ciscoFlags.DefaultNetworkInstance)
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
+}
+
+func PrettyPrintJson(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
+// load oc from a file
+func LoadJsonFileToOC(t *testing.T, path string) *oc.Root {
+	var ocRoot oc.Root
+	jsonConfig, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Cannot load base config: %v", err)
+	}
+	opts := []ytypes.UnmarshalOpt{
+		&ytypes.PreferShadowPath{},
+	}
+	if err := oc.Unmarshal(jsonConfig, &ocRoot, opts...); err != nil {
+		t.Fatalf("Cannot unmarshal base config: %v", err)
+	}
+	return &ocRoot
+}
+
+// SliceEqual checks if two slices of strings contain the same elements in any order.
+// It returns true if both slices have the same elements with the same frequencies (counts),
+// otherwise it returns false. The function does not modify the input slices.
+func SliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	counts := make(map[string]int)
+	// count the occurrences of each string in the first slice
+	for _, v := range a {
+		counts[v]++
+	}
+
+	for _, v := range b {
+		// if we find a string in the second slice that is not in the map or the count goes below zero, we know the slices are not equal and return false
+		if count, ok := counts[v]; !ok || count == 0 {
+			return false
+		}
+		counts[v]--
+	}
+
+	return true
+}
+
+// UniqueValues returns a list of all unique values from a given input map.
+func UniqueValues(t *testing.T, m map[string]string) []string {
+	seen := make(map[string]bool) // a set of seen values
+	var result []string           // a slice to hold unique values
+
+	for _, value := range m {
+		if _, ok := seen[value]; !ok {
+			// If the value hasn't been seen yet, add it to the result slice
+			result = append(result, value)
+			// And mark it as seen
+			seen[value] = true
+		}
+	}
+	return result
+}
+
+// GetLCList returns a list of LCs on the device
+func GetLCList(t *testing.T, dut *ondatra.DUTDevice) []string {
+	lcList := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	t.Logf("List of linecard on device: %v", lcList)
+	return lcList
+}
+
+// GetLCSlotID returns the LC slot ID on the device for a location.
+func GetLCSlotID(t *testing.T, lcloc string) uint8 {
+	if strings.Contains(lcloc, "RP") {
+		return 0
+	}
+	lcSl := strings.Split(lcloc, "/")
+	lcslotID, err := strconv.Atoi(lcSl[1])
+	if err != nil {
+		t.Fatalf("error in int conversion %v", err)
+	}
+	return uint8(lcslotID)
+}
+
+// StringToInt converts int values in string format to int.
+func StringToInt(t *testing.T, intString string) int {
+	intVal, err := strconv.Atoi(intString)
+	if err != nil {
+		t.Fatalf("error in int conversion %v", err)
+	}
+	return intVal
+}
+
+// ReloadLinecards reloads linecards, passed as list in the argument, on the device.
+func ReloadLinecards(t *testing.T, lcList []string) {
+	const linecardBoottime = 5 * time.Minute
+	dut := ondatra.DUT(t, "dut")
+
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	rebootSubComponentRequest := &spb.RebootRequest{
+		Method:        spb.RebootMethod_COLD,
+		Subcomponents: []*tpb.Path{},
+	}
+
+	req := &spb.RebootStatusRequest{
+		Subcomponents: []*tpb.Path{},
+	}
+
+	for _, lc := range lcList {
+		rebootSubComponentRequest.Subcomponents = append(rebootSubComponentRequest.Subcomponents, components.GetSubcomponentPath(lc, false))
+		req.Subcomponents = append(req.Subcomponents, components.GetSubcomponentPath(lc, false))
+	}
+
+	t.Logf("Reloading linecards: %v", lcList)
+	startTime := time.Now()
+	_, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+	if err != nil {
+		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+	}
+
+	rebootDeadline := startTime.Add(linecardBoottime)
+	for retry := true; retry; {
+		t.Log("Waiting for 10 seconds before checking linecard status.")
+		time.Sleep(10 * time.Second)
+		if time.Now().After(rebootDeadline) {
+			retry = false
+			break
+		}
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
+		switch {
+		case status.Code(err) == codes.Unimplemented:
+			t.Fatalf("Unimplemented RebootStatus RPC: %v", err)
+		case err == nil:
+			retry = resp.GetActive()
+		default:
+			// any other error just sleep.
+		}
+	}
+	t.Logf("It took %v minutes to reboot linecards.", time.Since(startTime).Minutes())
+}
+
+// RebootDevice reboots the device gracefully and waits for the device to come back up.
+func RebootDevice(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	const (
+		// Delay to allow router complete system backup and start rebooting
+		pollingDelay = 180 * time.Second
+		// Maximum reboot time is 900 seconds (15 minutes).
+		maxRebootTime = 900
+	)
+
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Message: "Reboot chassis with cold method gracefully",
+		Force:   false,
+	}
+
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+	if err != nil {
+		t.Fatalf("Failed parsing current-datetime: %s", err)
+	}
+
+	t.Logf("Send reboot request: %v", rebootRequest)
+	startReboot := time.Now()
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+	t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	t.Logf("Wait for the device to gracefully complete system backup and start rebooting.")
+	time.Sleep(pollingDelay)
+
+	t.Logf("Check if router has booted by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Seconds()) > maxRebootTime {
+			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
 }

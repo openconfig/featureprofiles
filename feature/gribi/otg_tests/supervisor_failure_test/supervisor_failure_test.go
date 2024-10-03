@@ -26,14 +26,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygot/ygot"
 
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -138,7 +139,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // configureATE configures port1 and port2 on the ATE and adding a flow with port1 as the source and port2 as destination
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -219,9 +220,10 @@ func findSecondaryController(t *testing.T, dut *ondatra.DUTDevice, controllers [
 }
 
 // validateTelemetry validates telemetry sensors
-func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch string) {
+func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch, secondaryAfterSwitch string) {
 	t.Log("Validate OC Switchover time/reason.")
 	primary := gnmi.OC().Component(primaryAfterSwitch)
+	secondary := gnmi.OC().Component(secondaryAfterSwitch)
 	if !gnmi.Lookup(t, dut, primary.LastSwitchoverTime().State()).IsPresent() {
 		t.Errorf("primary.LastSwitchoverTime().Lookup(t).IsPresent(): got false, want true")
 	} else {
@@ -243,16 +245,16 @@ func validateTelemetry(t *testing.T, dut *ondatra.DUTDevice, primaryAfterSwitch 
 		t.Errorf("primary.GetLastSwitchoverReason().GetTrigger(): got %s, want %s.", got, want)
 	}
 
-	if !gnmi.Lookup(t, dut, primary.LastRebootTime().State()).IsPresent() {
-		t.Errorf("primary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
+	if !gnmi.Lookup(t, dut, secondary.LastRebootTime().State()).IsPresent() {
+		t.Errorf("secondary.LastRebootTime.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootTime := gnmi.Get(t, dut, primary.LastRebootTime().State())
+		lastrebootTime := gnmi.Get(t, dut, secondary.LastRebootTime().State())
 		t.Logf("Found lastRebootTime.GetDetails(): %v", lastrebootTime)
 	}
-	if !gnmi.Lookup(t, dut, primary.LastRebootReason().State()).IsPresent() {
-		t.Errorf("primary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
+	if !gnmi.Lookup(t, dut, secondary.LastRebootReason().State()).IsPresent() {
+		t.Errorf("secondary.LastRebootReason.().Lookup(t).IsPresent(): got false, want true")
 	} else {
-		lastrebootReason := gnmi.Get(t, dut, primary.LastRebootReason().State())
+		lastrebootReason := gnmi.Get(t, dut, secondary.LastRebootReason().State())
 		t.Logf("Found lastRebootReason.GetDetails(): %v", lastrebootReason)
 	}
 }
@@ -311,6 +313,7 @@ func TestSupFailure(t *testing.T) {
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	verifyTraffic(t, args.ate)
 
@@ -327,17 +330,8 @@ func TestSupFailure(t *testing.T) {
 		t.Fatalf("Controller %q did not become switchover-ready before test.", primaryBeforeSwitch)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: cmp.GetSubcomponentPath(secondaryBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	switchoverResponse := gnoi.Execute(t, dut, system.NewSwitchControlProcessorOperation().Path(cmp.GetSubcomponentPath(secondaryBeforeSwitch, deviations.GNOISubcomponentPath(dut))))
+	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v", switchoverResponse)
 
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
@@ -361,8 +355,8 @@ func TestSupFailure(t *testing.T) {
 
 	// Old secondary controller becomes primary after switchover.
 	primaryAfterSwitch := secondaryBeforeSwitch
-
-	validateTelemetry(t, dut, primaryAfterSwitch)
+	secondaryAfterSwitch := secondaryBeforeSwitch
+	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
 	// Assume Controller Switchover happened, ensure traffic flows without loss.
 	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
 	// Try starting the gribi client twice as switchover may reset the connection.

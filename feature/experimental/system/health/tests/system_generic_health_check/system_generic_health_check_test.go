@@ -24,10 +24,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"golang.org/x/exp/slices"
 
@@ -45,11 +45,13 @@ var (
 		ondatra.JUNIPER: "/var/core/",
 		ondatra.CISCO:   "/misc/disk1/",
 		ondatra.NOKIA:   "/var/core/",
+		ondatra.ARISTA:  "/var/core/",
 	}
 	vendorCoreFileNamePattern = map[ondatra.Vendor]*regexp.Regexp{
 		ondatra.JUNIPER: regexp.MustCompile(".*.tar.gz"),
 		ondatra.CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
 		ondatra.NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
+		ondatra.ARISTA:  regexp.MustCompile("/var/core/core.*"),
 	}
 )
 
@@ -61,7 +63,7 @@ const (
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
-func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient raw.GNOI, sysConfigTime uint64, retry bool) {
+func coreFileCheck(t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, sysConfigTime uint64, retry bool) {
 	t.Helper()
 	t.Log("Checking for core files on DUT")
 
@@ -136,7 +138,7 @@ func removeElement(list []string, element string) []string {
 func TestCheckForCoreFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	timestamp := uint64(time.Now().UTC().Unix())
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	coreFileCheck(t, dut, gnoiClient, timestamp, true)
 }
 
@@ -151,10 +153,14 @@ func TestComponentStatus(t *testing.T) {
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
+			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
+			if compMtyPresent && compMtyVal {
+				t.Skipf("INFO: Skip status check as %s is empty", component)
+			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
 			if !present {
 				t.Errorf("ERROR: Get component %s oper-status failed", component)
@@ -364,12 +370,23 @@ func TestNoQueueDrop(t *testing.T) {
 	for _, intf := range interfaces {
 		t.Run(intf, func(t *testing.T) {
 			qosInterface := gnmi.OC().Qos().Interface(intf)
+			if deviations.QOSInQueueDropCounterUnsupported(dut) {
+				t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
+				counters := gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State())
+				t.Logf("counters: %s", counters)
+				if len(counters) == 0 {
+					t.Errorf("%s Interface Queue Input Dropped packets Telemetry Value is not present", intf)
+				}
+				for queueID, dropPkt := range counters {
+					dropCount, present := dropPkt.Val()
+					if !present {
+						t.Errorf("%s Interface %s Telemetry Value is not present", intf, dropPkt.Path)
+					} else {
+						t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
+					}
+				}
+			}
 			cases := []testCase{
-				{
-					desc:     "Queue Input Dropped packets",
-					path:     "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State()),
-				},
 				{
 					desc:     "Queue Output Dropped packets",
 					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
@@ -580,6 +597,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 					t.Fatalf("ERROR: subIntf index value doesn't exist")
 				}
 				subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
+				IntfPath := gnmi.OC().Interface(intf)
 				subIntfState := gnmi.Get(t, dut, subIntfPath.State())
 				subIntf := subIntfState.GetName()
 
@@ -611,7 +629,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 						t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
 					}
 
-					counters := subIntfPath.Counters()
+					counters := IntfPath.Counters()
 					parentCounters := gnmi.OC().Interface(intf).Counters()
 
 					cases := []struct {
@@ -650,7 +668,7 @@ func TestInterfacesubIntfs(t *testing.T) {
 							parentCounter: parentCounters.InFcsErrors().State(),
 						},
 					}
-
+					t.Logf("Verifying counters for Interfaces: %s", interfaces)
 					for _, c := range cases {
 						t.Run(c.desc, func(t *testing.T) {
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {

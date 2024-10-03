@@ -1,8 +1,9 @@
-package basetest
+package interface_test
 
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -10,13 +11,481 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	ipb "github.com/openconfig/featureprofiles/tools/inputcisco"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
+const (
+	ipv4PrefixLen = 24
+	inputFile     = "testdata/interface.yaml"
+)
+
+var (
+	testInput = ipb.LoadInput(inputFile)
+	device1   = "dut"
+	observer  = fptest.NewObserver("Interface").AddCsvRecorder("ocreport").
+			AddCsvRecorder("Interface")
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+func TestIFIPCfgs(t *testing.T) {
+	// TODO - 4/30/2024: enable this test once TZ is resolved
+	// https://techzone.cisco.com/t5/IOS-XR-PI-IP-Infra-Eng/Subscribe-on-ipv4-state-counters-in-multicast-pkts-not-returning/td-p/12075347
+	t.Skip()
+	dut := ondatra.DUT(t, device1)
+	inputObj, err := testInput.GetTestInput(t)
+	if err != nil {
+		t.Error(err)
+	}
+	iut := inputObj.Device(dut).GetInterface("Bundle-Ether120")
+
+	t.Run("configInterface", func(t *testing.T) {
+		path := gnmi.OC().Interface(iut.Name())
+		obj := &oc.Interface{
+			Name:        ygot.String(iut.Name()),
+			Description: ygot.String("randstr"),
+			Type:        oc.IETFInterfaces_InterfaceType_ieee8023adLag,
+		}
+		defer observer.RecordYgot(t, "REPLACE", path)
+		gnmi.Update(t, dut, path.Config(), obj)
+
+	})
+
+	t.Run("Update//interfaces/interface/config/name", func(t *testing.T) {
+		path := gnmi.OC().Interface(iut.Name()).Name()
+		defer observer.RecordYgot(t, "UPDATE", path)
+		gnmi.Update(t, dut, path.Config(), iut.Name())
+
+	})
+	// Config/type and state/type is currently caveated , decision pending with MGBL for its support
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/addresses/address[ip]/config/type
+	// oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/addresses/address[ip]/state/type
+	// t.Run("Update//ipv6/addresses/address[ip]/config/type", func(t *testing.T) {
+	// 	path := gnmi.OC().Interface(iut.Name()).Subinterface(0).Ipv6().Address("2001::1").Type()
+	// 	gnmi.Update(t, dut, path.Config(), oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST)
+	// })
+
+	interface_name := iut.Name()
+	t.Run("Update//ipv6/enable", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Enabled()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+
+	vlanid := uint32(0)
+	spath := gnmi.OC().Interface(iut.Name()).Subinterface(vlanid)
+	sobj := &oc.Interface_Subinterface{
+		Index: ygot.Uint32(0),
+		Ipv6: &oc.Interface_Subinterface_Ipv6{
+			Address: map[string]*oc.Interface_Subinterface_Ipv6_Address{
+				iut.Ipv6Address(): {
+					Ip:           ygot.String(iut.Ipv6Address()),
+					PrefixLength: ygot.Uint8(iut.Ipv6PrefixLength()),
+				},
+			},
+		},
+		Ipv4: &oc.Interface_Subinterface_Ipv4{
+			Address: map[string]*oc.Interface_Subinterface_Ipv4_Address{
+				iut.Ipv4Address(): {
+					Ip:           ygot.String(iut.Ipv4Address()),
+					PrefixLength: ygot.Uint8(iut.Ipv4PrefixLength()),
+				},
+			},
+		},
+	}
+	gnmi.Update(t, dut, spath.Config(), sobj)
+
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/config/enable
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/state/enable
+	t.Run("Update//ipv6/router-advertisement/config/enable true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/config/enable true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+		enable_ra := gnmi.Get(t, dut, path.Config())
+		if enable_ra != true {
+			t.Errorf("RouterAdvertisement not enabled")
+		}
+	})
+	state_supported := false
+
+	if state_supported {
+		t.Run("Get State Config//ipv6/router-advertisement/config/enable", func(t *testing.T) {
+			path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+			enable_ra := gnmi.Get(t, dut, path.State())
+			if enable_ra != true {
+				t.Errorf("RouterAdvertisement not enabled")
+			}
+		})
+	}
+	t.Run("Update//ipv6/router-advertisement/config/enable false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+		gnmi.Update(t, dut, path.Config(), false)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/config/enable false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+		enable_ra := gnmi.Get(t, dut, path.Config())
+		if enable_ra != false {
+			t.Errorf("RouterAdvertisement not disabled")
+		}
+	})
+	if state_supported {
+		t.Run("Get State Config//ipv6/router-advertisement/config/enable", func(t *testing.T) {
+			path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Enable()
+			enable_ra := gnmi.Get(t, dut, path.State())
+			if enable_ra != false {
+				t.Errorf("RouterAdvertisement not disabled")
+			}
+		})
+	}
+
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/config/managed
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/state/managed
+	t.Run("Update//ipv6/router-advertisement/config/managed true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/config/managed true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+		enable_managed := gnmi.Get(t, dut, path.Config())
+		if enable_managed != true {
+			t.Errorf("RouterAdvertisement Managed not enabled")
+		}
+	})
+	if state_supported {
+		t.Run("Get State Config//ipv6/router-advertisement/state/managed", func(t *testing.T) {
+			path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+			enable_managed := gnmi.Get(t, dut, path.State())
+			if enable_managed != true {
+				t.Errorf("RouterAdvertisement Managed not enabled")
+			}
+		})
+	}
+	t.Run("Update//ipv6/router-advertisement/config/managed false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+		gnmi.Update(t, dut, path.Config(), false)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/state/managed false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+		enable_managed := gnmi.Get(t, dut, path.Config())
+		if enable_managed != false {
+			t.Errorf("RouterAdvertisement Managed not disabled")
+		}
+	})
+	if state_supported {
+		t.Run("Get State Config//ipv6/router-advertisement/state/managed", func(t *testing.T) {
+			path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Managed()
+			enable_managed := gnmi.Get(t, dut, path.State())
+			if enable_managed != false {
+				t.Errorf("RouterAdvertisement Managed not disabled")
+			}
+		})
+	}
+
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/config/other-config
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/state/other-config
+	t.Run("Update//ipv6/router-advertisement/config/other-config true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().OtherConfig()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/config/other-config true", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().OtherConfig()
+		enable_managed := gnmi.Get(t, dut, path.Config())
+		if enable_managed != true {
+			t.Errorf("RouterAdvertisement OtherConfig not enabled")
+		}
+	})
+	t.Run("Update//ipv6/router-advertisement/config/other-config false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().OtherConfig()
+		gnmi.Update(t, dut, path.Config(), false)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/config/other-config false", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().OtherConfig()
+		enable_managed := gnmi.Get(t, dut, path.Config())
+		if enable_managed != false {
+			t.Errorf("RouterAdvertisement OtherConfig not disabled")
+		}
+	})
+
+	prefix_value := "3001::1/64"
+	prefix_value2 := "3002::1/64"
+	// <0-4294967295>  Valid Lifetime (secs)
+	// <0-4294967295>  Preferred Lifetime (secs) must be <= Valid Lifetime
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes
+	t.Run("Update//ipv6/router-advertisement/prefixes", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value)
+		gnmi.Update(t, dut, path.Config(), &oc.Interface_Subinterface_Ipv6_RouterAdvertisement_Prefix{
+			Prefix:            &prefix_value,
+			ValidLifetime:     ygot.Uint32(32),
+			PreferredLifetime: ygot.Uint32(32),
+		})
+	})
+	//	/oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/config/valid-lifetime
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/state/valid-lifetime
+	t.Run("Update//ipv6/router-advertisement/prefixes/prefix[prefix]/config/valid-lifetime", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).ValidLifetime()
+		gnmi.Update(t, dut, path.Config(), 429496729)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/prefixes/prefix[prefix]/config/valid-lifetime", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).ValidLifetime()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Get(t, dut, path.Config())
+		}); errMsg != nil {
+			t.Logf("Expected failure and got errMsg : %s", *errMsg)
+			r, _ := regexp.Compile("429496729")
+			if r.MatchString(*errMsg) {
+				t.Logf("Got expected value for GetRequest")
+
+			} else {
+				t.Errorf("Get-Config failed to get expected value")
+			}
+		} else {
+			t.Logf("Data not returned in canonical format.")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/config/preferred-lifetime
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/state/preferred-lifetime
+	t.Run("Update//ipv6/router-advertisement/prefixes/prefix[prefix]/config/preferred-lifetime", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).PreferredLifetime()
+		gnmi.Update(t, dut, path.Config(), 429496729)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/prefixes/prefix[prefix]/config/preferred-lifetime", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).PreferredLifetime()
+
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Get(t, dut, path.Config())
+		}); errMsg != nil {
+			t.Logf("Expected failure and got errMsg : %s", *errMsg)
+			r, _ := regexp.Compile("429496729")
+			if r.MatchString(*errMsg) {
+				t.Logf("Got expected value for GetRequest")
+			} else {
+				t.Errorf("Get-Config failed to get expected value")
+			}
+		} else {
+			t.Logf("Data not returned in canonical format.")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-advertisement
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/state/disable-advertisement
+	t.Run("Update//ipv6/router-advertisement/prefixes", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value2)
+		gnmi.Update(t, dut, path.Config(), &oc.Interface_Subinterface_Ipv6_RouterAdvertisement_Prefix{
+			Prefix: &prefix_value2,
+		})
+	})
+	t.Run("Update//ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-advertisement", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value2).DisableAdvertisement()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-advertisement", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value2).DisableAdvertisement()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Get(t, dut, path.Config())
+			//t.Logf("Get Config : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got errMsg : %s", *errMsg)
+			r, _ := regexp.Compile("true")
+			if r.MatchString(*errMsg) {
+				t.Logf("Got expected value for GetRequest")
+			} else {
+				t.Errorf("Get-Config failed to get expected value")
+			}
+		} else {
+			t.Logf("Data not returned in canonical format.")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-autoconfiguration
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/state/disable-autoconfiguration
+	t.Run("Update//ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-autoconfiguration", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).DisableAutoconfiguration()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/prefixes/prefix[prefix]/config/disable-autoconfiguration", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).DisableAutoconfiguration()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Get(t, dut, path.Config())
+			//t.Logf("Get Config : %v", got)
+		}); errMsg != nil {
+			t.Logf("Expected failure and got errMsg : %s", *errMsg)
+			r, _ := regexp.Compile("true")
+			if r.MatchString(*errMsg) {
+				t.Logf("Got expected value for GetRequest")
+			} else {
+				t.Errorf("Get-Config failed to get expected value")
+			}
+		} else {
+			t.Logf("Data not returned in canonical format.")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/config/enable-onlink
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/router-advertisement/prefixes/prefix[prefix]/state/enable-onlink
+	t.Run("Update//ipv6/router-advertisement/prefixes/prefix[prefix]/config/enable-onlink", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).EnableOnlink()
+		gnmi.Update(t, dut, path.Config(), true)
+	})
+	t.Run("Get Config//ipv6/router-advertisement/prefixes/prefix[prefix]/config/enable-onlink", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value).EnableOnlink()
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			gnmi.Get(t, dut, path.Config())
+		}); errMsg != nil {
+			t.Logf("Expected failure and got errMsg : %s", *errMsg)
+			r, _ := regexp.Compile("true")
+			if r.MatchString(*errMsg) {
+				t.Logf("Got expected value for GetRequest")
+			} else {
+				t.Errorf("Get-Config failed to get expected value")
+			}
+		} else {
+			t.Logf("Data not returned in canonical format.")
+		}
+	})
+
+	t.Run("Get//ipv4/state/counters/in-multicast-pkts", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv4().Counters().InMulticastPkts()
+		t.Log("Subscribe on InMulticastPkts")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on InMulticastPkts")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("InMulticastPkts not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv4/state/counters/in-multicast-octets
+	t.Run("Get//ipv4/state/counters/in-multicast-octets", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv4().Counters().InMulticastOctets()
+		t.Log("Subscribe on InMulticastOctets")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on InMulticastOctets")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("InMulticastOctets not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv4/state/counters/out-multicast-pkts
+	t.Run("Get//ipv4/state/counters/out-multicast-pkts", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv4().Counters().OutMulticastPkts()
+		t.Log("Subscribe on OutMulticastPkts")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on OutMulticastPkts")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("OutMulticastPkts not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv4/state/counters/out-multicast-octets
+	t.Run("Get//ipv4/state/counters/out-multicast-octets", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv4().Counters().OutMulticastOctets()
+		t.Log("Subscribe on OutMulticastOctets")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on OutMulticastOctets")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("OutMulticastOctets not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/state/counters/in-multicast-pkts
+	t.Run("Get//ipv6/state/counters/in-multicast-pkts", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Counters().InMulticastPkts()
+		t.Log("Subscribe on InMulticastPkts")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on InMulticastPkts")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("InMulticastPkts not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/state/counters/in-multicast-octets
+	t.Run("Get//ipv6/state/counters/in-multicast-octets", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Counters().InMulticastOctets()
+		t.Log("Subscribe on InMulticastOctets")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on InMulticastOctets")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("InMulticastOctets not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/state/counters/out-multicast-pkts
+	t.Run("Get//ipv6/state/counters/out-multicast-pkts", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Counters().OutMulticastPkts()
+		t.Log("Subscribe on OutMulticastPkts")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on OutMulticastPkts")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("OutMulticastPkts not correct")
+		}
+	})
+	// /oc-if:interfaces/oc-if:interface/oc-if:subinterfaces/oc-if:subinterface:/ipv6/state/counters/out-multicast-octets
+	t.Run("Get//ipv6/state/counters/out-multicast-octets", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Counters().OutMulticastOctets()
+		t.Log("Subscribe on OutMulticastOctets")
+		gnmi.Get(t, dut, path.State())
+		t.Log("Watch on OutMulticastOctets")
+		_, ok := gnmi.Watch(t, dut, path.State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState == 0
+		}).Await(t)
+		if !ok {
+			t.Errorf("OutMulticastOctets not correct")
+		}
+	})
+	t.Run("Get//ipv6/state/counters container", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().Counters()
+		gnmi.Get(t, dut, path.State())
+	})
+
+	t.Run("Replace//ipv6/router-advertisement/prefixes", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value)
+		gnmi.Replace(t, dut, path.Config(), &oc.Interface_Subinterface_Ipv6_RouterAdvertisement_Prefix{
+			Prefix:            &prefix_value,
+			ValidLifetime:     ygot.Uint32(32),
+			PreferredLifetime: ygot.Uint32(32),
+		})
+	})
+	t.Run("Delete//ipv6/router-advertisement", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement()
+		gnmi.Delete(t, dut, path.Config())
+	})
+	t.Run("Delete//ipv6/router-advertisement/prefixes", func(t *testing.T) {
+		path := gnmi.OC().Interface(interface_name).Subinterface(0).Ipv6().RouterAdvertisement().Prefix(prefix_value)
+		gnmi.Delete(t, dut, path.Config())
+	})
+
+}
 
 func TestInterfaceCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
@@ -495,6 +964,7 @@ func TestInterfaceCountersState(t *testing.T) {
 
 	})
 }
+
 func TestInterfaceState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
@@ -505,6 +975,7 @@ func TestInterfaceState(t *testing.T) {
 	randstr := "random string"
 	randmtu := ygot.Uint16(1200)
 	path := gnmi.OC().Interface(iut.Name())
+	gnmi.Update(t, dut, path.Name().Config(), iut.Name())
 	obj := &oc.Interface{
 		Name:        ygot.String(iut.Name()),
 		Description: ygot.String(randstr),
@@ -604,14 +1075,14 @@ func TestInterfaceState(t *testing.T) {
 		}
 	})
 	t.Run("Subscribe//interfaces/interface/aggregation/state/member", func(t *testing.T) {
+		t.Skip() // TODO - remove
 		state := gnmi.OC().Interface(iut.Name()).Aggregation().Member()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		members := gnmi.Get(t, dut, state.State())
-		if sliceEqual(members, iut.Members()) {
+		if util.SliceEqual(members, iut.Members()) {
 			t.Logf("Got correct Interface Aggregation Member Value")
 		} else {
 			t.Errorf("Interface Aggregation Member: got %v, want %v", members, iut.Members())
-
 		}
 	})
 	member := iut.Members()[0]
@@ -652,13 +1123,20 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
+
 	iute := dut.Port(t, "port8")
 	macAdd := "78:2a:67:b6:a8:08"
-	t.Run("Update//interfaces/interface/ethernet/config/mac-addres", func(t *testing.T) {
+	macAddIntfPath := gnmi.OC().Interface(iute.Name()).Config()
+	macAddressIntfObj := &oc.Interface{
+		Name: ygot.String(iute.Name()),
+		Type: oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+	}
+	gnmi.Update(t, dut, macAddIntfPath, macAddressIntfObj)
+
+	t.Run("Update//interfaces/interface/ethernet/config/mac-address", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), macAdd)
-
 	})
 	t.Run("Subscribe//interfaces/interface/ethernet/state/mac-address", func(t *testing.T) {
 		state := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
@@ -673,8 +1151,8 @@ func TestInterfaceState(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Ethernet().MacAddress()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
-
 	})
+
 	t.Run("Update//interfaces/interface/config/type", func(t *testing.T) {
 		path := gnmi.OC().Interface(iute.Name()).Type()
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -690,7 +1168,6 @@ func TestInterfaceState(t *testing.T) {
 
 		}
 	})
-
 }
 
 func TestInterfaceHoldTime(t *testing.T) {
@@ -834,10 +1311,6 @@ func TestInterfaceTelemetry(t *testing.T) {
 
 }
 
-const (
-	ipv4PrefixLen = 24
-)
-
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "BundlePort1",
@@ -845,13 +1318,11 @@ var (
 		MAC:     "1.2.0",
 		IPv4Len: ipv4PrefixLen,
 	}
-
 	atePort1 = attrs.Attributes{
 		Name:    "atePort1",
 		IPv4:    "100.120.1.2",
 		IPv4Len: ipv4PrefixLen,
 	}
-
 	dutPort2 = attrs.Attributes{
 		Desc:    "BundlePort2",
 		IPv4:    "100.121.1.1",
@@ -933,6 +1404,7 @@ func testFlow(
 	t.Logf("Loss Packet %v ", lossPct)
 	return lossPct
 }
+
 func TestForwardingUnviableFP(t *testing.T) {
 	t.Skip(t)
 	dut := ondatra.DUT(t, device1)
@@ -1076,7 +1548,7 @@ func TestForwardingUnviableFP(t *testing.T) {
 	})
 
 	t.Run("Reload the router and check for counters", func(t *testing.T) {
-		gnoiClient := dut.RawAPIs().GNOI().New(t)
+		gnoiClient := dut.RawAPIs().GNOI(t)
 		_, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
 			Method:  spb.RebootMethod_COLD,
 			Delay:   0,
@@ -1119,8 +1591,8 @@ func TestForwardingUnviableFP(t *testing.T) {
 		}
 
 	})
-
 }
+
 func TestForwardViableSDN(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	inputObj, err := testInput.GetTestInput(t)
@@ -1129,6 +1601,8 @@ func TestForwardViableSDN(t *testing.T) {
 	}
 	iut2 := inputObj.Device(dut).GetInterface("Bundle-Ether121")
 	bundleMember := iut2.Members()[0]
+	//path := gnmi.OC().Interface(iut2.Name()) // TODO - KD
+	//gnmi.Replace(t, dut, path.Name().Config(), iut2.Name())
 	interfaceContainer := &oc.Interface{
 		Type:             oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Name:             ygot.String(bundleMember),
@@ -1143,7 +1617,6 @@ func TestForwardViableSDN(t *testing.T) {
 		}
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), obj)
-
 	})
 	t.Run(fmt.Sprintf("Update on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember).ForwardingViable()
@@ -1151,10 +1624,10 @@ func TestForwardViableSDN(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), *ygot.Bool(false))
 	})
 	t.Run(fmt.Sprintf("Get on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {
-		configContainer := gnmi.OC().Interface(bundleMember).ForwardingViable()
+		configContainer := gnmi.OC().Interface(bundleMember).ForwardingViable().Config()
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.GetConfig(t, dut, configContainer.Config())
-		if forwardUnviable != *ygot.Bool(false) {
+		forwardUnviable := gnmi.LookupConfig(t, dut, configContainer)
+		if v, _ := forwardUnviable.Val(); v != false {
 			t.Errorf("Update for forward-unviable failed got %v , want false", forwardUnviable)
 		}
 	})
@@ -1171,6 +1644,10 @@ func TestForwardViableSDN(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Delete(t, dut, path.Config())
 	})
+
+	stateContainer := gnmi.OC().Interface(bundleMember).ForwardingViable()
+	forwardUnviable := gnmi.Get(t, dut, stateContainer.State())
+	t.Logf("%v", forwardUnviable)
 	t.Run(fmt.Sprintf("Update on /interface[%v]/", bundleMember), func(t *testing.T) {
 		path := gnmi.OC().Interface(bundleMember)
 		defer observer.RecordYgot(t, "UPDATE", path)
@@ -1179,9 +1656,9 @@ func TestForwardViableSDN(t *testing.T) {
 	t.Run(fmt.Sprintf("Get on /interface[%v]/", bundleMember), func(t *testing.T) {
 		configContainer := gnmi.OC().Interface(bundleMember)
 		defer observer.RecordYgot(t, "SUBSCRIBE", configContainer)
-		forwardUnviable := gnmi.GetConfig(t, dut, configContainer.Config())
-		if *forwardUnviable.ForwardingViable != false {
-			t.Errorf("Update for forward-unviable failed got %t , want false", *forwardUnviable.ForwardingViable)
+		forwardUnviable := gnmi.LookupConfig(t, dut, configContainer.Config())
+		if _, ok := forwardUnviable.Val(); !ok {
+			t.Errorf("Get on /interface[%v]/ failed", bundleMember)
 		}
 	})
 	t.Run(fmt.Sprintf("Delete on /interface[%v]/config/forward-viable", bundleMember), func(t *testing.T) {

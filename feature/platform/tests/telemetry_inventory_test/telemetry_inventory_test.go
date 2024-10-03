@@ -17,9 +17,11 @@ package telemetry_inventory_test
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -32,6 +34,7 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Fabric":      oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC,
 	"Linecard":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
 	"Fan":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN,
+	"Fan Tray":    oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY,
 	"PowerSupply": oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY,
 	"Supervisor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD,
 	"SwitchChip":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT,
@@ -41,25 +44,60 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"Storage":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_STORAGE,
 }
 
+// validInstallComponentTypes indicates for each component type, which types of
+// install-component it can have (i.e., what types of components can it be installed into).
+var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Type_Union]bool{
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS:  true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FAN_TRAY: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_POWER_SUPPLY: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
+		// Sometimes the parent is the power tray, which has type FRU.
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU: true,
+	},
+	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER: {
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS:  true,
+		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD: true,
+	},
+}
+
 // use this map to cache related components used in subtests to run the test faster.
 var componentsByType map[string][]*oc.Component
 
 // Define a superset of the checklist for each component
 type properties struct {
-	descriptionValidation bool
-	idValidation          bool
-	nameValidation        bool
-	partNoValidation      bool
-	serialNoValidation    bool
-	mfgNameValidation     bool
-	mfgDateValidation     bool
-	swVerValidation       bool
-	hwVerValidation       bool
-	fwVerValidation       bool
-	rrValidation          bool
-	operStatus            oc.E_PlatformTypes_COMPONENT_OPER_STATUS
-	parentValidation      bool
-	pType                 oc.Component_Type_Union
+	descriptionValidation                 bool
+	idValidation                          bool
+	installPositionAndComponentValidation bool
+	nameValidation                        bool
+	partNoValidation                      bool
+	serialNoValidation                    bool
+	mfgNameValidation                     bool
+	mfgDateValidation                     bool
+	// If modelNameValidation is being used, the /components/component/state/model-name
+	// of the chassis component must be equal to the ondatra hardware_model name
+	// of its device.
+	modelNameValidation bool
+	swVerValidation     bool
+	hwVerValidation     bool
+	fwVerValidation     bool
+	rrValidation        bool
+	operStatus          oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	parentValidation    bool
+	pType               oc.Component_Type_Union
 }
 
 func TestMain(m *testing.M) {
@@ -78,6 +116,7 @@ func TestMain(m *testing.M) {
 //   - Fabric card
 //   - FabricChip
 //   - Fan
+//   - Fan Tray
 //   - Supervisor or Controller
 //   - Validate telemetry components/component/state/software-version.
 //   - SwitchChip
@@ -86,11 +125,14 @@ func TestMain(m *testing.M) {
 //   - integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 //   - integrated-circuit/backplane-facing-capacity/state/total
 //   - integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+//   - components/component/subcomponents/subcomponent/name
+//   - components/component/subcomponents/subcomponent/state/name
 //   - Transceiver
 //   - Storage
 //   - Validate telemetry /components/component/storage exists.
 //   - TempSensor
 //   - Validate telemetry /components/component/state/temperature/instant exists.
+//	 - Validate telemetry /components/component/state/model-name for Chassis.
 //
 // Topology:
 //
@@ -129,8 +171,9 @@ func TestHardwareCards(t *testing.T) {
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     false,
+				mfgNameValidation:     true,
 				mfgDateValidation:     false,
+				modelNameValidation:   true,
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
@@ -141,19 +184,20 @@ func TestHardwareCards(t *testing.T) {
 		}, {
 			desc: "Fabric",
 			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["Fabric"],
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Fabric"],
 			},
 		}, {
 			desc: "Fan",
@@ -169,78 +213,99 @@ func TestHardwareCards(t *testing.T) {
 				fwVerValidation:       false,
 				rrValidation:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      false,
+				parentValidation:      true,
 				pType:                 componentType["Fan"],
 			},
 		}, {
-			desc: "Linecard",
+			desc: "Fan Tray",
 			cardFields: properties{
 				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["Linecard"],
-			},
-		}, {
-			desc: "PowerSupply",
-			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["PowerSupply"],
-			},
-		}, {
-			desc: "Supervisor",
-			cardFields: properties{
-				descriptionValidation: true,
-				idValidation:          true,
-				nameValidation:        true,
-				partNoValidation:      true,
-				serialNoValidation:    true,
-				mfgNameValidation:     true,
-				mfgDateValidation:     false,
-				swVerValidation:       false,
-				hwVerValidation:       true,
-				fwVerValidation:       false,
-				rrValidation:          true,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
-				parentValidation:      true,
-				pType:                 componentType["Supervisor"],
-			},
-		}, {
-			desc: "Transceiver",
-			cardFields: properties{
-				descriptionValidation: false,
 				idValidation:          false,
 				nameValidation:        true,
 				partNoValidation:      true,
 				serialNoValidation:    true,
-				mfgNameValidation:     true,
+				mfgNameValidation:     false,
 				mfgDateValidation:     false,
-				swVerValidation:       false,
-				hwVerValidation:       true,
-				fwVerValidation:       true,
+				hwVerValidation:       false,
+				fwVerValidation:       false,
 				rrValidation:          false,
-				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
-				parentValidation:      false,
-				pType:                 componentType["Transceiver"],
+				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:      true,
+				pType:                 componentType["Fan Tray"],
+			},
+		}, {
+			desc: "Linecard",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD,
+			},
+		}, {
+			desc: "PowerSupply",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["PowerSupply"],
+			},
+		}, {
+			desc: "Supervisor",
+			cardFields: properties{
+				descriptionValidation:                 true,
+				idValidation:                          true,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				swVerValidation:                       false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       false,
+				rrValidation:                          true,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+				parentValidation:                      true,
+				pType:                                 componentType["Supervisor"],
+			},
+		}, {
+			desc: "Transceiver",
+			cardFields: properties{
+				descriptionValidation:                 false,
+				idValidation:                          false,
+				installPositionAndComponentValidation: true,
+				nameValidation:                        true,
+				partNoValidation:                      true,
+				serialNoValidation:                    true,
+				mfgNameValidation:                     true,
+				mfgDateValidation:                     false,
+				swVerValidation:                       false,
+				hwVerValidation:                       true,
+				fwVerValidation:                       true,
+				rrValidation:                          false,
+				operStatus:                            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
+				parentValidation:                      false,
+				pType:                                 componentType["Transceiver"],
 			},
 		}, {
 			desc: "Cpu",
@@ -285,6 +350,16 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
+			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
+				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Supervisor" && *args.NumControllerCards <= 0 {
+				t.Skip("Skip Supervisor Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Fan Tray" && *args.NumFanTrays == 0 {
+				t.Skip("Skip Fan Tray Telemetry check for fixed form factor devices.")
+			} else if tc.desc == "Fan" && *args.NumFans == 0 {
+				t.Skip("Skip Fan Telemetry check for fixed form factor devices.")
 			}
 			cards := components[tc.desc]
 			t.Logf("%s components count: %d", tc.desc, len(cards))
@@ -343,6 +418,9 @@ func isCompNameExpected(t *testing.T, name, regexpPattern string) bool {
 }
 
 func TestSwitchChip(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip SwitchChip Telemetry check for fixed form factor devices.")
+	}
 	dut := ondatra.DUT(t, "dut")
 
 	cardFields := properties{
@@ -488,6 +566,61 @@ func TestTempSensor(t *testing.T) {
 	}
 }
 
+func TestControllerCardEmpty(t *testing.T) {
+	if *args.NumControllerCards <= 0 {
+		t.Skip("Skip ControllerCardEmpty Telemetry check for fixed form factor devices.")
+	}
+
+	dut := ondatra.DUT(t, "dut")
+	controllerCards := findComponentsListByType(t, dut)["Supervisor"]
+	if len(controllerCards) == 0 {
+		t.Fatalf("Get ControllerCard list for %q: got 0, want > 0", dut.Model())
+	}
+
+	t.Logf("ControllerCard components count: %d", len(controllerCards))
+
+	nonEmptyControllerCards := 0
+	for _, controllerCard := range controllerCards {
+		if controllerCard.Name == nil {
+			t.Errorf("Encountered a ControllerCard with no Name")
+			continue
+		}
+
+		sName := controllerCard.GetName()
+		t.Run(sName, func(t *testing.T) {
+			t.Logf("ControllerCard %s Id: %s", sName, controllerCard.GetId())
+
+			if !controllerCard.GetEmpty() {
+				nonEmptyControllerCards++
+			}
+		})
+	}
+
+	if got, want := nonEmptyControllerCards, *args.NumControllerCards; got != want {
+		t.Errorf("Number of non-empty ControllerCard: got %d, want %d", got, want)
+	}
+}
+
+// validateSubcomponentsExistAsComponents checks that if the given component has subcomponents, that
+// those subcomponents exist as components on the device (i.e. the leafref is valid).
+func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Component, t *testing.T, dut *ondatra.DUTDevice) {
+	cName := c.GetName()
+	subcomponentsValue := gnmi.Lookup(t, dut, gnmi.OC().Component(cName).SubcomponentMap().State())
+	subcomponents, ok := subcomponentsValue.Val()
+	if !ok {
+		// Not all components have subcomponents
+		// If the component doesn't have subcomponent, skip the check and return early
+		return
+	}
+	for _, subc := range subcomponents {
+		subcName := subc.GetName()
+		subComponent := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).State())
+		if !subComponent.IsPresent() {
+			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
+		}
+	}
+}
+
 func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Component, p properties) {
 	var validCards []*oc.Component
 	switch p.pType {
@@ -512,13 +645,19 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 		}
 		cName := card.GetName()
 		t.Run(cName, func(t *testing.T) {
+			validateSubcomponentsExistAsComponents(card, validCards, t, dut)
 			if p.descriptionValidation {
 				t.Logf("Component %s Description: %s", cName, card.GetDescription())
 				if card.GetDescription() == "" {
 					t.Errorf("Component %s Description: got empty string, want non-empty string", cName)
 				}
 			}
-
+			if card.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+				t.Logf("Component %s linecard/state/slot-id: %s", cName, card.GetLinecard().GetSlotId())
+				if card.GetLinecard().GetSlotId() == "" {
+					t.Errorf("Component %s LineCard SlotID: got empty string, want non-empty string", cName)
+				}
+			}
 			if p.idValidation {
 				if deviations.SwitchChipIDUnsupported(dut) {
 					t.Logf("Skipping check for Id due to deviation SwitChipIDUnsupported")
@@ -528,6 +667,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					if id == "" {
 						t.Errorf("Component %s Id: got empty string, want non-empty string", cName)
 					}
+				}
+			}
+
+			if p.installPositionAndComponentValidation && !deviations.InstallPositionAndInstallComponentUnsupported(dut) {
+				// If the component has a location and is removable, then it needs to have install-component
+				// and install-position.
+				if card.GetLocation() != "" && card.GetRemovable() {
+					testInstallComponentAndInstallPosition(t, card, validCards)
 				}
 			}
 
@@ -651,8 +798,18 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.fwVerValidation {
 				fwVer := card.GetFirmwareVersion()
 				t.Logf("Component %s FirmwareVersion: %s", cName, fwVer)
+
+				isTransceiver := card.GetType() == componentType["Transceiver"]
+				is400G := false
+				if isTransceiver {
+					is400G = strings.Contains(card.GetTransceiver().GetEthernetPmd().String(), "ETH_400GBASE")
+				}
 				if fwVer == "" {
-					t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					if isTransceiver && !is400G {
+						t.Logf("Skipping firmware-version check for %s transceiver", card.GetTransceiver().GetEthernetPmd().String())
+					} else {
+						t.Errorf("Component %s FirmwareVersion: got empty string, want non-empty string", cName)
+					}
 				}
 			}
 
@@ -684,8 +841,9 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 						t.Errorf("Component %s Parent: Chassis component NOT found in the hierarchy tree of component", cName)
 						break
 					}
-					parentType := gnmi.Get(t, dut, gnmi.OC().Component(parent).Type().State())
-					if parentType == componentType["Chassis"] {
+					pLoookup := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).Type().State())
+					parentType, present := pLoookup.Val()
+					if present && parentType == componentType["Chassis"] {
 						t.Logf("Component %s Parent: Found chassis component in the hierarchy tree of component", cName)
 						break
 					}
@@ -697,6 +855,14 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				}
 			}
 
+			if p.modelNameValidation {
+				if deviations.ModelNameUnsupported(dut) {
+					t.Logf("Telemetry path /components/component/state/model-name is not supported due to deviation ModelNameUnsupported. Skipping model name validation.")
+				} else if card.GetModelName() != dut.Model() {
+					t.Errorf("Component %s ModelName: got %s, want %s (dut's hardware model)", cName, card.GetModelName(), dut.Model())
+				}
+			}
+
 			if p.pType != nil {
 				ptype := card.GetType()
 				t.Logf("Component %s Type: %v", cName, ptype)
@@ -705,6 +871,38 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				}
 			}
 		})
+	}
+}
+
+func testInstallComponentAndInstallPosition(t *testing.T, c *oc.Component, components []*oc.Component) {
+	icName := c.GetInstallComponent()
+	ip := c.GetInstallPosition()
+	hasInstallComponentAndPosition(t, c, icName, ip)
+	validateInstallComponent(t, icName, components, c)
+}
+
+func validateInstallComponent(t *testing.T, icName string, components []*oc.Component, c *oc.Component) {
+	compMap := compNameMap(t, ondatra.DUT(t, "dut"))
+	ic, ok := compMap[icName]
+	if !ok {
+		t.Errorf("Component %s's install-component %s is not in component tree", icName, c.GetName())
+		return
+	}
+	validTypes := validInstallComponentTypes[c.GetType()]
+	icType := ic.GetType()
+	if !validTypes[icType] {
+		t.Errorf("Component %s's install-component %s is not a supported parent type (%s)", c.GetName(), icName, icType)
+	}
+}
+
+func hasInstallComponentAndPosition(t *testing.T, c *oc.Component, icName string, ip string) {
+	if icName == "" {
+		t.Errorf("Component %s is missing install-component", c.GetName())
+		return
+	}
+	if ip == "" {
+		t.Errorf("Component %s is missing install-position", c.GetName())
+		return
 	}
 }
 
@@ -740,4 +938,144 @@ func TestLinecardConfig(t *testing.T) {
 func TestHeatsinkTempSensor(t *testing.T) {
 	// TODO: Add heatsink-temperature-sensor test case here once supported.
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
+}
+
+// Creates a map of component Name to corresponding Component OC object.
+func compNameMap(t *testing.T, dut *ondatra.DUTDevice) map[string]*oc.Component {
+	compMap := make(map[string]*oc.Component)
+	for _, c := range gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		compMap[c.GetName()] = c
+	}
+	return compMap
+}
+
+func TestInterfaceComponentHierarchy(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	compMap := compNameMap(t, dut)
+
+	// Map of populated Transceivers to a random integer.
+	transceivers := make(map[string]int)
+	tvs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER)
+	for idx, tv := range tvs {
+		if compMap[tv].GetMfgName() == "" {
+			continue
+		}
+		transceivers[compMap[tv].GetName()] = idx
+	}
+
+	numHardwareIntfs := 0
+	integratedCircuits := make(map[string]*oc.Component)
+
+	t.Run("Interface to Integrated Circuit mapping", func(t *testing.T) {
+		for _, intf := range gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State()) {
+			if intf.GetHardwarePort() == "" {
+				continue
+			}
+			if _, ok := transceivers[intf.GetTransceiver()]; !ok {
+				continue
+			}
+			t.Run(intf.GetHardwarePort(), func(t *testing.T) {
+				numHardwareIntfs++
+				c, ok := compMap[intf.GetHardwarePort()]
+				if !ok {
+					t.Fatalf("Couldn't find interface hardware port(%s) in component tree for port: %s", intf.GetHardwarePort(), intf.GetName())
+				}
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				integratedCircuits[c.GetName()] = c
+			})
+		}
+	})
+	if len(integratedCircuits) == 0 {
+		t.Fatalf("Couldn't find integrated circuits for %q", dut.Model())
+	}
+	chassis := make(map[string]*oc.Component)
+	t.Run("Integrated Circuit to Chassis mapping", func(t *testing.T) {
+		for _, ic := range integratedCircuits {
+			t.Run(ic.GetName(), func(t *testing.T) {
+				c, ok := ic, true
+				for {
+					if c.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS {
+						break
+					}
+					if c.GetParent() == "" {
+						t.Fatalf("Couldn't get parent for component: %s", c.GetName())
+					}
+					c, ok = compMap[c.GetParent()]
+					if !ok {
+						t.Fatalf("Couldn't find parent component(%s) for component: %s", c.GetParent(), c.GetName())
+					}
+				}
+				chassis[c.GetName()] = c
+			})
+		}
+	})
+	if len(chassis) == 0 {
+		t.Fatalf("Couldn't find chassis for %q", dut.Model())
+	}
+}
+
+func TestDefaultPowerAdminState(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	fabrics := []*oc.Component{}
+	linecards := []*oc.Component{}
+	supervisors := []*oc.Component{}
+
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	for compName := range componentType {
+		for _, c := range components {
+			if c.GetType() == nil || c.GetType() != componentType[compName] {
+				continue
+			}
+			switch compName {
+			case "Fabric":
+				fabrics = append(fabrics, c)
+			case "Linecard":
+				linecards = append(linecards, c)
+			case "Supervisor":
+				supervisors = append(supervisors, c)
+			}
+		}
+	}
+
+	t.Logf("Fabrics: %v", fabrics)
+	t.Logf("Linecards: %v", linecards)
+	t.Logf("Supervisors: %v", supervisors)
+
+	if len(fabrics) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
+		}
+	}
+
+	if len(linecards) != 0 {
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
+		if pas == oc.Platform_ComponentPowerType_UNSET {
+			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
+		}
+	}
+	if !deviations.SkipControllerCardPowerAdmin(dut) {
+		if len(supervisors) != 0 {
+			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+			t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
+			if pas == oc.Platform_ComponentPowerType_UNSET {
+				t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+			}
+		}
+	}
 }

@@ -101,7 +101,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Errorf("Get the number of intfsOperStatusUP interfaces for %q: got %v, want > %v", dut.Name(), got, want)
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().New(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	switchoverRequest := &spb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),

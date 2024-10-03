@@ -15,11 +15,3 @@ platform_exceptions: {
     explicit_interface_ref_definition: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: NOKIA
-  }
-  deviations: {
-    explicit_interface_ref_definition: true
-  }
-}

@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	confFlag   = flag.String("conf", "", "CLI configuration file")
-	updateFlag = flag.Bool("update", false, "Perform Update instead of Replace")
+	confFlag      = flag.String("conf", "", "CLI configuration file")
+	dutIdFlag     = flag.String("dut", "dut", "DUT id (default: dut)")
+	updateFlag    = flag.Bool("update", false, "Perform Update instead of Replace (default: false)")
+	ignoreErrFlag = flag.Bool("ignore_set_err", false, "Ignore set request errors (default: false)")
 )
 
 func TestMain(m *testing.M) {
@@ -26,7 +28,7 @@ func TestSetConf(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	dut := ondatra.DUT(t, "dut")
+	dut := ondatra.DUT(t, *dutIdFlag)
 
 	b, err := os.ReadFile(*confFlag)
 	if err != nil {
@@ -34,6 +36,8 @@ func TestSetConf(t *testing.T) {
 	}
 
 	conf := string(b)
+	t.Logf("%v", conf)
+
 	updateRequest := &gnmi.Update{
 		Path: &gnmi.Path{
 			Origin: "cli",
@@ -52,8 +56,13 @@ func TestSetConf(t *testing.T) {
 		setRequest.Replace = []*gnmi.Update{updateRequest}
 	}
 
-	gnmiClient := dut.RawAPIs().GNMI().New(t)
+	gnmiClient := dut.RawAPIs().GNMI(t)
 	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
-		t.Fatalf("gNMI set request failed: %v", err)
+		if *ignoreErrFlag {
+			t.Logf("gNMI set request failed: %v", err)
+		} else {
+			t.Fatalf("gNMI set request failed: %v", err)
+		}
+
 	}
 }

@@ -1,6 +1,6 @@
 name: qos-ate 
 owners: 
-  - saarvind
+  - suredhar
 testbeds:
   - 8812-FOC2326NBZB
 tests:

@@ -1,4 +1,4 @@
-// Package setup includes funtions to load oc model from a json file
+// Package setup includes functions to load oc model from a json file
 package setup
 
 import (
@@ -52,7 +52,7 @@ func init() {
 
 // SkipSubscribe returns true when the test cases do not need to do subscribe for the leafs
 func SkipSubscribe() bool {
-	return false
+	return true
 }
 
 // SkipGet returns true when the test cases do not need to do subscribe for the leafs

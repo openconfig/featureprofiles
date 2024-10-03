@@ -1,0 +1,29 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "b960ced4-2f59-49bf-b078-e53f169fac06"
+plan_id: "RT-1.19"
+description: "BGP 2-Byte and 4-Byte ASN support"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    omit_l2_mtu: true
+    network_instance_table_deletion_required: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+  }
+}
+tags: TAGS_AGGREGATION

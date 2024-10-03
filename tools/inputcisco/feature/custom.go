@@ -22,7 +22,7 @@ func readJSON(fp string) (string, error) {
 
 // ConfigJSON configures a json request over gnmi
 func ConfigJSON(dev *ondatra.DUTDevice, t *testing.T, fp string) error {
-	client := dev.RawAPIs().GNMI().New(t)
+	client := dev.RawAPIs().GNMI(t)
 	rawjson, err := readJSON(fp)
 	if err != nil {
 		t.Errorf("Unable to read json config file %s %v", fp, err)

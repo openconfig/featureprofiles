@@ -14,7 +14,7 @@ This document specifies the requirements for p4rt test implementation.
     function, which sets up the `StreamTermErr` channel required to check errors
     when the p4rt stream terminates.
 
-4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT().Default(t)`
+4.  Tests should make use of Ondatra Raw API `dut.RawAPIs().P4RT(t)`
     during client instantiation.
 
 5.  Tests should log Stream Termination errors populated in the
@@ -51,6 +51,10 @@ This document specifies the requirements for p4rt test implementation.
     implementation already exists in `p4rtutils` library:
     `p4rtutils.P4RTNodesByPort()`.
 
-7.  If P4RT Node Names cannot be resolved by walking the Components tree, use
-    deviation flag `--deviation_explicit_p4rt_node_component` and pass the node
-    names through args `--arg_p4rt_node_name_1`, `--arg_p4rt_node_name_2`.
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+```yaml
+
+```

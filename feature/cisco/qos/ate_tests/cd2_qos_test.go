@@ -136,8 +136,8 @@ func ClearQosCounter(ctx context.Context, t *testing.T, args *testArgs) {
 	//defer flushServer(t, args)
 	t.Logf("clear qos counters on all interfaces")
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-	t.Logf(resp, err)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
 	t.Logf("sleeping after clearing qos counters")
 	time.Sleep(3 * time.Minute)
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
@@ -475,8 +475,8 @@ func testQoswrrdeladdseq(ctx context.Context, t *testing.T, args *testArgs) {
 	weights := []float64{10 * 15, 20 * 15, 30 * 15, 10 * 85, 20 * 85, 30 * 85, 40 * 85}
 	t.Logf("clear qos counters on all interfaces")
 	cliHandle := args.dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-	t.Logf(resp, err)
+	resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+	t.Logf(resp.Output(), err)
 	t.Logf("sleeping after clearing qos counters")
 	time.Sleep(3 * time.Minute)
 	srcEndPoint := args.top.Interfaces()[atePort1.Name]
@@ -708,8 +708,8 @@ func testSchedulergoog1p(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp, err)
+		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+		t.Logf(resp.Output(), err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
@@ -819,8 +819,8 @@ func testSchedulergoog2p(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp, err)
+		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+		t.Logf(resp.Output(), err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
@@ -904,8 +904,8 @@ func testSchedulergoog2pwrr(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 		t.Logf("clear qos counters on all interfaces")
 		cliHandle := args.dut.RawAPIs().CLI(t)
-		resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
-		t.Logf(resp, err)
+		resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
+		t.Logf(resp.Output(), err)
 		t.Logf("sleeping after clearing qos counters")
 		time.Sleep(3 * time.Minute)
 	}
@@ -1079,7 +1079,7 @@ func testSchedulergoog2pburst(ctx context.Context, t *testing.T, args *testArgs)
 		// }
 		// t.Logf("clear qos counters on all interfaces")
 		// cliHandle := args.dut.RawAPIs().CLI(t)
-		// resp, err := cliHandle.SendCommand(context.Background(), "clear qos counters interface all")
+		// resp, err := cliHandle.RunCommand(context.Background(), "clear qos counters interface all")
 		// t.Logf(resp, err)
 		// t.Logf("sleeping after clearing qos counters")
 		// time.Sleep(3 * time.Minute)
@@ -1097,30 +1097,36 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		q1.Name = ygot.String(queue)
 		queueid := 7 - i
 		q1.QueueId = ygot.Uint8(uint8(queueid))
-		//gnmi.Update(t, dut, gnmi.OC().Qos().Queue(*q1.Name).Config(), q1)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	var schedulerPolName = "eg_policy1111"
 	priorqueues := []string{"tc7", "tc6"}
 	schedulerpol := qos.GetOrCreateSchedulerPolicy("eg_policy1111")
-	schedule := schedulerpol.GetOrCreateScheduler(1)
-	schedule.Priority = oc.Scheduler_Priority_STRICT
+	schedule := make(map[uint32]*oc.Qos_SchedulerPolicy_Scheduler)
+	schedule1 := schedulerpol.GetOrCreateScheduler(1)
+	schedule[1] = schedule1
+	schedule1.Priority = oc.Scheduler_Priority_STRICT
 	var ind uint64
 	ind = 0
 	for _, schedqueue := range priorqueues {
-		input := schedule.GetOrCreateInput(schedqueue)
+		input := schedule1.GetOrCreateInput(schedqueue)
 		input.Id = ygot.String(schedqueue)
 		input.Weight = ygot.Uint64(7 - ind)
 		input.Queue = ygot.String(schedqueue)
 		ind += 1
 	}
-	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(1)
-	gnmi.Replace(t, dut, configprior.Config(), schedule)
-	configGotprior := gnmi.GetConfig(t, dut, configprior.Config())
-	if diff := cmp.Diff(*configGotprior, *schedule); diff != "" {
+	configprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name)
+	gnmi.Replace(t, dut, configprior.Config(), &oc.Qos_SchedulerPolicy{
+		Name:      &schedulerPolName,
+		Scheduler: schedule,
+	})
+	configGotprior := gnmi.Get(t, dut, configprior.Scheduler(1).Config())
+	if diff := cmp.Diff(*configGotprior, *schedule1); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
 	nonpriorqueues := []string{"tc5", "tc4", "tc3", "tc2", "tc1"}
 	schedulenonprior := schedulerpol.GetOrCreateScheduler(2)
+	schedule[1] = schedulenonprior
 	schedulenonprior.Priority = oc.Scheduler_Priority_UNSET
 	var weight uint64
 	weight = 0
@@ -1131,8 +1137,11 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		inputwrr.Weight = ygot.Uint64(60 - weight)
 		weight += 10
 		configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
-		gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		gnmi.Update(t, dut, configprior.Config(), &oc.Qos_SchedulerPolicy{
+			Name:      &schedulerPolName,
+			Scheduler: schedule,
+		})
+		configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 			t.Errorf("Config Input fail: \n%v", diff)
 		}
@@ -1140,7 +1149,7 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	confignonprior := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2)
 	// confignonprior.Update(t, schedulenonprior)
-	configGotnonprior := gnmi.GetConfig(t, dut, confignonprior.Config())
+	configGotnonprior := gnmi.Get(t, dut, confignonprior.Config())
 	if diff := cmp.Diff(*configGotnonprior, *schedulenonprior); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
 	}
@@ -1204,7 +1213,6 @@ func ConfigureWrr(t *testing.T, dut *ondatra.DUTDevice) {
 		//TODO: we use updtae due to the bug CSCwc76718, will change it to replace when the bug is fixed
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 	}
-
 }
 
 func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1226,7 +1234,7 @@ func ConfigureDelAddSeq(t *testing.T, dut *ondatra.DUTDevice) {
 		weight += 10
 		// configInputwrr := gnmi.OC().Qos().SchedulerPolicy(*schedulerpol.Name).Scheduler(2).Input(*inputwrr.Id)
 		// gnmi.Update(t, dut, configInputwrr.Config(), inputwrr)
-		// configGotwrr := gnmi.GetConfig(t, dut, configInputwrr.Config())
+		// configGotwrr := gnmi.Get(t, dut, configInputwrr.Config())
 		// if diff := cmp.Diff(*configGotwrr, *inputwrr); diff != "" {
 		// 	t.Errorf("Config Input fail: \n%v", diff)
 		// }
@@ -1335,7 +1343,7 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	// ConfigQos := gnmi.OC().Qos()
 	// gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	// ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	// ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	// if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1377,7 +1385,7 @@ func ConfigureWrrSche(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
 
-	gnmi.GetConfig(t, dut, gnmi.OC().Qos().Config())
+	gnmi.Get(t, dut, gnmi.OC().Qos().Config())
 
 	// if diff := cmp.Diff(*ConfigQosGetfinal, *qos); diff != "" {
 	// 	t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1462,7 +1470,7 @@ func ConfigureWrrGoog1P(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Replace(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1581,7 +1589,7 @@ func ConfigureWrrGoog2P(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)
@@ -1698,7 +1706,7 @@ func ConfigureWrrGoog2Pwrr(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	ConfigQos := gnmi.OC().Qos()
 	gnmi.Update(t, dut, ConfigQos.Config(), qos)
-	ConfigQosGet := gnmi.GetConfig(t, dut, ConfigQos.Config())
+	ConfigQosGet := gnmi.Get(t, dut, ConfigQos.Config())
 
 	if diff := cmp.Diff(*ConfigQosGet, *qos); diff != "" {
 		t.Errorf("Config Schedule fail: \n%v", diff)

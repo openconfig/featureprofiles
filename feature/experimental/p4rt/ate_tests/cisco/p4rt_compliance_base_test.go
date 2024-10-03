@@ -12,8 +12,8 @@ import (
 	"github.com/cisco-open/go-p4/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	wbb "github.com/openconfig/featureprofiles/feature/experimental/p4rt/internal/p4rtutils"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
+	wbb "github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -193,22 +193,22 @@ func TestP4RTCompliance(t *testing.T) {
 	// top.Push(t).StartProtocols(t)
 
 	p4rtClientA := p4rt_client.P4RTClient{}
-	if err := p4rtClientA.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := p4rtClientA.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	p4rtClientB := p4rt_client.P4RTClient{}
-	if err := p4rtClientB.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := p4rtClientB.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	p4rtClientC := p4rt_client.P4RTClient{}
-	if err := p4rtClientC.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := p4rtClientC.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
 	p4rtClientD := p4rt_client.P4RTClient{}
-	if err := p4rtClientD.P4rtClientSet(dut.RawAPIs().P4RT().Default(t)); err != nil {
+	if err := p4rtClientD.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 

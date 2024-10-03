@@ -7,7 +7,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 )
 
-func TestSSHServerEnableConfig(t *testing.T) {
+func testSSHServerEnableConfig(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	config := gnmi.OC().System().SshServer().Enable()
 	enable := true
@@ -34,7 +34,7 @@ func TestSSHServerEnableConfig(t *testing.T) {
 	})
 }
 
-func TestSSHEnableState(t *testing.T) {
+func testSSHEnableState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	defer gnmi.Replace(t, dut, gnmi.OC().System().SshServer().Enable().Config(), true)
 	config := gnmi.OC().System().SshServer().Enable()

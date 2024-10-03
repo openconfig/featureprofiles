@@ -3,18 +3,13 @@ testbeds:
     hw: 8808_FOX2506P2QT
     owner: kjahed
     testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
-    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding
-    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig.proto
+    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_mtls
+    baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs4-b4
       controller_port: 40055
       gnmi_port: 50055
-  8808_FOX2506P2QT_fury:
-    <<: *8808_FOX2506P2QT_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury
-  8808_FOX2506P2QT_fury_gb:
-    <<: *8808_FOX2506P2QT_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_fury_gb
+      rest_port: 30055
 
   8808-36FH_FOX2613PHWL:
     hw: 8808-36FH_FOX2613PHWL
@@ -26,6 +21,14 @@ testbeds:
       host: kne2-lnx
       controller_port: 40057
       gnmi_port: 50057
+      rest_port: 30057
+
+  8201-FOC2448P0MP:
+    hw: 8201-FOC2448P0MP
+    owner: khrasool
+    testbed: topologies/cisco/hw/8201-FOC2448P0MP/testbed
+    binding: topologies/cisco/hw/8201-FOC2448P0MP/binding
+    baseconf: topologies/cisco/hw/8201-FOC2448P0MP/basic_config.proto
 
   8808-FOX2508P0JU: &8808_FOX2508P0JU_DEFAULTS
     hw: 8808-FOX2508P0JU
@@ -34,17 +37,11 @@ testbeds:
     binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40058
       gnmi_port: 50058
-  8808-FOX2508P0JU-Fury:
-    <<: *8808_FOX2508P0JU_DEFAULTS
-    testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed_fury
-    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun-Fury
-  8808-FOX2508P0JU-Fury-GB:
-    <<: *8808_FOX2508P0JU_DEFAULTS
-    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun-Fury-GB
-      
+      rest_port: 30058
+
   8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
     hw: 8808-36FH_FOX2504P3CE
     owner: mananpat
@@ -52,17 +49,10 @@ testbeds:
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
     otg:
-      host: kne2-lnx
-      controller_port: 40051
-      gnmi_port: 50051
-  8808-36FH_FOX2504P3CE_fury:
-    <<: *8808-36FH_FOX2504P3CE_DEFAULTS
-    testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/fury.testbed
-    binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/fury.binding
-  8808-36FH_FOX2504P3CE_mix:
-    <<: *8808-36FH_FOX2504P3CE_DEFAULTS
-    testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/mix.testbed
-    binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/mix.binding
+      host: ott-ucs-b4
+      controller_port: 40061
+      gnmi_port: 50061
+      rest_port: 30061
 
   8201-32FH_FLM254206E7:
     hw: 8201-32FH_FLM254206E7
@@ -71,9 +61,10 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs4-b4
       controller_port: 40054
       gnmi_port: 50054
+      rest_port: 30054
 
   8201-32FH_FLM253900HJ:
     hw: 8201-32FH_FLM253900HJ
@@ -82,43 +73,34 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs4-b4
       controller_port: 40053
       gnmi_port: 50053
+      rest_port: 30053
 
   8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
     hw: 8808_FOX2625PLW8
     owner: arvbaska
     testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
-    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig.proto
+    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40056
       gnmi_port: 50056
-  8808_FOX2625PLW8_v6_gNMI:
-    <<: *8808_FOX2625PLW8_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto  
-  8808_FOX2625PLW8_v6_gNMI_fury:
-    <<: *8808_FOX2625PLW8_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6_fury
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto      
+      rest_port: 30056
 
-  moji_sfd: &moji_sfd_DEFAULTS
-    hw: moji_sfd
-    owner: mbagherz
+  8808_FOX2506P5XE:
+    hw: 8808_FOX2506P5XE
+    owner: kjahed
     testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs4-b4
       controller_port: 40052
       gnmi_port: 50052
-  moji_sfd_gnsi:
-    <<: *moji_sfd_DEFAULTS
-    testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed-gnsi
-    binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding-gnsi
+      rest_port: 30052
 
   8808_FOX2643Q39J: &8808_FOX2643Q39J_DEFAULTS
     hw: 8808_FOX2643Q39J
@@ -130,24 +112,101 @@ testbeds:
       host: kne2-lnx
       controller_port: 40060
       gnmi_port: 50060
+      rest_port: 30060
+
   8808_FOX2643Q39J_gnsi:
     <<: *8808_FOX2643Q39J_DEFAULTS
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/single_testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/single_binding_gnsi
-    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt_gnsi.proto  
-     
+    baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt_gnsi.proto
+
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: saarvind
+    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
     otg:
-      host: kne2-lnx
+      host: ott-ucs-b4
       controller_port: 40059
       gnmi_port: 50059
+      rest_port: 30059
 
-#SIM
+  8818-FOX2714PNYN:
+    hw: 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
+    binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
+    baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
+    otg:
+      host: ott-ucs-b4
+      controller_port: 48818
+      gnmi_port: 58818
+      rest_port: 38818
+
+  2DUT-TB1:
+    hw:
+      - 8808-FOX2508P0JU
+      - 8808_FOX2625PLW8
+    owner: arvbaska
+    testbed: topologies/cisco/hw/2DUT-TB1/testbed
+    binding: topologies/cisco/hw/2DUT-TB1/binding
+    baseconf:
+      dut1: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
+      dut2: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40058
+      gnmi_port: 50058
+      rest_port: 30058
+
+  2DUT-TB2:
+    hw:
+      - 8808_FOX2506P2QT
+      - 8808_FOX2506P5XE
+    owner: arvbaska
+    testbed: topologies/cisco/hw/2DUT-TB2/testbed
+    binding: topologies/cisco/hw/2DUT-TB2/binding
+    baseconf:
+      dut1: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
+      dut2: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40052
+      gnmi_port: 50052
+      rest_port: 30052
+
+  8800-FOC2330PAZK:
+    hw: 8800-FOC2330PAZK
+    owner: khrasool
+    testbed: topologies/cisco/hw/8800-FOC2330PAZK/testbed
+    binding: topologies/cisco/hw/8800-FOC2330PAZK/binding
+    baseconf: topologies/cisco/hw/8800-FOC2330PAZK/base_config.proto
+
+  8608-FOX2543PNNM:
+    hw: 8608-FOX2543PNNM
+    owner: anidamod
+    testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
+    binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
+    baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
+
+  #SIM
+  8201-1DUT:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT/basefp.conf
+  8808-1DUT:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp.conf
+  8201-1DUT-vrf-mgmt:
+    sim: true
+    topology: topologies/cisco/pyvxr/8201-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8201-1DUT/basefp-mgmt-vrf.conf
+  8808-1DUT-vrf-mgmt:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-1DUT/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-1DUT/basefp-mgmt-vrf.conf
   8201-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE/topo.yaml
@@ -159,7 +218,7 @@ testbeds:
   8202-1DUT-1ATE-vrf-mgmt:
     sim: true
     topology: topologies/cisco/pyvxr/8202-1DUT-1ATE/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8202-1DUT-1ATE/basefp-mgmt-vrf.conf    
+    baseconf: topologies/cisco/pyvxr/8202-1DUT-1ATE/basefp-mgmt-vrf.conf
   8808-1DUT-1ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8808-1DUT-1ATE/topo.yaml
@@ -179,16 +238,16 @@ testbeds:
   8808-2DUT:
     sim: true
     topology: topologies/cisco/pyvxr/8808-2DUT/topo.yaml
-    baseconf: 
+    baseconf:
       dut1: topologies/cisco/pyvxr/8808-2DUT/basefp.conf
       dut2: topologies/cisco/pyvxr/8808-2DUT/basefp_peer.conf
   8808-OC:
     sim: true
     topology: topologies/cisco/pyvxr/8808-OC/topo.yaml
-    baseconf: 
+    baseconf:
       dut: topologies/cisco/pyvxr/8808-OC/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC/basefp-peer.conf
-  8808-BIT: 
+  8808-BIT:
     sim: true
     topology: topologies/cisco/pyvxr/8808-BIT/topo.yaml
     baseconf:
@@ -197,17 +256,31 @@ testbeds:
   8808-OC-FURY:
     sim: true
     topology: topologies/cisco/pyvxr/8808-OC-FURY/topo.yaml
-    baseconf: 
+    baseconf:
       dut: topologies/cisco/pyvxr/8808-OC-FURY/basefp.conf
       peer: topologies/cisco/pyvxr/8808-OC-FURY/basefp-peer.conf
   8201-1DUT-1ATE-9PORTS:
     sim: true
     topology: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/topo.yaml
-    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf 
+    baseconf: topologies/cisco/pyvxr/8201-1DUT-1ATE-9PORTS/basefp.conf
+  8808-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-ATE/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8808-ATE/basefp.conf
+  8818-18LC:
+    sim: true
+    topology: topologies/cisco/pyvxr/8818-18LC/topo.yaml
+    baseconf: topologies/cisco/pyvxr/8818-18LC/basefp.conf    
 
-# OTG
+  # OTG
   8201-32FH-FLM254306M8_OTG:
+    hw: 8201-32FH-FLM254306M8_OTG
     owner: mananpat
     testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
-    binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.binding
+    binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
+    otg:
+      host: ott-ucs-b4
+      controller_port: 40051
+      gnmi_port: 50051
+      rest_port: 30051

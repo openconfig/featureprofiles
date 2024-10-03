@@ -1,9 +1,12 @@
 name:
-owners:
-  - harikri4,mbagherz
 priority: 4
 testbeds:
   - moji_sfd_gnsi
+owners:
+  - mbagherz
+pre_tests:
+  - name: set_clock
+    path: exec/utils/settime
 tests:
 - name: authz1.1 (Authz Functional Tests)
   path: feature/security/gnsi/authz/cisco/tests
@@ -14,7 +17,7 @@ tests:
   mustpass: true
   timeout: 21000
   owners:
-    - harikri4,mbagherz
+    - harikri4
 - name: authz1.2 (Authz HA Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -24,7 +27,7 @@ tests:
   mustpass: true
   timeout: 21000
   owners:
-    - harikri4,mbagherz
+    - harikri4
 - name: authz1.3 (Authz Scale Tests)
   path: feature/security/gnsi/authz/cisco/tests
   args:
@@ -34,11 +37,56 @@ tests:
   mustpass: true
   timeout: 21000
   owners:
-    - harikri4,mbagherz
-- name: authzfp (Authz Functional Tests)
-    path: feature/security/gnsi/authz/tests
+    - harikri4
+- name: AUTHZFP (Authz Functional Tests with spiffe id)
+  path: feature/security/gnsi/authz/tests/authz/authz1_4_test.go
   args:
     - '-test_infra_id="cafyauto"'
-  pr: 2136
+  branch: harikri4/authz4
   mustpass: true
   timeout: 21000
+  owners:
+    - harikri4
+  
+- name: CERTZBasic (Certz Internal Basic Tests) 
+  path: feature/security/gnsi/certz/cisco/tests
+  owners:
+    - venthota
+  mustpass: true
+  timeout: 21000
+  internal: true
+  branch: master
+
+- name: TestAcctz1
+  pre_tests:
+    - name: set_clock
+      path: exec/utils/settime
+    - name: p4rt_base
+      path: feature/experimental/p4rt/tests/p4rt_election/p4rt_election_test.go
+  path: feature/security/gnsi/acctz/tests
+  args:
+    - '-test.run="(?:TestPre)"'
+  owners:
+    - harikri4
+  mustpass: true
+  timeout: 21000
+  internal: true
+  branch: acctz/pre
+- name: authz4 (Authz-4 Reboot Persistent)
+  path: feature/security/gnsi/authz/tests/authz
+  args:
+    - '-test.run="(?:TestAuthz4)"'
+  internal: true
+  branch: harikri4/authz4
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4
+- name: authz4.all (Authz-4 all Reboot Persistent)
+  path: feature/security/gnsi/authz/tests/authz
+  internal: true
+  branch: harikri4/authz4
+  mustpass: true
+  timeout: 21000
+  owners:
+    - harikri4

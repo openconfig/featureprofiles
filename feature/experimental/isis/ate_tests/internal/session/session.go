@@ -129,10 +129,12 @@ func addISISOC(dev *oc.Root, areaAddress, sysID, ifaceName string, dut *ondatra.
 	}
 	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	// Configure ISIS enable flag at interface level
-	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		intf.Af = nil
 	}
+
 }
 
 // addISISTopo configures basic IS-IS on an ATETopology interface.
@@ -169,7 +171,7 @@ func New(t testing.TB) (*TestSession, error) {
 	s := &TestSession{}
 	s.DUT = ondatra.DUT(t, "dut")
 	var err error
-	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI().Default(t), ygnmi.WithTarget(s.DUT.ID()))
+	s.DUTClient, err = ygnmi.NewClient(s.DUT.RawAPIs().GNMI(t), ygnmi.WithTarget(s.DUT.ID()))
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to gNMI on %v: %w", s.DUT, err)
 	}
@@ -259,7 +261,10 @@ func (s *TestSession) PushDUT(ctx context.Context, t testing.TB) error {
 	}
 
 	// Push the ISIS protocol
-	if _, err := ygnmi.Replace(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE); err != nil {
+	if _, err := ygnmi.Update(ctx, s.DUTClient, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(s.DUT)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	}); err != nil {
 		return fmt.Errorf("configuring network instance: %w", err)
 	}
 	dutConf := s.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(s.DUT)).GetOrCreateProtocol(PTISIS, ISISName)

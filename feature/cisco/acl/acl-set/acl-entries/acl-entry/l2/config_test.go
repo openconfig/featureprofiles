@@ -59,7 +59,7 @@ func TestDestinationMacMask(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.DestinationMacMask != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac-mask: got %v, want %v", configGot, input)
 					}
@@ -110,7 +110,7 @@ func TestEthertype(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if configGot.Ethertype != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/ethertype: got %v, want %v", configGot, input)
 					}
@@ -160,7 +160,7 @@ func TestDestinationMac(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.DestinationMac != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/destination-mac: got %v, want %v", configGot, input)
 					}
@@ -210,7 +210,7 @@ func TestSourceMac(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SourceMac != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac: got %v, want %v", configGot, input)
 					}
@@ -260,7 +260,7 @@ func TestSourceMacMask(t *testing.T) {
 			})
 			if !setup.SkipGet() {
 				t.Run("Get", func(t *testing.T) {
-					configGot := gnmi.GetConfig(t, dut, config.Config())
+					configGot := gnmi.Get(t, dut, config.Config())
 					if *configGot.SourceMacMask != input {
 						t.Errorf("Config /acl/acl-sets/acl-set/acl-entries/acl-entry/l2/config/source-mac-mask: got %v, want %v", configGot, input)
 					}

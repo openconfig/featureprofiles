@@ -50,6 +50,8 @@ options {
 
 duts {
   id: "dut"
+  vendor: CISCO
+  hardware_model: "8201"
   name: "R3-10.85.84.51:2014"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
@@ -67,28 +69,28 @@ duts {
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
     #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
+    target: "10.85.84.225:47400"
     #target: "10.85.80.63:47400"
   }
   gnmi {
     #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
+    target: "10.85.84.225:47400"
     #target: "10.85.80.63:47400"
   }
   gribi{
     #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
+    target: "10.85.84.225:47400"
     #target: "10.85.80.63:47400"
   }
 
   ssh{
     #target: "161.44.211.250:47401"
-    target: "10.85.84.159:47401"
+    target: "10.85.84.225:47401"
   }
   
   p4rt{
     #target: "161.44.211.250:47400"
-    target: "10.85.84.159:47400"
+    target: "10.85.84.225:47400"
     #target: "10.85.80.63:47400"
   }
 
@@ -98,6 +100,7 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/0/0/1/0"  # Change this to the actual port name.
+    speed: S_10GB  
   }
   ports {
     id: "port2"
@@ -111,22 +114,22 @@ duts {
     id: "port4"
     name: "TenGigE0/0/0/1/3"  # Change this to the actual port name.
   }
-  ports {
-    id: "port5"
-    name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
-    name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port7"
-    name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port8"
-    name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
-  }
+  #ports {
+  #  id: "port5"
+  #  name: "TenGigE0/0/0/2/0"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port6"
+  #  name: "TenGigE0/0/0/2/1"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port7"
+  #  name: "TenGigE0/0/0/2/2"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port8"
+  #  name: "TenGigE0/0/0/2/3"  # Change this to the actual port name.
+  #}
 }
 
 ates {
@@ -167,20 +170,20 @@ ates {
     id: "port4"
     name: "3/24"  # Change this to the actual port name.
   }
-  ports {
-    id: "port5"
-    name: "3/29" # Change this to the actual port name.
-  }
-  ports {
-    id: "port6"
-    name: "3/30"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port7"
-    name: "3/31"  # Change this to the actual port name.
-  }
-  ports {
-    id: "port8"
-    name: "3/32"  # Change this to the actual port name.
-  }
+  #ports {
+  #  id: "port5"
+  #  name: "3/29" # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port6"
+  #  name: "3/30"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port7"
+  #  name: "3/31"  # Change this to the actual port name.
+  #}
+  #ports {
+  #  id: "port8"
+  #  name: "3/32"  # Change this to the actual port name.
+  #}
 } 

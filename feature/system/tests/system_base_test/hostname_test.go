@@ -52,7 +52,7 @@ func TestHostname(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.hostname)
 
 			t.Run("Get Hostname Config", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != testCase.hostname {
 					t.Errorf("Config hostname: got %s, want %s", configGot, testCase.hostname)
 				}
@@ -106,7 +106,7 @@ func TestDomainName(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), testCase.domainname)
 
 			t.Run("Get Domainname Config", func(t *testing.T) {
-				configGot := gnmi.GetConfig(t, dut, config.Config())
+				configGot := gnmi.Get(t, dut, config.Config())
 				if configGot != testCase.domainname {
 					t.Errorf("Config domainname: got %s, want %s", configGot, testCase.domainname)
 				}

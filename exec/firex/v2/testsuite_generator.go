@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -38,9 +37,10 @@ type GoTest struct {
 	MustPass        bool
 	HasDeviations   bool
 	Internal        bool
-	Pretests        []GoTest
-	Posttests       []GoTest
+	PreTests        []GoTest `yaml:"pre_tests"`
+	PostTests       []GoTest `yaml:"post_tests"`
 	Groups          []string
+	OTGVersion      map[string]string `yaml:"otg_version"`
 }
 
 // FirexTest represents a single firex test suite
@@ -55,8 +55,8 @@ type FirexTest struct {
 	Skip      bool
 	Internal  bool
 	Testbeds  []string
-	Pretests  []GoTest
-	Posttests []GoTest
+	PreTests  []GoTest `yaml:"pre_tests"`
+	PostTests []GoTest `yaml:"post_tests"`
 	Tests     []GoTest
 	Groups    []string
 }
@@ -75,7 +75,11 @@ var (
 	)
 
 	exTestNamesFlag = flag.String(
-		"exclude_test_names", "", "comma separated list of tests to exclude",
+		"exclude_test_names", "", "comma separated list of test groups to include",
+	)
+
+	exGroupNamesFlag = flag.String(
+		"exclude_group_names", "", "comma separated list of test groups to exclude",
 	)
 
 	pluginsFlag = flag.String(
@@ -142,6 +146,7 @@ var (
 	testNames          []string
 	groupNames         []string
 	excludeTestNames   []string
+	excludeGroupNames  []string
 	extraPlugins       []string
 	testbeds           []string
 	env                map[string]string
@@ -187,9 +192,9 @@ var (
     {{- end }}
     supported_platforms:
         - "8000"
-    {{- if gt (len $.Test.Pretests) 0 }}
+    {{- if gt (len $.Test.PreTests) 0 }}
     fp_pre_tests:
-        {{- range $j, $pt := $.Test.Pretests}}
+        {{- range $j, $pt := $.Test.PreTests}}
         - {{ $pt.Name }}:
             test_path: {{ $pt.Path }}
             {{- if $pt.Args }}
@@ -222,10 +227,16 @@ var (
             {{- if $.InternalRepoRev }}
             internal_fp_repo_rev: {{ $.InternalRepoRev}}
             {{- end }}
+            {{- if $.Test.OTGVersion }}
+            otg_version:
+                controller: {{ index $.Test.OTGVersion "controller" }}
+                hw: {{ index $.Test.OTGVersion "hw" }}
+                gnmi: {{ index $.Test.OTGVersion "gnmi" }}
+            {{- end }}
             smart_sanity_exclude: True
-    {{- if gt (len $.Test.Posttests) 0 }}
+    {{- if gt (len $.Test.PostTests) 0 }}
     fp_post_tests:
-        {{- range $j, $pt := $.Test.Posttests}}
+        {{- range $j, $pt := $.Test.PostTests}}
         - {{ $pt.Name }}:
             test_path: {{ $pt.Path }}
             {{- if $pt.Args }}
@@ -255,6 +266,10 @@ func init() {
 		excludeTestNames = strings.Split(*exTestNamesFlag, ",")
 	}
 
+	if len(*exGroupNamesFlag) > 0 {
+		excludeGroupNames = strings.Split(*exGroupNamesFlag, ",")
+	}
+
 	if len(*pluginsFlag) > 0 {
 		extraPlugins = strings.Split(*pluginsFlag, ",")
 	}
@@ -263,7 +278,9 @@ func init() {
 		env = make(map[string]string)
 		for _, e := range strings.Split(*envFlag, ",") {
 			keyValPair := strings.Split(e, "=")
-			env[strings.TrimSpace(keyValPair[0])] = strings.TrimSpace(keyValPair[1])
+			if len(keyValPair) == 2 {
+				env[strings.TrimSpace(keyValPair[0])] = strings.TrimSpace(keyValPair[1])
+			}
 		}
 	}
 
@@ -356,15 +373,17 @@ func main() {
 		}
 	} else if len(groupNames) > 0 {
 		keptTests := map[string][]GoTest{}
-		for _, tg := range groupNames {
-			for i := range suite {
-				if _, ok := keptTests[suite[i].Name]; !ok {
-					keptTests[suite[i].Name] = []GoTest{}
-				}
-				for j := range suite[i].Tests {
-					for _, g := range suite[i].Tests[j].Groups {
+		for i := range suite {
+			if _, ok := keptTests[suite[i].Name]; !ok {
+				keptTests[suite[i].Name] = []GoTest{}
+			}
+		outer:
+			for j := range suite[i].Tests {
+				for _, g := range suite[i].Tests[j].Groups {
+					for _, tg := range groupNames {
 						if tg == g {
 							keptTests[suite[i].Name] = append(keptTests[suite[i].Name], suite[i].Tests[j])
+							continue outer
 						}
 					}
 				}
@@ -426,10 +445,39 @@ func main() {
 		}
 	}
 
+	if len(excludeGroupNames) > 0 {
+		excludedTests := map[string]bool{}
+
+		for i := range suite {
+		out:
+			for j := range suite[i].Tests {
+				for _, g := range excludeGroupNames {
+					for _, tg := range suite[i].Tests[j].Groups {
+						if g == tg {
+							excludedTests[strings.Split(suite[i].Tests[j].Name, " ")[0]] = true
+							continue out
+						}
+					}
+				}
+			}
+		}
+
+		for i := range suite {
+			keptTests := []GoTest{}
+			for j := range suite[i].Tests {
+				prefix := strings.Split(suite[i].Tests[j].Name, " ")[0]
+				if _, found := excludedTests[prefix]; !found {
+					keptTests = append(keptTests, suite[i].Tests[j])
+				}
+			}
+			suite[i].Tests = keptTests
+		}
+	}
+
 	// adjust timeouts, priorities, & owners
 	for i := range suite {
 		if suite[i].Priority == 0 {
-			suite[i].Priority = 100000000
+			suite[i].Priority = 1000
 		}
 
 		for j := range suite[i].Tests {
@@ -446,7 +494,7 @@ func main() {
 			}
 
 			if suite[i].Tests[j].Priority == 0 {
-				suite[i].Tests[j].Priority = 100000000
+				suite[i].Tests[j].Priority = 1000
 			}
 
 			if suite[i].Timeout > 0 && suite[i].Tests[j].Timeout == 0 {
@@ -477,18 +525,14 @@ func main() {
 				suite[i].Tests[j].Groups = suite[i].Groups
 			}
 
-			if len(suite[i].Tests[j].Pretests) == 0 {
-				suite[i].Tests[j].Pretests = append(suite[i].Tests[j].Pretests, suite[i].Pretests...)
+			if len(suite[i].Tests[j].PreTests) == 0 {
+				suite[i].Tests[j].PreTests = append(suite[i].Tests[j].PreTests, suite[i].PreTests...)
 			}
 
-			if len(suite[i].Tests[j].Posttests) == 0 {
-				suite[i].Tests[j].Posttests = append(suite[i].Tests[j].Posttests, suite[i].Posttests...)
+			if len(suite[i].Tests[j].PostTests) == 0 {
+				suite[i].Tests[j].PostTests = append(suite[i].Tests[j].PostTests, suite[i].PostTests...)
 			}
 		}
-	}
-
-	if randomize {
-		rand.Seed(time.Now().UnixNano())
 	}
 
 	// sort by priority
@@ -591,6 +635,8 @@ func main() {
 
 			if len(testbeds) > 0 {
 				suite[i].Tests[j].Testbeds = testbeds
+				suite[i].Tests[j].TestbedsInclude = []string{}
+				suite[i].Tests[j].TestbedsExclude = []string{}
 			}
 
 			if len(outDir) > 0 {

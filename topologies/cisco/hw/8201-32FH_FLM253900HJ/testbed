@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
 # proto-message: ondatra.Testbed
 
-# This testbed provides 9 links between a DUT and an ATE connected pairwise.
+# This testbed provides 8 links between a DUT and an ATE connected pairwise.
 
 duts {
   id: "dut"
@@ -35,14 +35,10 @@ duts {
     id: "port7"
     speed: S_10GB  
   }
-  #ports {
-  #  id: "port8"
-  #  speed: S_10GB      
-  #}
-  #ports {
-  #  id: "port9"
-  #  speed: S_10GB      
-  #}  
+  ports {
+    id: "port8"
+    speed: S_10GB      
+  }
 }
 
 ates {
@@ -75,14 +71,10 @@ ates {
     id: "port7"
     speed: S_10GB      
   }
-  #ports {
-  #  id: "port8"
-  #  speed: S_10GB      
-  #}
-  #ports {
-  #  id: "port9"
-  #  speed: S_10GB      
-  #}  
+  ports {
+    id: "port8"
+    speed: S_10GB      
+  }
 }
 
 links {
@@ -119,13 +111,8 @@ links {
   b: "ate:port7"
 }
 
-#links {
-#  a: "dut:port8"
-#  b: "ate:port8"
-#}
-
-#links {
-#  a: "dut:port9"
-#  b: "ate:port9"
-#}
+links {
+  a: "dut:port8"
+  b: "ate:port8"
+}
 
