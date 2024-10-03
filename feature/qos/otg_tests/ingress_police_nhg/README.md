@@ -43,7 +43,6 @@ openconfig-qos:
             next-hop-group:
                 config:
                     name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id (what about MBB / gribi is not transactional, a delete might fail and and add might succeed)
-                    name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id (what about MBB / gribi is not transactional, a delete might fail and and add might succeed)
           actions:
             config:
               target-group: "input_dest_A"
