@@ -17,7 +17,7 @@ Use DP-2.1 test environment setup.
 
 ## Procedure
 
-### DP-2.2.1 Generate and push configuration
+### DP-2.2.1 Generate and push policer configuration
 
 * Generate config for 2 classifiers which match on next-hop-group.
 * Generate config for 2 forwarding-groups mapped to "dummy" input queues
@@ -204,7 +204,7 @@ NH#101 -> {
     }
     encap-header {
       index: 2
-      udp {
+      udpv6 {
         src_ip: "outer_ipv6_src"
         dst_ip: "outer_ipv6_dst_A"
         dst_udp_port: "outer_dst_udp_port"
@@ -234,7 +234,7 @@ NH#201 -> {
     }
     encap-header {
       index: 2
-      udp {
+      udpv6 {
         src_ip: "outer_ipv6_src"
         dst_ip: "outer_ipv6_dst_B"
         dst_udp_port: "outer_dst_udp_port"
@@ -246,7 +246,6 @@ NH#201 -> {
   next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
   network_instance: "DEFAULT"
 }
-
 ```
 
 ### DP-2.2.3 Test flow policing
@@ -320,4 +319,3 @@ rpcs:
 ## Required DUT platform
 
 * FFF
-
