@@ -17,7 +17,7 @@ DUT port-8 <------> port-8 ATE
 
 ## Baseline setup
 
-*   Setup equivalent to [TE-17.1 vrf_policy_driven_te](https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md), including GRibi programming.
+*   Setup equivalent to [TE-17.1 vrf_policy_driven_te](https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/vrf_policy_driven_te/README.md), including GRibi programming.
 
 *   Install a BGP route resolved by ISIS in default VRF to route traffic out of DUT port-8 for 203.0.113.0.
 
