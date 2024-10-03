@@ -2,7 +2,7 @@
 
 ## Summary
 
-Use the gRIBI applied IP entries from TE-18.1 gRIBI. Configure an ingress scheduler
+Use the gRIBI applied IP entries from DP-2.1 gRIBI. Configure an ingress scheduler
 to police traffic using a 1 rate, 2 color policer. Configure a classifier to match
 traffic on a next-hop-group.  Apply the configuration to a VLAN on an aggregate
 interface.  Send traffic to validate the policer.
@@ -176,7 +176,7 @@ openconfig-qos:
 
 ```
 
-### TE-18.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
+### DP-2.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
 
 Create a gRIBI client and send this proto message to the DUT to create AFT
 entries.  Note the next-hop-groups here include a `next_hop_group_id` field
@@ -250,7 +250,7 @@ NH#201 -> {
 
 ```
 
-### TE-18.2.3 Test flow policing
+### DP-2.2.3 Test flow policing
 
 * Send traffic
   * Send flow A traffic from ATE port 1 to DUT for dest_A at 0.7Gbps (note cir is 1Gbps).
@@ -262,7 +262,7 @@ NH#201 -> {
     * Validate that flow dest_A experiences ~50% packet loss (+/- 1%)
   * Stop traffic
 
-### TE-18.2.3 IPv6 flow label validiation
+### DP-2.2.3 IPv6 flow label validiation
 
   * Send 100 packets for flow A and flow B.  (Use an OTG fixed packet count flow)
   * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
