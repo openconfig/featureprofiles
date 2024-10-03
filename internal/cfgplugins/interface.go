@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -77,6 +78,7 @@ func ToggleInterface(t *testing.T, dut *ondatra.DUTDevice, intf string, isEnable
 
 // ConfigOpticalChannel configures the optical channel.
 func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, frequency uint64, targetOpticalPower float64, operationalMode uint16) {
+	gnmi.Update(t, dut, gnmi.OC().Component(och).Name().Config(), och)
 	gnmi.Replace(t, dut, gnmi.OC().Component(och).OpticalChannel().Config(), &oc.Component_OpticalChannel{
 		OperationalMode:   ygot.Uint16(operationalMode),
 		Frequency:         ygot.Uint64(frequency),
@@ -87,43 +89,70 @@ func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, freq
 // ConfigOTNChannel configures the OTN channel.
 func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
 	t.Helper()
-	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
-		Description:        ygot.String("OTN Logical Channel"),
-		Index:              ygot.Uint32(otnIndex),
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
-		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
-			0: {
-				Index:          ygot.Uint32(0),
-				OpticalChannel: ygot.String(och),
-				Description:    ygot.String("OTN to Optical Channel"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
+	if deviations.OTNChannelTribUnsupported(dut) {
+		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+			Description:        ygot.String("OTN Logical Channel"),
+			Index:              ygot.Uint32(otnIndex),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
+			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+				0: {
+					Index:          ygot.Uint32(1),
+					OpticalChannel: ygot.String(och),
+					Description:    ygot.String("OTN to Optical Channel"),
+					Allocation:     ygot.Float64(400),
+					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
+				},
 			},
-			1: {
-				Index:          ygot.Uint32(1),
-				LogicalChannel: ygot.Uint32(ethIndex),
-				Description:    ygot.String("OTN to ETH"),
-				Allocation:     ygot.Float64(400),
-				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+		})
+	} else {
+		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+			Description:        ygot.String("OTN Logical Channel"),
+			Index:              ygot.Uint32(otnIndex),
+			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
+			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+				0: {
+					Index:          ygot.Uint32(0),
+					OpticalChannel: ygot.String(och),
+					Description:    ygot.String("OTN to Optical Channel"),
+					Allocation:     ygot.Float64(400),
+					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
+				},
+				1: {
+					Index:          ygot.Uint32(1),
+					LogicalChannel: ygot.Uint32(ethIndex),
+					Description:    ygot.String("OTN to ETH"),
+					Allocation:     ygot.Float64(400),
+					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+				},
 			},
-		},
-	})
+		})
+	}
 }
 
 // ConfigETHChannel configures the ETH channel.
 func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, transceiverName string, otnIndex, ethIndex uint32) {
 	t.Helper()
-	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), &oc.TerminalDevice_Channel{
-		Description:        ygot.String("ETH Logical Channel"),
-		Index:              ygot.Uint32(ethIndex),
-		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
-		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-		Ingress: &oc.TerminalDevice_Channel_Ingress{
+	var ingress = &oc.TerminalDevice_Channel_Ingress{}
+	if !deviations.EthChannelIngressParametersUnsupported(dut) {
+		ingress = &oc.TerminalDevice_Channel_Ingress{
 			Interface:   ygot.String(interfaceName),
 			Transceiver: ygot.String(transceiverName),
-		},
-		Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
+		}
+	}
+	var assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{}
+	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
+		assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
+			0: {
+				Index:          ygot.Uint32(1),
+				LogicalChannel: ygot.Uint32(otnIndex),
+				Description:    ygot.String("ETH to OTN"),
+				Allocation:     ygot.Float64(400),
+				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
+			},
+		}
+	} else {
+		assignment = map[uint32]*oc.TerminalDevice_Channel_Assignment{
 			0: {
 				Index:          ygot.Uint32(0),
 				LogicalChannel: ygot.Uint32(otnIndex),
@@ -131,6 +160,16 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 				Allocation:     ygot.Float64(400),
 				AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 			},
-		},
-	})
+		}
+	}
+	channel := &oc.TerminalDevice_Channel{
+		Description:        ygot.String("ETH Logical Channel"),
+		Index:              ygot.Uint32(ethIndex),
+		LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
+		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
+		RateClass:          oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G,
+		Ingress:            ingress,
+		Assignment:         assignment,
+	}
+	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(ethIndex).Config(), channel)
 }
