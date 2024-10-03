@@ -1,4 +1,4 @@
-# TE-18.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
+# DP-2.2 QoS scheduler with 1 rate 2 color policer, classifying on next-hop group
 
 ## Summary
 
@@ -13,11 +13,11 @@ interface.  Send traffic to validate the policer.
 
 ## Test setup
 
-Use TE-18.1 test environment setup.
+Use DP-2.1 test environment setup.
 
 ## Procedure
 
-### TE-18.2.1 Generate and push configuration
+### DP-2.2.1 Generate and push configuration
 
 * Generate config for 2 classifiers which match on next-hop-group.
 * Generate config for 2 forwarding-groups mapped to "dummy" input queues
@@ -42,6 +42,7 @@ openconfig-qos:
           conditions:
             next-hop-group:
                 config:
+                    name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id (what about MBB / gribi is not transactional, a delete might fail and and add might succeed)
                     name: "nhg_A1"     # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id (what about MBB / gribi is not transactional, a delete might fail and and add might succeed)
           actions:
             config:
