@@ -44,6 +44,12 @@ var (
 	operationalMode     uint16
 )
 
+type testcase struct {
+	desc string
+	got  any
+	want any
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -102,11 +108,7 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 	if !ok {
 		t.Fatalf("Ethernet Channel telemetry stream empty in last 10 seconds")
 	}
-	tcs := []struct {
-		desc string
-		got  any
-		want any
-	}{
+	tcs := []testcase{
 		{
 			desc: "Index",
 			got:  ec.GetIndex(),
@@ -128,17 +130,10 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 			want: oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE.String(),
 		},
 	}
-	var assignmentIndexTestcases []struct {
-		desc string
-		got  any
-		want any
-	}
+	var assignmentIndexTestcases []testcase
+
 	if deviations.EthChannelAssignmentCiscoNumbering(dut) {
-		assignmentIndexTestcases = []struct {
-			desc string
-			got  any
-			want any
-		}{
+		assignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
 				got:  ec.GetAssignment(1).GetIndex(),
@@ -164,11 +159,7 @@ func validateEthernetChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnC
 				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL.String(),
 			}}
 	} else {
-		assignmentIndexTestcases = []struct {
-			desc string
-			got  any
-			want any
-		}{
+		assignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
 				got:  ec.GetAssignment(0).GetIndex(),
@@ -214,11 +205,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	if !ok {
 		t.Fatalf("OTN Channel telemetry stream empty in last 10 seconds")
 	}
-	tcs := []struct {
-		desc string
-		got  any
-		want any
-	}{
+	tcs := []testcase{
 		{
 			desc: "Description",
 			got:  cc.GetDescription(),
@@ -235,18 +222,11 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			want: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN.String(),
 		},
 	}
-	var opticalChannelAssignmentIndexTestcases []struct {
-		desc string
-		got  any
-		want any
-	}
+	var opticalChannelAssignmentIndexTestcases []testcase
+
 	if deviations.OTNChannelAssignmentCiscoNumbering(dut) {
 		ciscoOpticalChannelFormat := strings.ReplaceAll(opticalChannel, "/", "_") // Ex: OpticalChannel0_0_0_18
-		opticalChannelAssignmentIndexTestcases = []struct {
-			desc string
-			got  any
-			want any
-		}{
+		opticalChannelAssignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
 				got:  cc.GetAssignment(1).GetIndex(),
@@ -274,11 +254,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 			},
 		}
 	} else {
-		opticalChannelAssignmentIndexTestcases = []struct {
-			desc string
-			got  any
-			want any
-		}{
+		opticalChannelAssignmentIndexTestcases = []testcase{
 			{
 				desc: "Assignment: Index",
 				got:  cc.GetAssignment(0).GetIndex(),
@@ -308,11 +284,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
 
 	if !deviations.OTNChannelTribUnsupported(dut) {
-		logicalChannelAssignmentTestcases := []struct {
-			desc string
-			got  any
-			want any
-		}{
+		logicalChannelAssignmentTestcases := []testcase{
 			{
 				desc: "Ethernet Assignment: Index",
 				got:  cc.GetAssignment(1).GetIndex(),
