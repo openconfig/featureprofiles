@@ -25,7 +25,7 @@ Use DP-2.1 test environment setup.
     satisfies the OC schema which requires defining nodes mapping
     classfier->forwarding-group->queue->scheduler
 * Generate config for 2 scheduler-policies to police traffic
-* Generate config to apply classifer and scheduler to DUT subinterface.  (TODO: include interface config details with 802.1Q tags)
+* Generate config to apply classifer and scheduler to DUT subinterface.
 * Use gnmi.Replace to push the config to the DUT.
 
 ```json
@@ -298,7 +298,7 @@ which matches the
 `/qos/classifiers/classifier/condition/next-hop-group/config/name` leaf.
 
 * [TODO: OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
-* [TODO: gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
+* [TODO: updated gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
 
 ```proto
 #
