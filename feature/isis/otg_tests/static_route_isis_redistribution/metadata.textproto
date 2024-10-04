@@ -31,5 +31,6 @@ platform_exceptions: {
     ipv6_static_route_with_ipv4_next_hop_requires_static_arp: true
     routing_policy_tag_set_embedded: true
     same_policy_attached_to_all_afis: true
+    match_tag_set_condition_unsupported: true
   }
 }

@@ -38,3 +38,13 @@ platform_exceptions:  {
     bgp_rib_oc_path_unsupported:  true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+
