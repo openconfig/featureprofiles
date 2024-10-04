@@ -55,5 +55,5 @@ var (
 	V4TunnelNHGSplitCount = flag.Int("arg_v4_tunnel_nhg_split_count", 2, "In gRIBI scaling tests, the number of next-hop per next-hop-group for the v4 tunnels.")
 	EgressNHGSplitCount   = flag.Int("arg_egress_nhg_split_count", 16, "In gRIBI scaling tests, the number of next-hop per next-hop-group for the egress traffic.")
 	V4ReEncapNHGCount     = flag.Int("arg_v4_re_encap_nhg_count", 256, "In gRIBI scaling tests, the number of next-hop-groups for re-encapping v4 tunnels.")
-	OperationalModeFlag   = flag.Uint("operational_mode", 1, "Vendor-specific mode operational mode identifierfor the terminal-optical-channel")
+	OperationalModeFlag   = flag.Uint("operational_mode", 1, "Vendor-specific mode operational mode identifier for the terminal-optical-channel")
 )
