@@ -280,7 +280,7 @@ testbeds:
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
     otg:
-      host: ott-ucs-b4
+      host: ott-ucs4-b4
       controller_port: 40051
       gnmi_port: 50051
       rest_port: 30051
