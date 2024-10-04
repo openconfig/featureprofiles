@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	fpargs "github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -31,7 +32,7 @@ var (
 		IPv4:    "192.0.2.5",
 		IPv4Len: 30,
 	}
-	dp16QAM uint16 //Vendor operational-mode ID for 16QAM modulation
+	dp16QAM = uint16(*fpargs.OperationalModeFlag)
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +43,6 @@ func Test400ZRTunableFrequency(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	dp16QAM = vendorOpticalChannelOperMode(t)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -118,7 +118,6 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	dp16QAM = vendorOpticalChannelOperMode(t)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -184,7 +183,6 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	dp16QAM = vendorOpticalChannelOperMode(t)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	oc1 := opticalChannelFromPort(t, dut, p1)
@@ -346,16 +344,4 @@ func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Por
 	t.Helper()
 	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
-}
-
-// vendorOpticalChannelOperMode returns the Vendor-specific mode identifier a given vendor.
-func vendorOpticalChannelOperMode(t *testing.T) uint16 {
-	t.Helper()
-	dut := ondatra.DUT(t, "dut")
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		return 5003
-	default:
-		return 1
-	}
 }
