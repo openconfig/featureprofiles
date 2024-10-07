@@ -9,25 +9,37 @@ BGP policy configuration with prefix-set matching
 *   https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed
 
 ## Procedure
-Establish eBGP sessions between:
-	•	ATE port-1 and DUT port-1
-	•	ATE port-2 and DUT port-2
-	•	Configure Route-policy under BGP neighbor/session address-family
+* Establish eBGP sessions between:
+  * ATE port-1 and DUT port-1
+  * ATE port-2 and DUT port-2
+  * Configure Route-policy under BGP neighbor/session address-family
 
-For IPv4:
-Create two prefix-sets as below:
-IPv4-prefix-set-1  - exact match on 10.23.15.0/26
-IPv4-prefix-set-2  - match on 10.23.0.0/16
-For IPv6:
-Create two prefix-sets as below:
-IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
-IPv6-prefix-set-2  - 65-128 match on ::/0
-For IPv4 and IPv6:
-	•	Configure BGP policy on DUT to allow routes based on IPv4-prefix-set-2 and reject routes based on IPv4-prefix-set-1 
-	•	Configure BGP policy on DUT to allow routes based on IPv6-prefix-set-1
-	•	and reject routes based on IPv6-prefix-set-2 
-	•	Validate that the prefixes are accepted after policy application.
-	•	DUT conditionally advertises prefixes received from ATE port-1 to ATE port-2 after policy application. Ensure that multiple routes are accepted and advertised to the neighbor on ATE port-2.
+* For IPv4:
+  * Create two prefix-sets as below:
+  * IPv4-prefix-set-1  - exact match on 10.23.15.0/26
+  * IPv4-prefix-set-2  - match on 10.23.0.0/16
+  * [TODO] IPv4-prefix-set-3  - match on 10.23.15.0/26, 10.23.17.0/26
+
+* For IPv6:
+  * Create two prefix-sets as below:
+  * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48
+  * IPv6-prefix-set-2  - 65-128 match on ::/0
+  * IPv6-prefix-set-1  - exact match on 2001:4860:f804::/48, 2001:4860:f806::/48
+
+### RT-1.33.1 mach with option ANY  
+* For IPv4 and IPv6:
+  * Configure BGP policy on DUT to allow routes based on IPv4-prefix-set-2 and reject routes based on IPv4-prefix-set-1 
+  *	Configure BGP policy on DUT to allow routes based on IPv6-prefix-set-1
+  *	and reject routes based on IPv6-prefix-set-2 
+  *	Validate that the prefixes are accepted after policy application.
+  *	DUT conditionally advertises prefixes received from ATE port-1 to ATE port-2 after policy application. Ensure that multiple routes are accepted and advertised to the neighbor on ATE port-2.
+
+### [TODO] RT-1.33.2 match with option INVERT
+* For IPv4 and IPv6:
+  * Configure BGP policy on DUT to reject IPv4 routes that are NOT covered in IPv4-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv4 route.
+   * Configure BGP policy on DUT to reject IPv6 routes that are NOT covered in IPv6-prefix-set-3 using `INVERT` match-type-option; Allow any other IPv6 route.
+  *	Validate that the prefixes are accepted/rejected after policy application.
+  *	DUT conditionally advertises prefixes received from ATE port-1 to ATE port-2 after policy application. Ensure that multiple routes are accepted and advertised to the neighbor on ATE port-2.
 
 ## Config Parameter Coverage
 /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
