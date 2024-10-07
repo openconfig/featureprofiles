@@ -8,46 +8,6 @@
 
 ###################################### DUT1 8808_FOX2506P2QT ######################################
 ### https://wwwin-github.cisco.com/B4Test/featureprofiles/tree/master/topologies/cisco/hw/8808_FOX2506P2QT ####
-#router static
-# address-family ipv4 unicast
-#  0.0.0.0/0 5.78.0.1
-#  5.0.0.0/8 5.78.0.1
-#  5.5.14.197/32 5.78.0.1
-#  5.24.27.1/32 5.78.0.1
-#  223.255.253.253/32 5.78.0.1
-#  223.255.254.0/24 5.78.0.1
-#  223.255.254.254/32 5.78.0.1
-# !
-
-#interface MgmtEth0/RP0/CPU0/0
-# ipv4 address 5.78.26.27 255.255.0.0
-# no shut
-#!
-
-#interface MgmtEth0/RP1/CPU0/0
-# ipv4 address 5.78.26.28 255.255.0.0
-# no shut
-#!
-
-#telnet: RP0 -  telnet 10.85.84.54 2005
-#telnet: RP1 -  telnet 10.85.84.54 2006
-
-##Exec server:
-#ssh ott2lab-as3
-
-## Consoe server:
-# telnet 10.85.84.54
-# Pass1: roZes!23
-# Pass2: roZes!23
-
-# Username: cafyauto
-# Password: cisco123
-
-## Management interface RP0:
-# ipv4 address 5.78.26.27 
-
-## Management interface RP1:
-# ipv4 address 5.78.26.28 
 
 duts {
   id: "dut1"
@@ -69,22 +29,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.84.225:47701"
+    target: "10.85.84.233:9339"
   }
   gnmi {
-    target: "10.85.84.225:47701" 
+    target: "10.85.84.233:9339" 
   }
   gribi{
-    target: "10.85.84.225:47702"
+    target: "10.85.84.233:9340"
   }
   p4rt{
-    target: "10.85.84.225:47703"
+    target: "10.85.84.233:9559"
   }
   gnsi{
-    target: "10.85.84.225:47701"
+    target: "10.85.84.233:9339"
   }
   ssh{
-    target: "10.85.84.225:47722"
+    target: "10.85.84.233:22"
     skip_verify: true
   }
   ports {
@@ -230,60 +190,6 @@ duts {
 }
 ###################################### DUT2 8808-36FH_FOX2506P5XE ######################################
 ### https://wwwin-github.cisco.com/B4Test/featureprofiles/tree/master/topologies/cisco/hw/8808-36FH_FOX2506P5XE ###
-#router static
-# address-family ipv4 unicast
-#  0.0.0.0/0 5.78.0.1
-#  5.0.0.0/8 5.78.0.1
-#  5.5.14.197/32 5.78.0.1
-#  5.24.27.1/32 5.78.0.1
-#  223.255.253.253/32 5.78.0.1
-#  223.255.254.0/24 5.78.0.1
-#  223.255.254.254/32 5.78.0.1
-# !
-
-#ipv4 virtual address 5.78.18.91/16
-#interface MgmtEth0/RP0/CPU0/0
-# ipv4 address 5.78.18.190 255.255.0.0
-#!
-#interface MgmtEth0/RP1/CPU0/0
-# ipv4 address 5.78.18.191 255.255.0.0
-#!
-
-# telnet 10.85.84.53 2005
-# telnet 10.85.84.53 2006
-
-##Exec server:
-#ssh ott2lab-as3
-
-## Consoe server:
-# telnet 10.85.84.53
-# Pass1: lab
-# Pass2: lab
-
-# Username: cafyauto
-# Password: cisco123
-
-
-# Ixia:
-# UI: 10.85.84.214 
-# ixia (22-18-18)
-# chasis 10.85.84.214 port2 and port6 to be breakout from 400 to 4*100
-# Pass: Admin!@#123123
-
-# Pxe config:
-# ott22-pxe1
-# /nobackup/moji/8000-x64.iso
-# /etc/dhcp/dhcpd.config
-# User: root
-# Pass: roZes123 
-
-# Proxy config
-# ucs : 10.85.84.225
-# user: root
-# pass: roZes!23
-# config: /etc/rinetd.conf
-# requires killall -9 rinetd & rinetd after edit
-
 options {
   username: "cafyauto"
   password: "cisco123"
@@ -313,32 +219,23 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-   target: "10.85.84.225:47402"
-   #target: "10.85.84.225:9339" 
+    target: "10.85.84.236:57777"
   }
   gnmi {
-      target: "10.85.84.225:47402"
-     # default grpc mapping : 57777  target: "10.85.84.225:47402"
-     #target: "10.85.84.225:9339" 
+    target: "10.85.84.236:57777"
   }
   gribi{
-     # default grpc mapping : 57777  target: "10.85.84.225:47402"
-     #target: "10.85.84.225:9340"
-     target: "10.85.84.225:47402"
+    target: "10.85.84.236:57777"
   }
   ssh{
-    target: "10.85.84.225:47403"
+    target: "10.85.84.236:22"
     skip_verify: true
   }
   p4rt{
-     # default grpc mapping : 57777  target: "10.85.84.225:47402"
-     #target: "10.85.84.225:9559"
-     target: "10.85.84.225:47402"
+    target: "10.85.84.236:57777"
   }
   gnsi{
-     # default grpc mapping : 57777  target: "10.85.84.225:47402"
-     #target: "10.85.84.225:9559"
-     target: "10.85.84.225:47402"
+    target: "10.85.84.236:57777"
   }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
