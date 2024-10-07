@@ -623,12 +623,6 @@ message Metadata {
     bool eth_channel_assignment_cisco_numbering = 223;
     // Devices needs time to update interface counters.
     bool interface_counters_update_delayed = 224;
-    // Devices that do not support Optical-channel operational-mode telemetry.
-    bool optical_channel_oper_mode_telemetry_unsupported = 225;
-    // Devices that do not support Optical-channel target output power config.
-    bool optical_channel_target_output_power_unsupported = 226;
-    // Devices that do not support Optical-channel telemetry frequency value in MHz.
-    bool optical_channel_frequency_value_unsupported = 227;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

@@ -1171,18 +1171,3 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
-
-// OpticalChannelOperModeTelemetryUnsupported returns true for Devices that do not support Optical-channel operational-mode telemetry.
-func OpticalChannelOperModeTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOpticalChannelOperModeTelemetryUnsupported()
-}
-
-// OpticalChannelTargetOutputPowerUnsupported returns true for Devices that do not support Optical-channel target output power config.
-func OpticalChannelTargetOutputPowerUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOpticalChannelTargetOutputPowerUnsupported()
-}
-
-// OpticalChannelFrequencyValueUnsupported returns true for Devices that do not support Optical-channel telemetry frequency value in MHz.
-func OpticalChannelFrequencyValueUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOpticalChannelFrequencyValueUnsupported()
-}
