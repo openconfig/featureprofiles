@@ -238,13 +238,13 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 
 	for _, oc := range ocs {
 		opm := oc.GetOperationalMode()
-		if got, want := opm, uint16(dp16QAM); got != want {
-			t.Errorf("Optical-Channel: operational-mode: got %v, want %v", got, want)
-		}
 		inst := oc.GetCarrierFrequencyOffset().GetInstant()
 		avg := oc.GetCarrierFrequencyOffset().GetAvg()
 		min := oc.GetCarrierFrequencyOffset().GetMin()
 		max := oc.GetCarrierFrequencyOffset().GetMax()
+		if got, want := opm, uint16(dp16QAM); got != want {
+			t.Errorf("Optical-Channel: operational-mode: got %v, want %v", got, want)
+		}
 		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
 		// configured centre frequency.
 		if inst < -1*frequencyTolerance || inst > frequencyTolerance {
