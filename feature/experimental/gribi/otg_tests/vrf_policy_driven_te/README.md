@@ -550,9 +550,9 @@ IPv4Entry {192.0.2.105/32 (DEFAULT VRF)} -> NHG#15 (DEFAULT VRF) -> {
 
 *   Install a BGP route resolved by ISIS in default VRF to rout traffic out of DUT port-8.
 
-*   Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+*   Install an 0/0 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
-*   Install an 0/0 ipv6 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+*   Install an 0/0 ipv6 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 
 ## Procedure
 
