@@ -1,9 +1,10 @@
-# TE-18.4 Classify traffic on input matching all packets and police using 1 rate, 2 color marker
+# DP-2.4 Police traffic on input matching all packets using 1 rate, 2 color marker
 
 ## Summary
 
 Use the gRIBI applied ip entries from TE-18.1 gRIBI. 
-Configure an ingress scheduler to police traffic using a 1 rate, 2 color policer and attach the scheduler to the interface without a classifier. Lack of match conditions will cause all packets to be matched. 
+Configure an ingress scheduler to police traffic using a 1 rate, 2 color policer and attach the scheduler to the interface without a classifier.
+Lack of match conditions will cause all packets to be matched. 
 Send traffic to validate the policer.
 
 ## Topology
@@ -16,92 +17,134 @@ Use TE-18.1 test environment setup.
 
 ## Procedure
 
-### TE-18.4.1 Generate and push configuration
+### DP-2.4.1 Generate and push configuration
 
 * Generate config for 2 scheduler polices with an input rate limit.
 * Apply scheduler to DUT subinterface with vlan.
 * Use gnmi.Replace to push the config to the DUT.
 
-```yaml
----
-openconfig-qos:
-  scheduler-policies:
-    - scheduler-policy: "limit_2Gb"
-      config:
-        name: "limit_2Gb"
-      schedulers:
-        - scheduler: 0
-          config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
-          one-rate-two-color:
-            config:
-              cir: 2000000000           # 2Gbit/sec
-              bc: 100000                 # 100 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
-
-    - scheduler-policy: "limit_1Gb"
-      config:
-        name: "limit_1Gb"
-      schedulers:
-        - scheduler: 0
-          config:
-              type: ONE_RATE_TWO_COLOR
-              sequence: 0
-          one-rate-two-color:
-            config:
-              cir: 1000000000           # 1Gbit/sec
-              bc: 100000                # 100 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
-  input-policies:       # new OC subtree input-policies (/qos/input-policies)
-    - input-policy: "limit_group_A_2Gb"
-      config:
-        name: "limit_group_A_2Gb"
-        classifer: "dest_A"
-        scheduler-policy: "limit_2Gb"
-    - input-policy: "limit_dest_group_B_1Gb"
-      config:
-        name: "limit_dest_group_B_1Gb"
-        classifer: "dest_B"
-        scheduler-policy: "limit_1Gb"
-
-  interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
-        config:
-          subinterface: 100
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_A_2Gb
+```json
+{
+  "openconfig-qos": {
+    "scheduler-policies": [
+      {
+        "scheduler-policy": null,
+        "config": {
+          "name": "limit_1Gb"
+        },
+        "schedulers": [
+          {
+            "scheduler": null,
+            "config": {
+              "sequence": 1,
+              "type": "ONE_RATE_TWO_COLOR"
+            },
+            "inputs": [
+              {
+                "input": "my input policer 1Gb",
+                "config": {
+                  "id": "my input policer 1Gb",
+                  "input-type": "QUEUE",
+                  "queue": "dummy_input_queue_A"
+                }
+              }
+            ],
+            "one-rate-two-color": {
+              "config": {
+                "cir": 1000000000,
+                "bc": 100000,
+                "queuing-behavior": "POLICE"
+              },
+              "exceed-action": {
+                "config": {
+                  "drop": true
+                }
+              }
+            }
+          }
         ]
-  interfaces:                  # this is repeated per subinterface (vlan)
-    - interface: "PortChannel1"
-      interface-ref:
-        config:
-          subinterface: 200
-    input:
-      config:
-        policies:  [            # new OC leaf-list (/qos/interfaces/interface/input/config/policies)
-          limit_dest_group_B_1Gb
+      },
+      {
+        "scheduler-policy": null,
+        "config": {
+          "name": "limit_2Gb"
+        },
+        "schedulers": [
+          {
+            "scheduler": null,
+            "config": {
+              "sequence": 1,
+              "type": "ONE_RATE_TWO_COLOR"
+            },
+            "inputs": [
+              {
+                "input": "my input policer 2Gb",
+                "config": {
+                  "id": "my input policer 2Gb",
+                  "input-type": "QUEUE",
+                  "queue": "dummy_input_queue_B"
+                }
+              }
+            ],
+            "one-rate-two-color": {
+              "config": {
+                "cir": 2000000000,
+                "bc": 100000,
+                "queuing-behavior": "POLICE"
+              },
+              "exceed-action": {
+                "config": {
+                  "drop": true
+                }
+              }
+            }
+          }
         ]
-
+      }
+    ],
+    #
+    # Interfaces input are mapped to the desired scheduler.
+    "interfaces": [
+      {
+        "interface": null,
+        "config": {
+          "interface-id": "PortChannel1.100"
+        },
+        "input": {
+          "scheduler-policy": {
+            "config": {
+              "name": "limit_group_A_1Gb"
+            }
+          }
+        }
+      },
+      {
+        "interface": null,
+        "config": {
+          "interface-id": "PortChannel1.200"
+        },
+        "input": {
+          "scheduler-policy": {
+            "config": {
+              "name": "limit_group_B_1Gb"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
 ```
 
-### TE-18.4.2 Test traffic
+### DP-2.4.2 Test traffic
 
 * Send traffic
   * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
   * Send traffic from ATE port 1 to DUT for to dest_B and is conforming to
     cir.
+  * Validate qos counters per DUT.
+  * Validate qos counters by ATE port.
   * Validate packets are received by ATE port 2.
-    * Validate qos interface scheduler counters
   * Validate outer packet ipv6 flow label assignment
     * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
       * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
@@ -122,6 +165,10 @@ paths:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/config/queuing-behavior:
   /qos/scheduler-policies/scheduler-policy/schedulers/scheduler/one-rate-two-color/exceed-action/config/drop:
 
+  # qos interfaces config
+  /qos/interfaces/interface/config/interface-id:
+  /qos/interfaces/interface/input/scheduler-policy/config/name:
+
   # qos interface scheduler counters
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-pkts:
   /qos/interfaces/interface/input/scheduler-policy/schedulers/scheduler/state/conforming-octets:
@@ -140,4 +187,5 @@ rpcs:
 ## Required DUT platform
 
 * FFF
+
 
