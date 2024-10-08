@@ -41,6 +41,11 @@ var (
 			desc: "testGrpcListenAddress",
 			fn:   testGrpcListenAddress,
 		},
+		{
+			name: "testSysNonDefaultGrpcConfig",
+			desc: "testSysNonDefaultGrpcConfig",
+			fn:   testSysNonDefaultGrpcConfig,
+		},
 	}
 	CpuTestcases = []Testcase{
 		{
@@ -388,13 +393,13 @@ func TestMain(m *testing.M) {
 func TestSys(t *testing.T) {
 	TestCasesList := [][]Testcase{
 		TimeTestcases,
-		SystemTestcases, // SystemTestcase should be always before IanaportsTestcases
 		CpuTestcases,
 		HostNameTestcases,
 		IanaportsTestcases,
 		MemoryTestcases,
 		NtpTestcases,
 		SshTestcases,
+		SystemTestcases, // SystemTestcase should be always after IanaportsTestcases
 	}
 	for _, TestCases := range TestCasesList {
 		for _, tt := range TestCases {

@@ -5,10 +5,10 @@ from FireX import FireX
 from Vectorstore import Vectorstore
 from DDTS import DDTS
 
-
 parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoDB')
 parser.add_argument('run_id', help="FireX Run ID")
 parser.add_argument('xunit_file', help="XUnit Result File")
+parser.add_argument('--version',  default='', help="OS Version")
 args = parser.parse_args()
 
 database = Database()
@@ -18,7 +18,7 @@ ddts = DDTS()
 
 def main():
     # Get Metdata from run.json
-    run_info = firex.get_run_information(args.xunit_file)
+    run_info = firex.get_run_information(args.xunit_file, args.version)
 
     # Only Consider Subscribed Groups
     if database.is_subscribed(run_info["group"]) == False:
@@ -33,7 +33,6 @@ def main():
     
     # Add Testsuite Data
     documents = firex.get_testsuites(vectorstore, database, args.xunit_file, run_info)
-
     database.insert_logs(documents)
 
 main()

@@ -10,17 +10,18 @@ ddts = DDTS()
 techzone = TechZone()
 
 class FireX:
-    def get_run_information(self, file):
+    def get_run_information(self, file, version):
         tree = ET.parse(file)
         root = tree.getroot()
 
         testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
         run_file = testsuite_root + "/run.json"
-        show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
 
-        with open(show_version) as show_version_contents:
-            header = show_version_contents.readlines()[0]
-            os_version = header.split(",")[1].split(" ")[2].strip()
+        if version == "":
+            show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
+            with open(show_version) as show_version_contents:
+                header = show_version_contents.readlines()[0]
+                version = header.split(",")[1].split(" ")[2].strip()
 
         testsuites_metadata = root.attrib 
 
@@ -31,7 +32,7 @@ class FireX:
                 "firex_id": meta["firex_id"],
                 "group": meta["group"],
                 "lineup": meta["inputs"]["lineup"],
-                "tag": os_version,
+                "tag": version,
             })
         return testsuites_metadata
 
@@ -125,9 +126,6 @@ class FireX:
             failures_count = int(stats.get("failures", 0))
             errors_count = int(stats.get("errors", 0))
 
-            if failures_count == 0 and errors_count == 0: 
-                continue
-
             data = {
                 "group": run_info["group"],
                 "efr": run_info["tag"],
@@ -151,11 +149,24 @@ class FireX:
                     "testsuite_root",
                 ]
             
-            for property in properties:
-                if property.get("name") in keys:
-                    data[property.get("name").replace("test.", "")] = property.get(
-                        "value"
-                    )
+            cafy_keys_mappings = {
+                "testsuite_name": "plan_id",
+                "testsuite_hash": "testsuite_hash",
+                "testsuite_root": "testsuite_root"
+            }
+
+            framework = root.find(".//properties/property[@name='framework']").get("value")
+
+            if framework == "cafy2":
+                for property in properties:
+                    if property.get("name") in cafy_keys_mappings:
+                        data[cafy_keys_mappings[property.get("name")]] = property.get("value")
+            else:
+                for property in properties:
+                    if property.get("name") in keys:
+                        data[property.get("name").replace("test.", "")] = property.get(
+                            "value"
+                        )
 
             existing_bugs, existing = database.inherit_bugs(data["group"], data["plan_id"])
 
