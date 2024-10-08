@@ -62,6 +62,7 @@ const (
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port1",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
@@ -77,6 +78,7 @@ var (
 	}
 	dutPort2 = attrs.Attributes{
 		Desc:    "DUT to ATE Port2",
+		Name:    "port2",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
@@ -111,15 +113,26 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
+func verifyPortsUp(t *testing.T, dev *ondatra.Device, portList []string, portStatus bool) {
 	t.Helper()
-	for _, p := range dev.Ports() {
+	want := oc.Interface_OperStatus_UP
+	if !portStatus {
+		want = oc.Interface_OperStatus_DOWN
+	}
+	for _, port := range portList {
+		p := dev.Port(t, port)
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		if status != want {
+			t.Errorf("%s Status: got %v, want %v", port, status, want)
+		} else {
+			t.Logf("%s Status: got %v, want %v", port, status, want)
 		}
 	}
 }
@@ -134,6 +147,7 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort2.IPv4)
 	global.As = ygot.Uint32(localAs)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -167,6 +181,8 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 				af4.Enabled = ygot.Bool(true)
 			} else {
+				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+				af4.Enabled = ygot.Bool(false)
 				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 				af6.Enabled = ygot.Bool(true)
 			}
@@ -178,8 +194,10 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 
 			pg2af4 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			pg2af4.Enabled = ygot.Bool(true)
-			ext2Nh := pg2af4.GetOrCreateIpv4Unicast()
-			ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
+			if !deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
+				ext2Nh := pg2af4.GetOrCreateIpv4Unicast()
+				ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
+			}
 			pg2af6 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			pg2af6.Enabled = ygot.Bool(true)
 		case afiSafiSetToFalse:
@@ -467,7 +485,8 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 			})
 
 			t.Run("Verify port status on DUT", func(t *testing.T) {
-				verifyPortsUp(t, dut.Device)
+				portList := []string{"port1", "port2"}
+				verifyPortsUp(t, dut.Device, portList, true)
 			})
 
 			t.Run("Verify BGP telemetry", func(t *testing.T) {
