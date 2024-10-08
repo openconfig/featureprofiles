@@ -12,6 +12,7 @@
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
+/feature/aft/          @sudhinj
 /feature/bgp/          @dplore
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
@@ -25,6 +26,7 @@
 /feature/policy_forwarding/  @swetha-haridasula
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
+/feature/sampling/           @sudhinj
 /feature/security            @mihirpitale-googler
 /feature/staticroute/        @swetha-haridasula
 /feature/stp/                @alokmtri-g
