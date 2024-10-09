@@ -18,12 +18,15 @@ import (
 	"testing"
 	"time"
 
+	comps "github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/system"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (
@@ -31,13 +34,15 @@ var (
 		ondatra.NOKIA:   "sr_qos_mgr",
 		ondatra.ARISTA:  "IpRib",
 		ondatra.JUNIPER: "rpd",
+		ondatra.CISCO:   "ifmgr",
 	}
 	components = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Chassis",
-		ondatra.CISCO:   "Chassis",
+		ondatra.CISCO:   "Rack 0",
 		ondatra.JUNIPER: "CHASSIS0",
 		ondatra.NOKIA:   "Chassis",
 	}
+	componentName = map[string]string{}
 )
 
 func TestMain(m *testing.M) {
@@ -86,9 +91,26 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": components[dut.Vendor()]}
+	if deviations.ChassisGetRPCUnsupported(dut) {
+		var activeRp string
+		rpList := comps.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+		t.Logf("Found RP list: %v", rpList)
+		if len(rpList) < 2 {
+			activeRp = "0/RP0/CPU0"
+		} else {
+			standbyRpName, activeRpName := comps.FindStandbyRP(t, dut, rpList)
+			t.Logf("Standby RP: %v, Active RP: %v", standbyRpName, activeRpName)
+			activeRp = activeRpName
+		}
+		componentName = map[string]string{"name": activeRp + "-" + processName[dut.Vendor()]} // example: 0/RP0/CPU0-ifmgr
+	} else {
+		componentName = map[string]string{"name": components[dut.Vendor()]}
+	}
+	t.Logf("Component Name: %v", componentName)
+
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
+			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -106,10 +128,10 @@ func TestCopyingDebugFiles(t *testing.T) {
 	case ondatra.ARISTA:
 		t.Log("Skip logging validResponse for Arista")
 	default:
-		t.Logf("Response: %v", (validResponse))
+		t.Logf("Response: %v", validResponse)
 	}
 	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
+		t.Errorf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
 	}
 }
 
@@ -120,6 +142,7 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	// Execute Healthz Check RPC for the chassis component.
 	chkReq := &hpb.CheckRequest{
 		Path: &tpb.Path{
+			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
