@@ -90,6 +90,16 @@ testbeds:
       gnmi_port: 50056
       rest_port: 30056
 
+  8808_FOX2625PLW8_MGMT_GRPC:
+    <<: *8808_FOX2625PLW8_DEFAULTS
+    binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding_gnmi_v6
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig_gnmi_v6_mgmt.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40056
+      gnmi_port: 50056
+      rest_port: 30056
+
   8808_FOX2506P5XE:
     hw: 8808_FOX2506P5XE
     owner: kjahed
