@@ -784,6 +784,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/ipv6_slaac_link_local_test/otg_tests/ipv6_slaac_link_local_test/ipv6_slaac_link_local_test.go"
 }
 test: {
+  id: "RT-5.11"
+  description: "Interface Load-Interval for Statistics Sampling"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/loadinterval/otg_tests/README.md"
+}
+test: {
   id: "RT-5.2"
   description: "Aggregate Interfaces"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_test/README.md"
