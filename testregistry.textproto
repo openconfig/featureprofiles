@@ -1003,12 +1003,18 @@ test: {
 }
 test: {
   id: "TE-16.1"
+  description: "gRIBI Traffic Engineering - Basic encapsulation tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/basic_encap_test/README.md"
 }
 test: {
   id: "TE-16.2"
-  description: "gRIBI encapsulation FRR scenarios"
+  description: "gRIBI Traffic Engineering encapsulation FRR scenarios"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr/README.md"
+}
+test: {
+  id: "TE-16.3"
+  description: "gRIBI Traffic Engineering Encapsulation with Re-encap NI FRR scenarios"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr_with_reencap_vrf_test/README.md"
 }
 test: {
   id: "TE-17.1"
