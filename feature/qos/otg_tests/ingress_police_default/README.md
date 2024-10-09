@@ -139,16 +139,20 @@ Use TE-18.1 test environment setup.
 ### DP-2.4.2 Test traffic
 
 * Send traffic
-  * Send traffic from ATE port 1 to DUT for dest_A and is conforming to cir.
-  * Send traffic from ATE port 1 to DUT for to dest_B and is conforming to
-    cir.
+  * Send flow A traffic from ATE port 1 to DUT for dest_A at 0.7Gbps (note cir is 1Gbps).
+  * Send flow B traffic from ATE port 1 to DUT for to dest_B at 1.5Gbps (note cir is 2Gbps).
   * Validate qos counters per DUT.
   * Validate qos counters by ATE port.
   * Validate packets are received by ATE port 2.
-  * Validate outer packet ipv6 flow label assignment
-    * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
-      * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol
-      * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
+    * Validate DUT qos interface scheduler counters count packets as conforming-pkts and conforming-octets
+    * Validate at OTG that 0 packets are lost on flow A and flow B
+  * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
+    * If the inner packet is IPv4, the outer IPv6 flow label should be computed based on the IPv4 5 tuple src,dst address and ports, plus protocol.
+    * If the inner packet is IPv6, the inner flow label should be copied to the outer packet.
+    * To validate the flow label, use the ATE to verify that the packets for 
+      * flow A all have the same flow label
+      * flow B have the same flow label
+      * flow A and B labels do not match
   * Increase traffic on flow to dest_B to 2Gbps
     * Validate that flow dest_B experiences ~50% packet loss (+/- 1%)
 
