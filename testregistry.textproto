@@ -409,6 +409,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "PF-1.6"
+  description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
@@ -756,12 +762,6 @@ test: {
 test: {
   id: "RT-3.32"
   description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection plus GUE DECAP and ENCAP"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "RT-3.33"
-  description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
   readme: ""
   exec: " "
 }
