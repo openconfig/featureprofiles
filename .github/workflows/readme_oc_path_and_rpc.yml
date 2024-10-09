@@ -37,7 +37,7 @@ jobs:
 
         exemption_flags=(
           --non-test-readme feature/security/gnsi/certz/test_data/README.md
-          --non-test-readme feature/experimental/p4rt/README.md
+          --non-test-readme feature/p4rt/README.md
           --non-test-readme feature/security/gnsi/acctz/README.md
         )
 

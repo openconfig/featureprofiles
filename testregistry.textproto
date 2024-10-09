@@ -277,7 +277,7 @@ test: {
 test: {
   id: "Health-1.1"
   description: "Generic Health Check"
-  readme: "https://github.com/openconfig/featureprofiles/blob/d26ac7fac5406af29c9a582b8d8ee73d56953e3b/feature/experimental/system/health/tests/system_generic_health_check/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/tests/system_generic_health_check/README.md"
   exec: " "
 }
 test: {
@@ -336,7 +336,7 @@ test: {
 }
 test: {
   id: "P4RT-1.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/base_p4rt/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/base_p4rt/README.md"
 }
 test: {
   id: "P4RT-1.2"
@@ -344,39 +344,39 @@ test: {
 }
 test: {
   id: "P4RT-2.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/tests/p4rt_election/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/p4rt_election/README.md"
 }
 test: {
   id: "P4RT-2.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/tests/metadata_validation_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/tests/metadata_validation_test/README.md"
 }
 test: {
   id: "P4RT-3.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/google_discovery_protocol_packetin_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetin_test/README.md"
 }
 test: {
   id: "P4RT-3.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/google_discovery_protocol_packetout_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_test/README.md"
 }
 test: {
   id: "P4RT-5.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/traceroute_packetin_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetin_test/README.md"
 }
 test: {
   id: "P4RT-5.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/traceroute_packetout_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/traceroute_packetout_test/README.md"
 }
 test: {
   id: "P4RT-6.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/performance_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/performance_test/README.md"
 }
 test: {
   id: "P4RT-7.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/lldp_packetin_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/lldp_packetin_test/README.md"
 }
 test: {
   id: "P4RT-7.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/p4rt/otg_tests/lldp_packetout_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/lldp_packetout_test/README.md"
 }
 test: {
   id: "PF-1.1"
@@ -411,7 +411,7 @@ test: {
 test: {
   id: "PLT-1.1"
   description: "Interface breakout Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/breakout_configuration/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_configuration/README.md"
   exec: " "
 }
 test: {
@@ -466,13 +466,13 @@ test: {
 test: {
   id: "RT-1.11"
   description: "RT-1.11: BGP remove private AS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/ate_tests/bgp_remove_private_as/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_remove_private_as/README.md"
   exec: " "
 }
 test: {
   id: "RT-1.12"
   description: "RT-1.12: BGP always compare MED"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/ate_tests/bgp_always_compare_med/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_always_compare_med/README.md"
   exec: " "
 }
 test: {
@@ -514,7 +514,7 @@ test: {
 test: {
   id: "RT-1.19"
   description: "BGP 2-Byte and 4-Byte ASN support"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
   exec: " "
 }
 test: {
@@ -538,7 +538,7 @@ test: {
 test: {
   id: "RT-1.24"
   description: "BGP 2-byte and 4-byte ASN support with policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
   exec: " "
 }
 test: {
@@ -620,7 +620,7 @@ test: {
 test: {
   id: "RT-1.53"
   description: "Prefix-set test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/prefix_set/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/prefix_set_test/README.md"
   exec: " "
 }
 test: {
@@ -697,13 +697,13 @@ test: {
 test: {
   id: "RT-2.14"
   description: "ISIS Drain Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/isis_drain_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_drain_test/README.md"
   exec: " "
 }
 test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/lsp_updates_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
 }
 test: {
   id: "RT-2.6"
@@ -732,13 +732,13 @@ test: {
 test: {
   id: "RT-3.1"
   description: "Policy based VRF selection base"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/base_vrf_selection/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/policy_vrf_selection/otg_tests/base_vrf_selection/README.md"
   exec: " "
 }
 test: {
   id: "RT-3.2"
   description: "Policy based VRF selection with multiple protocol and DSCP values"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/policy/policy_vrf_selection/ate_tests/protocol_dscp_rules_for_vrf_selection_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/policy_vrf_selection/otg_tests/protocol_dscp_rules_for_vrf_selection_test/README.md"
   exec: " "
 }
 test: {
@@ -822,7 +822,7 @@ test: {
 test: {
   id: "RT-5.6"
   description: "Interface Loopback mode"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/interface_loopback_aggregate/otg_tests/interface_loopback_aggregate/README.md"
 }
 test: {
   id: "RT-5.7"
@@ -885,7 +885,7 @@ test: {
 test: {
   id: "RT-7.5"
   description: "BGP Policy - Set Link Bandwidth Community"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/otg_tests/link_bandwidth_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/link_bandwidth_test/README.md"
 }
 test: {
   id: "RT-7.6"
@@ -936,7 +936,7 @@ test: {
 }
 test: {
   id: "Replay-1.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/replay/tests/p4rt_replay/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
 test: {
   id: "SFLOW-1"
@@ -1003,16 +1003,22 @@ test: {
 }
 test: {
   id: "TE-16.1"
+  description: "gRIBI Traffic Engineering - Basic encapsulation tests"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/basic_encap_test/README.md"
 }
 test: {
   id: "TE-16.2"
-  description: "gRIBI encapsulation FRR scenarios"
+  description: "gRIBI Traffic Engineering encapsulation FRR scenarios"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr/README.md"
 }
 test: {
+  id: "TE-16.3"
+  description: "gRIBI Traffic Engineering Encapsulation with Re-encap NI FRR scenarios"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_frr_with_reencap_vrf_test/README.md"
+}
+test: {
   id: "TE-17.1"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/gribi/otg_tests/vrf_policy_driven_te/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/vrf_policy_driven_te/README.md"
 }
 test {
   id: "TE-18.1"
@@ -1562,7 +1568,7 @@ test: {
 test: {
   id: "gNMI-1.20"
   description: "Telemetry: Optics Thresholds"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/platform/tests/optics_thresholds_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_thresholds_test/README.md"
   exec: " "
 }
 test: {
