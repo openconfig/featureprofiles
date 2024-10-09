@@ -104,12 +104,11 @@ network-instances:
 ```yaml
 paths:
   ## Config paths
-  /network-instances/network-instance/protocols/protocol/static-routes/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/config/index:
-  /network-instances/network-instance/protocols/protocol/static-routes/next-hops/next-hop/config/next-hop:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/name: 
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
 
 
 rpcs:
