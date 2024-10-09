@@ -116,7 +116,7 @@ In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated ab
     * Traffic for Prefix 1 received from ATE2:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE1:Port1
     * Traffic sent by ATE2:Port1 must be routed to ATE1:Port1 via the DEFAULT VRF in the DUT.<br><br><br>
 
-**RT-3.33.3 to RT-3.33.6: Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.**
+**RT-3.33.3 to RT-3.33.7: Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.**
 Follow the steps in RT-3.31.2 above to gradually move different traffic flows from the Default VRF to the Non-Defailt in the following sequence:
 
   * RT-3.33.3 Prefix 1-2 Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
@@ -158,5 +158,5 @@ Follow the steps in RT-3.31.2 above to gradually move different traffic flows fr
     * Statement3: traffic matching IPv4Prefix3/24 & IPv6Prefix3/64, Punt to Non-default vrf
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to Non-default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to Non-default vrf
-    * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf<br><br>
+    * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to Non-default vrf<br><br>
   * Expectations are the same for traffic routed via the Default and the Non-Default VRFs on the DUT.
