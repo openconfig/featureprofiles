@@ -410,7 +410,7 @@ test: {
 }
 test: {
   id: "PF-1.6"
-  description: "DSCP based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
+  description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
   readme: ""
   exec: " "
 }
