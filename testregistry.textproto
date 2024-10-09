@@ -701,6 +701,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.15"
+  description: "IS-IS Extensions for Segment Routing"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
