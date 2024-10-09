@@ -48,12 +48,14 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 *   TODO:
     /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
 
-# Protocol/RPC
 
-*   gRIBI:
-    *   Modify()
-        *   ModifyRequest:
-            *   AFTOperation:
-                *   next\_hop\_group
-                    *   NextHopGroupKey: id
-                    *   NextHopGroup: weight
+# OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+  gribi:
+    gRIBI.Modify:
+    gRIBI.Flush:
+```
