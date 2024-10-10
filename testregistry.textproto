@@ -270,6 +270,10 @@ test: {
   exec: " "
 }
 test: {
+  id: "DP-2.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_nhg/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
