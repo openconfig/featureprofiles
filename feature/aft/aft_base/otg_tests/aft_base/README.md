@@ -87,7 +87,6 @@ paths:
 
   ## State Paths ##
  
-  /network-instances/network-instance/afts:
   /network-instances/network-instance/afts/ethernet/mac-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
