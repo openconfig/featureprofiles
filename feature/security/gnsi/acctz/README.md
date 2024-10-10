@@ -37,7 +37,7 @@ Create a library of device configuration to be used for all of the gNSI.acctz.v1
 - [ACCTZ-2.1 Record Subscribe Partial](RecordSubscribePartial)
 - [ACCTZ-3.1 Record Subscribe Non-gRPC](RecordSubscribeNongrpc)
 - [ACCTZ-4.1 Record History Truncation](RecordHistoryTruncation/)
-- [ACCTZ-4.2 Record Payload Truncation](RecordPayloadTruncation/)
+- [ACCTZ-4.2 Record Payload Truncation](tests/record_payload_truncation)
 - [ACCTZ-5.1 Record Subscribe Idle Timeout](RecordSubscribeIdleTimeout/)
 - [ACCTZ-6.1 Record Subscribe Idle Timeout DoA](RecordSubscribeIdleTimeoutDoA/)
 - [ACCTZ-7.1 Accounting Authentication Failure - Multi-transaction](AccountingAuthenFailMulti/)
