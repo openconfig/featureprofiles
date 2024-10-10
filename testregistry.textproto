@@ -931,6 +931,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-1.2"
+  description: "ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "TE-10"
   description: "gRIBI MPLS Forwarding"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_forwarding/README.md"
