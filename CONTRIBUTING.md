@@ -62,10 +62,6 @@ The directory tree is organized as follows:
 *   `cloudbuild/` contains google cloud build scripts for running virtual
     routers in containers on [KNE](https://github.com/openconfig/kne)
 *   `feature/` contains definition and tests of feature profiles.
-*   `feature/experimental` contains tests which have automation which is
-    not confirmed to pass on any hardware platform or software release.
-    When the test automation is passing against at least one DUT,
-    it is moved to the `feature/` directory.
 *   `internal/` contains packages used by feature profile tests.
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
