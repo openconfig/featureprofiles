@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d4969f9a-cbd4-4ef2-bc1e-ea676ccd3c67"
+plan_id: "MGMT-1.1"
+description: "Test management VRF behaviors"
+testbed: TESTBED_DUT_ATE_4LINKS
