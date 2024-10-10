@@ -6,29 +6,6 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 ## Procedure
 
-+--------------------+
-|                    |           +----------------+
-|                    |           |                |
-|                    |           |                |
-|                    |           |                |
-|                    |    port1  |      ATE       |
-|    DUT             +-----------+                |
-|                    |           |                |
-|                    |           |                |
-|                    |     port2 |                |
-|                    +-----------+                |
-|                    |           |                |
-|                    |           |                |
-|                    |           |                |
-|                    |           |                |
-+-----------+--------+           +---------+------+
-            |                              |
-            |                              |
-            |                              |
-            |                              |
-            |              port3           |
-            +------------------------------+-
-
 Configure DUT:port1,port2,port3 for IS-IS session with ATE:port1,port2,port3
 *   IS-IS must be level 2 only with wide metric.
 *   IS-IS must be point to point.
