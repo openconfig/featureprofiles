@@ -1031,6 +1031,11 @@ test {
   description: "MPLS in UDP Encapsulation with QoS scheduler"
   readme: ""
 }
+test {
+  id: "TE-18.5"
+  description: "gRIBI encapsulation for mmpls in UDP with inner TTL manipulation"
+  readme: ""
+}
 test: {
   id: "TE-2.1"
   description: "gRIBI IPv4 Entry"
