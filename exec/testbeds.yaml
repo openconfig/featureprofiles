@@ -92,8 +92,8 @@ testbeds:
 
   8808_FOX2625PLW8_MGMT_GRPC:
     <<: *8808_FOX2625PLW8_DEFAULTS
-    binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig_gnmi_v6_mgmt.proto
+    binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40056
