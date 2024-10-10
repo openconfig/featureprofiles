@@ -1,10 +1,10 @@
+# PF-1.6: Policy forwarding based GUE tunnel decap to default and non-default network-instance
 
 ## Summary
 This test ensures NOS is able to host multiple VRFs, perform GUE tunnel DECAP in the default VRF and also allows for gradual traffic migration from Default to Non-Default VRF using VRF selection policy.
 
 
-## Procedure
-Test environment setup
+## Test environment setup
 
 ### Topology
 Create the following connections:
@@ -75,7 +75,8 @@ B2 <-- EBGP(ASN100:ASN200) --> C1;
 		- IPv6Prefix10/64 to IPv6Prefix5/64 
 
 
-**PF-1.6.1: [Baseline] Default VRF for all flows. Regular traffic.**
+## Procedure
+### PF-1.6.1: [Baseline] Default VRF for all flows with regular traffic profile
 
 In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated above.
   * ATE2 sends following IPv4 and IPv6 flows:
@@ -92,7 +93,7 @@ In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated ab
 	- Expectations:
 		- All traffic must be successful<br><br><br>
 
-**PF-1.6.2: Traffic from ATE2:Port1 to ATE1:Port1 Prefix 1 migrated to Non-Default VRF using the VRF selection policy.**
+### PF-1.6.2: Traffic from ATE2:Port1 to ATE1:Port1 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
   * ATE2 sends following IPv4 and IPv6 flows:
     * IPv4Prefix6/24 to IPv4Prefix1/24 
     * IPv4Prefix7/24 to IPv4Prefix2/24
