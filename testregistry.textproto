@@ -1753,3 +1753,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
   exec: " "
 }
+test: {
+  id: "AFT-2.1"
+  description: "AFT Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
+  exec: " "
+}
