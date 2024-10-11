@@ -34,7 +34,7 @@ testbeds:
     hw: 8808-FOX2508P0JU
     owner: vbhan
     testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
-    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
+    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
     otg:
       host: ott-ucs-b4
