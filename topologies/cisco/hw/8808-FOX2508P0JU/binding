@@ -62,16 +62,16 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
    gnoi{
-     target: "10.85.100.200:57900"
+     target: "10.85.100.200:57901"
    }
    gnmi {
-     target: "10.85.100.200:57900"
+     target: "10.85.100.200:57901"
    }
    gribi{
-     target: "10.85.100.200:57900"
+     target: "10.85.100.200:57901"
    }
    p4rt{
-     target: "10.85.100.200:57900"
+     target: "10.85.100.200:57901"
    }
    ssh{
      target: "10.85.100.200:57902"
