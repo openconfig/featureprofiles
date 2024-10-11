@@ -100,7 +100,9 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			cs = append(cs, oc.UnionString(communityMatch))
 		}
 		communitySet.SetCommunityMember(cs)
-		communitySet.SetMatchSetOptions(commMatchSetOptions)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(commMatchSetOptions)
+		}
 	}
 
 	var communitySetCLIConfig string
@@ -118,6 +120,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(oc.BgpPolicy_MatchSetOptionsType_ANY))
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {

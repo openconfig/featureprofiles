@@ -35,4 +35,16 @@ platform_exceptions: {
     default_route_policy_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    interface_enabled: true
+    static_protocol_name: "static"
+    explicit_interface_in_default_vrf: true
+    default_route_policy_unsupported: true
+  }
+}
 
