@@ -93,7 +93,7 @@ var (
 		Name:    "port4",
 		IPv4:    "192.0.2.13",
 		IPv4Len: plenIPv4,
-		IPv6:    "2001:0db8::192:0:2:13",
+		IPv6:    "2001:0db8::192:0:2:d",
 		IPv6Len: plenIPv6,
 	}
 

@@ -83,11 +83,17 @@ func TestZrSupplyVoltage(t *testing.T) {
 			// Disable interface
 			i.Enabled = ygot.Bool(false)
 			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-			// Wait for the cooling off period
+			// Wait for the cooling-off period
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 
 			volInstNew := verifyVoltageValue(t, streamInst, "Instant")
 			t.Logf("Port %s instant voltage after port down: %v", dp.Name(), volInstNew)
+
+			// Enable interface again.
+			i.Enabled = ygot.Bool(true)
+			gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
+			// Wait for the cooling-off period
+			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 		})
 	}
 }

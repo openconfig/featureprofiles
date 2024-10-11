@@ -58,6 +58,28 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 	return s
 }
 
+// FindActiveComponentsByType finds the list of active components based on hardware type.
+func FindActiveComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	var s []string
+	for _, c := range components {
+		if c.GetType() == nil {
+			t.Logf("Component %s type is missing from telemetry", c.GetName())
+			continue
+		}
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+			if v == cType && c.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
+				s = append(s, c.GetName())
+			}
+		default:
+			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
+		}
+	}
+	return s
+}
+
 // FindSWComponentsByType finds the list of SW components based on a type.
 func FindSWComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_SOFTWARE_COMPONENT) []string {
 	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
@@ -190,18 +212,13 @@ func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *on
 			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
 		}
 	}
-	compName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State())
-	for {
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(compName).State()).Val()
-		if !ok {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, component %s not found.", p.Name(), compName)
-		}
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_OPTICAL_CHANNEL {
-			return compName
-		}
-		if comp.GetParent() == "" {
-			t.Fatalf("Recursive optical channel lookup failed for port: %s, parent of component %s not found.", p.Name(), compName)
-		}
-		compName = comp.GetParent()
+	transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
 	}
+	opticalChannelName := gnmi.Get(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
+	return opticalChannelName
 }
