@@ -79,6 +79,7 @@ duts {
   ports {
     id: "port1"
     name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port2"
