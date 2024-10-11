@@ -47,7 +47,7 @@ const (
 	v6RoutePrefix   = uint32(64)
 	dp2v4Route      = "192.168.1.4"
 	dp2v4Prefix     = uint32(30)
-	dp2v6Route      = "2001:DB8::0"
+	dp2v6Route      = "2021:DB8::0"
 	dp2v6Prefix     = uint32(126)
 	v4Flow          = "v4Flow"
 	v6Flow          = "v6Flow"
@@ -63,7 +63,8 @@ const (
 	protoDst        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	dummyV6         = "2001:db8::192:0:2:d"
 	dummyMAC        = "00:1A:11:00:0A:BC"
-	tagValue        = 100
+	V4tagValue      = 40
+	V6tagValue      = 60
 )
 
 var (
@@ -113,7 +114,8 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 	if err != nil {
 		t.Fatalf("failed due to %v", err)
 	}
-	t.Log(getResponse)
+	t.Log("Recieved parameters of table connections")
+	//t.Log(getResponse)
 
 	t.Log("Verify Get outputs ")
 	for _, notification := range getResponse.Notification {
@@ -142,9 +144,9 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 						t.Fatalf("import-policy is not set to %s as expected", RplName)
 					}
 				}
-				t.Logf("Table Connection Details:"+
+				t.Logf("Table Connection Details:\n"+
 					"SRC PROTO GOT %v WANT STATIC\n"+
-					"DST PRTO GOT %v WANT ISIS\n"+
+					"DST PROTO GOT %v WANT ISIS\n"+
 					"ADDRESS FAMILY GOT %v WANT %v\n"+
 					"DISABLEMETRICPROPAGATION GOT %v WANT %v\n", config.SrcProtocol,
 					config.DstProtocol, config.AddressFamily, addressFamily,
@@ -170,6 +172,40 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	tableConn.SetImportPolicy([]string{policyName})
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn.SetDisableMetricPropagation(metricPropagation)
+	}
+	if deviations.EnableTableConnections(dut) {
+		value := "enable"
+		test, err := json.Marshal(value)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+							{Name: "table-connections"},
+							{Name: "admin-state"},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: test,
+						},
+					},
+				},
+			},
+		}
+
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
+		}
 	}
 	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
@@ -206,7 +242,9 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		v4Prefix := v4Route + "/" + strconv.FormatUint(uint64(v4RoutePrefix), 10)
 		pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
 		pset.GetOrCreatePrefix(v4Prefix, prefixMatch)
-		pset.SetMode(oc.PrefixSet_Mode_IPV4)
+		if !deviations.SkipPrefixSetMode(dut) {
+			pset.SetMode(oc.PrefixSet_Mode_IPV4)
+		}
 		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 		stmt1.GetOrCreateActions().SetPolicyResult(rplType)
 
@@ -217,7 +255,9 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		v6Prefix := v6Route + "/" + strconv.FormatUint(uint64(v6RoutePrefix), 10)
 		pset = rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
 		pset.GetOrCreatePrefix(v6Prefix, prefixMatch)
-		pset.SetMode(oc.PrefixSet_Mode_IPV6)
+		if !deviations.SkipPrefixSetMode(dut) {
+			pset.SetMode(oc.PrefixSet_Mode_IPV6)
+		}
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 		stmt2.GetOrCreateActions().SetPolicyResult(rplType)
 	} else if tagSetCond {
@@ -228,7 +268,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		v4tagSet := getTagSetName(dut, rplName, v4Statement, "v4")
 		tagSet1 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
-		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
+		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
 		stmt1.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v4tagSet)
 		stmt1.GetOrCreateActions().SetPolicyResult(rplType)
 
@@ -238,7 +278,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		v6tagSet := getTagSetName(dut, rplName, v6Statement, "v6")
 		tagSet2 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
-		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
+		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
 		stmt2.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v6tagSet)
 		stmt2.GetOrCreateActions().SetPolicyResult(rplType)
 	} else {
@@ -462,6 +502,7 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		desc:               "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV6,
 		RplName:            v6RoutePolicy,
+		metricPropogation:  true,
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v6Flow},
@@ -497,8 +538,8 @@ func TestStaticToISISRedistribution(t *testing.T) {
 
 			if tc.TagSetCondition {
 				t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(tagValue))
-					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(tagValue))
+					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v4Statement, "v4"), oc.UnionUint32(V4tagValue))
+					verifyRplConfig(t, ts.DUT, getTagSetName(ts.DUT, tc.RplName, v6Statement, "v6"), oc.UnionUint32(V6tagValue))
 				})
 			}
 

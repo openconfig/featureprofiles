@@ -1171,3 +1171,8 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
+
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
