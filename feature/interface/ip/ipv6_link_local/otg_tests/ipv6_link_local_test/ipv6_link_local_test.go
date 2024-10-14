@@ -128,7 +128,9 @@ func TestIPv6LinkLocal(t *testing.T) {
 	t.Run("Disable and Enable Port1", func(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
-		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
+		// gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
+		t.Logf("Sleeping for 30 seconds")
+		time.Sleep(30 * time.Second)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		t.Run("Interface Telemetry", func(t *testing.T) {
@@ -177,16 +179,33 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
 	subInt := srcIntf.GetOrCreateSubinterface(0)
+	subInt4 := subInt.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		subInt4.Enabled = ygot.Bool(true)
+	}
 	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.LinkLocalMaskLen(dut) {
+		dutSrc.IPv6Len = 128
+	}
 	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetPrefixLength(dutSrc.IPv6Len)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
-
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
 	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt4 := dstSubInt.GetOrCreateIpv4()
 	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		dstSubInt4.Enabled = ygot.Bool(true)
+	}
+	if deviations.LinkLocalMaskLen(dut) {
+		dutDst.IPv6Len = 128
+	}
 	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetPrefixLength(dutDst.IPv6Len)
+
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)

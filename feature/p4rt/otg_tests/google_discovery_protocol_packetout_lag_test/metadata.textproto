@@ -1,0 +1,44 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "14861016-4ac8-43a8-8535-3f2c034e0e03"
+plan_id: "P4RT-3.21"
+description: "Google Discovery Protocol: PacketOut with LAG"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    p4rt_gdp_requires_dot1q_subinterface: true
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+
