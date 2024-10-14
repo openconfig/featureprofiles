@@ -31,10 +31,9 @@ const (
 	ethernetIndexBase   = uint32(40000)
 )
 
-// 196100000 and -9
 var (
-	frequencies         = []uint64{191400000}
-	targetOpticalPowers = []float64{-13}
+	frequencies         = []uint64{191400000, 196100000}
+	targetOpticalPowers = []float64{-9, -13}
 	operationalModeFlag = flag.Int("operational_mode", 1, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -187,9 +186,10 @@ func validateSampleStream(t *testing.T, dut *ondatra.DUTDevice, interfaceData *y
 		t.Errorf("PreFECBER data is empty for port %v", portName)
 	} else {
 		if deviations.CiscoPreFECBERInactiveValue(dut) {
+			validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, 0.5, operStatus)
+		} else {
 			validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, operStatus)
 		}
-		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, 0.5, operStatus)
 	}
 	if e := otn.GetEsnr(); e == nil {
 		t.Errorf("ESNR data is empty for port %v", portName)
