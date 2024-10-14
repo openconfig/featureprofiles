@@ -118,7 +118,7 @@ duts {
 #    name: "HundredGigE0/14/0/34"  # Change this to the actual port name.
 #    speed: S_100GB   
 #   }
-# }
+}
 
 # ates {
 #   id: "ate"
