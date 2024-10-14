@@ -19,6 +19,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,7 +29,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -64,6 +65,10 @@ const (
 	tolerance                 = 50
 	plenIPv4                  = 30
 	plenIPv6                  = 126
+	fibPassedTraffic          = "fibPassedTraffic"
+	fibFailedTraffic          = "fibFailedTraffic"
+	dstTrackingf1             = "dstTrackingf1"
+	dstTrackingf2             = "dstTrackingf2"
 )
 
 var (
@@ -102,8 +107,9 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	fibPassedDstRoute string
-	fibFailedDstRoute string
+	fibPassedDstRoute      string
+	fibFailedDstRoute      string
+	fibFailedDstRouteInHex string
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -143,7 +149,7 @@ func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	return niProto
 }
 
-func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {
+func configureOTG(t *testing.T, otg *otg.OTG, dstIPList []string) (gosnappi.BgpV6Peer, gosnappi.DeviceIpv6, gosnappi.Config) {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
@@ -167,6 +173,44 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV6Peer, gosnappi.Devi
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	flow1ipv4 := config.Flows().Add().SetName(fibPassedTraffic)
+	flow1ipv4.Metrics().SetEnable(true)
+	flow1ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow1ipv4.Size().SetFixed(512)
+	flow1ipv4.Rate().SetPps(100)
+	flow1ipv4.Duration().Continuous()
+	e1 := flow1ipv4.Packet().Add().Ethernet()
+	e1.Src().SetValue(atePort1.MAC)
+	v4 := flow1ipv4.Packet().Add().Ipv4()
+	v4.Src().SetValue(atePort1.IPv4)
+	v4.Dst().Increment().SetStart(dstIPList[0])
+
+	flow1ipv4.EgressPacket().Add().Ethernet()
+	ipTrackingf1 := flow1ipv4.EgressPacket().Add().Ipv4()
+	ipDstTrackingf1 := ipTrackingf1.Dst().MetricTags().Add()
+	ipDstTrackingf1.SetName(dstTrackingf1).SetOffset(22).SetLength(10)
+
+	flow2ipv4 := config.Flows().Add().SetName(fibFailedTraffic)
+	flow2ipv4.Metrics().SetEnable(true)
+	flow2ipv4.TxRx().Device().
+		SetTxNames([]string{atePort1.Name + ".IPv4"}).
+		SetRxNames([]string{atePort2.Name + ".IPv4"})
+	flow2ipv4.Size().SetFixed(512)
+	flow2ipv4.Rate().SetPps(100)
+	flow2ipv4.Duration().Continuous()
+	e2 := flow2ipv4.Packet().Add().Ethernet()
+	e2.Src().SetValue(atePort1.MAC)
+	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
+	v4Flow2.Src().SetValue(atePort1.IPv4)
+	v4Flow2.Dst().SetValues(dstIPList[1:])
+
+	flow2ipv4.EgressPacket().Add().Ethernet()
+	ipTrackingf2 := flow2ipv4.EgressPacket().Add().Ipv4()
+	ipDstTrackingf2 := ipTrackingf2.Dst().MetricTags().Add()
+	ipDstTrackingf2.SetName(dstTrackingf2).SetOffset(22).SetLength(10)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, config)
@@ -206,6 +250,8 @@ type testArgs struct {
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
+	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
 	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
@@ -243,7 +289,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	var otgConfig gosnappi.Config
 	var otgBgpPeer gosnappi.BgpV6Peer
 	var otgIPv6Device gosnappi.DeviceIpv6
-	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg)
+	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg, dstIPList)
 
 	verifyBgpTelemetry(t, dut)
 
@@ -287,7 +333,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		otg:           otg,
 	}
 	start := time.Now()
-	injectEntry(ctx, t, args)
+	injectEntry(ctx, t, args, dstIPList, vipList)
 	t.Logf("Main Function: Time elapsed %.2f seconds since start", time.Since(start).Seconds())
 
 	t.Log("Send traffic to any of the programmed entries and validate.")
@@ -297,48 +343,16 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 func sendTraffic(t *testing.T, args *testArgs) {
 	// Ensure that traffic can be forwarded between ATE port-1 and ATE port-2.
 	t.Helper()
-	t.Logf("TestBGP:start otg Traffic config")
-	flow1ipv4 := args.otgConfig.Flows().Add().SetName("Flow1")
-	flow1ipv4.Metrics().SetEnable(true)
-	flow1ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow1ipv4.Size().SetFixed(512)
-	flow1ipv4.Rate().SetPps(100)
-	flow1ipv4.Duration().Continuous()
-	e1 := flow1ipv4.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	v4 := flow1ipv4.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(fibPassedDstRoute)
-	flow2ipv4 := args.otgConfig.Flows().Add().SetName("Flow2")
-	flow2ipv4.Metrics().SetEnable(true)
-	flow2ipv4.TxRx().Device().
-		SetTxNames([]string{atePort1.Name + ".IPv4"}).
-		SetRxNames([]string{atePort2.Name + ".IPv4"})
-	flow2ipv4.Size().SetFixed(512)
-	flow2ipv4.Rate().SetPps(100)
-	flow2ipv4.Duration().Continuous()
-	e2 := flow2ipv4.Packet().Add().Ethernet()
-	e2.Src().SetValue(atePort1.MAC)
-	v4Flow2 := flow2ipv4.Packet().Add().Ipv4()
-	v4Flow2.Src().SetValue(atePort1.IPv4)
-	v4Flow2.Dst().Increment().SetStart(fibFailedDstRoute)
+	t.Logf("TestBGP:start otg Traffic")
 
-	args.otg.PushConfig(t, args.otgConfig)
-	time.Sleep(2 * time.Minute)
-	args.otg.StartProtocols(t)
-	otgutils.WaitForARP(t, args.ate.OTG(), args.otg.FetchConfig(t), "IPv4")
 	t.Logf("Starting traffic")
 	args.otg.StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.otg.StopTraffic(t)
 
-	verifyTraffic(t, args, flow1ipv4.Name(), !wantLoss)
-	/*
-		verifyTraffic(t, args, flow2ipv4.Name(), wantLoss)
-	*/
+	verifyTraffic(t, args, fibPassedTraffic, !wantLoss)
+	verifyTraffic(t, args, fibFailedTraffic, wantLoss)
 }
 
 func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool) {
@@ -349,16 +363,31 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 	rxPackets := recvMetric.GetCounters().GetInPkts()
 	lostPackets := txPackets - rxPackets
 	var lossPct uint64
+	trafficPassed := false
 	if txPackets != 0 {
 		lossPct = lostPackets * 100 / txPackets
 	} else {
 		t.Errorf("Traffic stats are not correct %v", recvMetric)
 	}
 	if wantLoss {
-		if lossPct < 100-tolerancePct {
-			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", flowName, lossPct)
+		// If no rxPackets are received, the first route is fibFailedRoute, resulting in no packets being generated with tagged metrics.
+		if rxPackets > 0 {
+			etPath := gnmi.OTG().Flow(flowName).TaggedMetricAny()
+			ets := gnmi.GetAll(t, args.otg, etPath.State())
+			for _, et := range ets {
+				tags := et.Tags
+				for _, tag := range tags {
+					if tag.GetTagName() == dstTrackingf2 && tag.GetTagValue().GetValueAsHex() == fibFailedDstRouteInHex {
+						trafficPassed = true
+						break
+					}
+				}
+			}
+		}
+		if trafficPassed {
+			t.Errorf("Traffic received on Failed FIB")
 		} else {
-			t.Logf("Traffic Loss Test Passed!")
+			t.Logf("Traffic Test Passed!")
 		}
 	} else {
 		if lossPct > tolerancePct {
@@ -367,6 +396,7 @@ func verifyTraffic(t *testing.T, args *testArgs, flowName string, wantLoss bool)
 			t.Logf("Traffic Test Passed!")
 		}
 	}
+
 }
 
 func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
@@ -464,15 +494,31 @@ func createIPv4Entries(t *testing.T, startIP string) []string {
 	return entries
 }
 
+func IPv4LastTenBitsToHex(ip string) string {
+	// Convert IPv4 address to a 32-bit integer
+	ipParts := strings.Split(ip, ".")
+	var ipInt uint32
+	for i := 0; i < 4; i++ {
+		part, _ := strconv.Atoi(ipParts[i])
+		ipInt = (ipInt << 8) | uint32(part)
+	}
+
+	// Convert the IP address to binary string
+	ipBinary := fmt.Sprintf("%032b", ipInt)
+	// Extract the last 10 bits
+	last10Bits := ipBinary[len(ipBinary)-10:]
+	// Convert the last 10 bits to hexadecimal
+	last10Hex, _ := strconv.ParseInt(last10Bits, 2, 64)
+	return fmt.Sprintf("0x%03x", last10Hex)
+}
+
 // injectEntry programs gRIBI nh, nhg and ipv4 entry.
-func injectEntry(ctx context.Context, t *testing.T, args *testArgs) {
+func injectEntry(ctx context.Context, t *testing.T, args *testArgs, dstIPList []string, vipList []string) {
 	t.Helper()
-	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
-	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
 	j := uint64(0)
 
 routeAddLoop:
-	for i := uint64(1); i <= uint64(1500); i += 2 {
+	for i := uint64(1); i <= uint64(1000); i += 2 {
 		vipNhIndex := i
 		dstNhIndex := vipNhIndex + 1
 
@@ -501,6 +547,7 @@ routeAddLoop:
 			if v.ProgrammingResult == aftspb.AFTResult_FIB_FAILED {
 				t.Logf("FIB FAILED received %v", v.Details)
 				fibFailedDstRoute = dstIPList[j]
+				fibFailedDstRouteInHex = IPv4LastTenBitsToHex(fibFailedDstRoute)
 				break routeAddLoop
 			}
 		}
@@ -510,7 +557,7 @@ routeAddLoop:
 		// routes through gRIBI client. Since FIB is already full , we should get
 		// FIB FAILED while programming gRIBI routes. Here we are trying to program
 		// 1500 VIP/Dst entries along with unique NH/NHG entries.
-		if i >= 1498 {
+		if i >= 998 {
 			t.Fatalf("FIB FAILED is not received as expected")
 		}
 		if j == 1 {
