@@ -91,18 +91,21 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
+	ccList := comps.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	t.Logf("Found CONTROLLER_CARD list: %v", ccList)
+	var activeCC string
 	if deviations.ChassisGetRPCUnsupported(dut) {
-		var activeRp string
-		rpList := comps.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
-		t.Logf("Found RP list: %v", rpList)
-		if len(rpList) < 2 {
-			activeRp = "0/RP0/CPU0"
+		if len(ccList) < 2 {
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				activeCC = "0/RP0/CPU0"
+			}
 		} else {
-			standbyRpName, activeRpName := comps.FindStandbyRP(t, dut, rpList)
-			t.Logf("Standby RP: %v, Active RP: %v", standbyRpName, activeRpName)
-			activeRp = activeRpName
+			standbyControllerName, activeControllerName := comps.FindStandbyControllerCard(t, dut, ccList)
+			t.Logf("Standby RP: %v, Active RP: %v", standbyControllerName, activeControllerName)
+			activeCC = activeControllerName
 		}
-		componentName = map[string]string{"name": activeRp + "-" + processName[dut.Vendor()]} // example: 0/RP0/CPU0-ifmgr
+		componentName = map[string]string{"name": activeCC + "-" + processName[dut.Vendor()]} // example: 0/RP0/CPU0-ifmgr
 	} else {
 		componentName = map[string]string{"name": components[dut.Vendor()]}
 	}
