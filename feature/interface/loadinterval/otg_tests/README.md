@@ -29,12 +29,16 @@ This test case verifies the DUT's ability to configure and utilize the load-inte
     *   Observe the interface statistics on the DUT.
     *   Record the initial input/output rate values.
 *   Load-Interval Impact:
-    *   Wait for a period longer than the configured load-interval (60 seconds).
-    *   Observe the interface statistics again.
+    *   Clear the interfaces counters.
+    *   Configure the load-interval to a value equal to 30 seconds.
+    *   Use gnmi.Subscribe SAMPLE mode with 10 second interval, capture 3 samples and compute the average pps and bps and compare to the ATE generated flow
     *   Verify that the input/output rate values have been updated and reflect the average traffic rate over the configured load-interval.
 *   Varying Load-Interval:
+    *   Clear the interfaces counters.
     *   Change the load-interval to a different value (60 seconds).
-    *   Repeat previous two steps
+    *   Use gnmi.Subscribe SAMPLE mode with 10 second interval, capture 3 samples and compute the average pps and bps.
+    *   Verify that the input/output rates were not incremented as the sampling time is less that the load-interval
+    *   Use gnmi.Subscribe SAMPLE mode with 10 second interval, capture 6 samples and compute the average pps and bps and compare to the ATE generated flow
     *   Verify that the input/output rates now reflect the average traffic rate over the new load-interval.
 
 ## OpenConfig Path and RPC Coverage
