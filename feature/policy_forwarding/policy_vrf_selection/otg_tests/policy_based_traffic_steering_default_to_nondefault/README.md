@@ -10,76 +10,88 @@ This test ensures NOS is able to host multiple VRFs, perform GUE tunnel DECAP in
 Create the following connections:
 ```mermaid
 graph LR; 
-subgraph ATE1 [ATE1]
-    A1[Port1] 
+subgraph ATE [ATE]
+    A1[Port1]
+    A2[Port2] 
 end
 subgraph DUT1 [DUT1]
     B1[Port1]
     B2[Port2]
 end
-subgraph ATE2 [ATE2]
-    C1[Port1] 
-end
-A1 <-- IBGP(ASN100) --> B1; 
-B2 <-- EBGP(ASN100:ASN200) --> C1;
+A1 <-- IBGP(ASN100) & ISIS --> B1; 
+A2 <-- EBGP(ASN100:ASN200) --> B2;
 ```
 
-### Advertisements:
+### Configuration generation of DUT and ATE
 
-	ATE1:Port1 advertises following prefixes over IBGP to DUT:Port1
+#### DUT Configuration
+* Configure ISIS[Level2] and IBGP[ASN100] as described in topology between ATE:Port1 and DUT:Port1
+* Configure EBGP[ASN200] between ATE:Port2 and DUT: Port2
+* Configure route leaking from the default VRF and non-default VRF and vice versa.
+* Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic frmom Default VRF to non default VRF and vice vers based on teh destination IP/IPV6 address.
+
+#### ATE Configuration
+* Configure ISIS[Level2]  & IBGP[ASN100] on ATE:Port1
+* Configure EBGP[ASN200] on ATE:Port2
+* Configure ATE Route Advertisements & Traffic Flows as below:
+
+#### ATE Route Advertisements:
+
+	ATE:Port1 advertises following prefixes over IBGP to DUT:Port1
 		- IPv4Prefix1/24 IPv6Prefix1/64
 		- IPv4Prefix2/24 IPv6Prefix2/64
 		- IPv4Prefix3/24 IPv6Prefix3/64
 		- IPv4Prefix4/24 IPv6Prefix4/64
 		- IPv4Prefix5/24 IPv6Prefix5/64
 
-	ATE2:Port1 advertieses following prefixes to DUT:Port2 over EBGP
+	ATE:Port2 advertieses following prefixes to DUT:Port2 over EBGP
 		- IPv4Prefix6/24 IPv6Prefix6/64
 		- IPv4Prefix7/24 IPv6Prefix7/64
 		- IPv4Prefix8/24 IPv6Prefix8/64
 		- IPv4Prefix9/24 IPv6Prefix9/64
 		- IPv4Prefix10/24 IPv6Prefix10/64
 
-### Flows:
+#### ATE traffic Flows:
 
-	From ATE1:Port1 to ATE2:Port1
-		- IPv4Prefix1/24 to IPv4Prefix6/24 
-		- IPv6Prefix1/64 to IPv6Prefix6/64 
+	From ATE:Port1 to ATE:Port2
+		- IPv4Prefix1/24 to IPv4Prefix6/24 at a rate of 100 packets/sec
+		- IPv6Prefix1/64 to IPv6Prefix6/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix2/24 to IPv4Prefix7/24 
-		- IPv6Prefix2/64 to IPv6Prefix7/64 
+		- IPv4Prefix2/24 to IPv4Prefix7/24 at a rate of 100 packets/sec
+		- IPv6Prefix2/64 to IPv6Prefix7/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix3/24 to IPv4Prefix8/24 
-		- IPv6Prefix3/64 to IPv6Prefix8/64 
+		- IPv4Prefix3/24 to IPv4Prefix8/24 at a rate of 100 packets/sec
+		- IPv6Prefix3/64 to IPv6Prefix8/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix4/24 to IPv4Prefix9/24 
-		- IPv6Prefix4/64 to IPv6Prefix9/64 
+		- IPv4Prefix4/24 to IPv4Prefix9/24 at a rate of 100 packets/sec
+		- IPv6Prefix4/64 to IPv6Prefix9/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix5/24 to IPv4Prefix10/24 
-		- IPv6Prefix5/64 to IPv6Prefix10/64 
+		- IPv4Prefix5/24 to IPv4Prefix10/24 at a rate of 100 packets/sec
+		- IPv6Prefix5/64 to IPv6Prefix10/64 at a rate of 100 packets/sec
 
-	Flows from ATE2:Port1 to ATE1:Port1
-		- IPv4Prefix6/24 to IPv4Prefix1/24 
-		- IPv6Prefix6/64 to IPv6Prefix1/64 
+	Flows from ATE:Port2 to ATE:Port1
+		- IPv4Prefix6/24 to IPv4Prefix1/24 at a rate of 100 packets/sec
+		- IPv6Prefix6/64 to IPv6Prefix1/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix7/24 to IPv4Prefix2/24 
-		- IPv6Prefix7/64 to IPv6Prefix2/64 
+		- IPv4Prefix7/24 to IPv4Prefix2/24 at a rate of 100 packets/sec
+		- IPv6Prefix7/64 to IPv6Prefix2/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix8/24 to IPv4Prefix3/24
-		- IPv6Prefix8/64 to IPv6Prefix3/64 
+		- IPv4Prefix8/24 to IPv4Prefix3/24 at a rate of 100 packets/sec
+		- IPv6Prefix8/64 to IPv6Prefix3/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix9/24 to IPv4Prefix4/24 
-		- IPv6Prefix9/64 to IPv6Prefix4/64
+		- IPv4Prefix9/24 to IPv4Prefix4/24 at a rate of 100 packets/sec
+		- IPv6Prefix9/64 to IPv6Prefix4/64 at a rate of 100 packets/sec
 
-		- IPv4Prefix10/24 to IPv4Prefix5/24 
-		- IPv6Prefix10/64 to IPv6Prefix5/64 
+		- IPv4Prefix10/24 to IPv4Prefix5/24 at a rate of 100 packets/sec
+		- IPv6Prefix10/64 to IPv6Prefix5/64 at a rate of 100 packets/sec
+
 
 
 ## Procedure
 ### PF-1.6.1: [Baseline] Default VRF for all flows with regular traffic profile
 
-In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated above.
-  * ATE2 sends following IPv4 and IPv6 flows:
+In this case ATE:Port2 simulates the regular flows as stated above.
+  * ATE:Port2 sends following IPv4 and IPv6 flows:
 		- IPv4Prefix6/24 to IPv4Prefix1/24 
 		- IPv4Prefix7/24 to IPv4Prefix2/24
 		- IPv4Prefix8/24 to IPv4Prefix3/24 
@@ -91,10 +103,10 @@ In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated ab
 		- IPv6Prefix9/64 to IPv6Prefix4/64 
 		- IPv6Prefix10/64 to IPv6Prefix5/64    
 	- Expectations:
-		- All traffic must be successful<br><br><br>
+		- All traffic must be successful and there should be 0 packet loss. <br><br><br>
 
-### PF-1.6.2: Traffic from ATE2:Port1 to ATE1:Port1 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
-  * ATE2 sends following IPv4 and IPv6 flows:
+### PF-1.6.2: Traffic from ATE:Port2 to ATE:Port1 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
+  * ATE:Port2 sends following IPv4 and IPv6 flows:
     * IPv4Prefix6/24 to IPv4Prefix1/24 
     * IPv4Prefix7/24 to IPv4Prefix2/24
     * IPv4Prefix8/24 to IPv4Prefix3/24 
@@ -114,13 +126,14 @@ In this case ATE2:Port1 simulates the regular flows from ATE2:Port1 as stated ab
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf
   * DUT must also leak all the routes from the Default VRF to the non-default VRF
   * Expectations:
-    * Traffic for Prefix 1 received from ATE2:Port1 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE1:Port1
-    * Traffic sent by ATE2:Port1 must be routed to ATE1:Port1 via the DEFAULT VRF in the DUT.<br><br><br>
+    * Traffic for Prefix 1 received from ATE:Port2 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE:Port1
+    * Traffic sent by ATE:Port2 must be routed to ATE:Port1 via the DEFAULT VRF in the DUT.
+    * There should be 0 packet loss. <br><br><br>
 
-**PF-1.6.3 to PF-1.6.7: Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.**
+**PF-1.6.3 to PF-1.6.7: Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.**
 Follow the steps in PF-1.6.2 above to gradually move different traffic flows from the Default VRF to the Non-Defailt in the following sequence:
 
-  * PF-1.6.3 Prefix 1-2 Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
+  * PF-1.6.3 Prefix 1-2 Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
@@ -128,7 +141,7 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf<br><br>
-  * PF-1.6.4 Prefix 1-3  Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
+  * PF-1.6.4 Prefix 1-3  Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
@@ -136,7 +149,7 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf<br><br>
-  * PF-1.6.5 Prefix 1-4  Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
+  * PF-1.6.5 Prefix 1-4  Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
@@ -144,7 +157,7 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to Non-default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf<br><br>
-  * PF-1.6.6 Prefix 1-5 Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
+  * PF-1.6.6 Prefix 1-5 Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
@@ -152,7 +165,7 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to Non-default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to Non-default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf<br><br>
-  * PF-1.6.7 Prefix 1-6 Traffic from ATE2:Port1 to ATE1:Port1 migrated to Non-Default VRF using the VRF selection policy.
+  * PF-1.6.7 Prefix 1-6 Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
