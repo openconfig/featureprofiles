@@ -104,7 +104,6 @@ var (
 		IPv6Len: 64,
 		MAC:     "02:00:02:01:01:01",
 	}
-	lossTolerancePct   = 2.0
 	kneDeviceModelList = []string{"ncptx"}
 )
 
@@ -209,7 +208,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 				}
 				loss := tx - rx
 				lossPct := loss * 100 / tx
-				if got := lossPct; got > float32(lossTolerancePct) {
+				if got := lossPct; got > 0 {
 					t.Errorf("LossPct for flow %s: got %v, want 0", flow, got)
 				}
 			}
