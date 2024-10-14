@@ -622,7 +622,7 @@ message Metadata {
     // Devices needs time to update interface counters.
     bool interface_counters_update_delayed = 224;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
+    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173, 113;
   }
 
   message PlatformExceptions {
