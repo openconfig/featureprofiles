@@ -49,7 +49,7 @@ testbeds:
 
   8808-FOX2508P0JU_MGMT_GRPC:
     << : *8808_FOX2508P0JU_DEFAULTS
-    binding: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/binding-ipv6-tun
+    binding: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/binding
     baseconf: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/base_config_mgmt_vrf.proto
     otg:
       host: ott-ucs4-b4
