@@ -7,3 +7,4 @@ duts {
   id: "dut"
   vendor: CISCO
   hardware_model: "CISCO-8818"
+}
