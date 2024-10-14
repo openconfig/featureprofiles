@@ -227,6 +227,7 @@ func TestGRIBIFailover(t *testing.T) {
 
 // configureDUT configures port1-3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	t.Logf("configureDUT")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")

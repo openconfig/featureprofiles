@@ -621,10 +621,8 @@ message Metadata {
     bool eth_channel_ingress_parameters_unsupported = 222;
     // Cisco numbering for eth channel assignment starts from 1 instead of 0
     bool eth_channel_assignment_cisco_numbering = 223;
-    // Cisco numbering for OTN channel assignment starts from 1 instead of 0
-    bool otn_channel_assignment_cisco_numbering = 224;
-    // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
-    bool cisco_pre_fec_ber_inactive_value = 225;
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 224;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

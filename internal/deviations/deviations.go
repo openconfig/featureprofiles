@@ -1151,6 +1151,12 @@ func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
 }
 
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}
+
 // OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
 func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
