@@ -239,7 +239,7 @@ Verification:
 -  PF counters for dropped packets ( invalid inner protocol ) reflect ingress packet count.
 -  100% packet loss.
 
-### PF-1.4.17: GUE Pass-through (Negative)
+### PF-1.4.13: GUE Pass-through (Negative)
 -  Push DUT configuration.
 
 Traffic: 
