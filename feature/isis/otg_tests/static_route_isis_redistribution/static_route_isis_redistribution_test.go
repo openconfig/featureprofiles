@@ -115,7 +115,6 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 		t.Fatalf("failed due to %v", err)
 	}
 	t.Log("Recieved parameters of table connections")
-	//t.Log(getResponse)
 
 	t.Log("Verify Get outputs ")
 	for _, notification := range getResponse.Notification {
