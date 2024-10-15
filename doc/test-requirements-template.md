@@ -11,9 +11,9 @@ assignees: ''
 Below is the required template for writing test requirements.  Good examples of test
 requirements include:
 
+* [TE-18.1 gRIBI MPLS in UDP Encapsulation and Decapsulation](https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp/README.md)
 * [TE-3.7: Base Hierarchical NHG Update](/feature/gribi/otg_tests/base_hierarchical_nhg_update/README.md)
 * [gNMI-1.13: Telemetry: Optics Power and Bias Current](https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/optics_power_and_bias_current_test/README.md)
-* [RT-5.1: Singleton Interface](https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md)
 
 # TestID-x.y: Short name of test here
 
@@ -28,43 +28,61 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 ## Procedure
 
 ### Test environment setup
-  * Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
 
-### TestID-x.y.z - Name of subtest
-  * Canonical OpenConfig Configuration
+* Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
 
-An example OpenConfig configuration and/or RPC content should be specified here in YAML format.
+#### Canonical OpenConfig Configuration for the DUT
 
-```yaml
----
-openconfig-qos:
-  scheduler-policies:
-    - scheduler-policy: "rate-limit-1"
-      config:
-        name: "rate-limit-1"
-      schedulers:
-        - scheduler:
-          config:
-              type: ONE_RATE_TWO_COLOR
-          one-rate-three-color:
-            config:
-              cir: 1000000000           # 1Gbit/sec
-              bc: 10000                 # 10 kilobytes
-              queuing-behavior: POLICE
-            exceed-action:
-              config:
-                drop: TRUE
+NOTE: An example OpenConfig configuration and/or RPC content for any common
+DUT configuration which is used across the subtests should be specified
+here in JSON format.
+
+```json
+{
+  "openconfig-qos": {
+    "interfaces": [
+      {
+        "config": {
+          "interface-id": "PortChannel1.100"
+        },
+        "input": {
+          "classifiers": [
+            {
+              "classifier": "dest_A",
+              "config": {
+                "name": "dest_A",
+                "type": "IPV4"
+              }
+            }
+          ],
+          "scheduler-policy": {
+            "config": {
+              "name": "limit_group_A_1Gb"
+            }
+          }
+        },
+        "interface": "PortChannel1.100"
+      },
+    ]
+  }
+}
 ```
 
-  * Step 1
-  * Step 2
-  * Validation and pass/fail criteria
+### TestID-x.y.1 - Name of subtest 1
 
-### TestID-x.y.z - Name of subtest
-  * Canonical OpenConfig configuration
-  * Step 1
-  * Step 2
-  * Validation and pass/fail criteria
+The following steps are typically present in each subtest.
+
+* Step 1 - Generate DUT configuration
+* Step 2 - Push configuration to DUT
+* Step 3 - Send Traffic
+* Step 4 - Validation with pass/fail criteria
+
+### TestID-x.y.2 - Name of subtest 2
+
+* Step 1 - Generate DUT configuration
+* Step 2 - Push configuration to DUT
+* Step 3 - Send Traffic
+* Step 4 - Validation with pass/fail criteria
 
 ## OpenConfig Path and RPC Coverage
 
