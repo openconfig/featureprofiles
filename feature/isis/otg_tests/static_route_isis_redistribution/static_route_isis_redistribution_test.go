@@ -47,7 +47,7 @@ const (
 	v6RoutePrefix   = uint32(64)
 	dp2v4Route      = "192.168.1.4"
 	dp2v4Prefix     = uint32(30)
-	dp2v6Route      = "2021:DB8::0"
+	dp2v6Route      = "2001:DB8::0"
 	dp2v6Prefix     = uint32(126)
 	v4Flow          = "v4Flow"
 	v6Flow          = "v6Flow"
@@ -174,38 +174,8 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		tableConn.SetDisableMetricPropagation(metricPropagation)
 	}
 	if deviations.EnableTableConnections(dut) {
-		value := "enable"
-		test, err := json.Marshal(value)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "table-connections"},
-							{Name: "admin-state"},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: test,
-						},
-					},
-				},
-			},
-		}
-
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
-		}
+		state := "enable"
+		configEnableTbNative(t, dut, state)
 	}
 	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
@@ -404,6 +374,46 @@ func getTagSetName(dut *ondatra.DUTDevice, policyName, stmtName, afStr string) s
 		return fmt.Sprintf("%s %s", policyName, stmtName)
 	}
 	return fmt.Sprintf("tag-set-%s", afStr)
+}
+
+func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		adminEnable, err := json.Marshal(state)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+							{Name: "table-connections"},
+							{Name: "admin-state"},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: adminEnable,
+						},
+					},
+				},
+			},
+		}
+
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+	}
 }
 
 func TestStaticToISISRedistribution(t *testing.T) {
