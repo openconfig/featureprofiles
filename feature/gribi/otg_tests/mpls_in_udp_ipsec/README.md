@@ -1,4 +1,4 @@
-# TE-18.6 gRIBI MPLS in UDP encapsulation for IPSec
+# TE-18.6 gRIBI MPLS in UDP encapsulation and decapsulation for IPSec
 
 Use the gRIBI applied ip entries from TE-18.1 gRIBI. Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate matching packets with IPSec encryption in MPLS in UDP.
@@ -164,7 +164,9 @@ network_instances: {
         keychain {
           keys {
             key {
-              key-id: 123456
+              key-id: 0x125   # SPI value
+              crypto-algorithm: CRYPTO_NONE
+              secret-key: "abc"
               send-lifetime {
                 config {
                   start-time: 1727414006  
@@ -186,6 +188,161 @@ network_instances: {
 }
 ```
 
+### TE-18.1.2 Extract SPI and Decapsulate using keys with gRIBI aft modify
+
+#### gRIBI RPC content
+
+The gRIBI client should send this proto message to the DUT to create AFT
+entries.  See [OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
+for the new OC AFT model nodes needed for this.  
+
+TODO: The
+[gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
+will be generated from the afts tree.
+
+```proto
+network_instances: {
+  network_instance: {
+    afts {
+      #
+      # entries used for "group_A"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_id: "nhg_A"  # New OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          id: 100
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 100
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 100
+          network_instance: "group_A"
+          encapsulate_header: OPENCONFIG_AFT_TYPES:MPLS_IN_UDPV6
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [100,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_A"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              dscp: "outer_dscp"
+              key_chain_name: "ipsec_keychain"  # TODO updating the OC aft models to support key_chain_name
+            }
+          }
+        }
+      }
+      #
+      # entries used for "group_B"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_B"
+          next_hop_group: 200
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_B"
+          next_hop_group: 200
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+          id: 200
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+          encap-headers {
+            encap-header {
+              index: 1
+              type : OPENCONFIG_AFT_TYPES:MPLS
+              mpls {
+                pushed_mpls_label_stack: [200,]
+              }
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              type: OPENCONFIG_AFT_TYPES:UDP
+              udp {
+                src_ip: "outer_ipv6_src"
+                dst_ip: "outer_ipv6_dst_B"
+                dst_udp_port: "outer_dst_udp_port"
+                ip_ttl: "outer_ip-ttl"
+                dscp: "outer_dscp"
+                key_chain_name: "ipsec_keychain"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+network_instances: {
+  network_instance: {
+    afts {                    #TODO add valid key currently installed in hardware
+      keychains {
+        keychain {
+          keys {
+            key {
+              key-id: 0x125   # SPI value
+              crypto-algorithm: CRYPTO_NONE
+              secret-key: "abc"
+              send-lifetime {
+                config {
+                  start-time: 1727414006  
+                  end-time: 17274510000
+                }
+              }
+              receive-lifetime {
+                config {
+                  start-time: 1727415000
+                  end-time: 17274520000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -193,6 +350,8 @@ paths:
   # keychain config
   /keychains/keychain/keys/
   /keychains/keychain/keys/key/key-id
+  /keychains/keychain/keys/key/config/secret-key
+  /keychains/keychain/keys/key/config/crypto-algorithm
   /keychains/keychain/keys/key/send-lifetime/config/start-time
   /keychains/keychain/keys/key/send-lifetime/config/end-time
   /keychains/keychain/keys/key/receive-lifetime/config/start-time
