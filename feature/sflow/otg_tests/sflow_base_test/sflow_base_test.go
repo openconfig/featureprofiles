@@ -94,6 +94,9 @@ var (
 		IPv6Len: plenIPv6,
 		MAC:     "02:00:02:01:01:01",
 	}
+
+	loopbackSubIntfNum = 1
+
 	dutlo0Attrs = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
@@ -173,7 +176,12 @@ func TestSFlowTraffic(t *testing.T) {
 
 	ate := ondatra.ATE(t, "ate")
 
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 1)
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		loopbackSubIntfNum = 0
+	}
+
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackSubIntfNum)
 
 	// Configure DUT
 	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
@@ -200,7 +208,7 @@ func TestSFlowTraffic(t *testing.T) {
 
 	t.Run("SFLOW-1.1_ReplaceDUTConfigSFlow", func(t *testing.T) {
 		sfBatch := &gnmi.SetBatch{}
-		cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName)
+		cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6)
 		sfBatch.Set(t, dut)
 
 		gotSamplingConfig := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().Config())
@@ -239,10 +247,6 @@ func TestSFlowTraffic(t *testing.T) {
 			testFlowFixed(t, ate, config, IPv6)
 		})
 	})
-
-	defer func() {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(mgmtVRF).Config())
-	}()
 }
 
 func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
@@ -354,7 +358,7 @@ func addInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, in
 }
 
 func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	loopbackIntfName := netutil.LoopbackInterface(t, dut, 1)
+	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackSubIntfNum)
 	loop := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 	loop.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 	loop.Description = ygot.String(fmt.Sprintf("Port %s", loopbackIntfName))
