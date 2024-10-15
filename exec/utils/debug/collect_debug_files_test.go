@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	techDirectory        = "harddisk:/firex_tech" // Directory for storing tech support files
-	scpCopyTimeout       = 300 * time.Second      // Timeout for SCP copy operations
-	maxParallelExecutors = 4                      // maximum concurrent go routine for command execution and corefile decode
+	techDirectory        = "harddisk:/firex_tech"                                         // Directory for storing tech support files
+	scpCopyTimeout       = 300 * time.Second                                              // Timeout for SCP copy operations
+	maxParallelExecutors = 4                                                              // maximum concurrent go routine for command execution and corefile decode
+	decodedFiles         = "/auto/ops-tool/ws-krinata2/core_decode/core_decode_count.txt" // file contains the history of files decoded
 )
 
 var (
@@ -62,10 +63,10 @@ var (
 	}
 
 	pipedCmdList = []string{
-		// "show grpc trace all",
-		// "show telemetry model-driven trace all",
-		// "show cef global gribi aft internal location all",
-		// "show logging",
+		"show grpc trace all",
+		"show telemetry model-driven trace all",
+		"show cef global gribi aft internal location all",
+		"show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
@@ -134,6 +135,18 @@ func TestCollectDebugFiles(t *testing.T) {
 		}(dutID, target)
 	}
 	wg.Wait()
+
+	// Construct the shell command
+	countCommand := exec.Command("sh", "-c", fmt.Sprintf("wc -l < %s", decodedFiles))
+
+	// Execute the command and capture the output
+	if decodeCount, err := countCommand.Output(); err != nil {
+		fmt.Println("Error:", err)
+		return
+	} else {
+		// Print the number of lines in the file after appending
+		fmt.Printf("Total Number of Core files decoded by exec/utils/debug/collect_debug_files_test.go: %s", decodeCount)
+	}
 	t.Log("Completed TestCollectDebugFiles")
 }
 
@@ -465,6 +478,18 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
+	// Construct the shell command
+	countCommand := exec.Command("sh", "-c", fmt.Sprintf("echo %s >> %s", decodeOutput, decodedFiles))
+
+	// Execute the command and capture the output
+	if _, err := countCommand.Output(); err != nil {
+		fmt.Printf("Error appending decoded file (%s) to file: %s \n Error: %v\n", decodeOutput, decodedFiles, err)
+		return
+	} else {
+		// Print the number of lines in the file after appending
+		fmt.Printf("Appended decoded files (%s) to file: %s", decodeOutput, decodedFiles)
+	}
+
 	t.Logf("Started background decoding for core file %s\n", coreFile)
 
 }
