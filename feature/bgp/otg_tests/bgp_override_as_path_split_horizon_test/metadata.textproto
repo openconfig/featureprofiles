@@ -26,4 +26,12 @@ platform_exceptions: {
     bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_allowownas_diff_default_value: true
+  }
+}
 tags: TAGS_AGGREGATION

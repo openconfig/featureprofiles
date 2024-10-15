@@ -360,7 +360,11 @@ func testSplitHorizonNoAllowOwnIn(t *testing.T, args *otgTestArgs) {
 func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 1, Enable allow-own-as 1 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 1)
+	if deviations.BgpAllowownasDiffDefaultValue(args.dut) {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 2)
+	} else {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 1)
+	}
 
 	t.Log("Re-advertise the prefix from the ATE with the same AS-path.")
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
@@ -381,7 +385,11 @@ func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 3, Enable allow-own-as 3 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 3)
+	if deviations.BgpAllowownasDiffDefaultValue(args.dut) {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 4)
+	} else {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 3)
+	}
 
 	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500 dutLocalAS1 65499", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
@@ -431,7 +439,11 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 4, Enable allow-own-as 4 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 4)
+	if deviations.BgpAllowownasDiffDefaultValue(args.dut) {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 5)
+	} else {
+		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 4)
+	}
 
 	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500, dutLocalAS1, 65499", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
