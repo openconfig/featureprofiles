@@ -31,7 +31,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_p4rt_node_component: true
     explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
@@ -40,6 +39,9 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
+  }
+  deviations: {
+    qos_dropped_octets: true
   }
 }
 platform_exceptions: {
