@@ -102,6 +102,23 @@ var (
 		IPv6:    "2001:db8::192:0:2:a",
 		IPv6Len: ipv6PrefixLen,
 	}
+
+	dutPort4 = attrs.Attributes{
+		Desc:    "dutPort4",
+		IPv4:    "192.0.2.13",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:d",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	atePort4 = attrs.Attributes{
+		Name:    "atePort4",
+		MAC:     "02:00:01:01:01:04",
+		IPv4:    "192.0.2.14",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:e",
+		IPv6Len: ipv6PrefixLen,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -206,6 +223,92 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			tc.fn(t)
 		})
+	}
+}
+
+func TestStaticRouteAddRemove(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	configureDUT(t, dut)
+
+	ate := ondatra.ATE(t, "ate")
+	top := gosnappi.NewConfig()
+	configureOTG(t, ate, top)
+
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	defer ate.OTG().StopProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+
+	prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+	b := &gnmi.SetBatch{}
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort2.IPv4),
+			"1": oc.UnionString(atePort3.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	b.Set(t, dut)
+	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+
+	// add 2 new nextHops, one at 0 index and another at 3 index
+	b = &gnmi.SetBatch{}
+	sV4 = &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
+			"2": oc.UnionString(atePort3.IPv4),
+			"3": oc.UnionString(atePort4.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	b.Set(t, dut)
+	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+
+	// remove previously added indexes
+	b = &gnmi.SetBatch{}
+	sV4 = &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          prefix.cidr(t),
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.UnionString(atePort2.IPv4),
+			"1": oc.UnionString(atePort3.IPv4),
+		},
+	}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	}
+	b.Set(t, dut)
+	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+}
+
+func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV4 *cfgplugins.StaticRouteCfg) {
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Await(t, dut, sp.Static(prefix).Prefix().State(), 120*time.Second, prefix)
+
+	if deviations.SkipStaticNexthopCheck(dut) {
+		nexthops := gnmi.LookupAll(t, dut, sp.Static(prefix).NextHopAny().NextHop().State())
+		if got, want := len(nexthops), len(sV4.NextHops); got != want {
+			t.Errorf("Static route next hop count - %s: got: %v, want: %v", prefix, got, want)
+		}
+	} else {
+		// Validate both the routes i.e. ipv4-route-[a|b] are configured and reported
+		// correctly
+		gotStatic := gnmi.Get(t, dut, sp.Static(prefix).State())
+		t.Logf("Static route %s: got: %v, want: %v", prefix, len(gotStatic.NextHop), len(sV4.NextHops))
+		for index, nextHop := range gotStatic.NextHop {
+			if got, want := nextHop.GetNextHop(), sV4.NextHops[index]; got != want {
+				t.Errorf("Static route %s: got: %v, want: %v", prefix, got, want)
+			}
+		}
 	}
 }
 
@@ -1208,23 +1311,29 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
 	b := &gnmi.SetBatch{}
 	i1 := dutPort1.NewOCInterface(p1.Name(), dut)
 	i2 := dutPort2.NewOCInterface(p2.Name(), dut)
 	i3 := dutPort3.NewOCInterface(p3.Name(), dut)
+	i4 := dutPort4.NewOCInterface(p4.Name(), dut)
 	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
 		i1.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
 		i2.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
+		i3.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
+		i4.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
 	}
 	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), i1)
 	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), i2)
 	gnmi.BatchReplace(b, gnmi.OC().Interface(p3.Name()).Config(), i3)
+	gnmi.BatchReplace(b, gnmi.OC().Interface(p4.Name()).Config(), i4)
 	b.Set(t, dut)
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
 		fptest.SetPortSpeed(t, p2)
 		fptest.SetPortSpeed(t, p3)
+		fptest.SetPortSpeed(t, p4)
 	}
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -1233,6 +1342,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -1241,11 +1351,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) []g
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
+	p4 := ate.Port(t, "port4")
 
 	d1 := atePort1.AddToOTG(top, p1, &dutPort1)
 	d2 := atePort2.AddToOTG(top, p2, &dutPort2)
 	d3 := atePort3.AddToOTG(top, p3, &dutPort3)
-	return []gosnappi.Device{d1, d2, d3}
+	d4 := atePort4.AddToOTG(top, p4, &dutPort4)
+	return []gosnappi.Device{d1, d2, d3, d4}
 }
 
 func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
