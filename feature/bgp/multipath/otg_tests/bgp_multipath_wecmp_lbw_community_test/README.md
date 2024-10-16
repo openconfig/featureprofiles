@@ -73,8 +73,8 @@ Validate BGP in multipath UCMP support with link bandwidth community
                 *   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry[prefix=IPv4 internal target network]/state/**next-hop-group**
                 *   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry[prefix=IPv6 internal target network]/state/**next-hop-group**
             *   using next-hop-group as key find number and weight of next-hops of both internal target network
-                *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=next-hop-group ID]/next-hops/state/index
-                *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=next-hop-group ID]/next-hops/state/**weight**
+                *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=next-hop-group ID]/next-hops/next-hop/state/index
+                *   /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=next-hop-group ID]/next-hops/next-hop/state/**weight**
         *   [TODO] Check entire traffic should  be unequally forwarded between DUT
             port2 and port3 only
             *   50% via port2
