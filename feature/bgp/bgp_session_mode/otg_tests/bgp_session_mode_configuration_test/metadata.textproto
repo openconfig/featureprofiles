@@ -1,0 +1,41 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "7e2082f6-4fbc-4e2b-a8a8-c83af2574ec4"
+plan_id:  "RT-1.55"
+description:  "BGP session mode (active/passive)"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ipv4_missing_enabled:  true
+    connect_retry:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed:  true
+    explicit_interface_in_default_vrf:  true
+    missing_value_for_defaults:  true
+    interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    connect_retry:  true
+    omit_l2_mtu:  true
+    network_instance_table_deletion_required:  true
+    bgp_md5_requires_reset:  true
+    missing_value_for_defaults:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}

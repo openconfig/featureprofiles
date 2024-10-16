@@ -270,6 +270,10 @@ test: {
   exec: " "
 }
 test: {
+  id: "DP-2.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_nhg/README.md"
+}
+test: {
   id: "FP-1.1"
   description: "Power admin DOWN/UP Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
@@ -406,6 +410,12 @@ test: {
   id: "PF-1.5"
   description: "Interface based MPLSoGUE Decapsulation to IPv4 tunnel"
   readme: " "
+  exec: " "
+}
+test: {
+  id: "PF-1.6"
+  description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
+  readme: ""
   exec: " "
 }
 test: {
