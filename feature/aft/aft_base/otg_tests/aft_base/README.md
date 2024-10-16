@@ -12,7 +12,7 @@ Configure DUT:port1,port2,port3 for IS-IS session with ATE:port1,port2,port3
 *   IS-IS must be level 2 only with wide metric.
 *   IS-IS must be point to point.
 *   Send 1000 ipv4 and 1000 ipv6 IS-IS prefixes from ATE:port3 to DUT:port3.
-*   IS-IS must be up and running, prefixes must be in RIB and FIB.
+
 
 Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2 and another between ATE:port3 and DUT:port3.
 *   Configure eBGP over the interface ip.
@@ -34,7 +34,7 @@ Establish RSVP Sessions between ATE:port3 and SUT:port3.
 *   Gnmi set with REPLACE option to push the configuration DUT.
 *   ATE configuration must be pushed.
 
-Verifications
+## Verifications
 
 *   BGP 2000 routes advertised from ATE:port1,port2 must have 2 nexthops.
 *   IS-IS 2000 routes advertised from ATE:port3 must have one next hop.
@@ -44,9 +44,11 @@ Verifications
 
 ## AFT-1.1.1: AFT Base Link Down scenario 1
 
+## Procedure
+
 Bring down the link between ATE:port2 and DUT:port2
 
-Verifications
+## Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
@@ -55,9 +57,11 @@ Verifications
 
 ## AFT-1.1.2: AFT Base Link Down scenario 2
 
+## Procedure
+
 Bring down both links between ATE:port1,port2 and DUT:port1,port2
 
-Verifications
+## Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must be removed from RIB,FIB of the DUT, query results nil.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
@@ -66,9 +70,11 @@ Verifications
 
 ## AFT-1.1.3: AFT Base Link Up scenario 1
 
+## Procedure
+
 Bring up link between ATE:port1 and DUT:port1
 
-Verifications
+## Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have one next hop.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
@@ -77,9 +83,11 @@ Verifications
 
 ## AFT-1.1.4: AFT Base Link Up scenario 2
 
+## Procedure
+
 Bring up both link between ATE:port1,port2 and DUT:port1,port2
 
-Verifications
+## Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have 2 next hops.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.

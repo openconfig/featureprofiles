@@ -12,37 +12,35 @@ Configure DUT:port1 for IS-IS session with ATE:port1
 *   IS-IS must be level 2 only with wide metric.
 *   IS-IS must be point to point.
 *   Send 1000 ipv4 and 1000 ipv6 IS-IS prefixes from ATE:port1 to DUT:port1.
-*   IS-IS must be up and running, prefixes must be in RIB and FIB.
 
 Establish eBGP sessions between ATE:port1 and DUT:port1.
 *   Configure eBGP over the interface ip.
 *   Advertise 1000 ipv4,ipv6 prefixes from ATE port1 observe received prefixes at DUT.
-*   Validate total number of entries of AFT for IPv4 and IPv6.
-*   Each prefix must have 1 next hop pointing to ATE port1.
-
 
 ## Procedure
 
 *   Gnmi set with REPLACE option to push the configuration DUT.
 *   ATE configuration must be pushed.
 
-verifications
+## verifications
 
 *   BGP routes advertised from ATE:port1 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
 *   Verify afts prefix entries using the following paths with in a period of 30s.
 
-/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix,
 /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
 
 
 
 ## AFT-2.1.1: AFT Prefix Counters ipv4 packets forwarded, IS-IS route.
 
-From ATE:port2 send 10000 pps to one of the ipv4 prefix advertise by IS-IS, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by IS-IS.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -51,9 +49,11 @@ Verifications
 
 ## AFT-2.1.2: AFT Prefix Counters ipv4 packets forwarded, BGP route.
 
-From ATE:port2 send 10000 pps to one of the ipv4 prefix advertise by BGP, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by BGP.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -62,9 +62,11 @@ Verifications
 
 ## AFT-2.1.3: AFT Prefix Counters ipv4 octets forwarded, IS-IS route.
 
-From ATE:port2 send 10000 pps to one of the ipv4 prefix advertise by IS-IS, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by IS-IS.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -74,9 +76,11 @@ Verifications
 
 ## AFT-2.1.4: AFT Prefix Counters ipv4 octets forwarded, BGP route.
 
-From ATE:port2 send 10000 pps to one of the ipv4 prefix advertise by BGP, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by BGP.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -85,9 +89,11 @@ Verifications
 
 ## AFT-2.1.5: AFT Prefix Counters ipv6 packets forwarded, IS-IS route.
 
-From ATE:port2 send 10000 pps to one of the ipv6 prefix advertise by IS-IS, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by IS-IS.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -96,9 +102,11 @@ Verifications
 
 ## AFT-2.1.6: AFT Prefix Counters ipv6 packets forwarded, BGP route.
 
-From ATE:port2 send 10000 pps to one of the ipv6 prefix advertise by BGP, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -109,9 +117,11 @@ Verifications
 
 ## AFT-2.1.7: AFT Prefix Counters ipv6 octets forwarded, IS-IS route.
 
-From ATE:port2 send 10000 pps to one of the ipv6 prefix advertise by IS-IS, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by IS-IS.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -121,9 +131,11 @@ Verifications
 
 ## AFT-2.1.8: AFT Prefix Counters ipv6 octets forwarded, BGP route.
 
-From ATE:port2 send 10000 pps to one of the ipv6 prefix advertise by BGP, after 1 minute stop the traffic.
+## Procedure
 
-Verifications
+From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
+
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -132,22 +144,26 @@ Verifications
 
 ## AFT-2.1.9: AFT Prefix Counters withdraw the ipv4 prefix.
 
+## Procedure
+
 *  From ATE:port1 withdraw some prefixes of BGP and IS-IS.
-*  Send 10000 pps from ATE:port2 to DUT:port2 for one of the withdrawn ipv4 prefix.
+*  Send 10000 packets from ATE:port2 to DUT:port2 for one of the withdrawn ipv4 prefix.
 *  The traffic must blackhole.
 
-Verifications
+## Verifications
 
 * The counters must not send incremental value as the prefix is not present in RIB/FIB.
 * Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.10: AFT Prefix Counters add the ipv4 prefix back.
 
+## Procedure
+
 *  From ATE:port1 add the prefixes of BGP and IS-IS back.
-*  Send 10000 pps from ATE:port2 to DUT:port2 for one of the added ipv4 prefix.
+*  Send 10000 packets from ATE:port2 to DUT:port2 for one of the added ipv4 prefix.
 *  The traffic must flow end to end.
 
-Verifications
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
@@ -156,22 +172,26 @@ Verifications
 
 ## AFT-2.1.11: AFT Prefix Counters withdraw the ipv6 prefix.
 
+## Procedure
+
 *  From ATE:port1 withdraw some prefixes of BGP and IS-IS.
-*  Send 10000 pps from ATE:port2 to DUT:port2 for one of the withdrawn ipv6 prefix.
+*  Send 10000 packets from ATE:port2 to DUT:port2 for one of the withdrawn ipv6 prefix.
 *  The traffic must blackhole.
 
-Verifications
+## Verifications
 
 * The counters must not send incremental value as the prefix is not present in RIB/FIB.
 *  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.12: AFT Prefix Counters add the ipv6 prefix back.
 
+## Procedure
+
 *  From ATE:port1 add the prefixes of BGP and IS-IS back.
-*  Send 10000 pps from ATE:port2 to DUT:port2 for one of the added ipv6 prefix.
+*  Send 10000 packets from ATE:port2 to DUT:port2 for one of the added ipv6 prefix.
 *  The traffic must flow end to end.
 
-Verifications
+## Verifications
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
