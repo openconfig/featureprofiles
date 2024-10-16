@@ -223,6 +223,12 @@ tests:
       - sprem
     priority: 5
     mustpass: true
+  - name: P4RT-3.21 (Google Discovery Protocol PacketOut with LAG)
+    path: feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-3.1 (Google Discovery Protocol PacketIn)
     path: feature/p4rt/otg_tests/google_discovery_protocol_packetin_test
     owners:
@@ -248,6 +254,12 @@ tests:
     priority: 5
     mustpass: true
     timeout: 7200
+  - name: P4RT-5.3 (Traceroute PacketIn With VRF Selection)
+    path: feature/p4rt/otg_tests/traceroute_packetin_with_vrf_selection_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
   - name: P4RT-5.1 (Traceroute Packetin)
     path: feature/p4rt/otg_tests/traceroute_packetin_test
     owners:
