@@ -50,3 +50,11 @@ service on `tcp/[::]60062`.
 *   Instruct C2 to make a gRPC dial call to C2's listen port with a specified
     timeout, ensure that an RPC response is received.
 
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+    gNMI.Subscribe:
+```

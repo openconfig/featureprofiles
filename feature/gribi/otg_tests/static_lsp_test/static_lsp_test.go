@@ -142,14 +142,18 @@ func configureOTG(t *testing.T) gosnappi.Config {
 // configureStaticLSP configures a static MPLS LSP with the provided parameters.
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
 	d := &oc.Root{}
-	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	dni := deviations.DefaultNetworkInstance(dut)
+	defPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Update(t, dut, defPath.Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
+		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
+	})
+	mplsCfg := d.GetOrCreateNetworkInstance(dni).GetOrCreateMpls()
 	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
 	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
 	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
 	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-
 }
 
 func createTrafficFlow(t *testing.T,
