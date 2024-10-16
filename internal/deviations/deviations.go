@@ -1171,3 +1171,9 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
+
+// BgpSetmedUnionTypeUnsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
+}
