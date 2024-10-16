@@ -83,13 +83,13 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					opticalChannel1Config := &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
-						OperationalMode: ygot.Uint16(dp16QAM)}
+						OperationalMode:   ygot.Uint16(dp16QAM)}
 					opticalChannel2Config := &oc.Component_OpticalChannel{
 						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
 						Frequency:         ygot.Uint64(freq),
-						OperationalMode: ygot.Uint16(dp16QAM)}
-					
-					if deviations.OperationalModeUnsupported(dut){
+						OperationalMode:   ygot.Uint16(dp16QAM)}
+
+					if deviations.OperationalModeUnsupported(dut) {
 						opticalChannel1Config.OperationalMode = nil
 						opticalChannel2Config.OperationalMode = nil
 					}
@@ -140,14 +140,14 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				opticalChannel1Config := &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
-					OperationalMode: ygot.Uint16(dp16QAM),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				}
 				opticalChannel2Config := &oc.Component_OpticalChannel{
 					TargetOutputPower: ygot.Float64(top),
 					Frequency:         ygot.Uint64(tc.frequency),
-					OperationalMode: ygot.Uint16(dp16QAM),
+					OperationalMode:   ygot.Uint16(dp16QAM),
 				}
-				if deviations.OperationalModeUnsupported(dut){
+				if deviations.OperationalModeUnsupported(dut) {
 					opticalChannel1Config.OperationalMode = nil
 					opticalChannel2Config.OperationalMode = nil
 				}
@@ -180,15 +180,15 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	opticalChannel1Config := &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
-		OperationalMode: ygot.Uint16(dp16QAM),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	}
 	opticalChannel2Config := &oc.Component_OpticalChannel{
 		TargetOutputPower: ygot.Float64(targetPower),
 		Frequency:         ygot.Uint64(frequency),
-		OperationalMode: ygot.Uint16(dp16QAM),
+		OperationalMode:   ygot.Uint16(dp16QAM),
 	}
-	
-	if deviations.OperationalModeUnsupported(dut){
+
+	if deviations.OperationalModeUnsupported(dut) {
 		opticalChannel1Config.OperationalMode = nil
 		opticalChannel2Config.OperationalMode = nil
 	}
