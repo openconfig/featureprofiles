@@ -905,6 +905,9 @@ type Metadata_Deviations struct {
 	EthChannelAssignmentCiscoNumbering bool `protobuf:"varint,223,opt,name=eth_channel_assignment_cisco_numbering,json=ethChannelAssignmentCiscoNumbering,proto3" json:"eth_channel_assignment_cisco_numbering,omitempty"`
 	// Devices needs time to update interface counters.
 	InterfaceCountersUpdateDelayed bool `protobuf:"varint,224,opt,name=interface_counters_update_delayed,json=interfaceCountersUpdateDelayed,proto3" json:"interface_counters_update_delayed,omitempty"`
+	// Device does not support matched-packets and matched-octets state paths.
+	// Juniper: partnerissuetracker.corp.google.com/299545397
+	MatchedPacketsOctetsUnsupported bool `protobuf:"varint,225,opt,name=matched_packets_octets_unsupported,json=matchedPacketsOctetsUnsupported,proto3" json:"matched_packets_octets_unsupported,omitempty"`
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2356,6 +2359,13 @@ func (x *Metadata_Deviations) GetEthChannelAssignmentCiscoNumbering() bool {
 func (x *Metadata_Deviations) GetInterfaceCountersUpdateDelayed() bool {
 	if x != nil {
 		return x.InterfaceCountersUpdateDelayed
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMatchedPacketsOctetsUnsupported() bool {
+	if x != nil {
+		return x.MatchedPacketsOctetsUnsupported
 	}
 	return false
 }
