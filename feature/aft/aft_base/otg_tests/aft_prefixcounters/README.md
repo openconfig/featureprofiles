@@ -4,7 +4,9 @@
 
 IPv4/IPv6 prefix counters
 
-## Procedure
+## Test Setup
+
+### Generate DUT and ATE Configuration
 
 Configure DUT:port1 for IS-IS session with ATE:port1
 *   IS-IS must be level 2 only with wide metric.
@@ -18,10 +20,22 @@ Establish eBGP sessions between ATE:port1 and DUT:port1.
 *   Validate total number of entries of AFT for IPv4 and IPv6.
 *   Each prefix must have 1 next hop pointing to ATE port1.
 
-Verifications
+
+## Procedure
+
+*   Gnmi set with REPLACE option to push the configuration DUT.
+*   ATE configuration must be pushed.
+
+verifications
 
 *   BGP routes advertised from ATE:port1 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
+*   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
+*   Verify afts prefix entries using the following paths with in a period of 30s.
+
+/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix
+/network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
+
 
 
 ## AFT-2.1.1: AFT Prefix Counters ipv4 packets forwarded, IS-IS route.
@@ -33,7 +47,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.2: AFT Prefix Counters ipv4 packets forwarded, BGP route.
 
@@ -44,9 +58,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
-
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.3: AFT Prefix Counters ipv4 octets forwarded, IS-IS route.
 
@@ -57,7 +69,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 
 ## AFT-2.1.4: AFT Prefix Counters ipv4 octets forwarded, BGP route.
@@ -69,6 +81,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.5: AFT Prefix Counters ipv6 packets forwarded, IS-IS route.
 
@@ -79,7 +92,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.6: AFT Prefix Counters ipv6 packets forwarded, BGP route.
 
@@ -90,7 +103,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 
 
@@ -103,7 +116,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 
 ## AFT-2.1.8: AFT Prefix Counters ipv6 octets forwarded, BGP route.
@@ -115,7 +128,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
-
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.9: AFT Prefix Counters withdraw the ipv4 prefix.
 
@@ -126,6 +139,7 @@ Verifications
 Verifications
 
 * The counters must not send incremental value as the prefix is not present in RIB/FIB.
+* Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.10: AFT Prefix Counters add the ipv4 prefix back.
 
@@ -138,6 +152,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.11: AFT Prefix Counters withdraw the ipv6 prefix.
 
@@ -148,6 +163,7 @@ Verifications
 Verifications
 
 * The counters must not send incremental value as the prefix is not present in RIB/FIB.
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-2.1.12: AFT Prefix Counters add the ipv6 prefix back.
 
@@ -160,6 +176,7 @@ Verifications
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
 *  The difference between final and initial value must match with the counter value in ATE.
+*  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## OpenConfig Path and RPC Coverage
 

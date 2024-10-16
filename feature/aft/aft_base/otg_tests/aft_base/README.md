@@ -4,7 +4,9 @@
 
 IPv4/IPv6 unicast routes next hop group and next hop.
 
-## Procedure
+## Test Setup
+
+### Generate DUT and ATE Configuration
 
 Configure DUT:port1,port2,port3 for IS-IS session with ATE:port1,port2,port3
 *   IS-IS must be level 2 only with wide metric.
@@ -27,12 +29,18 @@ Establish RSVP Sessions between ATE:port3 and SUT:port3.
 *   Configure explicit null and ipv6 tunneling.
 *   BGP advertised routes from ATE:port3 must be pointing to the 2 tunnels in the DUT.
 
+## Procedure
+
+*   Gnmi set with REPLACE option to push the configuration DUT.
+*   ATE configuration must be pushed.
+
 Verifications
 
-*   BGP routes advertised from ATE:port1,port2 must have 2 nexthops.
-*   IS-IS routes advertised from ATE:port3 must have one next hop.
-*   BGP routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
-
+*   BGP 2000 routes advertised from ATE:port1,port2 must have 2 nexthops.
+*   IS-IS 2000 routes advertised from ATE:port3 must have one next hop.
+*   BGP 100 routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
+*   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
+*   Verify afts prefix entries using the path mentioned in the path section.
 
 ## AFT-1.1.1: AFT Base Link Down scenario 1
 
@@ -43,6 +51,7 @@ Verifications
 *   BGP routes advertised from ATE:port1,port2 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
 *   BGP routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
+*   Verify afts prefix entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-1.1.2: AFT Base Link Down scenario 2
 
@@ -53,7 +62,7 @@ Verifications
 *   BGP routes advertised from ATE:port1,port2 must be removed from RIB,FIB of the DUT, query results nil.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
 *   BGP routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
-
+*   Verify afts prefix entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-1.1.3: AFT Base Link Up scenario 1
 
@@ -64,7 +73,7 @@ Verifications
 *   BGP routes advertised from ATE:port1,port2 must have one next hop.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
 *   BGP routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
-
+*   Verify afts prefix entries using the path mentioned in the paths section of this test plan.
 
 ## AFT-1.1.4: AFT Base Link Up scenario 2
 
@@ -75,7 +84,7 @@ Verifications
 *   BGP routes advertised from ATE:port1,port2 must have 2 next hops.
 *   IS-IS routes advertised from ATE:port3 must have one next hop.
 *   BGP routes advertised from ATE:port3 must have 2 next hops pointing to tunnels.
-
+*   Verify afts prefix entries using the path mentioned in the paths section of this test plan.
 
 ## OpenConfig Path and RPC Coverage
 
