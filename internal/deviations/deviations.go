@@ -1136,7 +1136,38 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
 
-// LinklocalMaskLen returns true if linklocal mask length is not 64
+// LinkLocalMaskLen returns true if linklocal mask length is not 64
 func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
+}
+
+// UseParentComponentForTemperatureTelemetry returns true if parent component supports temperature telemetry
+func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
+}
+
+// ComponentMfgDateUnsupported returns true if component's mfg-date leaf is unsupported
+func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
+}
+
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}
+
+// OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
+func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
+}
+
+// EthChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
+func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
+}
+
+// EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
+func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
