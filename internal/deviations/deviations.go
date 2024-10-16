@@ -1171,3 +1171,8 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
+
+// Device have different default value for allow own as.
+func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}

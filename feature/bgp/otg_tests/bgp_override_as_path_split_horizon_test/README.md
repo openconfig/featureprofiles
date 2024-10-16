@@ -6,7 +6,8 @@ BGP Override AS-path split-horizon
 
 ## Topology
 
- ATE Port1 (AS 65502) --- DUT Port1 (AS 65501) DUT Port2 ---eBGP --- ATE Port2 (AS 65503)
+ATE Port1 (AS 65502) --- eBGP --------- DUT Port1 (DUT Local AS 65501)
+ATE Port2 (AS 65503) --- eBGP --------- DUT Port2 (DUT Local AS 64513)
 
 ## Procedure
 
