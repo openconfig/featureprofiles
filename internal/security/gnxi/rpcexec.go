@@ -102,51 +102,6 @@ func GnoiBgpClearBGPNeighbor(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.D
 	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.bgp.BGP/ClearBGPNeighbor is not implemented")
 }
 
-// GnoiCertificatemanagementAllRPC implements a sample request for service /gnoi.certificate.CertificateManagement/* to validate if authz works as expected.
-func GnoiCertificatemanagementAllRPC(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/* is not implemented")
-}
-
-// GnoiCertificatemanagementCanGenerateCSR implements a sample request for service /gnoi.certificate.CertificateManagement/CanGenerateCSR to validate if authz works as expected.
-func GnoiCertificatemanagementCanGenerateCSR(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/CanGenerateCSR is not implemented")
-}
-
-// GnoiCertificatemanagementGenerateCSR implements a sample request for service /gnoi.certificate.CertificateManagement/GenerateCSR to validate if authz works as expected.
-func GnoiCertificatemanagementGenerateCSR(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/GenerateCSR is not implemented")
-}
-
-// GnoiCertificatemanagementGetCertificates implements a sample request for service /gnoi.certificate.CertificateManagement/GetCertificates to validate if authz works as expected.
-func GnoiCertificatemanagementGetCertificates(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/GetCertificates is not implemented")
-}
-
-// GnoiCertificatemanagementInstall implements a sample request for service /gnoi.certificate.CertificateManagement/Install to validate if authz works as expected.
-func GnoiCertificatemanagementInstall(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/Install is not implemented")
-}
-
-// GnoiCertificatemanagementLoadCertificate implements a sample request for service /gnoi.certificate.CertificateManagement/LoadCertificate to validate if authz works as expected.
-func GnoiCertificatemanagementLoadCertificate(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/LoadCertificate is not implemented")
-}
-
-// GnoiCertificatemanagementLoadCertificateAuthorityBundle implements a sample request for service /gnoi.certificate.CertificateManagement/LoadCertificateAuthorityBundle to validate if authz works as expected.
-func GnoiCertificatemanagementLoadCertificateAuthorityBundle(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/LoadCertificateAuthorityBundle is not implemented")
-}
-
-// GnoiCertificatemanagementRevokeCertificates implements a sample request for service /gnoi.certificate.CertificateManagement/RevokeCertificates to validate if authz works as expected.
-func GnoiCertificatemanagementRevokeCertificates(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/RevokeCertificates is not implemented")
-}
-
-// GnoiCertificatemanagementRotate implements a sample request for service /gnoi.certificate.CertificateManagement/Rotate to validate if authz works as expected.
-func GnoiCertificatemanagementRotate(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
-	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.certificate.CertificateManagement/Rotate is not implemented")
-}
-
 // GnoiDiagAllRPC implements a sample request for service /gnoi.diag.Diag/* to validate if authz works as expected.
 func GnoiDiagAllRPC(_ context.Context, _ *ondatra.DUTDevice, _ []grpc.DialOption, _ ...any) error {
 	return status.Errorf(codes.Unimplemented, "exec function for RPC /gnoi.diag.Diag/* is not implemented")

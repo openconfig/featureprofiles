@@ -46,10 +46,10 @@ platform_exceptions:  {
     isis_instance_enabled_required:  true
     static_protocol_name: "STATIC"
     gribi_mac_override_static_arp_static_route: true
-    ttl_copy_unsupported: true
     omit_l2_mtu: true
     backup_nhg_requires_vrf_with_decap: true
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
+    encap_tunnel_shut_backup_nhg_zero_traffic: true
   }
 }
