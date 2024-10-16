@@ -4,6 +4,8 @@
 
 Validate BGP in multipath UCMP support with link bandwidth community
 
+NOTE: [TODO] items are tracked at https://github.com/openconfig/featureprofiles/issues/3520
+
 ## Testbed type
 
 [TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
