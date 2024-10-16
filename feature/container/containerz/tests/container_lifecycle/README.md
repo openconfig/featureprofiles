@@ -4,6 +4,13 @@
 
 Verify the correct behaviour of `gNOI.Containerz` when operating containers.
 
+### Restart Behaviour
+
+Containers running on the system are expected to be present and running after
+a device reboot. Similarly, on a dual RP device it is expected that running
+containers are also present and running on the backup RP or after a failover
+to the backup.  
+
 ## Procedure
 
 This step only applies if the reference implementation of containerz is being
