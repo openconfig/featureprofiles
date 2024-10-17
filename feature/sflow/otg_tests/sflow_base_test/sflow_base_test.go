@@ -108,20 +108,20 @@ var (
 	flowConfigs = []flowConfig{
 		{
 			name:          "flowS",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     64,
 		},
 		{
 			name:          "flowM",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     512,
 		},
 		{
 			name:          "flowL",
-			packetsToSend: 1000000,
-			ppsRate:       100000,
+			packetsToSend: 10000000,
+			ppsRate:       300000,
 			frameSize:     1500,
 		},
 	}
@@ -385,7 +385,6 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(fc.frameSize)
 	flow.Rate().SetPps(fc.ppsRate)
-	flow.Duration().FixedPackets().SetPackets(fc.packetsToSend)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValues([]string{ateSrc.MAC})
 
@@ -425,6 +424,7 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 
 	found := false
 	packetCount := 0
+	sampleCount := 0
 	sflowSamples := uint32(0)
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
@@ -433,7 +433,7 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 				if ipv4.TOS == 32 {
 					found = true
-					break
+					sampleCount++
 				}
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
@@ -442,16 +442,19 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 				if ipv6.TrafficClass == 32 {
 					found = true
-					break
+					sampleCount++
 				}
 			}
 		}
 
 	}
-	if !found {
-		t.Error("sflow packets not found")
+	t.Logf("SFlow samples captured: %v", sampleCount)
+	if !found || sampleCount < 9 {
+		t.Errorf("sflow packets not found: got %v, want 9", sampleCount)
 	}
 
+	handle, _ = pcap.OpenOffline(filename)
+	packetSource = gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
 			sflow := sflowLayer.(*layers.SFlowDatagram)
