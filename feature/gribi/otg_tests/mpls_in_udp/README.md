@@ -278,6 +278,133 @@ openconfig-network-instance:
 TODO: Specify a solution for ensuring BGP packets are matched, encapsulated
 and forwarding to a specified  destination using OC policy-forwarding terms.
 
+### TE-18.1.6 Rewrite the ingress, innner packet TLL = 1, if the incoming TTL = 1.
+Create AFT entries using gRIBI to match on next hop group in a
+network-instance specifying inner ip ttl min as 1 and 
+encapsulate the matching packets in MPLS in UDP with inner ip ttl as 1.
+
+#### gRIBI RPC content
+
+The gRIBI client should send this proto message to the DUT to create AFT
+entries.  See [OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
+for the new OC AFT model nodes needed for this.  
+
+```proto
+network_instances: {
+  network_instance: {
+    afts {
+      #
+      # entries used for "group_A"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
+          next_hop_group: 100
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          id: 100
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 100
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 100
+          network_instance: "group_A"
+          encap-headers {
+            encap-header {
+              index: 1
+              pushed_mpls_label_stack: [100,]
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              src_ip: "outer_ipv6_src"
+              dst_ip: "outer_ipv6_dst_A"
+              dst_udp_port: "outer_dst_udp_port"
+              ip_ttl: "outer_ip-ttl"
+              inner_ip_ttl_min: 1
+              dscp: "outer_dscp"
+            }
+          }
+        }
+      }
+      #
+      # entries used for "group_B"
+      ipv6_unicast {
+        ipv6_entry {
+          prefix: "inner_ipv6_dst_B"
+          next_hop_group: 200
+        }
+      }
+      ipv4_unicast {
+        ipv4_entry {
+          prefix: "ipv4_inner_dst_B"
+          next_hop_group: 200
+        }
+      }
+      next_hop_groups {
+        next_hop_group {
+          id: 200
+          next_hops {            # reference to a next-hop
+            next_hop: {
+              index: 200
+            }
+          }
+        }
+      }
+      next_hops {
+        next_hop {
+          index: 200
+          network_instance: "group_B"
+          encap-headers {
+            encap-header {
+              index: 1
+              type : OPENCONFIG_AFT_TYPES:MPLS
+              mpls {
+                pushed_mpls_label_stack: [200,]
+              }
+            }
+          }
+          encap-headers {
+            encap-header {
+              index: 2
+              type: OPENCONFIG_AFT_TYPES:UDP
+              udp {
+                src_ip: "outer_ipv6_src"
+                dst_ip: "outer_ipv6_dst_B"
+                dst_udp_port: "outer_dst_udp_port"
+                ip_ttl: "outer_ip-ttl"
+                inner_ip_ttl_min: 1
+                dscp: "outer_dscp"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+* Send traffic from ATE port 1 to DUT port 1
+* Validate afts next hop counters
+* Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+  * Validate MPLS label is set
+  * Validate inner packet ttl as 1.
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
