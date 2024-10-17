@@ -193,11 +193,11 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv4StaticRouteNextHop := ipv4StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
-	} else {
 		ipv4StaticRouteNextHop.Preference = ygot.Uint32(104)
+	} else {
+		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
 	}
-	ipv4StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
+	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString("192.168.1.6"))
 
 	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("2024:db8:128:128::/64")
 	if !deviations.UseVendorNativeTagSetConfig(dut) {
@@ -208,11 +208,11 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv6StaticRouteNextHop := ipv6StaticRoute.GetOrCreateNextHop("1")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
-	} else {
 		ipv6StaticRouteNextHop.Preference = ygot.Uint32(106)
+	} else {
+		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
 	}
-	ipv6StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
+	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString("2001:DB8::6"))
 
 	gnmi.Replace(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
 }
@@ -422,7 +422,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
+			t.Fatalf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
 		}
@@ -1479,46 +1479,74 @@ func validateRedistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDe
 // Used by multiple IPv4 test validations for route presence and MED value
 func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
 	time.Sleep(5 * time.Second)
+	var foundPrefix string
+	var foundMED uint32
 
-	bgpPrefixes := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny().State())
 	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
-			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, subnet)
-			t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
-			if bgpPrefix.GetMultiExitDiscriminator() != expectedMED {
-				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), expectedMED)
+	_, ok := gnmi.WatchAll(t,
+		ate.OTG(),
+		gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			prefix, present := v.Val()
+			if present {
+				if prefix.GetAddress() == subnet {
+					foundPrefix = prefix.GetAddress()
+					foundMED = prefix.GetMultiExitDiscriminator()
+					if foundMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", foundPrefix, subnet)
+						t.Logf("Prefix MED %d", foundMED)
+						found = true
+						return true
+					}
+				}
 			}
-			break
-		}
+			return false
+		}).Await(t)
+
+	if !shouldBePresent && !ok {
+		return
 	}
 
 	if !found {
-		t.Errorf("No Route found for prefix %s", subnet)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", foundPrefix, foundMED, expectedMED)
 	}
 }
 
 // Used by multiple IPv6 test validations for route presence and MED value
 func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
 	time.Sleep(5 * time.Second)
+	var foundPrefix string
+	var foundMED uint32
 
-	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny().State())
 	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
-			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, subnet)
-			t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
-			if bgpPrefix.GetMultiExitDiscriminator() != expectedMED {
-				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), expectedMED)
+	_, ok := gnmi.WatchAll(t,
+		ate.OTG(),
+		gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			prefix, present := v.Val()
+			if present {
+				if prefix.GetAddress() == subnet {
+					foundPrefix = prefix.GetAddress()
+					foundMED = prefix.GetMultiExitDiscriminator()
+					if foundMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", foundPrefix, subnet)
+						t.Logf("Prefix MED %d", foundMED)
+						found = true
+						return true
+					}
+				}
 			}
-			break
-		}
+			return false
+		}).Await(t)
+
+	if !shouldBePresent && !ok {
+		return
 	}
 
 	if !found {
-		t.Errorf("No Route found for prefix %s", subnet)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", foundPrefix, foundMED, expectedMED)
 	}
 }
 
