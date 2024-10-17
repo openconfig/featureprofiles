@@ -875,7 +875,6 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
-	// ondatra.Debug().Breakpoint(t, "Traffic running")
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
