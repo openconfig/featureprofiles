@@ -889,4 +889,57 @@ tests:
     mustpass: true
     timeout: 4200
     
-
+  - name: RT-1.29
+    path: feature/bgp/policybase/otg_tests/chained_policies_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-1.30
+    path: feature/bgp/policybase/otg_tests/nested_policies
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-1.32
+    path: feature/bgp/policybase/otg_tests/actions_med_localpref_prepend_flow_control
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-2.13
+    path: feature/isis/otg_tests/weighted_ecmp_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-5.9
+    path: feature/interface/ip/ipv6_ND/otg_tests/disable_ipv6_nd_ra_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-7.1
+    path: feature/bgp/policybase/otg_tests/default_policies_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-7.11
+    path: feature/bgp/policybase/otg_tests/import_export_multi_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: MGT-1
+    path: feature/system/management/otg_tests/management_ha_test 
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
+  - name: RT-7.5
+    path: feature/bgp/policybase/otg_tests/link_bandwidth_test
+    owners:
+      - sprem
+    priority: 5
+    mustpass: true
