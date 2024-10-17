@@ -197,7 +197,7 @@ openconfig-network-instance:
                             destination-ip: "outer_ipv6_dst_def"
                             ip-ttl: outer_ip-ttl
                             dscp: outer_dscp
-                            inner-ttl-min: 2
+                            inner_ip_ttl_min: 1
 ```
 
 * Generate the policy forwarding configuration
@@ -398,13 +398,22 @@ network_instances: {
 }
 ```
 
-* Send traffic from ATE port 1 to DUT port 1
+#### Procedure - A
+* Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
 * Validate afts next hop counters
 * Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
   * Validate inner packet ttl as 1.
-
+    
+#### Procedure - B
+* Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 3.
+* Validate afts next hop counters
+* Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
+  * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
+  * Validate MPLS label is set
+  * Validate inner packet ttl as 2.
+    
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
