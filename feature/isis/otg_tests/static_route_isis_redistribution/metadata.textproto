@@ -34,3 +34,13 @@ platform_exceptions: {
     match_tag_set_condition_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    skip_setting_disable_metric_propagation: true
+    routing_policy_tag_set_embedded: true
+  }
+}
