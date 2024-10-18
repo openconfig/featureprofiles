@@ -156,36 +156,6 @@ network_instances: {
     }
   }
 }
-
-network_instances: {
-  network_instance: {
-    afts {                    #TODO add valid key currently installed in hardware
-      keychains {
-        keychain {
-          keys {
-            key {
-              key-id: 0x125   # SPI value
-              crypto-algorithm: CRYPTO_NONE
-              secret-key: "abc"
-              send-lifetime {
-                config {
-                  start-time: 1727414006  
-                  end-time: 17274510000
-                }
-              }
-              receive-lifetime {
-                config {
-                  start-time: 1727415000
-                  end-time: 17274520000
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
 ```
 
 ### TE-18.1.2 Extract SPI and Decapsulate using keys with gRIBI aft modify
@@ -302,36 +272,6 @@ network_instances: {
                 ip_ttl: "outer_ip-ttl"
                 dscp: "outer_dscp"
                 key_chain_name: "ipsec_keychain"
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-network_instances: {
-  network_instance: {
-    afts {                    #TODO add valid key currently installed in hardware
-      keychains {
-        keychain {
-          keys {
-            key {
-              key-id: 0x125   # SPI value
-              crypto-algorithm: CRYPTO_NONE
-              secret-key: "abc"
-              send-lifetime {
-                config {
-                  start-time: 1727414006  
-                  end-time: 17274510000
-                }
-              }
-              receive-lifetime {
-                config {
-                  start-time: 1727415000
-                  end-time: 17274520000
-                }
               }
             }
           }
