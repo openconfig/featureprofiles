@@ -37,8 +37,8 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 
 ```yaml
 paths:
-    /components/component/fabric/config:
-    /components/component/fabric/state:
+    /components/component/fabric/config/power-admin-state:
+    /components/component/fabric/state/power-admin-state:
 
 rpcs:
   gnmi:
