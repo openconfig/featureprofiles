@@ -393,9 +393,6 @@ message Metadata {
     // Devices which does not support nexthop index state
     // Juniper: b/304729237
     bool skip_static_nexthop_check = 136;
-    // Devices which needs to enable leaf specific flag
-    // Juniper: b/319202763
-    bool enable_flowctrl_flag = 137;
     // Device doesn't support router advertisement enable and mode config
     // Juniper: b/316173974
     bool ipv6_router_advertisement_config_unsupported = 138;
@@ -561,7 +558,7 @@ message Metadata {
     // equal to the canonical hardware model name of its device.
     bool model_name_unsupported = 194;
     // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
-    bool community_match_with_redistribution_unsupported = 195;  
+    bool community_match_with_redistribution_unsupported = 195;
     // Devices that do not support components/component/state/install-component
     // and components/component/state/install-position.
     bool install_position_and_install_component_unsupported = 196;
@@ -578,7 +575,7 @@ message Metadata {
     // weighted ecmp feature verification using fixed packet
     bool weighted_ecmp_fixed_packet_verification = 202;
     // Override default NextHop scale while enabling encap/decap scale
-    // CISCO: 
+    // CISCO:
     bool override_default_nh_scale = 203;
     // Devices that donot support setting bgp extended community set
     bool bgp_extended_community_set_unsupported = 204;
@@ -602,8 +599,37 @@ message Metadata {
     bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
     // Devices which do not support default import export policy.
     bool default_import_export_policy_unsupported = 213;
+    // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
+    bool ipv6_router_advertisement_interval_unsupported = 214;
+    // Decap NH with NextHopNetworkInstance is unsupported
+    bool decap_nh_with_nexthop_ni_unsupported = 215;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 216;
+    // SFlow source address update is unsupported
+    // Arista: b/357914789
+    bool sflow_source_address_update_unsupported = 217;
+    // Linklocal mask length is not 64
+    // Cisco: b/368271859
+    bool link_local_mask_len = 218;
+    // use parent component for temperature telemetry
+    bool use_parent_component_for_temperature_telemetry = 219;
+    // component manufactured date is unsupported
+    bool component_mfg_date_unsupported = 220;
+    // trib protocol field under otn channel config unsupported
+    bool otn_channel_trib_unsupported = 221;
+    // ingress parameters under eth channel config unsupported
+    bool eth_channel_ingress_parameters_unsupported = 222;
+    // Cisco numbering for eth channel assignment starts from 1 instead of 0
+    bool eth_channel_assignment_cisco_numbering = 223;
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 224;
+    // device does not support a Healthz GET RPC against Chassis level component like "CHASSIS" or "Rack 0"
+    bool chassis_get_rpc_unsupported = 225;
+    // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
+    // b/373581140
+    bool power_disable_enable_leaf_ref_validation = 226;
     // Device does not support ssh server counters.
-    bool ssh_server_counters_unsupported = 214;
+    bool ssh_server_counters_unsupported = 227;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

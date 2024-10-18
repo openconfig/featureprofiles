@@ -720,11 +720,6 @@ func SkipStaticNexthopCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipStaticNexthopCheck()
 }
 
-// EnableFlowctrlFlag returns if device needs set leaf specific enable flag.
-func EnableFlowctrlFlag(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableFlowctrlFlag()
-}
-
 // Ipv6RouterAdvertisementConfigUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement configuration
 func Ipv6RouterAdvertisementConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementConfigUnsupported()
@@ -1118,6 +1113,73 @@ func BgpAfiSafiInDefaultNiBeforeOtherNi(dut *ondatra.DUTDevice) bool {
 // does not support default import export policy.
 func DefaultImportExportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultImportExportPolicyUnsupported()
+}
+
+// CommunityInvertAnyUnsupported returns true when device
+// does not support community invert any.
+func CommunityInvertAnyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCommunityInvertAnyUnsupported()
+}
+
+// Ipv6RouterAdvertisementIntervalUnsupported returns true for devices which don't support Ipv6 RouterAdvertisement interval configuration
+func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementIntervalUnsupported()
+}
+
+// DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
+}
+
+// SflowSourceAddressUpdateUnsupported returns true if sflow source address update is unsupported
+func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
+}
+
+// LinkLocalMaskLen returns true if linklocal mask length is not 64
+func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
+}
+
+// UseParentComponentForTemperatureTelemetry returns true if parent component supports temperature telemetry
+func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
+}
+
+// ComponentMfgDateUnsupported returns true if component's mfg-date leaf is unsupported
+func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
+}
+
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}
+
+// OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
+func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
+}
+
+// EthChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
+func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
+}
+
+// EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
+func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
+}
+
+// ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
+func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
+}
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
 
 // SSHServerCountersUnsupported is to skip checking ssh server counters.
