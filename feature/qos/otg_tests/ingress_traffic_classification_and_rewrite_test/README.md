@@ -150,5 +150,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 
-* MFF - A modular form factor device containing LINECARDs, FABRIC and redundant CONTROLLER_CARD components
 * FFF - fixed form factor
