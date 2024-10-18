@@ -627,7 +627,7 @@ message Metadata {
     bool chassis_get_rpc_unsupported = 225;
     // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
     // b/373581140
-    bool leaf_ref_validation = 226;
+    bool power_disable_enable_leaf_ref_validation = 226;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

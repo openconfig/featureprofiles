@@ -133,7 +133,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	default:
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
-	if deviations.LeafRefValidation(dut) {
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
 		gnmi.Update(t, dut, c.Config(), &oc.Component{
 			Name: ygot.String(name),
 		})

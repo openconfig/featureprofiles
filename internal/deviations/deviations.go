@@ -1177,7 +1177,7 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
 }
 
-// LeafRefValidation returns true if definition of leaf-ref is not supported
-func LeafRefValidation(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetLeafRefValidation()
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
