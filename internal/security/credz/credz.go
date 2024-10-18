@@ -53,6 +53,7 @@ var (
 	charClasses = []string{lowercase, uppercase, digits, symbols, space}
 )
 
+// PrettyPrint prints rpc requests/responses in a pretty format.
 func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
@@ -365,9 +366,9 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 	return response.PublicKeys[0].PublicKey
 }
 
-// CreateSshKeyPair creates ssh keypair with a filename of keyName in the specified directory.
+// CreateSSHKeyPair creates ssh keypair with a filename of keyName in the specified directory.
 // Keypairs can be created for ca/dut/testuser as per individual credentialz test requirements.
-func CreateSshKeyPair(t *testing.T, dir, keyName string) {
+func CreateSSHKeyPair(t *testing.T, dir, keyName string) {
 	sshCmd := exec.Command(
 		"ssh-keygen",
 		"-t", "ed25519",
@@ -587,7 +588,7 @@ func CreateHibaKeys(t *testing.T, dir string) {
 }
 
 // SSHWithPassword dials ssh with password based authentication to be used in credentialz tests.
-func SSHWithPassword(t *testing.T, target, username, password string) (*ssh.Client, error) {
+func SSHWithPassword(target, username, password string) (*ssh.Client, error) {
 	return ssh.Dial(
 		"tcp",
 		target,

@@ -77,7 +77,7 @@ func TestCredentialz(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify ssh succeeds/fails based on expected result.
-			client, err := credz.SSHWithPassword(t, target, tc.loginUser, tc.loginPassword)
+			client, err := credz.SSHWithPassword(target, tc.loginUser, tc.loginPassword)
 			if tc.expectFail {
 				if err == nil {
 					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
