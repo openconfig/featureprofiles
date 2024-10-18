@@ -717,6 +717,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.15"
+  description: "IS-IS Graceful Restart Helper"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
