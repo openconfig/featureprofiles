@@ -1057,6 +1057,11 @@ test: {
   id: "TE-18.3"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp_scale/README.md"
 }
+test {
+  id: "TE-18.5"
+  description: "gRIBI encapsulation for mmpls in UDP with inner TTL manipulation"
+  readme: ""
+}
 test: {
   id: "TE-2.1"
   description: "gRIBI IPv4 Entry"
