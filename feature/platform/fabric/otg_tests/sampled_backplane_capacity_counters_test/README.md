@@ -102,3 +102,24 @@ rpcs:
 ## Required DUT platform
 
 * MFF
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /components/component/fabric/config/power-admin-state:
+
+  ## State paths: N/A
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
