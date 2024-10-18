@@ -230,6 +230,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "DP-1.17"
+  description: "ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "DP-1.2"
   description: "QoS policy feature config"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ate_tests/qos_policy_config_test/README.md"
@@ -928,12 +934,6 @@ test: {
   id: "TE-1.1"
   description: "Static ARP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/staticarp/ate_tests/static_arp_test/README.md"
-  exec: " "
-}
-test: {
-  id: "TE-1.2"
-  description: "ARP Policer"
-  readme: ""
   exec: " "
 }
 test: {
