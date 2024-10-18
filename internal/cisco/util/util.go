@@ -6,12 +6,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -701,4 +704,148 @@ func RebootDevice(t *testing.T) {
 		}
 	}
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+}
+
+// GNMIStreamManager manages multiple gNMI streams.
+type GNMIStreamManager struct {
+	ctx        context.Context    // Context for managing cancellation.
+	cancel     context.CancelFunc // Function to cancel the context.
+	wg         sync.WaitGroup     // WaitGroup to synchronize goroutines.
+	numStreams int                // Number of gNMI streams to manage.
+}
+
+// StartScaledStreams starts the specified number of gNMI streams without blocking.
+func StartScaledStreams(t *testing.T, dut *ondatra.DUTDevice, numStreams int) *GNMIStreamManager {
+	ctx, cancel := context.WithCancel(context.Background())
+	manager := &GNMIStreamManager{
+		ctx:        ctx,
+		cancel:     cancel,
+		numStreams: numStreams,
+	}
+
+	// Obtain the gNMI client
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if gnmiClient == nil {
+		t.Fatalf("Failed to get gNMI client from DUT")
+	}
+
+	// Start the specified number of gNMI streams
+	for i := 0; i < numStreams; i++ {
+		manager.wg.Add(1)
+		go manager.startGNMISubscription(t, gnmiClient, i)
+	}
+
+	return manager
+}
+
+// startGNMISubscription starts a single gNMI subscription in a goroutine.
+func (manager *GNMIStreamManager) startGNMISubscription(t *testing.T, gnmiClient gnmipb.GNMIClient, streamID int) {
+	defer manager.wg.Done()
+
+	// Define the subscription path
+	path := &gnmipb.Path{
+		Elem: []*gnmipb.PathElem{
+			{Name: "system"},
+			{Name: "state"},
+			{Name: "current-datetime"},
+		},
+	}
+
+	// Create the Subscribe stream
+	subClient, err := gnmiClient.Subscribe(manager.ctx)
+	if err != nil {
+		t.Logf("Stream %d: Failed to create Subscribe stream: %v", streamID, err)
+		return
+	}
+
+	// Create the SubscribeRequest
+	subReq := &gnmipb.SubscribeRequest{
+		Request: &gnmipb.SubscribeRequest_Subscribe{
+			Subscribe: &gnmipb.SubscriptionList{
+				Subscription: []*gnmipb.Subscription{
+					{
+						Path:           path,
+						Mode:           gnmipb.SubscriptionMode_SAMPLE,
+						SampleInterval: uint64(2 * time.Second.Nanoseconds()), // 2 seconds
+					},
+				},
+				Mode:     gnmipb.SubscriptionList_STREAM,
+				Encoding: gnmipb.Encoding_JSON_IETF,
+			},
+		},
+	}
+
+	// Send the SubscribeRequest
+	if err := subClient.Send(subReq); err != nil {
+		t.Logf("Stream %d: Failed to send SubscribeRequest: %v", streamID, err)
+		return
+	}
+
+	// Receive updates in the background
+	for {
+		select {
+		case <-manager.ctx.Done():
+			t.Logf("Stream %d: Context canceled, stopping subscription", streamID)
+			return
+		default:
+			_, err := subClient.Recv()
+			if err != nil {
+				if err == io.EOF {
+					t.Logf("Stream %d: Subscription stream closed", streamID)
+				} else {
+					grpcStatus, ok := status.FromError(err)
+					if ok {
+						t.Logf("Stream %d: gRPC error received: %v, details: %v", streamID, grpcStatus.Code(), grpcStatus.Message())
+					} else {
+						t.Logf("Stream %d: Error receiving response: %v", streamID, err)
+					}
+				}
+				return
+			}
+		}
+	}
+}
+
+// StopScaledStreams stops all running gNMI streams and cancels the context.
+func (manager *GNMIStreamManager) StopScaledStreams() {
+	manager.cancel()
+}
+
+// GetActiveGrpcStreams checks the number of active gRPC streams on the DUT.
+// It parses the output of the "show grpc streams" CLI command.
+func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams int) int {
+	t.Logf("GetActiveGrpcStreams: Starting check for active streams")
+	cliCommand := "show grpc streams"
+	cliClient := dut.RawAPIs().CLI(t)
+	t.Logf("GetActiveGrpcStreams: Executing CLI command: %s", cliCommand)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Errorf("GetActiveGrpcStreams: Error running CLI command '%s': %v", cliCommand, err)
+		return 0
+	}
+
+	t.Logf("GetActiveGrpcStreams: CLI output:\n%s", output.Output())
+
+	re := regexp.MustCompile(`Streaming gRPCs: (\d+)`)
+	matches := re.FindStringSubmatch(output.Output())
+	if len(matches) < 2 {
+		t.Errorf("GetActiveGrpcStreams: Failed to parse the number of active gRPC streams from the output")
+		return 0
+	}
+
+	activeStreams, err := strconv.Atoi(matches[1])
+	if err != nil {
+		t.Errorf("GetActiveGrpcStreams: Failed to convert active gRPC streams to integer: %v", err)
+		return 0
+	}
+
+	t.Logf("GetActiveGrpcStreams: Active gRPC streams: %d", activeStreams)
+
+	if activeStreams < expectedStreams {
+		t.Logf("GetActiveGrpcStreams: Warning: Lower number of active gRPC streams than expected. Got: %d, Expected: %d", activeStreams, expectedStreams)
+	} else {
+		t.Logf("GetActiveGrpcStreams: Number of active gRPC streams is within expected range: %d", activeStreams)
+	}
+
+	return activeStreams
 }
