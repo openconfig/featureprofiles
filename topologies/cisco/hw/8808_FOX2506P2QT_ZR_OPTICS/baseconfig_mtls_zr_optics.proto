@@ -150,7 +150,7 @@ ascii_val:
     "!\n"
     "interface FourHundredGigE0/0/0/0\n"
     " description not connected interface\n"
-    " shutdown\n"
+    " no shutdown\n"
     "!\n"
     "interface FourHundredGigE0/0/0/1\n"
     " description FourHundredGigE0/0/0/1\n"
