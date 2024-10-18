@@ -29,3 +29,21 @@ ControllerCard.
 
 *   /components/component/state/oper-status
 *   /components/component/{fabric|linecard|controller-card}/state/power-admin-state
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+    /components/component/{fabric|linecard|controller-card}/config/power-admin-state
+    /components/component/state/oper-status
+    /components/component/{fabric|linecard|controller-card}/state/power-admin-state
+
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
+
