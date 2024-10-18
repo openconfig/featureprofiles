@@ -11,19 +11,25 @@
 *       @openconfig/featureprofiles-maintainers
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
+/feature/acl/          @alokmtri-g
+/feature/aft/          @sudhinj
 /feature/bgp/          @dplore
+/feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/interface/    @ram-mac
 /feature/isis/         @rohit-rp
+/feature/lldp/         @alokmtri-g
 /feature/mpls/         @swetha-haridasula
 /feature/mtu/          @swetha-haridasula
 /feature/networkinstance/    @swetha-haridasula
-/feature/policy_forwarding/  @swetha-haridasula
+/feature/platform/           @amrindrr
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
+/feature/sampling/           @sudhinj
 /feature/security            @mihirpitale-googler
 /feature/staticroute/        @swetha-haridasula
-/feature/system              @self-maurya
+/feature/stp/                @alokmtri-g
+/feature/system              @swetha-haridasula
 /feature/vrrp                @amrindrr
 
 # Common OTG utilities 
