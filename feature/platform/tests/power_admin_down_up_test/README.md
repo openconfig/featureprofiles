@@ -25,11 +25,9 @@ ControllerCard.
 vRX
 
 ## Config Parameter coverage
-
     *   /components/component/{fabric|linecard|controller-card}/config/power-admin-state
 
 ## Telemetry Parameter coverage
-
     *   /components/component/state/oper-status
     *   /components/component/{fabric|linecard|controller-card}/state/power-admin-state
 
@@ -39,14 +37,16 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 
 ```yaml
 paths:
+    ##Config Paths##
     /components/component/fabric/config/power-admin-state
     /components/component/linecard/config/power-admin-state
     /components/component/controller-card/config/power-admin-state
+
+    ##State Paths##
     /components/component/state/oper-status
     /components/component/fabric/state/power-admin-state
     /components/component/linecard/state/power-admin-state
     /components/component/controller-card/state/power-admin-state
-
 
 rpcs:
   gnmi:
