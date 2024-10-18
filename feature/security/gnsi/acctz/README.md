@@ -33,7 +33,7 @@ Create a library of device configuration to be used for all of the gNSI.acctz.v1
 	- A User permitted to run some commands in each of the service classes of gnsi.acctz.v1.CommandService.CmdServiceType & gnsi.acctz.v1.GrpcService.GrpcServiceType, but not all
 
 ## gNSI Accounting (acctz) Tests:
-- [ACCTZ-1.1 Record Subscribe Full](RecordSubscribeFull)
+- [ACCTZ-1.1 Record Subscribe Full](tests/record_subscribe_full)
 - [ACCTZ-2.1 Record Subscribe Partial](RecordSubscribePartial)
 - [ACCTZ-3.1 Record Subscribe Non-gRPC](RecordSubscribeNongrpc)
 - [ACCTZ-4.1 Record History Truncation](RecordHistoryTruncation/)
