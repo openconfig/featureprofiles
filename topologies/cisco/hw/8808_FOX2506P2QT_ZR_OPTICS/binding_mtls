@@ -1,0 +1,102 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+#router static
+# address-family ipv4 unicast
+#  0.0.0.0/0 10.85.84.1"
+# !
+
+#interface MgmtEth0/RP0/CPU0/0
+# ipv4 address 10.85.84.231 255.255.0.0
+# no shut
+#!
+
+#interface MgmtEth0/RP1/CPU0/0
+# ipv4 address 10.85.84.232 255.255.0.0
+# no shut
+#!
+
+#telnet: RP0 - telnet 10.85.84.54 2005
+#telnet: RP1 - telnet 10.85.84.54 2006
+
+##Exec server:
+#ssh ott2lab-as3
+
+## Console server:
+# telnet 10.85.84.54
+# Pass1: roZes!23
+# Pass2: roZes!23
+
+# Username: cafyauto
+# Password: cisco123
+
+## Management interface RP0:
+# ipv4 address 10.85.84.231 
+
+## Management interface RP1:
+# ipv4 address 10.85.84.232 
+
+duts {
+  id: "dut"
+  name: "SF-D"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  # telnet RP0: 10.85.84.54 2005
+  # telnet RP1: 10.85.84.54 2006
+  # Mgmt RP0: 10.85.84.231
+  # Mgmt RP0: 10.85.84.232
+  # Rack Location : 22-18-27
+  # Exec server: ott2lab-as3
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    username: "cafyauto"
+    password: "cisco123"
+    # skip_verify: true
+    mutual_tls: true
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "10.85.84.233:9339"
+  }
+  gnmi {
+    target: "10.85.84.233:9339" 
+  }
+  gribi{
+    target: "10.85.84.233:9340"
+  }
+  p4rt{
+    target: "10.85.84.233:9559"
+  }
+  gnsi{
+    target: "10.85.84.233:9339"
+  }
+  ssh{
+    target: "10.85.84.233:22"
+    skip_verify: true
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+  ports {
+    id: "port1"
+    name: "FourHundredGigE/0/0/0/0"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR
+    speed: S_400GB  
+  }
+  ports {
+    id: "port2"
+    name: "FourHundredGigE0/0/0/24"  # Change this to the actual port name.
+    pmd: PMD_400GBASE_ZR
+    speed: S_400GB  
+  }
+}
