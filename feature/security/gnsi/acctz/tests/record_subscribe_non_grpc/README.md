@@ -1,4 +1,4 @@
-# ACCTZ-3.1 - gNSI.acctz.v1 (Accounting) Test Record Subscribe Non-gRPC
+# ACCTZ-3.1: Record Subscribe Non-gRPC
 
 ## Summary
 Test Accounting for non-gRPC records
