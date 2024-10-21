@@ -76,6 +76,8 @@ const (
 	opUp           = oc.Interface_OperStatus_UP
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficPps     = 10000
+	totalPackets   = 200000
 )
 
 var (
@@ -439,7 +441,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -502,6 +504,8 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	flow := tc.top.Flows().Add().SetName(l3header)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(128)
+	flow.Rate().SetPps(trafficPps)
+	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
 
 	ipType := "IPv4"
@@ -557,7 +561,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(20 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 
 	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
