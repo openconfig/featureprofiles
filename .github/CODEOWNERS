@@ -23,14 +23,13 @@
 /feature/mtu/          @swetha-haridasula
 /feature/networkinstance/    @swetha-haridasula
 /feature/platform/           @amrindrr
-/feature/policy_forwarding/  @swetha-haridasula
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @sudhinj
 /feature/security            @mihirpitale-googler
 /feature/staticroute/        @swetha-haridasula
 /feature/stp/                @alokmtri-g
-/feature/system              @self-maurya
+/feature/system              @swetha-haridasula
 /feature/vrrp                @amrindrr
 
 # Common OTG utilities 
