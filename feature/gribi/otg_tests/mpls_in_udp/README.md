@@ -268,7 +268,7 @@ paths:
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
-  # Paths for TE-18.1.1 Match and Encapsulate using gRIBI aft modify
+  # Paths added for TE-18.1.1 Match and Encapsulate using gRIBI aft modify
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
@@ -288,15 +288,22 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
 
-  # Paths for TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/sequence-id:
+  # Paths added for TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/pushed-mpls-label-stack:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/destination-ip:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/dscp:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/id:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/ip-ttl:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/source-ip:
+
+  # Paths added for TE-18.1.3 - MPLS in GRE decapsulation set by gNMI
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
+  # TODO: /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-gre:
+
+  # Paths added for TE-18.1.4 - MPLS in UDP decapsulation set by gNMI
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
 rpcs:
   gnmi:
