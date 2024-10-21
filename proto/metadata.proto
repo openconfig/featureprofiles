@@ -623,10 +623,15 @@ message Metadata {
     bool eth_channel_assignment_cisco_numbering = 223;
     // Devices needs time to update interface counters.
     bool interface_counters_update_delayed = 224;
+    // device does not support a Healthz GET RPC against Chassis level component like "CHASSIS" or "Rack 0"
+    bool chassis_get_rpc_unsupported = 225;
+    // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
+    // b/373581140
+    bool power_disable_enable_leaf_ref_validation = 226;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
-    bool otn_channel_assignment_cisco_numbering = 225;
+    bool otn_channel_assignment_cisco_numbering = 227;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
-    bool cisco_pre_fec_ber_inactive_value = 226;
+    bool cisco_pre_fec_ber_inactive_value = 228;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
