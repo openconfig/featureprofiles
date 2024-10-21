@@ -274,17 +274,17 @@ paths:
   
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/pushed-mpls-label-stack:
   
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv4/state/src-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv4/state/dst-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv4/state/dst-udp-port:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv4/state/ip-ttl:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv4/state/dscp:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp:
 
-/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv6/state/src-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv6/state/dst-ip:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv6/state/dst-udp-port:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv6/state/ip-ttl:
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udpv6/state/dscp:
+/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
 
 rpcs:
   gnmi:
