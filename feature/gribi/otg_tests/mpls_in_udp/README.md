@@ -103,8 +103,8 @@ NH#201 -> {
       }
     }
   }
-  next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
-  network_instance: "DEFAULT"
+  next_hop_group_id: "nhg_B"  
+  # network_instance: "DEFAULT"  TODO: requires new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance
 }
 ```
 
@@ -145,7 +145,7 @@ encapsulate in GRE.
                               "id": "default_dst_1",
                               "inner-ttl-min": 2,
                               "ip-ttl": "outer_ip-ttl",
-                              "network-instance": "DEFAULT",
+                              "network-instance": "DEFAULT",  # TODO New OC Path
                               "source-ip": "outer_ipv6_src"
                             }
                           },
@@ -158,7 +158,8 @@ encapsulate in GRE.
                       ]
                     },
                     "config": {
-                      "sequence-id": 1
+                      "sequence-id": 1,
+                      "network-instance": "DEFAULT"
                     },
                     "ipv6": {
                       "config": {
@@ -242,7 +243,7 @@ openconfig-network-instance:
                     config:
                       destination-address: "decap_loopback_ipv6"
                   action:
-                    decapsulate-mpls-in-udp: TRUE
+                    decapsulate-mpls-in-udp: TRUE 
 ```
 
 * Push the gNMI the policy forwarding configuration
@@ -263,12 +264,14 @@ and forwarding to a specified  destination using OC policy-forwarding terms.
 paths:
 
 # afts state paths set via gRIBI
-  # TODO: need new OC for user defined next-hop-group/state/id
-  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
+  # TODO: need new OC for user defined next-hop-group/state/id, needed for policy-forwarding rules pointing to a NHG
+  # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
+
+  # TODO: new OC path for aft NHG pointing to a different network-instance
+  # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/network-instance:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
   
@@ -280,7 +283,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp:
 
-/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
@@ -295,9 +298,9 @@ rpcs:
       on_change: true
   gribi:
     gRIBI.Modify:
-      network-instances:network-instance:afts:next-hops:next-hop:encapsulate_header:
-      network-instances:network-instance:afts:next-hops:next-hop:mpls-in-udp:
-      network-instances:network-instance:afts:next-hops:next-hop:decapsulate_header:
+      afts:next-hops:next-hop:encapsulate_header:
+      afts:next-hops:next-hop:mpls-in-udp:
+      afts:next-hops:next-hop:decapsulate_header:
     gRIBI.Flush:
 ```
 
