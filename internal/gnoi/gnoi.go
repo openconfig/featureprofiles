@@ -40,6 +40,7 @@ var (
 		},
 		ondatra.CISCO: {
 			GRIBI:   "emsd",
+			OCAGENT: "emsd",
 			P4RT:    "emsd",
 			ROUTING: "emsd",
 		},

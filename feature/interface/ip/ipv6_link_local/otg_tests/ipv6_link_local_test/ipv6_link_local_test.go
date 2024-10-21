@@ -198,7 +198,6 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		dstSubInt4.Enabled = ygot.Bool(true)
 	}
-	dutDst.IPv6Len = 128
 	if deviations.LinkLocalMaskLen(dut) {
 		dutDst.IPv6Len = 128
 	}

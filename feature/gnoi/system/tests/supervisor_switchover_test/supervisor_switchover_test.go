@@ -85,7 +85,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandbyBeforeSwitch, rpActiveBeforeSwitch)
 
 	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
@@ -150,7 +150,7 @@ func TestSupervisorSwitchover(t *testing.T) {
 	}
 	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Found standbyRP after switchover: %v, activeRP: %v", rpStandbyAfterSwitch, rpActiveAfterSwitch)
 
 	if got, want := rpActiveAfterSwitch, rpStandbyBeforeSwitch; got != want {

@@ -225,32 +225,7 @@ type testCase struct {
 }
 
 func TestCommunitySet(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
-
-	var communityMembers = [][][]int{
-		{
-			{100, 1}, {200, 2}, {300, 3},
-		},
-		{
-			{100, 1}, {101, 1}, {200, 2},
-		},
-		{
-			{107, 1}, {108, 1}, {109, 1},
-		},
-		{
-			{400, 1}, {500, 1}, {600, 1},
-		},
-	}
-
-	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
-	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
+	bs := testSetup(t)
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
@@ -317,5 +292,81 @@ func TestCommunitySet(t *testing.T) {
 				verifyTraffic(t, bs.ATE, "ipv6", tc.testResults[index], index)
 			}
 		})
+	}
+}
+
+func testSetup(t *testing.T) *cfgplugins.BGPSession {
+	t.Helper()
+
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
+	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
+
+	var communityMembers = [][][]int{
+		{
+			{100, 1}, {200, 2}, {300, 3},
+		},
+		{
+			{100, 1}, {101, 1}, {200, 2},
+		},
+		{
+			{107, 1}, {108, 1}, {109, 1},
+		},
+		{
+			{400, 1}, {500, 1}, {600, 1},
+		},
+	}
+
+	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
+	bs.PushAndStart(t)
+
+	t.Log("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+	t.Log("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
+
+	return bs
+}
+
+func TestCommunitySetUpdate(t *testing.T) {
+	bs := testSetup(t)
+	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
+	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
+
+	commMatch := [3]string{"100:1"}
+	configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, "update_comm_set", commMatch, oc.BgpPolicy_MatchSetOptionsType_INVERT)
+	validateCommunitySetUpdateTraffic(t, bs)
+
+	// change community match set
+	commMatch = [3]string{"200:2"}
+	configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, "update_comm_set", commMatch, oc.BgpPolicy_MatchSetOptionsType_INVERT)
+	validateCommunitySetUpdateTraffic(t, bs)
+}
+
+func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) {
+	t.Helper()
+
+	sleepTime := time.Duration(totalPackets/trafficPps) + 2
+	bs.ATETop.Flows().Clear()
+	for index, prefixPairV4 := range prefixesV4 {
+		configureFlow(t, bs, prefixPairV4, "ipv4", index)
+		configureFlow(t, bs, prefixesV6[index], "ipv6", index)
+	}
+	bs.PushAndStartATE(t)
+
+	// Verify BGP session after its reset with OTG push config & start
+	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+
+	t.Logf("Starting traffic for IPv4 and v6")
+	bs.ATE.OTG().StartTraffic(t)
+	time.Sleep(sleepTime * time.Second)
+	bs.ATE.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+
+	testResults := [4]bool{false, false, true, true}
+	for index, prefixPairV4 := range prefixesV4 {
+		t.Logf("Validating traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
+		verifyTraffic(t, bs.ATE, "ipv4", testResults[index], index)
+		t.Logf("Validating traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
+		verifyTraffic(t, bs.ATE, "ipv6", testResults[index], index)
 	}
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -430,6 +431,36 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
 	}
 
+	// Flow counters
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	fpc := fp.GetCounters()
+
+	// Pragmatic check on the average in and out packet sizes.  IPv4 may
+	// fragment the packet unless DF bit is set.  IPv6 never fragments.
+	// Under no circumstances should DUT send packets greater than MTU.
+
+	octets := fpc.GetOutOctets()
+	ateOutPkts := fpc.GetOutPkts()
+	ateInPkts := fpc.GetInPkts()
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		batch.AddPaths(
+			gnmi.OC().Interface(p1.Name()).Counters(),
+			gnmi.OC().Interface(p2.Name()).Counters(),
+		)
+		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			diffP1 := diffCounters(p1InBefore, inCounters(got.GetInterface(p1.Name()).GetCounters()))
+			diffP2 := diffCounters(p2OutBefore, outCounters(got.GetInterface(p2.Name()).GetCounters()))
+			return (diffP1.unicast+diffP1.drop >= ateOutPkts) && (diffP2.unicast >= ateInPkts-diffP2.drop)
+		}).Await(t)
+	}
+
 	// After Traffic Unicast, Multicast, Broadcast Counter
 	p1InAfter := inCounters(gnmi.Get(t, tc.dut, p1Counter.State()))
 	p2OutAfter := outCounters(gnmi.Get(t, tc.dut, p2Counter.State()))
@@ -449,18 +480,6 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Errorf("Large number of outbound Broadcast packets %d, want <= 100)", p2OutDiff.broadcast)
 	}
 
-	// Flow counters
-	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	fpc := fp.GetCounters()
-
-	// Pragmatic check on the average in and out packet sizes.  IPv4 may
-	// fragment the packet unless DF bit is set.  IPv6 never fragments.
-	// Under no circumstances should DUT send packets greater than MTU.
-
-	octets := fpc.GetOutOctets()
-	ateOutPkts := fpc.GetOutPkts()
-	ateInPkts := fpc.GetInPkts()
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
 	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {

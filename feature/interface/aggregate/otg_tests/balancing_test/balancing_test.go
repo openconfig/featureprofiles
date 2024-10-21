@@ -569,6 +569,30 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	if pkts == 0 {
 		t.Errorf("Flow sent packets: got %v, want non zero", pkts)
 	}
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		for _, port := range tc.dutPorts[1:] {
+			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters())
+		}
+
+		_, ok := gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			totalPks := uint64(0)
+			for _, port := range tc.dutPorts[1:] {
+				totalPks += got.GetInterface(port.Name()).GetCounters().GetOutPkts() - beforeTrafficCounters[port.Name()].GetOutPkts()
+			}
+			return totalPks >= pkts
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Counters did not update in time")
+		}
+	}
+
 	afterTrafficCounters := tc.getCounters(t, "after")
 	tc.verifyCounterDiff(t, beforeTrafficCounters, afterTrafficCounters)
 }
