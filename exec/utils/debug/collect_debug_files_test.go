@@ -81,6 +81,7 @@ var (
 		"routing bgp",
 		"linux networking",
 		"install",
+		"health",
 	}
 
 	pipedCmdList = []string{
