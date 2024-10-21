@@ -287,9 +287,9 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
 
-  # TODO New OC for encap-headers policy-forwarding
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/sequence-id:
+  # Paths for TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/sequence-id:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/pushed-mpls-label-stack:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/destination-ip:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/dscp:
