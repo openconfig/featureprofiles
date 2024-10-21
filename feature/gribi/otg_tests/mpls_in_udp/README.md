@@ -55,16 +55,16 @@ IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
 
 # this nexthop specifies a MPLS in UDP encapsulation
 NH#101 -> {
-  encap-headers {
-    encap-header {
+  encap_-_headers {
+    encap_header {
       index: 1
       mpls {
         pushed_mpls_label_stack: [101,]
       }
     }
-    encap-header {
+    encap_header {
       index: 2
-      udpv6 {
+      udp_v6 {
         src_ip: "outer_ipv6_src"
         dst_ip: "outer_ipv6_dst_A"
         dst_udp_port: "outer_dst_udp_port"
@@ -85,16 +85,16 @@ IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
 }
 
 NH#201 -> {
-  encap-headers {
-    encap-header {
+  encap_headers {
+    encap_header {
       index: 1
       mpls {
         pushed_mpls_label_stack: [201,]
       }
     }
-    encap-header {
+    encap_header {
       index: 2
-      udpv6 {
+      udp_v6 {
         src_ip: "outer_ipv6_src"
         dst_ip: "outer_ipv6_dst_B"
         dst_udp_port: "outer_dst_udp_port"
@@ -307,9 +307,8 @@ rpcs:
       on_change: true
   gribi:
     gRIBI.Modify:
-      afts:next-hops:next-hop:encapsulate_header:
-      afts:next-hops:next-hop:mpls-in-udp:
-      afts:next-hops:next-hop:decapsulate_header:
+      afts:next-hops:next-hop:encap-headers:encap-header:udp_v6:
+      afts:next-hops:next-hop:encap-headers:encap-header:mpls:
     gRIBI.Flush:
 ```
 
