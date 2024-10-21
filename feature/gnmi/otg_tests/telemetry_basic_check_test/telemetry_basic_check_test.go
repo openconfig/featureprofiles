@@ -328,18 +328,17 @@ func TestQoSCounters(t *testing.T) {
 		path:     qosQueuePath + "dropped-pkts",
 		counters: gnmi.LookupAll(t, dut, queues.DroppedPkts().State()),
 	}}
-	if !deviations.QOSDroppedOctets(dut) {
-		cases = append(cases,
-			struct {
-				desc     string
-				path     string
-				counters []*ygnmi.Value[uint64]
-			}{
-				desc:     "DroppedOctets",
-				path:     qosQueuePath + "dropped-octets",
-				counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
-			})
-	}
+	cases = append(cases,
+		struct {
+			desc     string
+			path     string
+			counters []*ygnmi.Value[uint64]
+		}{
+			desc:     "DroppedOctets",
+			path:     qosQueuePath + "dropped-octets",
+			counters: gnmi.LookupAll(t, dut, queues.DroppedOctets().State()),
+		})
+
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
