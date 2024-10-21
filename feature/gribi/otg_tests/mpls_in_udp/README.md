@@ -143,9 +143,7 @@ encapsulate in GRE.
                               "destination-ip": "outer_ipv6_dst_def",
                               "dscp": "outer_dscp",
                               "id": "default_dst_1",
-                              "inner-ttl-min": 2,
                               "ip-ttl": "outer_ip-ttl",
-                              "network-instance": "DEFAULT",  # TODO New OC Path
                               "source-ip": "outer_ipv6_src"
                             }
                           },
@@ -288,6 +286,16 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
+
+  # TODO New OC for encap-headers policy-forwarding
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/sequence-id:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/pushed-mpls-label-stack:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/destination-ip:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/dscp:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/id:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/ip-ttl:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/source-ip:
 
 rpcs:
   gnmi:
