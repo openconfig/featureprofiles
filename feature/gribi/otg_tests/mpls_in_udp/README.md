@@ -153,11 +153,13 @@ encapsulate in GRE.
                             ]
                           }
                         }
-                      ]
+                      ],
+                      "config": {
+                        "network-instance": "DEFAULT"
+                      }
                     },
                     "config": {
                       "sequence-id": 1,
-                      "network-instance": "DEFAULT"
                     },
                     "ipv6": {
                       "config": {
@@ -274,8 +276,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
   
-  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/pushed-mpls-label-stack:
-  
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port:
@@ -289,9 +290,9 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp:
 
   # Paths added for TE-18.1.2 Validate prefix match rule for MPLS in GRE encap using default route
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
-  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/pushed-mpls-label-stack:
+  #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/mpls/config/mpls-label-stack:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/destination-ip:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/dscp:
   #/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/encap-headers/encap-header/gre/config/id:
