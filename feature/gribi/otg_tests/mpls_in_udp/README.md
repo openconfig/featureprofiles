@@ -268,6 +268,7 @@ paths:
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
+  # Paths for TE-18.1.1 Match and Encapsulate using gRIBI aft modify
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
