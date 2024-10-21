@@ -109,7 +109,6 @@ NH#201 -> {
 ```
 
 * Send traffic from ATE port 1 to DUT port 1
-* Validate afts next hop counters
 * Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
@@ -264,25 +263,28 @@ and forwarding to a specified  destination using OC policy-forwarding terms.
 paths:
 
 # afts state paths set via gRIBI
-  # TODO: https://github.com/openconfig/public/pull/1153
-
-  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  # TODO: need new OC for user defined next-hop-group/state/id
   #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
-  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
-  #/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/network-instance:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/mpls/pushed-mpls-label-stack:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/src-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-ip:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dst-udp-port:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/ip-ttl:
-  #/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udp/dscp:
 
-# afts next-hop counters
-  /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/network-instance:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type:
+  
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/mpls/pushed-mpls-label-stack:
+  
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv4/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv4/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv4/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv4/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv4/dscp:
 
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv6/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv6/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv6/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv6/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/udpv6/dscp:
 
 rpcs:
   gnmi:
