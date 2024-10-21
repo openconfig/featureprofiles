@@ -43,117 +43,68 @@ outer_ip-ttl =        "64"
 #### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
-entries.  See [OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
-for the new OC AFT model nodes needed for this.  
-
-TODO: The
-[gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
-will be generated from the afts tree.
+entries.
 
 ```proto
-network_instances: {
-  network_instance: {
-    afts {
-      #
-      # entries used for "group_A"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
+#
+# aft entries used for network instance "NI_A"
+IPv6Entry {2001:DB8:2::2/128 (NI_A)} -> NHG#100 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF}
+}
+
+# this nexthop specifies a MPLS in UDP encapsulation
+NH#101 -> {
+  encap-headers {
+    encap-header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [101,]
       }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 100
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 100
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 100
-          network_instance: "group_A"
-          encap-headers {
-            encap-header {
-              index: 1
-              pushed_mpls_label_stack: [100,]
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              src_ip: "outer_ipv6_src"
-              dst_ip: "outer_ipv6_dst_A"
-              dst_udp_port: "outer_dst_udp_port"
-              ip_ttl: "outer_ip-ttl"
-              dscp: "outer_dscp"
-            }
-          }
-        }
-      }
-      #
-      # entries used for "group_B"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_B"
-          next_hop_group: 200
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_B"
-          next_hop_group: 200
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 200
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 200
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 200
-          network_instance: "group_B"
-          encap-headers {
-            encap-header {
-              index: 1
-              type : OPENCONFIG_AFT_TYPES:MPLS
-              mpls {
-                pushed_mpls_label_stack: [200,]
-              }
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              type: OPENCONFIG_AFT_TYPES:UDP
-              udp {
-                src_ip: "outer_ipv6_src"
-                dst_ip: "outer_ipv6_dst_B"
-                dst_udp_port: "outer_dst_udp_port"
-                ip_ttl: "outer_ip-ttl"
-                dscp: "outer_dscp"
-              }
-            }
-          }
-        }
+    }
+    encap-header {
+      index: 2
+      udpv6 {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_A"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+        dscp: "outer_dscp"
       }
     }
   }
+  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  network_instance: "DEFAULT"
+}
+
+#
+# entries used for network-instance "NI_B"
+IPv6Entry {2001:DB8:2::2/128 (NI_B)} -> NHG#200 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
+  {NH#201, DEFAULT VRF}
+}
+
+NH#201 -> {
+  encap-headers {
+    encap-header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [201,]
+      }
+    }
+    encap-header {
+      index: 2
+      udpv6 {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_B"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+        dscp: "outer_dscp"
+      }
+    }
+  }
+  next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  network_instance: "DEFAULT"
 }
 ```
 
@@ -168,36 +119,65 @@ network_instances: {
 Canonical OpenConfig for policy forwarding, matching IP prefix with action
 encapsulate in GRE.
 
-```yaml
-openconfig-network-instance:
-  network-instances:
-    - network-instance: "group_A"
-      afts:
-        policy-forwarding:
-          policies:
-            policy: "default encap rule"
-              config:
-                policy-id: "default encap rule"
-                type: PBR_POLICY
-              rules:
-                rule: 1
-                  config:
-                    sequence-id: 1
-                  ipv6:
-                    config:
-                      destination-address: "inner_ipv6_default"
-                  action:
-                    encapsulate-mpls-in-gre:              # TODO: add to OC model/PR in progress
-                      targets:
-                        target: "default_dst_1"
-                          config:
-                            id: "default_dst_1"
-                            network-instance: "DEFAULT"
-                            source-ip: "outer_ipv6_src"
-                            destination-ip: "outer_ipv6_dst_def"
-                            ip-ttl: outer_ip-ttl
-                            dscp: outer_dscp
-                            inner-ttl-min: 2
+```json
+{
+  "openconfig-network-instance": {
+    "network-instances": [
+      {
+        "afts": {
+          "policy-forwarding": {
+            "policies": [
+              {
+                "config": {
+                  "policy-id": "default encap rule",
+                  "type": "PBR_POLICY"
+                },
+                "policy": "default encap rule",
+                "rules": [
+                  {
+                    "action": {
+                      "encapsulate-headers": [
+                        {
+                          "encapsulate-header": null,
+                          "gre": {
+                            "config": {
+                              "destination-ip": "outer_ipv6_dst_def",
+                              "dscp": "outer_dscp",
+                              "id": "default_dst_1",
+                              "inner-ttl-min": 2,
+                              "ip-ttl": "outer_ip-ttl",
+                              "network-instance": "DEFAULT",
+                              "source-ip": "outer_ipv6_src"
+                            }
+                          },
+                          "mpls": {
+                            "mpls-label-stack": [
+                              100
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "config": {
+                      "sequence-id": 1
+                    },
+                    "ipv6": {
+                      "config": {
+                        "destination-address": "inner_ipv6_default"
+                      }
+                    },
+                    "rule": 1
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "network-instance": "group_A"
+      }
+    ]
+  }
+}
 ```
 
 * Generate the policy forwarding configuration
