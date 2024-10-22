@@ -45,8 +45,6 @@
 duts {
   id: "dut"
   name: "DUT"  # Change this to the device hostname.
-  vendor: CISCO
-  hardware_model: "CISCO-8808"
    config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
@@ -62,26 +60,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
    gnoi{
-     target: "10.85.100.200:57901"
+     target: "10.85.99.34:57900"
    }
    gnmi {
-     target: "10.85.100.200:57901"
+     target: "10.85.99.34:57900"
    }
    gribi{
-     target: "10.85.100.200:57901"
+     target: "10.85.99.34:57900"
    }
    p4rt{
-     target: "10.85.100.200:57901"
-   }
-   ssh{
-     target: "10.85.100.200:57902"
+     target: "10.85.99.34:57900"
    }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
     name: "TenGigE0/6/0/2/0"  # Change this to the actual port name.
-    speed: S_10GB
   }
   ports {
     id: "port2"
