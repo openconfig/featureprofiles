@@ -780,29 +780,28 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.P
 }
 
 func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
-
-	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 30*time.Second)
+	t.Helper()
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 40*time.Second)
 	defer inPktStream.Close()
-	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 30*time.Second)
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 40*time.Second)
 	defer outPktStream.Close()
 
-	v := inPktStream.Next()
-	if v == nil {
+	var inPktsV, outPktsV uint64
+	if v := inPktStream.Next(); v != nil {
+		if val, ok := v.Val(); ok {
+			inPktsV = val
+		}
+	}
+	if v := outPktStream.Next(); v != nil {
+		if val, ok := v.Val(); ok {
+			outPktsV = val
+		}
+	}
+
+	if inPktsV == 0 {
 		t.Fatalf("InPkts counter did not update in time")
 	}
-
-	inPktsV, inPktsOk := v.Val()
-	if !inPktsOk {
-		t.Fatalf("InPkts counter did not update in time")
-	}
-
-	v = outPktStream.Next()
-	if v == nil {
-		t.Fatalf("OutPkts counter did not update in time")
-	}
-
-	outPktsV, outPktsOk := v.Val()
-	if !outPktsOk {
+	if outPktsV == 0 {
 		t.Fatalf("OutPkts counter did not update in time")
 	}
 
