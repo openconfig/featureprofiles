@@ -1181,3 +1181,8 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
+
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
