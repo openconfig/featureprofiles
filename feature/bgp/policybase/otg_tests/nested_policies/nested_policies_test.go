@@ -35,49 +35,53 @@ import (
 )
 
 const (
-	ipv4PrefixLen     = 30
-	ipv6PrefixLen     = 126
-	v41Route          = "203.0.113.0"
-	v41TrafficStart   = "203.0.113.1"
-	v42Route          = "198.51.100.0"
-	v42TrafficStart   = "198.51.100.1"
-	v4RoutePrefix     = uint32(24)
-	v61Route          = "2001:db8:128:128::"
-	v61TrafficStart   = "2001:db8:128:128::1"
-	v62Route          = "2001:db8:128:129::"
-	v62TrafficStart   = "2001:db8:128:129::1"
-	v6RoutePrefix     = uint32(64)
-	dutAS             = uint32(65656)
-	ateAS1            = uint32(65657)
-	ateAS2            = uint32(65658)
-	bgpName           = "BGP"
-	maskLenExact      = "exact"
-	localPref         = 200
-	med               = 1000
-	v4Flow            = "flow-v4"
-	v4PrefixPolicy    = "prefix-policy-v4"
-	v4PrefixStatement = "prefix-statement-v4"
-	v4PrefixSet       = "prefix-set-v4"
-	v4LPPolicy        = "lp-policy-v4"
-	v4LPStatement     = "lp-statement-v4"
-	v4ASPPolicy       = "asp-policy-v4"
-	v4ASPStatement    = "asp-statement-v4"
-	v4MedPolicy       = "med-policy-v4"
-	v4MedStatement    = "med-statement-v4"
-	v6Flow            = "flow-v6"
-	v6PrefixPolicy    = "prefix-policy-v6"
-	v6PrefixStatement = "prefix-statement-v6"
-	v6PrefixSet       = "prefix-set-v6"
-	v6LPPolicy        = "lp-policy-v6"
-	v6LPStatement     = "lp-statement-v6"
-	v6ASPPolicy       = "asp-policy-v6"
-	v6ASPStatement    = "asp-statement-v6"
-	v6MedPolicy       = "med-policy-v6"
-	v6MedStatement    = "med-statement-v6"
-	peerGrpNamev4     = "BGP-PEER-GROUP-V4"
-	peerGrpNamev6     = "BGP-PEER-GROUP-V6"
-	permitAll         = "PERMIT-ALL"
-	permitAllStmtName = "20"
+	ipv4PrefixLen           = 30
+	ipv6PrefixLen           = 126
+	v41Route                = "203.0.113.0"
+	v41TrafficStart         = "203.0.113.1"
+	v42Route                = "198.51.100.0"
+	v42TrafficStart         = "198.51.100.1"
+	v4RoutePrefix           = uint32(24)
+	v61Route                = "2001:db8:128:128::"
+	v61TrafficStart         = "2001:db8:128:128::1"
+	v62Route                = "2001:db8:128:129::"
+	v62TrafficStart         = "2001:db8:128:129::1"
+	v6RoutePrefix           = uint32(64)
+	dutAS                   = uint32(65656)
+	ateAS1                  = uint32(65657)
+	ateAS2                  = uint32(65658)
+	bgpName                 = "BGP"
+	maskLenExact            = "exact"
+	localPref               = 200
+	med                     = 1000
+	v4Flow                  = "flow-v4"
+	v4PrefixPolicy          = "prefix-policy-v4"
+	v4PrefixStatement       = "prefix-statement-v4"
+	v4PrefixSet             = "prefix-set-v4"
+	v4LPPolicy              = "lp-policy-v4"
+	v4LPStatement           = "lp-statement-v4"
+	v4LPTerminateStatement  = "lp-terminate-stmt-v4"
+	v4ASPPolicy             = "asp-policy-v4"
+	v4ASPStatement          = "asp-statement-v4"
+	v4ASPTerminateStatement = "asp-terminate-stmt-v4"
+	v4MedPolicy             = "med-policy-v4"
+	v4MedStatement          = "med-statement-v4"
+	v6Flow                  = "flow-v6"
+	v6PrefixPolicy          = "prefix-policy-v6"
+	v6PrefixStatement       = "prefix-statement-v6"
+	v6PrefixSet             = "prefix-set-v6"
+	v6LPPolicy              = "lp-policy-v6"
+	v6LPStatement           = "lp-statement-v6"
+	v6LPTerminateStatement  = "lp-terminate-stmt-v6"
+	v6ASPPolicy             = "asp-policy-v6"
+	v6ASPStatement          = "asp-statement-v6"
+	v6ASPTerminateStatement = "asp-terminate-stmt-v6"
+	v6MedPolicy             = "med-policy-v6"
+	v6MedStatement          = "med-statement-v6"
+	peerGrpNamev4           = "BGP-PEER-GROUP-V4"
+	peerGrpNamev6           = "BGP-PEER-GROUP-V6"
+	permitAll               = "PERMIT-ALL"
+	permitAllStmtName       = "20"
 )
 
 var (
@@ -257,9 +261,17 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		t.Logf("Setting statement for policy")
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+
+	stmt3, err := pdef1.AppendNewStatement(v4LPTerminateStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", v4LPTerminateStatement, err)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 
 	// Configure a route-policy to match the prefix.
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4PrefixPolicy)
@@ -274,7 +286,9 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Configuring nested policy")
 	// Configure a prefix-set for route filtering/matching.
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -293,18 +307,19 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreatePeerGroup(peerGrpNamev4).GetOrCreateApplyPolicy()
 		policy.SetImportPolicy([]string{v4LPPolicy})
 		gnmi.BatchReplace(batch, path.Config(), policy)
-
 	} else {
 		path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetImportPolicy([]string{v4LPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		if deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
 		} else {
 			gnmi.BatchReplace(batch, path.Config(), policy)
 		}
 	}
 	batch.Set(t, dut)
+	// Sleep for 5 second to ensure that OTG has recived the update packet
+	time.Sleep(5 * time.Second)
 }
 
 func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -315,6 +330,7 @@ func validateImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 		found := false
 		for k, lr := range locRib.Route {
 			prefixAddr := strings.Split(lr.GetPrefix(), "/")
+			t.Logf("Route: %v, lr.GetPrefix() -> %v, advertisedIPv41.address: %s, prefixAddr[0]: %s", k, lr.GetPrefix(), advertisedIPv41.address, prefixAddr[0])
 			if prefixAddr[0] == advertisedIPv41.address {
 				found = true
 				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
@@ -367,9 +383,17 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4ASPStatement, err)
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+
+	stmt3, err := pdef1.AppendNewStatement(v4ASPTerminateStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", v4ASPTerminateStatement, err)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
@@ -402,12 +426,11 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetExportPolicy([]string{v4ASPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		if deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
 		} else {
 			gnmi.BatchReplace(batch, path.Config(), policy)
 		}
-		gnmi.BatchReplace(batch, path.Config(), policy)
 	}
 	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
@@ -422,7 +445,7 @@ func validateExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v42Route &&
 			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v4RoutePrefix {
 			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, v42Route)
+			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), v42Route)
 			t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
 			if bgpPrefix.GetMultiExitDiscriminator() != med {
 				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
@@ -469,9 +492,17 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		t.Logf("Setting statement for policy")
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
+
+	stmt3, err := pdef1.AppendNewStatement(v6LPTerminateStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", v6LPTerminateStatement, err)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v6PrefixPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v6PrefixStatement)
@@ -483,7 +514,9 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -514,13 +547,15 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetImportPolicy([]string{v6LPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		if deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
 		} else {
 			gnmi.BatchReplace(batch, path.Config(), policy)
 		}
 	}
 	batch.Set(t, dut)
+	// Sleep for 5 second to ensure that OTG has recived the update packet
+	time.Sleep(5 * time.Second)
 }
 
 func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
@@ -531,7 +566,7 @@ func validateImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		found := false
 		for k, lr := range locRib.Route {
 			prefixAddr := strings.Split(lr.GetPrefix(), "/")
-			t.Logf("lr.GetPrefix() -> %s, prefixAddr[0] -> %s, advertisedIPv61.address = %s", lr.GetPrefix(), prefixAddr[0], advertisedIPv61.address)
+			t.Logf("Route: %v, lr.GetPrefix() -> %v, advertisedIPv41.address: %s, prefixAddr[0]: %s", k, lr.GetPrefix(), advertisedIPv61.address, prefixAddr[0])
 			if prefixAddr[0] == advertisedIPv61.address {
 				found = true
 				t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", k.Prefix, k.Origin, k.PathId, lr.GetPrefix())
@@ -584,9 +619,17 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6ASPStatement, err)
 	}
 	if !deviations.SkipSettingStatementForPolicy(dut) {
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+
+	stmt3, err := pdef1.AppendNewStatement(v6ASPTerminateStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", v6ASPTerminateStatement, err)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	}
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
@@ -622,13 +665,13 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.BatchDelete(batch, path.Config())
 		policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 		policy.SetExportPolicy([]string{v6ASPPolicy})
-		if !deviations.RoutingPolicyChainingUnsupported(dut) {
+		if deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
 		} else {
 			gnmi.BatchReplace(batch, path.Config(), policy)
 		}
-		batch.Set(t, dut)
 	}
+	batch.Set(t, dut)
 	time.Sleep(time.Second * 60)
 }
 
@@ -640,7 +683,7 @@ func validateExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v62Route &&
 			bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v6RoutePrefix {
 			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, v62Route)
+			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), v62Route)
 			if bgpPrefix.GetMultiExitDiscriminator() != med {
 				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), med)
 			}
@@ -709,6 +752,7 @@ func createFlowV6(t *testing.T, td testData, fc flowConfig) {
 	td.ate.OTG().PushConfig(t, td.top)
 	td.ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, td.ate.OTG(), td.top, "IPv6")
+	time.Sleep(3 * time.Second)
 }
 
 func checkTraffic(t *testing.T, td testData, flowName string) {
