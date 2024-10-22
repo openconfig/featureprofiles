@@ -104,7 +104,7 @@ var (
 		IPv6Len: 64,
 		MAC:     "02:00:02:01:01:01",
 	}
-	kneDeviceModelList = []string{"ncptx", "ceos", "ixr10e", "8201", "xrd"}
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
 )
 
 // TestDefaultAddressFamilies verifies that both IPv4 and IPv6 are enabled by default without a need for additional
