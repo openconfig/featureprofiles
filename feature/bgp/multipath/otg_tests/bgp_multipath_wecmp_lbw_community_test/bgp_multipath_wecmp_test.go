@@ -76,7 +76,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 	configureFlow(bs)
 }
 
-func configureInternalNetwork(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func attachLBWithInternalNetwork(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	devices := top.Devices().Items()
 	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
 	sort.Slice(devices, byName)
@@ -229,18 +229,22 @@ func TestBGPSetup(t *testing.T) {
 
 	testCases := []struct {
 		name   string
+		desc   string
 		linkBw []int
 	}{
 		{
-			name:   "MissingLinkBandwidth",
+			name:   "RT-1.52.1",
+			desc:   "Verify BGP multipath when some path missing link-bandwidth extended-community",
 			linkBw: []int{10},
 		},
 		{
-			name:   "EqualLinkBandwidth",
+			name:   "RT-1.52.2",
+			desc:   "Verify use of equal community type",
 			linkBw: []int{10, 10},
 		},
 		{
-			name:   "UnequalLinkBandwidth",
+			name:   "RT-1.52.1",
+			desc:   "Verify use of unequal community type",
 			linkBw: []int{10, 5},
 		},
 	}
@@ -251,7 +255,7 @@ func TestBGPSetup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			linkBw = tc.linkBw
-			configureInternalNetwork(t, bs.ATE, bs.ATETop)
+			attachLBWithInternalNetwork(t, bs.ATE, bs.ATETop)
 			time.Sleep(30 * time.Second)
 
 			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
