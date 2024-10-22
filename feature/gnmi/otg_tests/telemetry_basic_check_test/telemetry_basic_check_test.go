@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -778,31 +779,34 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.P
 	return inPkts, outPkts
 }
 
-func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice,
-	dp1, dp2 *ondatra.Port, inTarget, outTarget uint64) (uint64, uint64) {
-	inWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(),
-		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
-			got, present := v.Val()
-			return present && got >= inTarget
-		})
+func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
 
-	outWatcher := gnmi.Watch(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(),
-		time.Second*60, func(v *ygnmi.Value[uint64]) bool {
-			got, present := v.Val()
-			return present && got >= outTarget
-		})
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 30*time.Second)
+	defer inPktStream.Close()
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 30*time.Second)
+	defer outPktStream.Close()
 
-	inPktsV, ok := inWatcher.Await(t)
-	if !ok {
+	v := inPktStream.Next()
+	if v == nil {
 		t.Fatalf("InPkts counter did not update in time")
 	}
-	outPktsV, ok := outWatcher.Await(t)
-	if !ok {
+
+	inPktsV, inPktsOk := v.Val()
+	if !inPktsOk {
+		t.Fatalf("InPkts counter did not update in time")
+	}
+
+	v = outPktStream.Next()
+	if v == nil {
 		t.Fatalf("OutPkts counter did not update in time")
 	}
-	inPkts, _ := inPktsV.Val()
-	outPkts, _ := outPktsV.Val()
-	return inPkts, outPkts
+
+	outPktsV, outPktsOk := v.Val()
+	if !outPktsOk {
+		t.Fatalf("OutPkts counter did not update in time")
+	}
+
+	return inPktsV, outPktsV
 }
 
 func TestIntfCounterUpdate(t *testing.T) {
@@ -887,8 +891,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	}
 	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
 	if deviations.InterfaceCountersUpdateDelayed(dut) {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2,
-			dutInPktsBeforeTraffic+uint64(ateOutPkts), dutOutPktsBeforeTraffic+uint64(ateOutPkts))
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2)
 	} else {
 		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
 	}
