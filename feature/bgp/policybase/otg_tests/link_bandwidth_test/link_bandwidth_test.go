@@ -653,15 +653,14 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure routing Policy not_match_100_set_linkbw_1M.
 	rpNotMatch := root.GetOrCreateRoutingPolicy()
 	pdef2 := rpNotMatch.GetOrCreatePolicyDefinition("not_match_100_set_linkbw_1M")
-	pdef2Stmt1, err := pdef2.AppendNewStatement("1-megabit-match")
+	pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_rm_lbw")
 	if err != nil {
-		t.Fatalf("AppendNewStatement 1-megabit-match failed: %v", err)
+		t.Fatalf("AppendNewStatement regex_match_comm100_rm_lbw failed: %v", err)
 	}
-
 	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		ref := pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
-		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_any"})
+		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
@@ -690,11 +689,37 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
-	pdef2Stmt2, err := pdef2.AppendNewStatement("accept_all_routes")
+
+	pdef2Stmt2, err := pdef2.AppendNewStatement("regex_match_comm100_add_lbw")
+	if err != nil {
+		t.Fatalf("AppendNewStatement regex_match_comm100_add_lbw failed: %v", err)
+	}
+	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
+		ref := pdef2Stmt2.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
+		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
+		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
+	}
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions()
+			ref1.SetCommunitySet("regex_match_comm100_deviation1")
+		}
+	} else {
+		ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		ref1.SetCommunitySet("regex_match_comm100")
+		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	}
+
+	pdef2Stmt3, err := pdef2.AppendNewStatement("accept_all_routes")
 	if err != nil {
 		t.Fatalf("AppendNewStatement accept_all_routes failed: %v", err)
 	}
-	pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	pdef2Stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		switch dut.Vendor() {
