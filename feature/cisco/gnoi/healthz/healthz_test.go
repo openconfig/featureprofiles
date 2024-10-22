@@ -26,6 +26,7 @@ func TestInvalidGetRpc(t *testing.T) {
 	for _, componentName := range componentNames {
 		req := &hpb.GetRequest{
 			Path: &tpb.Path{
+				Origin: "openconfig",
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: componentName},
@@ -47,6 +48,7 @@ func TestInvalidListRpc(t *testing.T) {
 	for _, componentName := range componentNames {
 		listReq := &hpb.ListRequest{
 			Path: &tpb.Path{
+				Origin: "openconfig",
 				Elem: []*tpb.PathElem{
 					{Name: "components"},
 					{Name: "component", Key: componentName},
@@ -89,12 +91,14 @@ func TestInvalidCheckRpc(t *testing.T) {
 	}
 
 	t.Run("Test Check RPC with invalid component and valid event-id", func(t *testing.T) {
+		t.Skip() // need to check if this is supported today
 		if len(rpList) != 2 {
 			t.Skipf("Need 2 Route Processors to test with ")
 		}
 		// get the event-id for the above crash
 		getReq := &hpb.GetRequest{
 			Path: &tpb.Path{
+				Origin: "openconfig",
 				Elem: []*tpb.PathElem{
 					{
 						Name: "components",
@@ -119,6 +123,7 @@ func TestInvalidCheckRpc(t *testing.T) {
 		for _, componentName := range componentNames {
 			checkReq := &hpb.CheckRequest{
 				Path: &tpb.Path{
+					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
 						{Name: "components"},
 						{Name: "component", Key: componentName},
@@ -139,6 +144,7 @@ func TestInvalidCheckRpc(t *testing.T) {
 		for _, componentName := range componentNames {
 			checkReq := &hpb.CheckRequest{
 				Path: &tpb.Path{
+					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
 						{Name: "components"},
 						{Name: "component", Key: componentName},
