@@ -29,7 +29,7 @@ Write a few sentences or paragraphs describing the purpose and scope of the test
 
 ### Test environment setup
 
-* Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPC's.
+* Description of procedure to configure ATE and DUT with pre-requisites making it possible to cover the intended paths and RPCs.
 
 #### Canonical OpenConfig Configuration for the DUT
 
