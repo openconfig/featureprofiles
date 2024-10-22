@@ -16,13 +16,9 @@ import os
 def _find_owner(filename):
     return getpwuid(os.stat(filename).st_uid).pw_name
 
-_session_locked_files = []
 def _lockfile(filename):
-    if filename in _session_locked_files:
-        return True
     try:
         os.close(os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY));
-        _session_locked_files.append(filename)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False
@@ -94,7 +90,6 @@ def _trylock_helper(tb):
         return False
     lock_file = os.path.join(ldir, tb['hw'])
     if _lockfile(lock_file):
-        logger.info(f"Testbed {tb['hw']} locked by user {getpass.getuser()}")
         return True
     return False
 
@@ -103,11 +98,11 @@ def _release_helper(tb):
         lock_file = os.path.join(ldir, tb['hw'])
         if os.path.exists(lock_file):
             os.remove(lock_file)
-            logger.info(f"Testbed {tb['hw']} released by user {getpass.getuser()}")
 
 def _release_all(tbs):
     for tb in tbs:
         _release_helper(tb)
+    logger.info(f"Testbeds {[tb['hw'] for tb in tbs]} released by user {getpass.getuser()}")
 
 def _trylock(testbeds, wait=False):
     while True:
@@ -116,10 +111,12 @@ def _trylock(testbeds, wait=False):
             if _trylock_helper(tb):
                 locked.append(tb)
             else:
-                _release_all(locked)
+                for tb in locked:
+                    _release_helper(tb)
                 break
         
         if len(locked) == len(testbeds):
+            logger.info(f"Testbeds {[tb['hw'] for tb in locked]} locked by user {getpass.getuser()}")
             return testbeds
         else: 
             if wait:
@@ -131,16 +128,16 @@ def _release(testbeds):
     _release_all(testbeds)
 
 def _get_actual_testbeds(ids, json_output=False):
-    testbeds = []
+    testbeds = {}
     for id in ids.split(","):
         tb = _get_testbed(id, json_output)
         hw = tb.get('hw', '')
         if type(hw) == str or len(hw) <= 1:
-            testbeds.append(tb)
+            testbeds[id] = tb
         else:
             for h in hw:
-                testbeds.append(_get_testbed(h, json_output))   
-    return testbeds
+                testbeds[id] = _get_testbed(h, json_output)
+    return testbeds.values()
 
 def _get_testbeds(ids, json_output=False):
     testbeds = []
@@ -205,6 +202,7 @@ with open(args.testbeds_file, 'r') as fp:
     tbs = tf['testbeds']
     for k in tbs:
         tbs[k]['id'] = k
+        if not 'hw' in tbs[k]: tbs[k]['hw'] = k
         testbeds.append(tbs[k])
 
 if args.command == 'show':
