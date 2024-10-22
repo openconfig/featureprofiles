@@ -42,8 +42,8 @@ gRPC service.
 
 Perform this for both RSA and ECDSA signed CA bundles and
 certificates.
-Perform this for the permutations of 1, 2, 10, 1000 CA
-trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
+Perform this for the permutations of 1, 2, 10, 1000, 20000 CA
+trust_bundle configurations: (## indicates the 1, 2, 10, 1000, 20000 CA testdata)
 
    1) Load the correct key-type trust bundle onto the device and client system:
         ca-##/trust_bundle_##_rsa.pem

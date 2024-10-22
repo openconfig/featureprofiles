@@ -1176,3 +1176,8 @@ func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
 }
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
