@@ -144,6 +144,7 @@ func TestInvalidCheckRpc(t *testing.T) {
 		for _, componentName := range componentNames {
 			checkReq := &hpb.CheckRequest{
 				Path: &tpb.Path{
+					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
 						{Name: "components"},
 						{Name: "component", Key: componentName},
