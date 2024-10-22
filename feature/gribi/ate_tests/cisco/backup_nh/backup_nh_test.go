@@ -2583,162 +2583,162 @@ func TestBackUp(t *testing.T) {
 		desc string
 		fn   func(ctx context.Context, t *testing.T, args *testArgs)
 	}{
-		// {
-		// 	name: "Backup pointing to route",
-		// 	desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
-		// 	fn:   testBackupToDrop,
-		// },
-		// {
-		// 	name: "Delete add backup",
-		// 	desc: "Deleting and Adding Back the Backup has no impact on traffic",
-		// 	fn:   testDeleteAddBackupToDrop,
-		// },
-		// {
-		// 	name: "Add backup after primary down",
-		// 	desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
-		// 	fn:   testBackupToTrafficLoss,
-		// },
+		{
+			name: "Backup pointing to route",
+			desc: "Base usecase with 2 NHOP Groups - Backup Pointing to route (drop)",
+			fn:   testBackupToDrop,
+		},
+		{
+			name: "Delete add backup",
+			desc: "Deleting and Adding Back the Backup has no impact on traffic",
+			fn:   testDeleteAddBackupToDrop,
+		},
+		{
+			name: "Add backup after primary down",
+			desc: "Add the backup - After Primary links are down Traffic continues ot DROP",
+			fn:   testBackupToTrafficLoss,
+		},
 		{
 			name: "Update backup to another ID",
 			desc: "Modify Backup pointing to Different ID which is pointing to a different static rooute pointitng to DROP",
 			fn:   testUpdateBackUpToDropID,
 		},
-		// {
-		// 	name: "Backup pointing to decap",
-		// 	desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
-		// 	fn:   testBackupToDecap,
-		// },
-		// {
-		// 	name: "flush forwarding chain with and without backup NH",
-		// 	desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
-		// 	fn:   testFlushForwarding,
-		// },
-		// {
-		// 	name: "Backup change from static to decap",
-		// 	desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
-		// 	fn:   testBackupSwitchFromDropToDecap,
-		// },
-		// {
-		// 	name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
-		// 	desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
-		// 	fn:   testUpdateBackupToDifferentNHG,
-		// },
-		// {
-		// 	name: "Get function validation",
-		// 	desc: "add decap NH and related forwarding chain and validate them using GET function",
-		// 	fn:   testValidateForwardingChain,
-		// },
-		// {
-		// 	name: "IPv4BackUpSingleNH",
-		// 	desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
-		// 	fn:   testBackupSingleNH,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultiNH",
-		// 	desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
-		// 	fn:   testBackupMultiNH,
-		// },
-		// {
-		// 	name: "IPv4BackUpRemoveBackup",
-		// 	desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
-		// 	fn:   testIPv4BackUpRemoveBackup,
-		// },
-		// {
-		// 	name: "IPv4BackUpAddBkNHG",
-		// 	desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
-		// 	fn:   testIPv4BackUpAddBkNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpToggleBkNHG",
-		// 	desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
-		// 	fn:   testIPv4BackUpToggleBkNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpDecapToDrop",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
-		// 	fn:   testIPv4BackUpDecapToDrop,
-		// },
-		// {
-		// 	name: "IPv4BackUpDropToDecap",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
-		// 	fn:   testIPv4BackUpDropToDecap,
-		// },
-		// {
-		// 	name: "IPv4BackUpShutSite1",
-		// 	desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
-		// 	fn:   testIPv4BackUpShutSite1,
-		// },
-		// {
-		// 	name: "IPv4BackUpModifyDecapNHG",
-		// 	desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
-		// 	fn:   testIPv4BackUpModifyDecapNHG,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultiplePrefixes",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpMultiplePrefixes,
-		// },
-		// {
-		// 	name: "IPv4BackUpMultipleVRF",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpMultipleVRF,
-		// },
-		// {
-		// 	name: "IPv4BackUpFlapBGPISIS",
-		// 	desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
-		// 	fn:   testIPv4BackUpFlapBGPISIS,
-		// },
-		// {
-		// 	name: "IPv4BackupLCOIR",
-		// 	desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
-		// 	fn:   testIPv4BackUpLCOIR,
-		// },
-		// {
-		// 	name: "IPv4MultipleNHG",
-		// 	desc: "Have same primary and backup decap with multiple nhg",
-		// 	fn:   testIPv4MultipleNHG,
-		// },
-		// {
-		// 	name: "RecursiveToNonrecursive",
-		// 	desc: "Change from recursive to non recursive path",
-		// 	fn:   testRecursiveToNonrecursive,
-		// },
-		// {
-		// 	name: "NonrecursiveToRecursive",
-		// 	desc: "change from nonrecursive to recursive path",
-		// 	fn:   testNonrecursiveToRecursive,
-		// },
-		// {
-		// 	name: "FaultInjectNHG",
-		// 	desc: "Inject relevent faults NHG ",
-		// 	fn:   testFaultInjectNHG,
-		// },
-		// {
-		// 	name: "FaultInjectAddIPv4",
-		// 	desc: "Inject relevent faults for Add IPV4 ",
-		// 	fn:   testFaultInjectAddIPv4,
-		// },
+		{
+			name: "Backup pointing to decap",
+			desc: "Base usecase with 2 NHOP Groups - - Backup Pointing to Decap",
+			fn:   testBackupToDecap,
+		},
+		{
+			name: "flush forwarding chain with and without backup NH",
+			desc: "add testcase to flush forwarding chain with backup NHG only and forwarding chain with backup NHG",
+			fn:   testFlushForwarding,
+		},
+		{
+			name: "Backup change from static to decap",
+			desc: "While Primary Paths are down Modify the Backup from poiniting to a static route to a DECAP chain - Traffic resumes after Decap",
+			fn:   testBackupSwitchFromDropToDecap,
+		},
+		{
+			name: "Multiple NW Instance with different NHG, same NH and different NHG backup",
+			desc: "Multiple NW Instances (VRF's ) pointing to different NHG but same NH Entry but different NHG Backup",
+			fn:   testUpdateBackupToDifferentNHG,
+		},
+		{
+			name: "Get function validation",
+			desc: "add decap NH and related forwarding chain and validate them using GET function",
+			fn:   testValidateForwardingChain,
+		},
+		{
+			name: "IPv4BackUpSingleNH",
+			desc: "Single NH Ensure that backup NextHopGroup entries are honoured in gRIBI for NHGs containing a single NH",
+			fn:   testBackupSingleNH,
+		},
+		{
+			name: "IPv4BackUpMultiNH",
+			desc: "Multiple NHBackup NHG: Multiple NH Ensure that backup NHGs are honoured with NextHopGroup entries containing",
+			fn:   testBackupMultiNH,
+		},
+		{
+			name: "IPv4BackUpRemoveBackup",
+			desc: "Set primary and backup path with gribi and send traffic. Delete the backup NHG and check if impacts traffic",
+			fn:   testIPv4BackUpRemoveBackup,
+		},
+		{
+			name: "IPv4BackUpAddBkNHG",
+			desc: "Set primary path with gribi and shutdown all the primary path. Now add the backup NHG and  validate traffic ",
+			fn:   testIPv4BackUpAddBkNHG,
+		},
+		{
+			name: "IPv4BackUpToggleBkNHG",
+			desc: "Set primary and backup path with gribi and shutdown all the primary path. Now remove,readd the backup NHG and validate traffic ",
+			fn:   testIPv4BackUpToggleBkNHG,
+		},
+		{
+			name: "IPv4BackUpDecapToDrop",
+			desc: "Shutdown all the primary path and modify Backup NHG from Drop to Decap and validate traffic ",
+			fn:   testIPv4BackUpDecapToDrop,
+		},
+		{
+			name: "IPv4BackUpDropToDecap",
+			desc: "Shutdown all the primary path and modify Backup NHG from Decap to Drop and validate traffic ",
+			fn:   testIPv4BackUpDropToDecap,
+		},
+		{
+			name: "IPv4BackUpShutSite1",
+			desc: "Shutdown the primary path for 1 Site  and validate traffic is going through another primary and not backup ",
+			fn:   testIPv4BackUpShutSite1,
+		},
+		{
+			name: "IPv4BackUpModifyDecapNHG",
+			desc: "Shutdown all the primary path and modify Backup NHG from  Decap NHG 101 to Decap NHG 102 and validate traffic ",
+			fn:   testIPv4BackUpModifyDecapNHG,
+		},
+		{
+			name: "IPv4BackUpMultiplePrefixes",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs and validate backup traffic ",
+			fn:   testIPv4BackUpMultiplePrefixes,
+		},
+		{
+			name: "IPv4BackUpMultipleVRF",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+			fn:   testIPv4BackUpMultipleVRF,
+		},
+		{
+			name: "IPv4BackUpFlapBGPISIS",
+			desc: "Have same primary and backup links for 2 prefixes with different NHG IDs in different VRFs and validate backup traffic ",
+			fn:   testIPv4BackUpFlapBGPISIS,
+		},
+		{
+			name: "IPv4BackupLCOIR",
+			desc: "Have Primary and backup configured on same LC and do a shut of primary. Followed by LC reload",
+			fn:   testIPv4BackUpLCOIR,
+		},
+		{
+			name: "IPv4MultipleNHG",
+			desc: "Have same primary and backup decap with multiple nhg",
+			fn:   testIPv4MultipleNHG,
+		},
+		{
+			name: "RecursiveToNonrecursive",
+			desc: "Change from recursive to non recursive path",
+			fn:   testRecursiveToNonrecursive,
+		},
+		{
+			name: "NonrecursiveToRecursive",
+			desc: "change from nonrecursive to recursive path",
+			fn:   testNonrecursiveToRecursive,
+		},
+		{
+			name: "FaultInjectNHG",
+			desc: "Inject relevent faults NHG ",
+			fn:   testFaultInjectNHG,
+		},
+		{
+			name: "FaultInjectAddIPv4",
+			desc: "Inject relevent faults for Add IPV4 ",
+			fn:   testFaultInjectAddIPv4,
+		},
 		// Decommissioning the TC due to CSCwe05268
 		// {
 		// 	name: "FaultInjectDeleteIPv4",
 		// 	desc: "Inject relevent faults for Delete IPv4",
 		// 	fn:   testFaultInjectDeleteIPv4,
 		// },
-		// {
-		// 	name: "FaultInjectUpdateNHG",
-		// 	desc: "Inject relevent faults for Update NHG pointing to the old NH ",
-		// 	fn:   testFaultInjectUpdateNHG,
-		// },
-		// {
-		// 	name: "FaultInjectTimingAddNHG",
-		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
-		// 	fn:   testFaultInjectTimingAddNHG,
-		// },
-		// {
-		// 	name: "FaultInjectTimingAddIpv4",
-		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
-		// 	fn:   testFaultInjectTimingAddIpv4,
-		// },
+		{
+			name: "FaultInjectUpdateNHG",
+			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
+			fn:   testFaultInjectUpdateNHG,
+		},
+		{
+			name: "FaultInjectTimingAddNHG",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
+			fn:   testFaultInjectTimingAddNHG,
+		},
+		{
+			name: "FaultInjectTimingAddIpv4",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
+			fn:   testFaultInjectTimingAddIpv4,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
