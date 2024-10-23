@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"strconv"
 	"testing"
@@ -33,52 +34,70 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra/netutil"
 	// "github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"golang.org/x/exp/maps"
 )
 
 const (
-	trafficDuration    = 15 * time.Second
-	ipipProtocol       = 4
-	ipv6ipProtocol     = 41
-	nhUdpProtocol      = 17
-	clusterPolicy      = "vrf_selection_policy_c"
-	wanPolicy          = "vrf_selection_policy_w"
-	dscpEncapA1        = 10
-	dscpEncapA2        = 18
-	dscpEncapB1        = 20
-	dscpEncapB2        = 28
-	dscpEncapNoMatch   = 30
-	ipv4OuterSrc111    = "198.51.100.111"
-	ipv4OuterSrc222    = "198.51.100.222"
-	innerSrcIPv4Start  = "198.19.0.1"
-	innerDstIPv4Start  = "138.0.11.1"
-	innerSrcIPv6Start  = "2001:DB8::198:1"
-	innerDstIPv6Start  = "2001:db8::138:0:11:1"
-	flowCount          = 254
-	vrfDecap           = "DECAP"
-	vrfTransit         = "TRANSIT_VRF"
-	vrfRepaired        = "REPAIRED"
-	vrfRepair          = "REPAIR"
-	encapIPv4FlowIP    = "138.0.11.8"
-	encapVrfIPv4Prefix = "138.0.11.0/24"
-	encapVrfIPv6Prefix = "2001:db8::138:0:11:0/126"
-	vrfEncapA          = "VRF-LowPriority"
-	vrfEncapB          = "VRF-HighPriority"
-	vrfEncapC          = "VRF-LowLatency"
-	vrfDefault         = "DEFAULT"
-	ipv4PrefixLen      = 30
-	ipv6PrefixLen      = 126
-	ethertypeIPv4      = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
-	ethertypeIPv6      = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
-	trfDistTolerance   = 0.02
-	staticDstMAC       = "001a.1117.5f80" //Static ARP/Local Static MAC address
-	lagName            = "LAGRx"          // LAG name for OTG
+	trafficDuration          = 15 * time.Second
+	ipipProtocol             = 4
+	ipv6ipProtocol           = 41
+	nhUdpProtocol            = 17
+	clusterPolicy            = "vrf_selection_policy_c"
+	wanPolicy                = "vrf_selection_policy_w"
+	dscpEncapA1              = 10
+	dscpEncapA2              = 18
+	dscpEncapB1              = 20
+	dscpEncapB2              = 28
+	dscpEncapNoMatch         = 30
+	peerGrpName              = "BGP-PEER-GROUP"
+	policyName               = "ALLOW"
+	dutBGPRID                = "18.18.18.18"
+	peerBGPRID               = "8.8.8.8"
+	ateRID                   = "192.0.2.31"
+	ipv4OuterSrc111          = "198.51.100.111"
+	ipv4OuterSrc222          = "198.51.100.222"
+	innerSrcIPv4Start        = "198.19.0.1"
+	innerDstIPv4Start        = "138.0.11.1"
+	innerSrcIPv6Start        = "2001:DB8::198:1"
+	innerDstIPv6Start        = "2001:db8::138:0:11:1"
+	v4BGPDefault             = "203.0.113.0"
+	v6BGPDefault             = "2001:DB8:2::1"
+	dutPeerBundleIPRange     = "88.1.1.0/24"
+	flowCount                = 254
+	vrfDecap                 = "DECAP"
+	vrfTransit               = "TRANSIT_VRF"
+	vrfRepaired              = "REPAIRED"
+	vrfRepair                = "REPAIR"
+	encapIPv4FlowIP          = "138.0.11.8"
+	encapVrfIPv4Prefix       = "138.0.11.0/24"
+	encapVrfIPv6Prefix       = "2001:db8::138:0:11:0/126"
+	vrfEncapA                = "VRF-LowPriority"
+	vrfEncapB                = "VRF-HighPriority"
+	vrfEncapC                = "VRF-LowLatency"
+	vrfDefault               = "DEFAULT"
+	ipv4PrefixLen            = 30
+	ipv6PrefixLen            = 126
+	ethertypeIPv4            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
+	ethertypeIPv6            = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
+	trfDistTolerance         = 0.02
+	staticDstMAC             = "001a.1117.5f80" //Static ARP/Local Static MAC address
+	lagName                  = "LAGRx"          // LAG name for OTG
+	tgenBundleID1            = "100"            // Bundle ID1 for OTG
+	tgenBundleID2            = "200"            // Bundle ID1 for OTG
+	advertisedRoutesv4Prefix = 32
+	advertisedRoutesv6Prefix = 128
+	dutAS                    = 68888
+	ateAS                    = 67777
 )
 
 var (
@@ -468,7 +487,7 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, dutIntfAttr attrs.
 	t.Helper()
 	agg := dutIntfAttr.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
 	gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 
 	for _, port := range aggPorts {
@@ -508,7 +527,7 @@ func configureOTGBundle(t *testing.T, ate *ondatra.ATEDevice, otgIntfAttr attrs.
 func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID := netutil.NextAggregateInterface(t, dut)
+	aggID1 := netutil.NextAggregateInterface(t, dut)
 	dutBundle1Member := []*ondatra.Port{
 		dut.Port(t, "port1"),
 		dut.Port(t, "port2"),
@@ -519,10 +538,10 @@ func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 		dut.Port(t, "port7"),
 		dut.Port(t, "port8"),
 	}
-	configureDUTBundle(t, dut, dutSrc1, dutBundle1Member, aggID)
+	configureDUTBundle(t, dut, dutSrc1, dutBundle1Member, aggID1)
 
-	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID = netutil.NextAggregateInterface(t, dut)
+	t.Log("Configuring DUT-TGEN Bundle interface2")
+	aggID2 := netutil.NextAggregateInterface(t, dut)
 	dutBundle2Member := []*ondatra.Port{
 		dut.Port(t, "port9"),
 		dut.Port(t, "port10"),
@@ -532,7 +551,7 @@ func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 		dut.Port(t, "port14"),
 		dut.Port(t, "port15"),
 	}
-	configureDUTBundle(t, dut, dutSrc1, dutBundle2Member, aggID)
+	configureDUTBundle(t, dut, dutSrc2, dutBundle2Member, aggID2)
 
 }
 
@@ -552,33 +571,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
 }
-
-// configreotg configures IP addresses on port1-8 on the otg.
-// func configureOTG(t *testing.T, otg *ondatra.ATEDevice) *ondatra.otgTopology {
-// 	topo := otg.Topology().New()
-// 	t.Logf("Configuring otg Port1 to Port8")
-// 	p1 := otg.Port(t, "port1")
-// 	p2 := otg.Port(t, "port2")
-// 	p3 := otg.Port(t, "port3")
-// 	p4 := otg.Port(t, "port4")
-// 	p5 := otg.Port(t, "port5")
-// 	p6 := otg.Port(t, "port6")
-// 	p7 := otg.Port(t, "port7")
-// 	p8 := otg.Port(t, "port8")
-
-// 	otgPort1.AddToOTG(topo, p1, &dutPort1)
-// 	otgPort2.AddToOTG(topo, p2, &dutPort2)
-// 	otgPort3.AddToOTG(topo, p3, &dutPort3)
-// 	otgPort4.AddToOTG(topo, p4, &dutPort4)
-// 	otgPort5.AddToOTG(topo, p5, &dutPort5)
-// 	otgPort6.AddToOTG(topo, p6, &dutPort6)
-// 	otgPort7.AddToOTG(topo, p7, &dutPort7)
-// 	otgPort8.AddToOTG(topo, p8, &dutPort8)
-
-// 	t.Logf("Pushing config to otg and starting protocols...")
-// 	topo.Push(t).StartProtocols(t)
-// 	return topo
-// }
 
 // Creates otg Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports.
 // trafficflowAttr for setting the Inner IP DA/SA & Egress tracking offset & width
@@ -680,16 +672,75 @@ func sendTraffic(t *testing.T, otg *ondatra.ATEDevice, allFlows []*ondatra.Flow)
 	otg.Traffic().Stop(t)
 }
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+// configreRoutePolicy adds route-policy config
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
+func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+
+	d := &oc.Root{}
+	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
+	bgp.GetOrCreateGlobal().As = ygot.Uint32(as)
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+
+	if routerID != "" {
+		bgp.Global.RouterId = ygot.String(routerID)
+	}
+
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg := bgp.GetOrCreatePeerGroup(peerGrpName)
+	pg.PeerAs = ygot.Uint32(*nbr.PeerAs)
+	pg.PeerGroupName = ygot.String(peerGrpName)
+	pgaf := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	pgaf.Enabled = ygot.Bool(true)
+	rpl := pgaf.GetOrCreateApplyPolicy()
+	rpl.ImportPolicy = []string{policyName}
+	rpl.ExportPolicy = []string{policyName}
+
+	bgp.AppendNeighbor(nbr)
+	return niProto
+}
+
+// func configureBGP(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.ATEDevice) {
+// 	// Apply simple config
+// 	dutConf := bgpWithNbr(dutAS, dutBGPRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+// 		PeerAs:          ygot.Uint32(dutAS),
+// 		NeighborAddress: ygot.String(ateIP),
+// 		PeerGroup:       ygot.String(peerGrpName),
+// 	}, dut)
+// 	peerConf := bgpWithNbr(dutAS, peerBGPRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+// 		PeerAs:          ygot.Uint32(dutAS),
+// 		NeighborAddress: ygot.String(dutIP),
+// 		PeerGroup:       ygot.String(peerGrpName),
+// 	}, dut)
+
+// }
+
+func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
+	//Configure DUT Device
 	t.Log("Configure VRFs")
-	configureNetworkInstance(t, dut)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	// configureNetworkInstance(t, dut)
+	// t.Log("Configure Fallback in Encap VRF")
+
 	t.Log("Configure DUT-TGEN Bundle Interface")
-	configureDUTInterfaces(t, dut)
-	t.Log("Configure eBGP between DUT/PEER and TGEN")
-
-	t.Log("Configure iBGP/IS-IS between DUT and PEER")
-
+	// configureDUTInterfaces(t, dut)
+	t.Log("Configure DUT-PEER dynamic Bundle Interface")
+	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
+	bundleIntfList := maps.Keys(bundleMap)
+	t.Log("Configure BGP for DUT-PEER")
+	configureDeviceBGP(t, dut, peer, bundleIntfList)
 	t.Log("Configure Fallback in Encap VRF")
 
 	t.Log("Configure WAN facing VRF selection Policy")
@@ -699,18 +750,152 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Configure Cluster facing VRF selection Policy")
 	clusterPBR := CreatePbrPolicy(dut, clusterPolicy, true)
 	gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
+
+	//Configure PEER Device
 }
 
-func configurePeer(t *testing.T, peer *ondatra.DUTDevice) {
+func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []string) {
+	dutBund, peerBund := configureBundleIPAddr(t, dut, peer, bundList)
+	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	configureRoutePolicy(t, peer, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	fptest.ConfigureDefaultNetworkInstance(t, peer)
+	dutBundlev4Addr := dutBund[bundList[0]]
+	peerBundlev4Addr := peerBund[bundList[0]]
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	peerConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConf := bgpWithNbr(dutAS, dutBGPRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+		PeerAs:          ygot.Uint32(dutAS),
+		NeighborAddress: ygot.String(peerBundlev4Addr),
+		PeerGroup:       ygot.String(peerGrpName),
+	}, dut)
+	peerConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+		PeerAs:          ygot.Uint32(dutAS),
+		NeighborAddress: ygot.String(dutBundlev4Addr),
+		PeerGroup:       ygot.String(peerGrpName),
+	}, peer)
+	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	gnmi.Update(t, peer, peerConfPath.Config(), peerConf)
+	t.Log("Verify iBGP session between DUT-PEER is established")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+	t.Log("Peer Tgen interface")
+	p1 := peer.Port(t, "port16")
+	gnmi.Replace(t, peer, gnmi.OC().Interface(p1.Name()).Config(), peerDst.NewOCInterface(p1.Name(), peer))
+	t.Log("Configure eBGP between PEER and TGEN")
+	peerEbgpConf := bgpWithNbr(dutAS, ateRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
+		PeerAs:          ygot.Uint32(ateAS),
+		NeighborAddress: ygot.String(otgDst.IPv4),
+		PeerGroup:       ygot.String(peerGrpName),
+	}, peer)
+	gnmi.Update(t, peer, peerConfPath.Config(), peerEbgpConf)
 }
 
-// configureDUT configures port1 and port8 on the DUT
+func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]string, map[string]string) {
+	//Configure Bundle interface IP address
+	dutBundleIPMap := make(map[string]string)
+	peerBundleIPMap := make(map[string]string)
+	for i, bundle := range bundlelist {
+		ipr, err := util.IncrementSubnetCIDR(dutPeerBundleIPRange, i)
+		if err != nil {
+			t.Errorf("Error in incrementing subnet")
+		}
+		dutIP, peerIP := util.GetUsableIPs(ipr)
+		dutBundleIPMap[bundle] = dutIP.String()
+		peerBundleIPMap[bundle] = peerIP.String()
+		dutConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, dutIP.String())
+		peerConf := fmt.Sprintf("interface %v ipv4 address %v/24", bundle, peerIP.String())
+		helpers.GnmiCLIConfig(t, dut, dutConf)
+		helpers.GnmiCLIConfig(t, peer, peerConf)
+	}
+	return dutBundleIPMap, peerBundleIPMap
+}
+
+// configreOTG configures IP addresses on tgen Bundle1 & Bundle2 on the otg.
+func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
+	config := gosnappi.NewConfig()
+	t.Log("Configuring DUT-TGEN Bundle interface1")
+	aggID1 := "100"
+	tgenBundle1 := []*ondatra.Port{
+		otg.Port(t, "port1"),
+		otg.Port(t, "port2"),
+		otg.Port(t, "port3"),
+		otg.Port(t, "port4"),
+		otg.Port(t, "port5"),
+		otg.Port(t, "port6"),
+		otg.Port(t, "port7"),
+		otg.Port(t, "port8"),
+	}
+	configureOTGBundle(t, otg, otgSrc1, config, tgenBundle1, aggID1)
+	t.Log("Configuring DUT-TGEN Bundle interface1")
+	aggID2 := "200"
+	tgenBundle2 := []*ondatra.Port{
+		otg.Port(t, "port1"),
+		otg.Port(t, "port2"),
+		otg.Port(t, "port3"),
+		otg.Port(t, "port4"),
+		otg.Port(t, "port5"),
+		otg.Port(t, "port6"),
+		otg.Port(t, "port7"),
+		otg.Port(t, "port8"),
+	}
+	configureOTGBundle(t, otg, otgSrc1, config, tgenBundle2, aggID2)
+	//Configure PEER-TGEN interface
+	p16 := otg.Port(t, "port16")
+	otgDst.AddToOTG(config, p16, &peerDst)
+	//Configure PEER-TGEN eBGP
+	dstPort := config.Ports().Add().SetName("port16")
+	dstDev := config.Devices().Add().SetName(otgDst.Name)
+	dstEth := dstDev.Ethernets().Add().SetName(otgDst.Name + ".Eth").SetMac(otgDst.MAC)
+	dstEth.Connection().SetPortName(dstPort.Name())
+	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(otgDst.Name + ".IPv4")
+	dstIpv4.SetAddress(otgDst.IPv4).SetGateway(peerDst.IPv4).SetPrefix(uint32(otgDst.IPv4Len))
+	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(otgDst.Name + ".IPv6")
+	dstIpv6.SetAddress(otgDst.IPv6).SetGateway(peerDst.IPv6).SetPrefix(uint32(otgDst.IPv6Len))
+	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
+	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(otgDst.Name + ".BGP4.peer")
+	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(otgDst.Name + ".BGP6.peer")
+	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	configureOTGBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "v4Default", v4BGPDefault, 200)
+	configureOTGBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "v6Default", v6BGPDefault, 200)
+	t.Logf("Pushing config to otg and starting protocols...")
+	otg.OTG().PushConfig(t, config)
+	time.Sleep(30 * time.Second)
+	otg.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
+	return config
+}
+
+func configureOTGBGPv4Routes(peer gosnappi.BgpV4Peer, ipv4 string, name string, prefix string, count uint32) {
+	routes := peer.V4Routes().Add().SetName(name)
+	routes.SetNextHopIpv4Address(ipv4).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	routes.Addresses().Add().
+		SetAddress(prefix).
+		SetPrefix(advertisedRoutesv4Prefix).
+		SetCount(count)
+}
+
+func configureOTGBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, prefix string, count uint32) {
+	routes := peer.V6Routes().Add().SetName(name)
+	routes.SetNextHopIpv6Address(ipv6).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	routes.Addresses().Add().
+		SetAddress(prefix).
+		SetPrefix(advertisedRoutesv6Prefix).
+		SetCount(count)
+}
+
+// configureBaseProfile configures DUT,PEER,TGEN baseconfig
 func configureBaseProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	peer := ondatra.DUT(t, "dut")
-	t.Log("Configure DUT configs")
-	configureDUT(t, dut)
-	t.Log("Configure PEER side config")
-	configurePeer(t, peer)
-
+	peer := ondatra.DUT(t, "peer")
+	otg := ondatra.ATE(t, "ate")
+	t.Log("Configure DUT & PEER devices")
+	configureDevices(t, dut, peer)
+	t.Log("Configure TGEN OTG")
+	configureOTG(t, otg)
+	t.Log("wait")
 }
