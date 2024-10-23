@@ -40,6 +40,8 @@ A2 <-- IPv4/IPV6 --> B2;
        
 ### DP-1.18 : Flow matching using ACL and portmirror/redirect 
 
+DUT should receive IPV4 & IPV6 packets wit hMPLSoverGUE header , where the GUE decap is done and mpls label pop is done on the DUT , the native IPV4 and IPV6 packets are sent to the egress port which matches a ACL , this ACL performs port mirroring or redirect to an interface which is physically looped, as the destination IPV4 and IPV6 addresses belong to the sender ATE , the packets are routed towards the sender ATE. Need to send line rate packets from IXIA.
+
 #### Steps 
 - Step-1: ATE-Port1 sends IPV4 probes over MPLSoverGUE.
 - Step-2: Juniper ingress ASIC decaps the GUE and performs MPLS POP to forward to the native IPV4/IPV6 traffic towards egress interface.
