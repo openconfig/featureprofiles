@@ -44,12 +44,17 @@ The below yaml defines the OC paths intended to be covered by this test. OC
 paths used for test setup are not listed here.
 
 ```yaml
-paths:
-  ## Config paths:
-  ## State paths: N/A
-
 rpcs:
   gnmi:
     gNMI.Set:
-      Replace:
+      /system/config/motd-banner
+      /system/config/hostname
+      /system/clock/config/timezone-name
+    gNMI.Get: 
+      /system/state/motd-banner
+      /system/state/hostname
+      /system/state/current-datetime
+      /system/state/boot-time
+      /system/clock/state/timezone-name
+    gNMI.Subscribe:
 ```
