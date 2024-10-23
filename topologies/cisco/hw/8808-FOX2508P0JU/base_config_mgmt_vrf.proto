@@ -19,6 +19,7 @@ replace: {
 " secret 10 $6$ymqNNgRK4bZ/N...$LI6ixV0OvuH.6RWHTE0z/FLVoZ3NPIoLedmrH0QJeBPce0Plu2qpulW.nThYDvOtdUGT5zM7NH4jmpjo0j0L00\n"
 "!\n"
 "grpc\n"
+" vrf mgmt\n"
 " address-family dual\n"
 "!\n"
 "telemetry model-driven\n"
