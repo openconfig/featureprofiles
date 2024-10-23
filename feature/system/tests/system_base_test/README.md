@@ -37,6 +37,12 @@ used for mTLS.
 2. Each test will then create a client to those services and valid each service is properly
    listening on the standard port.
 3. Validate client properly connects and execute a simple RPC to validate no errors are returned.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
 ```yaml
 paths:
   ## Config paths:
