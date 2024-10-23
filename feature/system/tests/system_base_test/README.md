@@ -37,3 +37,13 @@ used for mTLS.
 2. Each test will then create a client to those services and valid each service is properly
    listening on the standard port.
 3. Validate client properly connects and execute a simple RPC to validate no errors are returned.
+```yaml
+paths:
+  ## Config paths:
+  ## State paths: N/A
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
