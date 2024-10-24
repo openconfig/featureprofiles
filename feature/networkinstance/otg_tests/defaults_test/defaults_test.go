@@ -18,6 +18,7 @@ package ni_address_families_test
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -103,6 +104,7 @@ var (
 		IPv6Len: 64,
 		MAC:     "02:00:02:01:01:01",
 	}
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
 )
 
 // TestDefaultAddressFamilies verifies that both IPv4 and IPv6 are enabled by default without a need for additional
@@ -180,6 +182,14 @@ func TestDefaultAddressFamilies(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
+
+			// https://github.com/openconfig/featureprofiles/issues/3410
+			// Below code will be removed once ixia issue is fixed.
+			if slices.Contains(kneDeviceModelList, dut.Model()) {
+				ate.OTG().StartTraffic(t)
+				time.Sleep(15 * time.Second)
+				ate.OTG().StopTraffic(t)
+			}
 
 			ate.OTG().StartTraffic(t)
 			time.Sleep(15 * time.Second)
