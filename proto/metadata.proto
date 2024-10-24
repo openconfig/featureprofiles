@@ -628,6 +628,10 @@ message Metadata {
     // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
     // b/373581140
     bool power_disable_enable_leaf_ref_validation = 226;
+    // Juniper: b/358534837
+    // Devices that do not support setting med value using union type in OC.
+    bool bgp_setmed_union_type_unsupported = 227;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
@@ -657,4 +661,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-

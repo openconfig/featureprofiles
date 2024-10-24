@@ -1181,3 +1181,9 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
+
+// BgpSetmedUnionTypeUnsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
+}
