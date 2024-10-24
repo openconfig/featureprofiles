@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import json
 import glob
-import datetime
 
 from DDTS import DDTS
 from TechZone import TechZone
@@ -10,28 +9,45 @@ ddts = DDTS()
 techzone = TechZone()
 
 class FireX:
-    def get_run_information(self, file, version):
+    def get_run_information(self, file, version, workspace):
         tree = ET.parse(file)
         root = tree.getroot()
 
         testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
         run_file = testsuite_root + "/run.json"
 
-        if version == "":
+        if version == "" and workspace == "":
             show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
             with open(show_version) as show_version_contents:
-                header = show_version_contents.readlines()[0]
+                lines = show_version_contents.readlines()
+                header = lines[0]
+
                 version = header.split(",")[1].split(" ")[2].strip()
+
+                for line in lines:
+                    if line.strip().startswith("Workspace"):
+                        workspace = line.split(":")[1].strip()
 
         testsuites_metadata = root.attrib 
 
+        testbed = "Hardware"
+
+        sim_files = glob.glob(testsuite_root + "/testbed_logs/*/bringup_success/sim-config.yaml")
+        if(len(sim_files) > 0):
+            testbed = "Simulation"
+
         with open(run_file) as metadata:
             meta = json.load(metadata)
+
+            chain_index = meta["submission_cmd"].index("--chain")
 
             testsuites_metadata.update({
                 "firex_id": meta["firex_id"],
                 "group": meta["group"],
                 "lineup": meta["inputs"]["lineup"],
+                "testbed": testbed,
+                "chain": meta["submission_cmd"][chain_index + 1],
+                "workspace": workspace,
                 "tag": version,
             })
         return testsuites_metadata
