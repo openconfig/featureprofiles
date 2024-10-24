@@ -18,14 +18,16 @@ TxNames and RxNames should be set to a valid OTG endpoint name.
 Creting basic IPv4 Flow.
 
 top = gosnappi.NewConfig()
-  FlowIPv4 = &Flow{
-    TxNames:   []string{"interface1"},
-    RxNames:   []string{"interface2"},
-    FrameSize: 1500,
-    FlowName:  "IPv4Flow",
-    EthFlow:   &EthFlowParams{SrcMAC: "00:11:22:33:44:55", DstMAC: "00:11:22:33:44:66"},
-    IPv4Flow:  &IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4DstCount: 10},
-  }
+
+        FlowIPv4 = &Flow{
+	  TxNames:   []string{"interface1"},
+	  RxNames:   []string{"interface2"},
+	  FrameSize: 1500,
+	  FlowName:  "IPv4Flow",
+	  EthFlow:   &EthFlowParams{SrcMAC: "00:11:22:33:44:55", DstMAC: "00:11:22:33:44:66"},
+	  IPv4Flow:  &IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4DstCount: 10},
+        }
+
 FlowIPv4.CreateFlow(top)
 FlowIPv4.AddEthHeader()
 FlowIPv4.AddIPv4Header()
