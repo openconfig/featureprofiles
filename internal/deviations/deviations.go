@@ -1181,3 +1181,7 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
+
+func GnmiGetRequiresConfigType(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetRequiresConfigType()
+}
