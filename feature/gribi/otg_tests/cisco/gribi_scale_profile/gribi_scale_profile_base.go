@@ -15,11 +15,11 @@
 // Package setup is scoped only to be used for scripts in path
 // feature/experimental/system/gnmi/benchmarking/otg_tests/
 // Do not use elsewhere.
-package gribi_scale_profile
+package gribi_scale_profile_test
 
 import (
 	"bytes"
-	"context"
+	// "context"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra/netutil"
 	// "github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -75,10 +76,15 @@ const (
 	innerSrcIPv6Start        = "2001:DB8::198:1"
 	innerDstIPv6Start        = "2001:db8::138:0:11:1"
 	v4BGPDefault             = "203.0.113.0"
+	v4BGPDefaultStart        = "203.0.113.1"
 	v6BGPDefault             = "2001:DB8:2::1"
+	v6BGPDefaultStart        = "2001:DB8:2::1:1"
+	v4DefaultSrc             = "20.20.20.20"
+	v6DefaultSrc             = "20:20:20::20"
 	dutPeerBundleIPv4Range   = "88.1.1.0/24"
 	dutPeerBundleIPv6Range   = "2001:DB8:1::/64"
 	flowCount                = 254
+	ipTTL                    = uint32(255)
 	vrfDecap                 = "DECAP"
 	vrfTransit               = "TRANSIT_VRF"
 	vrfRepaired              = "REPAIRED"
@@ -108,6 +114,7 @@ const (
 var (
 	dutSrc1 = attrs.Attributes{
 		Desc:    "dutSrc1",
+		MAC:     "02:01:00:00:00:01",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::1",
 		IPv4Len: ipv4PrefixLen,
@@ -125,6 +132,7 @@ var (
 
 	dutSrc2 = attrs.Attributes{
 		Desc:    "dutSrc2",
+		MAC:     "02:02:00:00:00:01",
 		IPv4:    "192.0.2.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: ipv4PrefixLen,
@@ -142,6 +150,7 @@ var (
 
 	peerDst = attrs.Attributes{
 		Desc:    "peerDst",
+		MAC:     "02:03:00:00:00:01",
 		IPv4:    "192.0.2.9",
 		IPv6:    "2001:db8::8",
 		IPv4Len: ipv4PrefixLen,
@@ -170,20 +179,37 @@ type PbrRule struct {
 }
 
 type trafficflowAttr struct {
-	innerSrcStart        string // Inner source IP address
-	innerdstStart        string // Inner destination IP address
-	innerFlowCount       int
-	egressTrackingOffset uint32 // outer source IP address
-	egressTrackingWidth  uint32 // outer destination IP address
+	withInnerHeader bool // flow type
+	withNativeV6    bool
+	withInnerV6     bool
+	outerSrc        string // source IP address
+	outerDst        string // destination IP address
+	innerV4SrcStart string // Inner v4 source IP address
+	innerV4DstStart string // Inner v4 destination IP address
+	innerV6SrcStart string // Inner v6 source IP address
+	innerV6DstStart string // Inner v6 destination IP address
+	innerFlowCount  uint32
+	srcPort         []string // source OTG port
+	dstPorts        []string // destination OTG ports
+	srcMac          string   // source MAC address
+	dstMac          string   // destination MAC address
+	// dscp     uint32
+	topo gosnappi.Config
 }
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
 	dut    *ondatra.DUTDevice
-	otg    *ondatra.ATEDevice
-	top    gosnappi.Config
-	ctx    context.Context
+	peer   *ondatra.DUTDevice
+	ate    *ondatra.ATEDevice
+	topo   gosnappi.Config
 	client *gribi.Client
+}
+
+// BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address
+type BundleIPAddress struct {
+	ipv4 string
+	ipv6 string
 }
 
 // WAN PBR rules
@@ -303,6 +329,22 @@ var encapPbrRules = []PbrRule{
 		encapVrf:  vrfEncapB,
 	},
 }
+
+// Traffic flow attributes
+var (
+	defaultV4 = trafficflowAttr{
+		withInnerHeader: false, // flow type
+		withNativeV6:    false,
+		withInnerV6:     false,
+		outerSrc:        v4DefaultSrc,                    // source IP address
+		outerDst:        v4BGPDefaultStart,               // source IP address
+		srcPort:         []string{lagName1 + ".IPv4"},    // source OTG port
+		dstPorts:        []string{otgDst.Name + ".IPv4"}, // destination OTG ports
+		srcMac:          otgSrc1.MAC,                     // source MAC address
+		dstMac:          peerDst.MAC,                     // destination MAC address
+		topo:            gosnappi.NewConfig(),
+	}
+)
 
 // configureNetworkInstance Creates nonDefaultVRFs
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
@@ -492,7 +534,7 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, dutIntfAttr attrs.
 	t.Helper()
 	agg := dutIntfAttr.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 	gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
 
 	for _, port := range aggPorts {
@@ -529,10 +571,9 @@ func configureOTGBundle(t *testing.T, ate *ondatra.ATEDevice, otgIntfAttr, dutIn
 	dstEth.Ipv4Addresses().Add().SetName(lagName + ".IPv4").SetAddress(otgIntfAttr.IPv4).SetGateway(dutIntfAttr.IPv4).SetPrefix(uint32(otgIntfAttr.IPv4Len))
 }
 
-func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
-
+func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) (aggID1, aggID2 string) {
 	t.Log("Configuring DUT-TGEN Bundle interface1")
-	aggID1 := netutil.NextAggregateInterface(t, dut)
+	aggID1 = netutil.NextAggregateInterface(t, dut)
 	dutBundle1Member := []*ondatra.Port{
 		dut.Port(t, "port1"),
 		dut.Port(t, "port2"),
@@ -546,7 +587,7 @@ func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTBundle(t, dut, dutSrc1, dutBundle1Member, aggID1)
 
 	t.Log("Configuring DUT-TGEN Bundle interface2")
-	aggID2 := netutil.NextAggregateInterface(t, dut)
+	aggID2 = netutil.NextAggregateInterface(t, dut)
 	dutBundle2Member := []*ondatra.Port{
 		dut.Port(t, "port9"),
 		dut.Port(t, "port10"),
@@ -557,7 +598,7 @@ func configureDUTInterfaces(t *testing.T, dut *ondatra.DUTDevice) {
 		dut.Port(t, "port15"),
 	}
 	configureDUTBundle(t, dut, dutSrc2, dutBundle2Member, aggID2)
-
+	return aggID1, aggID2
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
@@ -577,49 +618,74 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// Creates otg Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports.
-// trafficflowAttr for setting the Inner IP DA/SA & Egress tracking offset & width
-// func (fa *trafficflowAttr) CreateTrafficFlow(t *testing.T, otg *ondatra.ATEDevice, flowName, innerProtocolType, outerIPDst, outerIPSrc string, dscp uint8, dstPorts []string) *ondatra.Flow {
-// 	topo := otg.Topology().New()
-// 	flow := otg.Traffic().NewFlow(flowName)
-// 	p1 := otg.Port(t, "port1")
-// 	srcPort := topo.AddInterface(otgPort1.Name).WithPort(p1)
-// 	dstEndPoints := []ondatra.Endpoint{}
-// 	for _, v := range dstPorts {
-// 		p := otg.Port(t, v)
-// 		d := topo.AddInterface(v).WithPort(p)
-// 		dstEndPoints = append(dstEndPoints, d)
-// 	}
-// 	ethHeader := ondatra.NewEthernetHeader()
-// 	ethHeader.WithSrcAddress(otgPort1.MAC)
-// 	outerv4Header := ondatra.NewIPv4Header().WithSrcAddress(outerIPSrc).WithDstAddress(outerIPDst).WithDSCP(dscp).WithTTL(100)
-// 	udpHeader := ondatra.NewUDPHeader()
-// 	udpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 	udpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 	if innerProtocolType == "IPv4" {
-// 		innerV4Header := ondatra.NewIPv4Header()
-// 		innerV4Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
-// 		innerV4Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
-// 		innerV4Header.WithDSCP(dscp)
-// 		v4UdpHeader := ondatra.NewUDPHeader()
-// 		v4UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 		v4UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV4Header, v4UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRotgFPS(10000)
-// 	} else if innerProtocolType == "IPv6" {
-// 		innerV6Header := ondatra.NewIPv6Header()
-// 		innerV6Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
-// 		innerV6Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
-// 		innerV6Header.WithDSCP(dscp)
-// 		v6UdpHeader := ondatra.NewUDPHeader()
-// 		v6UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 		v6UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-// 		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV6Header, v6UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRotgFPS(10000)
-// 	} else {
-// 		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, udpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRotgFPS(10000)
-// 	}
-// 	flow.EgressTracking().WithOffset(fa.egressTrackingOffset).WithWidth(fa.egressTrackingWidth)
-// 	return flow
-// }
+// getTrafficFlow creates otg Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports
+// trafficflowAttr for setting the Inner IP DA/SA, Outer DA/SA, DSCP, Src/Dst Ports, Topology
+func (fa *trafficflowAttr) createTrafficFlow(name string, dscp uint32) gosnappi.Flow {
+	flow := fa.topo.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().SetTxNames(fa.srcPort).SetRxNames(fa.dstPorts)
+	e1 := flow.Packet().Add().Ethernet()
+	e1.Src().SetValue(fa.srcMac)
+	e1.Dst().SetValue(fa.dstMac)
+	if fa.withNativeV6 {
+		v6 := flow.Packet().Add().Ipv6()
+		v6.Src().SetValue(fa.outerSrc)
+		v6.Dst().SetValue(fa.outerDst)
+		v6.HopLimit().SetValue(ipTTL)
+		v6.TrafficClass().SetValue(dscp << 2)
+	} else {
+		v4 := flow.Packet().Add().Ipv4()
+		v4.Src().SetValue(fa.outerSrc)
+		v4.Dst().SetValue(fa.outerDst)
+		v4.TimeToLive().SetValue(ipTTL)
+		v4.Priority().Dscp().Phb().SetValue(dscp)
+		if fa.withInnerHeader {
+			if fa.withInnerV6 {
+				innerV6 := flow.Packet().Add().Ipv6()
+				innerV6.Src().Increment().SetStart(fa.innerV6SrcStart).SetCount(fa.innerFlowCount)
+				innerV6.Dst().Increment().SetStart(fa.innerV6DstStart).SetCount(fa.innerFlowCount)
+			} else {
+				innerV4 := flow.Packet().Add().Ipv4()
+				innerV4.Src().Increment().SetStart(fa.innerV4SrcStart).SetCount(fa.innerFlowCount)
+				innerV4.Dst().Increment().SetStart(fa.innerV4DstStart).SetCount(fa.innerFlowCount)
+			}
+		}
+	}
+	udp := flow.Packet().Add().Udp()
+	udp.SrcPort().Increment().SetStart(1000).SetStep(10).SetCount(10000)
+	udp.DstPort().Increment().SetStart(2000).SetStep(25).SetCount(10000)
+
+	return flow
+}
+
+// validateTrafficFlows verifies that the flow on TGEN should pass for given flows
+func validateTrafficFlows(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool, match bool) {
+
+	otg := args.ate.OTG()
+	sendTraffic(t, args, flows, capture)
+
+	otgutils.LogPortMetrics(t, otg, args.topo)
+	otgutils.LogFlowMetrics(t, otg, args.topo)
+
+	for _, flow := range flows {
+		outPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State()))
+		inPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State()))
+
+		if outPkts == 0 {
+			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
+		}
+		if match {
+			if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
+				t.Fatalf("LossPct for flow %s: got %v, want 0", flow.Name(), got)
+			}
+		} else {
+			if got := ((outPkts - inPkts) * 100) / outPkts; got != 100 {
+				t.Fatalf("LossPct for flow %s: got %v, want 100", flow.Name(), got)
+			}
+		}
+
+	}
+}
 
 // validateAftTelmetry verifies aft telemetry entries.
 func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) {
@@ -669,12 +735,41 @@ func validateTrafficDistribution(t *testing.T, otg *ondatra.ATEDevice, wantWeigh
 	}
 }
 
-func sendTraffic(t *testing.T, otg *ondatra.ATEDevice, allFlows []*ondatra.Flow) {
-	t.Logf("*** Starting traffic ...")
-	otg.Traffic().Start(t, allFlows...)
+// sendTraffic starts traffic flows and send traffic for a fixed duration
+func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bool) {
+	otg := args.ate.OTG()
+	args.topo.Flows().Clear().Items()
+	args.topo.Flows().Append(flows...)
+	otg.PushConfig(t, args.topo)
+	otg.StartProtocols(t)
+	t.Log("Verify BGP establsihed after OTG start protocols")
+	otgutils.WaitForARP(t, otg, args.topo, "IPv4")
+	cfgplugins.VerifyDUTBGPEstablished(t, args.peer)
+	if capture {
+		startCapture(t, args.ate)
+		defer stopCapture(t, args.ate)
+	}
+	t.Log("Starting traffic")
+	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
-	t.Logf("*** Stop traffic ...")
-	otg.Traffic().Stop(t)
+	otg.StopTraffic(t)
+	t.Log("Traffic stopped")
+}
+
+// startCapture starts the capture on the otg ports
+func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
+	otg.SetControlState(t, cs)
+}
+
+// stopCapture starts the capture on the otg ports
+func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	otg.SetControlState(t, cs)
 }
 
 // configreRoutePolicy adds route-policy config
@@ -721,13 +816,14 @@ func bgpWithNbr(as uint32, routerID string, nbr *oc.NetworkInstance_Protocol_Bgp
 func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	//Configure DUT Device
 	t.Log("Configure VRFs")
-	// configureNetworkInstance(t, dut)
+	configureNetworkInstance(t, dut)
 	//Set leaf ref config for default NI
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, peer)
 	// t.Log("Configure Fallback in Encap VRF")
 	t.Log("Configure DUT-TGEN Bundle Interface")
-	configureDUTInterfaces(t, dut)
+	aggID1, aggID2 := configureDUTInterfaces(t, dut)
+	t.Log("WAIT")
 	t.Log("Configure DUT-PEER dynamic Bundle Interface")
 	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
 	bundleIntfList := maps.Keys(bundleMap)
@@ -743,11 +839,10 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	t.Log("Configure Cluster facing VRF selection Policy")
 	clusterPBR := CreatePbrPolicy(dut, clusterPolicy, true)
 	gnmi.Update(t, dut, defaultNiPath.PolicyForwarding().Config(), clusterPBR)
-}
-
-type BundleIPAddress struct {
-	ipv4 string
-	ipv6 string
+	//Apply Cluster facing policy on DUT-TGEN Bundle1 interface
+	applyForwardingPolicy(t, aggID1, clusterPolicy, false)
+	//Apply WAN facing policy on DUT-TGEN Bundle2 interface
+	applyForwardingPolicy(t, aggID2, wanPolicy, false)
 }
 
 func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelist []string) (map[string]BundleIPAddress, map[string]BundleIPAddress) {
@@ -848,7 +943,7 @@ func awaitISISAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 
 // configreOTG configures IP addresses on tgen Bundle1 & Bundle2 on the otg.
 func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
-	config := gosnappi.NewConfig()
+	topo := gosnappi.NewConfig()
 	t.Log("Configuring DUT-TGEN Bundle interface1")
 	aggID1 := "100"
 	tgenBundle1 := []*ondatra.Port{
@@ -861,7 +956,7 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 		otg.Port(t, "port7"),
 		otg.Port(t, "port8"),
 	}
-	configureOTGBundle(t, otg, otgSrc1, dutSrc1, config, tgenBundle1, lagName1, aggID1)
+	configureOTGBundle(t, otg, otgSrc1, dutSrc1, topo, tgenBundle1, lagName1, aggID1)
 	t.Log("Configuring DUT-TGEN Bundle interface1")
 	aggID2 := "200"
 	tgenBundle2 := []*ondatra.Port{
@@ -873,10 +968,10 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 		otg.Port(t, "port14"),
 		otg.Port(t, "port15"),
 	}
-	configureOTGBundle(t, otg, otgSrc2, dutSrc2, config, tgenBundle2, lagName2, aggID2)
+	configureOTGBundle(t, otg, otgSrc2, dutSrc2, topo, tgenBundle2, lagName2, aggID2)
 	//Configure PEER-TGEN interface
-	dstPort := config.Ports().Add().SetName("port16")
-	dstDev := config.Devices().Add().SetName(otgDst.Name)
+	dstPort := topo.Ports().Add().SetName("port16")
+	dstDev := topo.Devices().Add().SetName(otgDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(otgDst.Name + ".Eth").SetMac(otgDst.MAC)
 	dstEth.Connection().SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(otgDst.Name + ".IPv4")
@@ -891,11 +986,11 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 	configureOTGBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), "v4Default", v4BGPDefault, 20000)
 	configureOTGBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), "v6Default", v6BGPDefault, 20000)
 	t.Logf("Pushing config to otg and starting protocols...")
-	otg.OTG().PushConfig(t, config)
+	otg.OTG().PushConfig(t, topo)
 	time.Sleep(30 * time.Second)
 	otg.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
-	return config
+	return topo
 }
 
 func configureOTGBGPv4Routes(peer gosnappi.BgpV4Peer, ipv4 string, name string, prefix string, count uint32) {
@@ -928,6 +1023,17 @@ func configureBaseProfile(t *testing.T) {
 	t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer)
 	t.Log("Configure TGEN OTG")
-	configureOTG(t, otg)
+	topo := configureOTG(t, otg)
+	t.Log("OTG CONFIG: ", topo)
+	tcArgs := &testArgs{
+		dut:  dut,
+		peer: peer,
+		ate:  otg,
+		topo: topo,
+	}
 	t.Log("wait")
+	t.Run("Verify default BGP traffic", func(t *testing.T) {
+		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
+		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
+	})
 }

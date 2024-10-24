@@ -15,7 +15,7 @@
 // Package setup is scoped only to be used for scripts in path
 // feature/experimental/system/gnmi/benchmarking/otg_tests/
 // Do not use elsewhere.
-package gribi_scale_profile
+package gribi_scale_profile_test
 
 import (
 	// "context"
@@ -67,11 +67,15 @@ func TestMain(m *testing.M) {
 }
 
 func TestGribiScaleProfile(t *testing.T) {
-
-	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
 	// dut := ondatra.DUT(t, "dut")
-	// ctx := context.Background()
+	// otg := ondatra.ATE(t, "ate")
+	// // ctx := context.Background()
+	// tcArgs := &testArgs{
+	// 	dut:  dut,
+	// 	ate:  otg,
+	// 	topo: topo,
+	// }
 	configureBaseProfile(t)
 	// Configure the gRIBI client
 	// client := gribi.Client{
