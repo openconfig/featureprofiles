@@ -12,6 +12,7 @@
 package large_ip_packet_transmission_test
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -35,19 +37,32 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ipv4                      = "IPv4"
-	ipv4PrefixLen             = 30
-	ipv6                      = "IPv6"
-	ipv6PrefixLen             = 126
-	mtu                       = 9216
-	trafficRunDuration        = 15 * time.Second
-	trafficStopWaitDuration   = 10 * time.Second
-	acceptablePacketSizeDelta = 0.5
-	acceptableLossPercent     = 0.5
-	subInterfaceIndex         = 0
+	ipv4                                            = "IPv4"
+	ipv4PrefixLen                                   = 30
+	ipv6                                            = "IPv6"
+	ipv6PrefixLen                                   = 126
+	mtu                                             = 9216
+	trafficRunDuration                              = 15 * time.Second
+	trafficStopWaitDuration                         = 10 * time.Second
+	acceptablePacketSizeDelta                       = 0.5
+	acceptablePacketSizeDeltaForEncapsulatedPackets = 2
+	acceptableLossPercent                           = 0.5
+	subInterfaceIndex                               = 0
+	tunnelInterfaceName                             = "fti0"
+	tunnelNextHopIpv4                               = "192.168.200.2"
+	tunnelNextHopIpv6                               = "2001:db8:a::2"
 )
 
+type tunnelDest struct {
+	prefix    string
+	prefixLen uint16
+}
+
+// ipv6 fragmentation is not supported on ft interface
 var (
+	tunnelIpV4Dest = []tunnelDest{{prefix: "192.168.1.0", prefixLen: 24}, {prefix: "192.168.2.0", prefixLen: 24}}
+	tunnelIpV6Dest = []tunnelDest{{prefix: "2001:db8:1::", prefixLen: 64}, {prefix: "2001:db8:2::", prefixLen: 64}}
+
 	dutSrc = &attrs.Attributes{
 		Name:    "dutSrc",
 		MAC:     "00:12:01:01:01:01",
@@ -86,6 +101,31 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 		MTU:     mtu,
+	}
+
+	loopBackInterface = &attrs.Attributes{
+		Name:    "lo0",
+		IPv4:    "10.0.0.1",
+		IPv6:    "2001:db8:1::1",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
+	tunnelInterfaceDst = &attrs.Attributes{
+		Name:    "tunnelDest",
+		IPv4:    "10.0.0.2",
+		IPv6:    "2001:db8:1::2",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
+	// GRE Tunnel Interface
+	greTunnelInterface = &attrs.Attributes{
+		Name:    "gre0",
+		IPv4:    "192.168.200.1",
+		IPv6:    "2001:db8:a::1",
+		IPv4Len: 30,
+		IPv6Len: 120,
 	}
 
 	dutPorts = map[string]*attrs.Attributes{
@@ -145,7 +185,7 @@ func (d *testData) waitInterface(t *testing.T) {
 	otgutils.WaitForARP(t, d.otg, d.otgConfig, d.flowProto)
 }
 
-func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
+func createFlow(flowName string, flowSize uint32, ipv string, isTunnelTest bool) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().
@@ -159,12 +199,22 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 	case ipv4:
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(ateSrc.IPv4)
-		v4.Dst().SetValue(ateDst.IPv4)
+		if isTunnelTest {
+			v4.Dst().SetValues([]string{tunnelIpV4Dest[0].prefix, tunnelIpV4Dest[1].prefix})
+		} else {
+			v4.Dst().SetValue(ateDst.IPv4)
+		}
+
 		v4.DontFragment().SetValue(1)
 	case ipv6:
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
-		v6.Dst().SetValue(ateDst.IPv6)
+		if isTunnelTest {
+			v6.Dst().SetValues([]string{tunnelIpV6Dest[0].prefix, tunnelIpV6Dest[1].prefix})
+		} else {
+			v6.Dst().SetValue(ateDst.IPv6)
+		}
+
 	}
 
 	flow.EgressPacket().Add().Ethernet()
@@ -172,20 +222,17 @@ func createFlow(flowName string, flowSize uint32, ipv string) gosnappi.Flow {
 	return flow
 }
 
-func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing.T)) {
+func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing.T), isTunnelTest bool) {
 	t.Logf("Name: %s, Description: %s", tt.name, tt.desc)
-
-	flowParams := createFlow(tt.name, tt.flowSize, td.flowProto)
+	flowParams := createFlow(tt.name, tt.flowSize, td.flowProto, isTunnelTest)
 	td.otgConfig.Flows().Clear()
 	td.otgConfig.Flows().Append(flowParams)
 	td.otg.PushConfig(t, td.otgConfig)
 	time.Sleep(time.Second * 30)
 	td.otg.StartProtocols(t)
 	waitF(t)
-
 	td.otg.StartTraffic(t)
 	time.Sleep(trafficRunDuration)
-
 	td.otg.StopTraffic(t)
 	time.Sleep(trafficStopWaitDuration)
 
@@ -197,7 +244,6 @@ func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing
 	outPkts := gnmi.Get(t, td.otg, flowCounters.OutPkts().State())
 	inPkts := gnmi.Get(t, td.otg, flowCounters.InPkts().State())
 	inOctets := gnmi.Get(t, td.otg, flowCounters.InOctets().State())
-
 	if tt.flowSize > mtu {
 		if inPkts == 0 {
 			t.Logf(
@@ -234,13 +280,16 @@ func runTest(t *testing.T, tt testDefinition, td testData, waitF func(t *testing
 
 	avgPacketSize := uint32(inOctets / inPkts)
 	packetSizeDelta := float32(avgPacketSize-tt.flowSize) / (float32(avgPacketSize+tt.flowSize) / 2) * 100
-
-	if packetSizeDelta > acceptablePacketSizeDelta {
+	if (isTunnelTest && packetSizeDelta > acceptablePacketSizeDeltaForEncapsulatedPackets) || (!isTunnelTest && packetSizeDelta > acceptablePacketSizeDelta) {
+		acceptableDelta := acceptablePacketSizeDelta
+		if isTunnelTest {
+			acceptableDelta = acceptablePacketSizeDeltaForEncapsulatedPackets
+		}
 		t.Errorf(
 			"flow sent '%d' packets and received '%d' packets, resulting in "+
 				"averagepacket size of '%d' and a packet size delta of '%.2f' percent. "+
 				"packet size delta should not exceed '%.2f'",
-			outPkts, inPkts, avgPacketSize, packetSizeDelta, acceptablePacketSizeDelta,
+			outPkts, inPkts, avgPacketSize, packetSizeDelta, acceptableDelta,
 		)
 	}
 }
@@ -310,7 +359,6 @@ func verifyDUTPort(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	otgConfig := gosnappi.NewConfig()
-
 	for portName, portAttrs := range atePorts {
 		port := ate.Port(t, portName)
 		dutPort := dutPorts[portName]
@@ -326,7 +374,6 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 	otg := ate.OTG()
 	configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
-
 	t.Cleanup(func() {
 		deleteBatch := &gnmi.SetBatch{}
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
@@ -365,7 +412,7 @@ func TestLargeIPPacketTransmission(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("%s-%s", tt.name, flowProto), func(t *testing.T) {
-				runTest(t, tt, td, td.waitInterface)
+				runTest(t, tt, td, td.waitInterface, false)
 			})
 		}
 	}
@@ -580,7 +627,6 @@ func TestLargeIPPacketTransmissionBundle(t *testing.T) {
 	lagTwo := configureDUTBundle(t, dut, dutDst, lagTwoDutBundleMembers)
 
 	otgConfig := configureATEBundles(allAtePorts, bundleMemberCount)
-
 	t.Cleanup(func() {
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			netInst := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
@@ -614,8 +660,290 @@ func TestLargeIPPacketTransmissionBundle(t *testing.T) {
 			}
 
 			t.Run(fmt.Sprintf("%s-%s", tt.name, flowProto), func(t *testing.T) {
-				runTest(t, tt, td, td.waitInterface)
+				runTest(t, tt, td, td.waitInterface, false)
 			})
 		}
+	}
+}
+
+func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDest string, tunnelIpv6address string, Ipv6Mask int, tunnelIpv4Address string, tunnelIpV4Mask int, tunnelType string) string {
+	if tunnelType == "gue" {
+		return fmt.Sprintf(`
+	forwarding-options{
+		tunnels{
+			udp{
+				payload-port-profile guePayloadProfile{
+				 inet 50052;
+				 inet6 50053;
+				 iso 50054;
+				}
+			}
+		}
+	}
+	
+	interfaces {
+	%s {
+		unit %d {
+			tunnel {
+				encapsulation udp{
+					source {
+						address %s;
+					}
+					destination {
+						address %s;
+					}
+					payload-port-profile guePayloadProfile;
+					
+				}
+			}
+			family inet6 {
+				address %s/%d;
+			}
+			family inet{
+				address %s/%d
+			}
+		}
+	}
+	}`, intf, unit, tunnelSrc, tunnelDest, tunnelIpv6address, Ipv6Mask, tunnelIpv4Address, tunnelIpV4Mask)
+	} else {
+		return fmt.Sprintf(`
+		interfaces {
+		%s {
+			unit %d {
+				tunnel {
+					encapsulation %s {
+						source {
+							address %s;
+						}
+						destination {
+							address %s;
+						}
+					}
+				}
+				family inet6 {
+					address %s/%d;
+				}
+				family inet{
+					address %s/%d
+				}
+			}
+		}
+		}`, intf, unit, tunnelType, tunnelSrc, tunnelDest, tunnelIpv6address, Ipv6Mask, tunnelIpv4Address, tunnelIpV4Mask)
+	}
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	// Build config with Origin set to cli and Ascii encoded config.
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
+}
+
+func cleanTunnelConfigs(t *testing.T, dut *ondatra.DUTDevice) {
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbDelRequest := &gpb.SetRequest{
+		Delete: []*gpb.Path{
+			{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+				Target: fmt.Sprintf("interfaces{%s{}}",tunnelInterfaceName),
+			},
+		},
+	}
+	if _, err := gnmiClient.Set(context.Background(), gpbDelRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+
+}
+
+func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc string, tunnelDst string, tunnelIpv6address string, Ipv6Mask int, tunnelIPv4Address string, IPv4Mask int, dut *ondatra.DUTDevice, tunnelType string) {
+	t.Logf("Push the IPv6 tunnel endpoint config:\n%s", dut.Vendor())
+	var config string
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelIpv6address, Ipv6Mask, tunnelIPv4Address, IPv4Mask, tunnelType)
+		t.Logf("Push the CLI config:\n%s", config)
+	default:
+		t.Errorf("Invalid Tunnel endpoint configuration")
+	}
+
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbSetRequest := buildCliConfigRequest(config)
+
+	t.Log("gnmiClient Set CLI config")
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+
+func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Logf("Configure routing instance on dut")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+}
+
+func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
+	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	sr := static.GetOrCreateStatic(prefix)
+	nh := sr.GetOrCreateNextHop(index)
+	nh.NextHop = oc.UnionString(nexthop)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+}
+
+func configureDUTWithTunnelInterface(t *testing.T, dut *ondatra.DUTDevice, tunnelType string) {
+	lbInterfaceName := netutil.LoopbackInterface(t, dut, 0)
+	lbIntf := loopBackInterface.NewOCInterface(lbInterfaceName, dut)
+	lbIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	gnmi.Replace(t, dut, gnmi.OC().Interface(lbInterfaceName).Config(), lbIntf)
+	configureTunnelInterface(t, tunnelInterfaceName, 0, loopBackInterface.IPv4, tunnelInterfaceDst.IPv4, greTunnelInterface.IPv6, int(greTunnelInterface.IPv6Len), greTunnelInterface.IPv4, int(greTunnelInterface.IPv4Len), dut, tunnelType)
+
+}
+
+func configureTunnelRouting(t *testing.T, dut *ondatra.DUTDevice) {
+	configStaticRoute(t, dut, fmt.Sprintf("%s/%d", tunnelIpV4Dest[0].prefix, tunnelIpV4Dest[0].prefixLen), tunnelNextHopIpv4, "0")
+	configStaticRoute(t, dut, fmt.Sprintf("%s/%d", tunnelIpV4Dest[1].prefix, tunnelIpV4Dest[1].prefixLen), tunnelNextHopIpv4, "0")
+	configStaticRoute(t, dut, fmt.Sprintf("%s/%d", tunnelIpV6Dest[0].prefix, tunnelIpV6Dest[0].prefixLen), tunnelNextHopIpv6, "0")
+	configStaticRoute(t, dut, fmt.Sprintf("%s/%d", tunnelIpV6Dest[1].prefix, tunnelIpV6Dest[1].prefixLen), tunnelNextHopIpv6, "0")
+	configStaticRoute(t, dut, fmt.Sprintf("%s/%d", tunnelInterfaceDst.IPv4, tunnelInterfaceDst.IPv4Len), ateDst.IPv4, "0")
+}
+func TestLargeIpPacketTunnelTransmission(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	//club it in single function, try once without this
+	t.Cleanup(func() {
+		deleteBatch := &gnmi.SetBatch{}
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			netInst := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+
+			for portName := range dutPorts {
+				gnmi.BatchDelete(
+					deleteBatch,
+					gnmi.OC().
+						NetworkInstance(*netInst.Name).
+						Interface(fmt.Sprintf("%s.%d", dut.Port(t, portName).Name(), subInterfaceIndex)).
+						Config(),
+				)
+			}
+		}
+		for portName := range dutPorts {
+			gnmi.BatchDelete(
+				deleteBatch,
+				gnmi.OC().
+					Interface(dut.Port(t, portName).Name()).
+					Subinterface(subInterfaceIndex).
+					Config(),
+			)
+			gnmi.BatchDelete(deleteBatch, gnmi.OC().Interface(dut.Port(t, portName).Name()).Mtu().Config())
+		}
+		deleteBatch.Set(t, dut)
+	})
+
+	for _, tunnelType := range []string{"gre", "gue"} {
+		configureDUT(t, dut)
+		otgConfig := configureATE(t, ate)
+		configureNetworkInstance(t, dut)
+		configureTunnelRouting(t, dut)
+		configureDUTWithTunnelInterface(t, dut, tunnelType)
+		for _, tt := range testCases {
+			for _, flowProto := range []string{ipv4, ipv6} {
+				td := testData{
+					flowProto: flowProto,
+					otg:       otg,
+					otgConfig: otgConfig,
+				}
+				t.Run(fmt.Sprintf("Tunnel-%s-%s-%s", tunnelType, tt.name, flowProto), func(t *testing.T) {
+					runTest(t, tt, td, td.waitInterface, true)
+				})
+			}
+		}
+		cleanTunnelConfigs(t, dut)
+	}
+}
+
+
+func TestLargeIPPacketTunnelTransmissionBundle(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	cleanTunnelConfigs(t, dut)
+	allDutPorts := sortPorts(dut.Ports())
+	allAtePorts := sortPorts(ate.Ports())
+	if len(allDutPorts) < 2 {
+		t.Fatalf("testbed requires at least two dut ports, but only has %d", len(allDutPorts))
+	}
+
+	if len(allAtePorts) < 2 {
+		t.Fatalf("testbed requires at least two ate ports, but only has %d", len(allAtePorts))
+	}
+
+	bundleMemberCount := len(allDutPorts) / 2
+	if len(allAtePorts) < len(allDutPorts) {
+		bundleMemberCount = len(allAtePorts) / 2
+	}
+
+	lagOneDutBundleMembers := allDutPorts[0:bundleMemberCount]
+	lagTwoDutBundleMembers := allDutPorts[bundleMemberCount : 2*bundleMemberCount]
+
+	var allDutBundleMembers []*ondatra.Port
+	allDutBundleMembers = append(allDutBundleMembers, lagOneDutBundleMembers...)
+	allDutBundleMembers = append(allDutBundleMembers, lagTwoDutBundleMembers...)
+
+	for _, tunnelType := range []string{"gre", "gue"} {
+		lagOne := configureDUTBundle(t, dut, dutSrc, lagOneDutBundleMembers)
+		lagTwo := configureDUTBundle(t, dut, dutDst, lagTwoDutBundleMembers)
+		t.Cleanup(func() {
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+				netInst := &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+
+				for _, lag := range []string{lagOne, lagTwo} {
+					gnmi.Delete(
+						t,
+						dut,
+						gnmi.OC().
+							NetworkInstance(*netInst.Name).
+							Interface(fmt.Sprintf("%s.%d", lag, subInterfaceIndex)).
+							Config(),
+					)
+				}
+			}
+			gnmi.Delete(t, dut, gnmi.OC().Interface(lagOne).Config())
+			gnmi.Delete(t, dut, gnmi.OC().Interface(lagTwo).Config())
+			for _, port := range allDutBundleMembers {
+				gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Mtu().Config())
+				gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+
+			}
+		})
+		otgConfig := configureATEBundles(allAtePorts, bundleMemberCount)
+		configureNetworkInstance(t, dut)
+		configureTunnelRouting(t, dut)
+		configureDUTWithTunnelInterface(t, dut, tunnelType)
+		for _, tt := range testCases {
+			for _, flowProto := range []string{ipv4, ipv6} {
+				td := testData{
+					flowProto:   flowProto,
+					otg:         otg,
+					otgConfig:   otgConfig,
+					dutLAGNames: []string{lagOne, lagTwo},
+				}
+				t.Run(fmt.Sprintf("Tunnel-%s-%s-%s", tunnelType, tt.name, flowProto), func(t *testing.T) {
+					runTest(t, tt, td, td.waitInterface, true)
+				})
+			}
+		}
+		cleanTunnelConfigs(t, dut)
 	}
 }
