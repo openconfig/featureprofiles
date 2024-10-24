@@ -661,4 +661,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
