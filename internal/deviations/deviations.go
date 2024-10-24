@@ -1172,6 +1172,16 @@ func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
 
+// ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
+func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
+}
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
+
 // BgpSetmedUnionTypeUnsupported returns true if devices which are not
 // supporting bgp set med union type in OC.
 func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
