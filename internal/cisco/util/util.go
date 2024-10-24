@@ -479,6 +479,35 @@ func AddISISOC(t *testing.T, dut *ondatra.DUTDevice, ifaceName string) {
 	gnmi.Update(t, dut, dutNode.Config(), dutConf)
 }
 
+// addISISOC, configures ISIS on DUT
+func AddISISOCWithSysAreaID(t *testing.T, device *ondatra.DUTDevice, ifaceName, sysID, areaID, instanceName string) {
+	t.Helper()
+
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+	prot := inst.GetOrCreateProtocol(PTISIS, instanceName)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaID, sysID)}
+	glob.LevelCapability = 2
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf := isis.GetOrCreateInterface(ifaceName)
+	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	intf.Enabled = ygot.Bool(true)
+	intf.HelloPadding = 1
+	intf.Passive = ygot.Bool(false)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = 2
+
+	dutNode := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(PTISIS, instanceName)
+	dutConf := dev.GetOrCreateNetworkInstance(*ciscoFlags.DefaultNetworkInstance).GetOrCreateProtocol(PTISIS, instanceName)
+	gnmi.Update(t, device, dutNode.Config(), dutConf)
+}
+
 // addBGPOC, configures ISIS on DUT
 func AddBGPOC(t *testing.T, dut *ondatra.DUTDevice, neighbor string) {
 	t.Helper()
@@ -778,7 +807,7 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 		// npu := getNpu(t,dut,intfName)
 		// PeerNpu := getNpu(t,peer,peerIntfName)
 
-		if peerIntfName != "" {
+		if peerIntfName != "" && strings.Contains(peerIntfName, "Gig") {
 			// Retrieve the peer interface state
 			peerIntfPath := gnmi.OC().Interface(peerIntfName).State()
 			peerIntf := gnmi.Get(t, peer, peerIntfPath)
