@@ -16,14 +16,14 @@ class FireX:
         testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
         run_file = testsuite_root + "/run.json"
 
+        if version == "" and workspace == "":
+            show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
+            with open(show_version) as show_version_contents:
+                lines = show_version_contents.readlines()
+                header = lines[0]
 
-        show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
-        with open(show_version) as show_version_contents:
-            lines = show_version_contents.readlines()
-            header = lines[0]
-            if version == "":
                 version = header.split(",")[1].split(" ")[2].strip()
-            if workspace == "":
+
                 for line in lines:
                     if line.strip().startswith("Workspace"):
                         workspace = line.split(":")[1].strip()

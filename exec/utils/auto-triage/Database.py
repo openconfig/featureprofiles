@@ -3,9 +3,9 @@ import datetime
 from bson import ObjectId
 
 class Database:
-    def __init__(self):
+    def __init__(self, environment):
         self._client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/")
-        self._database = self._client["auto-triage"]
+        self._database = self._client[environment]
 
         self._data = self._database["data"]
         self._labels = self._database["labels"]
