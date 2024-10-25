@@ -3,9 +3,9 @@
 ## Summary
 
 This is an extension to the RFC8538 tests already conducted under "RT-1.4: BGP
-Graceful Restart". However, ERR is for BGP speakers that need to extend the 
-validity of a route beyond the expiration of the stale routes timer for the BGP GR
-process. Following are the scenarios when ERR can be considered by a BGP speaker.
+Graceful Restart". However, ERR is for projects that need to extend the validity
+of a route beyond the expiration of the stale routes timer for the BGP GR
+process. Following are the scenarios when ERR can be considered by a project.
 1. Upon expiration of BGP hold-timer (Hold timer expiry on the Speaker side or
 when a notification for hold timer expiry is received from the helper)
 2. Upon the BGP session failing to re-establish within the GR restart timer as a
@@ -23,19 +23,95 @@ capability 64 (Graceful Restart), and should not be confused with or require
 capability 71 (Long-Lived Graceful Restart) from the sending speaker.
 
 
+
+
 **How is this different from LLGR as tested in RT-1.14?** As per the
 [IETF Draft on LLGR](https://tools.ietf.org/html/draft-ietf-idr-long-lived-gr),
 we have the following that is different from EER.
 
--   Section 4.2 / 4.3 of the draft: mandates what communities are in use and
+  *   Section 4.2 / 4.3 of the draft: mandates what communities are in use and
     what their specific behavior should be. For example: "The "LLGR_STALE"
     community must be advertised by the GR helper and also MUST NOT be removed
     by other receiving peers." and anyone that receives that route MUST treat
     the route as least-preferred. This isnt the case for ERR. There arent any
     communities attached to Stale routes thereby mandating their depreference.
--   Section 4.7: Different conditions for partial deployment of LLGR is a no-op
+  *   Section 4.7: Different conditions for partial deployment of LLGR is a no-op
     for ERR as it builds on the concepts of RFC8538 and hence there arent any
     special communities expected to be sent or received for the stale routes.
+
+**More about the ERR policy**
+  *   This policy can be attached at the Global, Peer-group or Neighbor levels.
+  *   The routes passed through the retention-policy should be the post-policy
+      adj-rib-in of the neighbor. Any other import policy applied to the routes
+      must not be overridden by this policy, it should be additive.
+  *   Default action if no policy is specified should be to reject.
+  *   Please Note: In the case of an ERR policy, when the action of a given
+      MATCH criteria is REJECT, the matching prefixes will be treated similar to
+      RFC8538 expectations. Therefore such prefixes wouldnt experience extended
+      Retention. Similarly, when the policy match condition translates to an
+      ACCEPT action, the prefixes are considered for ERR operation and the
+      configured Retention time becomes applicable. The Prefix also gets other
+      attributes as configured part of ACTION 
+  *   While the Yang definition for ERR is yet to be defined, following is a
+      representation of how the entire config used in this test will look like.
+
+    ```
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/config/neighbor-address = "192.168.1.1"
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/config/hold-time = 30
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/config/enabled = true
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/config/restart-time = 300
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/config/retention-time = 15552000
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/config/retention-policy = "STALE-ROUTE-POLICY"
+
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='NO-ERR']/config/community-set-name = "NO-ERR"
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='NO-ERR']/config/community-member = "NO-ERR"
+
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='ERR-NO-DEPREF']/config/community-set-name = "ERR-NO-DEPREF"
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='ERR-NO-DEPREF']/config/community-member = "ERR-NO-DEPREF"
+
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='STALE']/config/community-set-name = "STALE"
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='STALE']/config/community-member = "STALE"
+
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/config/name = "STALE-ROUTE-POLICY"
+
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='no-retention']/config/name = "no-retention"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='no-retention']/conditions/bgp-conditions/community-count/config/operator = "NO-ERR"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='no-retention']/actions/config/reject-route = true
+
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/config/name = "err-nodepref"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/conditions/bgp-conditions/community-count/config/operator = "ERR-NO-DEPREF"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/actions/bgp-actions/set-community/config/options = "ADD"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/actions/bgp-actions/set-community/config/community = "STALE"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/actions/bgp-actions/accept-route = true
+
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/config/name = "default-retention"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/actions/bgp-actions/set-community/config/options = "ADD"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/actions/bgp-actions/set-community/config/community = "STALE"
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/actions/bgp-actions/set-local-pref/config/value = -1000
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/actions/bgp-actions/accept-route = true
+    ```
+  *   Following for the corresponding STATE paths.
+    
+    ```
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state/hold-time
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/enabled
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/state/restart-time
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-time
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/graceful-restart/extended-route-retention/state/retention-policy
+
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='NO-ERR']/state/community-member
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='ERR-NO-DEPREF']/state/community-member
+    /routing-policy/defined-sets/community-sets/community-set[community-set-name='STALE']/state/community-member
+
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/state
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='no-retention']/state
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='err-nodepref']/state
+    /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/state
+    ```
+
+
+
 
 ## Testbed type
 [atedut_2.testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
@@ -58,13 +134,10 @@ we have the following that is different from EER.
 *   DUT has the following configuration on its IBGP and EBGP peering
     *   Extended route retention (ERR) enabled.
     *   ERR configuration has the retention time of 300 secs configured
-    *   ERR has a retention-policy `STALE-ROUTE-POLICY` attached. The DUT
-        **MUST** apply this policy on post-policy adj-rib-in routes. Therefore,
-        import export policy applied to the routes must not be overridden by
-        this policy, it MUST instead be additive.
-    *   "STALE-ROUTE-POLICY" has policy-statements to
-    *   identify routes tagged with community `NO-ERR` and have an action of
-        "REJECT" so such routes aren't considered for ERR but only GR (RFC8538)
+    *   ERR has a retention-policy `STALE-ROUTE-POLICY` attached.
+    *   "STALE-ROUTE-POLICY" has policy-statements to identify routes tagged
+        with community `NO-ERR` and have an action of "REJECT" so such routes
+        aren't considered for ERR but only GR (RFC8538)
     *   identify routes tagged with community `ERR-NO-DEPREF` and have an action
         of "ACCEPT" so such routes are considered for ERR. Also ADD community
         `STALE` to the existing community list attached as part of the regular
@@ -87,10 +160,11 @@ we have the following that is different from EER.
     *   "exportebgp" policy matches community "TESTIBGP" and sets
         AS-PATH-PREPEND of the local ASN (100) twice and also attaches a new
         community "NEW-EBGP"
-    *   DUT has the follwing added config
+    *   DUT has the following added config
         *   hold-time 30
         *   graceful-restart restart-time = 220 secs
         *   graceful-restart stale-routes-timer = 250 secs
+
 
 *   Test Flows used for verification
 
