@@ -1151,6 +1151,12 @@ func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
 }
 
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}
+
 // OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
 func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
@@ -1164,4 +1170,19 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 // EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
+}
+
+// ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
+func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
+}
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
 }
