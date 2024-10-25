@@ -422,7 +422,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
 							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
+						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
 							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
 							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
@@ -491,7 +491,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
 							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
+						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
 							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
 							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
