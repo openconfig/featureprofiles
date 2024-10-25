@@ -500,14 +500,23 @@ paths:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
+
+      /routing-policy/policy-definitions/policy-definition/statement/actions/config/reject-route
       /routing-policy/policy-definitions/policy-definition/config/
-      /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/config/
       options
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref
+
+      /routing-policy/defined-sets/community-sets/community-set/config/community-set-name
+      /routing-policy/policy-definitions/policy-definition/statement/conditions/bgp-conditions/community-count/config/operator
+      /routing-policy/policy-definitions/policy-definition/statement/actions/config/reject-route
+      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-community/config/options
+      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-community/config/community
+      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/accept-route
+      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-local-pref/config/value
 
   # Apply Policy at Peer-Group level
       afi-safis/afi-safi/apply-policy/config/import-policy
@@ -525,6 +534,11 @@ paths:
       /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
       /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/restart-time
       /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/enabled
+
+      /routing-policy/defined-sets/community-sets/community-set/state/community-member
+      /routing-policy/policy-definitions/policy-definition/state
+      /routing-policy/policy-definitions/policy-definition/statement/state
+
 
 rpcs:
   gnmi:
