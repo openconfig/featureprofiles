@@ -508,12 +508,8 @@ paths:
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
 
       /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/community-set-name:
-      /routing-policy/policy-definitions/policy-definition/statement/conditions/bgp-conditions/community-count/config/operator:
-      /routing-policy/policy-definitions/policy-definition/statement/actions/config/reject-route:
-      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-community/config/options:
+      /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/community-count/config/operator:
       /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-community/config/community:
-      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions:
-      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-local-pref/config/value:
 
   # Apply Policy at Peer-Group level
       /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy:
@@ -533,7 +529,7 @@ paths:
       /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/state/enabled:
 
       /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
-      /routing-policy/policy-definitions/policy-definition/statement/state:
+      /routing-policy/policy-definitions/policy-definition/statements/statement/state/name:
 
 rpcs:
   gnmi:
@@ -542,6 +538,6 @@ rpcs:
     gNMI.Subscribe:
   gnoi:
     system.System.KillProcess:
-    bgp.ClearBGPNeighborRequest.Hard:
+    # bgp.ClearBGPNeighborRequest.Hard:
 ```
 
