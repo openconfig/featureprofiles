@@ -60,7 +60,7 @@ class FireX:
 
             testcase_data = {
                 "name": testcase.get("name"),
-                "time": float(testcase.get("time"))
+                "time": float(testcase.get("time", 0))
             }
 
             if errors_count > 0:
@@ -106,7 +106,7 @@ class FireX:
 
             testcase_data = {
                 "name": testcase.get("name"),
-                "time": float(testcase.get("time"))
+                "time": float(testcase.get("time", 0))
             }
 
             if errors_count > 0:
