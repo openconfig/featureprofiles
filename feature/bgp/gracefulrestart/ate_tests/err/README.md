@@ -499,7 +499,6 @@ paths:
       /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
-      /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE:
 
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
@@ -509,7 +508,6 @@ paths:
 
       /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/community-set-name:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/community-count/config/operator:
-      /routing-policy/policy-definitions/policy-definition/statement/actions/bgp-actions/set-community/config/community:
 
   # Apply Policy at Peer-Group level
       /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy:
