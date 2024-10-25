@@ -1181,3 +1181,8 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
 }
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
