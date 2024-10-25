@@ -15,7 +15,7 @@ const (
 /*
 Flow is a struct to hold Flow parameters.
 TxNames and RxNames should be set to a valid OTG endpoint name.
-Creting basic IPv4 Flow.
+Creating basic IPv4 Flow.
 
 top = gosnappi.NewConfig()
 
@@ -25,7 +25,7 @@ top = gosnappi.NewConfig()
 	  FrameSize: 1500,
 	  FlowName:  "IPv4Flow",
 	  EthFlow:   &EthFlowParams{SrcMAC: "00:11:22:33:44:55", DstMAC: "00:11:22:33:44:66"},
-	  IPv4Flow:  &IPv4FlowParams{IPv4Src: "12.1.1.1", IPv4Dst: "11.1.1.1", IPv4DstCount: 10},
+	  IPv4Flow:  &IPv4FlowParams{IPv4Src: "192.0.2.1", IPv4Dst: "192.0.2.129", IPv4DstCount: 10},
 	}
 
 FlowIPv4.CreateFlow(top)
