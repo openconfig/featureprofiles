@@ -469,15 +469,27 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		return
 	}
 
+	// Check if 'buildid-db' file exists in the workspace directory
+	buildidDbPath := filepath.Join(workspace, "buildid-db")
+	var cmd *exec.Cmd
+	if _, err := os.Stat(buildidDbPath); err == nil {
+		// Use command with -l option if 'buildid-db' exists
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s 2>&1 %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+		t.Logf("Using command with -l option")
+	} else {
+		// Use command without -l option if 'buildid-db' does not exist
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode %s 2>&1 %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+		t.Logf("Using command without -l option")
+	}
+
 	// Decode the core file in the background
 	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s &", coreFile, decodeOutput, inProgressFile))
 
 	if err := cmd.Start(); err != nil {
 		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
+
 	// Construct the shell command
 	countCommand := exec.Command("sh", "-c", fmt.Sprintf("echo %s >> %s", decodeOutput, decodedFiles))
 
@@ -487,9 +499,8 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		return
 	} else {
 		// Print the number of lines in the file after appending
-		fmt.Printf("Appended decoded files (%s) to file: %s", decodeOutput, decodedFiles)
+		fmt.Printf("Appended decoded files (%s) to file: %s\n", decodeOutput, decodedFiles)
 	}
 
 	t.Logf("Started background decoding for core file %s\n", coreFile)
-
 }
