@@ -1440,6 +1440,10 @@ test: {
   exec: " "
 }
 test: {
+  id: "SEC-3.1"
+  description: "TLS Authentication over gRPC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/aaa/kne_tests/tls_authentication_over_grpc_test/README.md"
+test: {
   id: "bootz-1.1"
   description: "Missing configuration - Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
