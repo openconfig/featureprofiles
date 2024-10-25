@@ -341,9 +341,9 @@ and all traffic is expected to be successful.
 **RT-1.35.6**
 
 `TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review
-in https://github.com/openconfig/gnoi/pull/214` ***`a. DUT Helper for a
-restarting EBGP speaker whose BGP process was killed abruptly. In this case ERR
-policy is attached to the BGP neighborship.`***
+in https://github.com/openconfig/gnoi/pull/214` 
+***`a. DUT Helper for a restarting EBGP speaker whose BGP process was killed 
+abruptly. In this case ERR policy is attached to the BGP neighborship.`***
 *   Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per
 `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1
 to delay the BGP reestablishment for 330 secs over the Hold-time. Expected
@@ -362,7 +362,7 @@ behavior in this case is the same as RT-1.35.2.b
 and all traffic is expected to be successful.
 *   Repeat the same test on ATE:Port2
 
-***`a. Expected behavior when "Administrative Reset" Notification (rfc4486) sent
+***`c. Expected behavior when "Administrative Reset" Notification (rfc4486) sent
 to the peer while the ERR policy is attached to the neighborship.`***
 *   Start traffic as per the flows above
 *   Trigger BGP Notification (code 6 subocde 4) from DUT:Port1 towards
@@ -378,7 +378,7 @@ the base test in RT-1.35.1
 *   Restart the above procedure for the EBGP peering between DUT:Port-2 and
 ATE:Port-2
 
-***`b. Expected behavior when "Administrative Reset" Notification sent to the
+***`d. Expected behavior when "Administrative Reset" Notification sent to the
 peer and ERR policy isnt attached.`***
 *   Follow the same process as RT-1.35.6.a. However since the ERR policy isn't
 attached, expected behavior is the same as RT-1.35.2.b
