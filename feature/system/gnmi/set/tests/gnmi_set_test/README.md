@@ -4,6 +4,11 @@
 
 Ensures that the device respects certain gNMI SetRequest corner case behaviors.
 
+## Topology
+
+*   ATE port-1 and DUT port-1
+*   ATE port-2 and DUT port-2
+
 ## Procedure
 
 Each test should be implemented as three variants:
@@ -191,3 +196,13 @@ This test checks that the static protocol name is usable.
 ## RPC Coverage
 
 *   gNMI.Set
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```

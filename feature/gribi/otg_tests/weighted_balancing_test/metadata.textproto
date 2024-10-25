@@ -4,7 +4,7 @@
 uuid: "a5e734a1-486c-4da7-b37a-85eeb5971c60"
 plan_id: "TE-3.2"
 description: "Traffic Balancing According to Weights"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_9LINKS_LAG
 platform_exceptions: {
   platform: {
     vendor: CISCO

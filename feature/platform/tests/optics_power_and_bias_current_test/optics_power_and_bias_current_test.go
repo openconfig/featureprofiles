@@ -23,15 +23,19 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
+
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
 	ethernetCsmacd         = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	transceiverType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	sensorType             = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR
 	sleepDuration          = time.Minute
 	minOpticsPower         = -40.0
 	maxOpticsPower         = 10.0
@@ -52,6 +56,10 @@ func TestMain(m *testing.M) {
 //   - gnmic tool info:
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
+	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
+}
 
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
@@ -78,29 +86,96 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			inputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().InputPower().Instant().State())
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
 				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 			}
-			outputPowers := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().OutputPower().Instant().State())
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 			if len(outputPowers) == 0 {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 			}
 
-			biasCurrents := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State())
+			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
 			}
-			// TODO(ankursaikia): Validate the values for each leaf.
-			ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-			for _, th := range ths {
-				t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
-				t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
-				t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
-				t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+
+			subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut, gnmi.OC().Component(transceiver).SubcomponentAny().State())
+			sensorComponentChecked := false
+			for _, s := range subcomponents {
+				subc, ok := s.Val()
+				if ok {
+					sensorComponent := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(subc.GetName()).State())
+					if sensorComponent.GetType() == sensorType {
+						scomponent := gnmi.OC().Component(sensorComponent.GetName())
+						sensorComponentChecked = true
+						v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
+						if _, ok := v.Val(); !ok {
+							t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+						}
+					}
+				}
+			}
+			if len(subcomponents) == 0 || sensorComponentChecked == false {
+				v := gnmi.Lookup(t, dut, component.Temperature().Instant().State())
+				if _, ok := v.Val(); !ok {
+					t.Errorf("Transceiver %s: Temperature instant is not defined", transceiver)
+				}
+			}
+
+			if deviations.TransceiverThresholdsUnsupported(dut) {
+				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
+			} else {
+				// TODO(ankursaikia): Validate the values for each leaf.
+				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
+				for _, th := range ths {
+					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
+
+					if th.ModuleTemperatureLower == nil {
+						t.Errorf("Transceiver %s: threshold module-temperature-lower is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold module-temperature-lower: %v", transceiver, th.GetModuleTemperatureLower())
+					}
+
+					if th.ModuleTemperatureUpper == nil {
+						t.Errorf("Transceiver %s: threshold module-temperature-upper is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold module-temperature-upper: %v", transceiver, th.GetModuleTemperatureUpper())
+					}
+
+					if th.Severity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+						t.Errorf("Transceiver %s: threshold severity is unset", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold severity: %v", transceiver, th.GetSeverity())
+					}
+
+					if th.InputPowerLower == nil {
+						t.Errorf("Transceiver %s: threshold input-power-lower is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, th.GetInputPowerLower())
+					}
+
+					if th.InputPowerUpper == nil {
+						t.Errorf("Transceiver %s: threshold input-power-upper is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold input-power-upper: %v", transceiver, th.GetInputPowerUpper())
+					}
+
+					if th.OutputPowerLower == nil {
+						t.Errorf("Transceiver %s: threshold output-power-lower is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold output-power-lower: %v", transceiver, th.GetOutputPowerLower())
+					}
+
+					if th.OutputPowerUpper == nil {
+						t.Errorf("Transceiver %s: threshold output-power-upper is nil", transceiver)
+					} else {
+						t.Logf("Transceiver %s threshold output-power-upper: %v", transceiver, th.GetOutputPowerUpper())
+					}
+				}
 			}
 		})
 	}
@@ -186,12 +261,16 @@ func TestOpticsPowerUpdate(t *testing.T) {
 					t.Errorf("Get outPower for port %q): got %.2f, want > %f", dp.Name(), outPower, minOpticsPower)
 				}
 			}
-			ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-			for _, th := range ths {
-				t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
-				t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
-				t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
-				t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+			if deviations.TransceiverThresholdsUnsupported(dut) {
+				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
+			} else {
+				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
+				for _, th := range ths {
+					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
+					t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
+					t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
+					t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+				}
 			}
 		})
 	}
@@ -250,6 +329,12 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			intfTransceivers[intf.GetName()] = intf.GetTransceiver()
 			if intf.PhysicalChannel == nil {
 				t.Errorf("physical-channel unset for Interface: %q", intf.GetName())
+			} else {
+				for _, p := range intf.PhysicalChannel {
+					if p != populatedTvs[intf.GetTransceiver()].GetTransceiver().GetChannel(p).GetIndex() {
+						t.Errorf("Transceiver %s failed to get channel index %v", intf.GetTransceiver(), p)
+					}
+				}
 			}
 		})
 	}

@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -48,6 +49,28 @@ func FindComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_Platf
 		switch v := c.GetType().(type) {
 		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
 			if v == cType {
+				s = append(s, c.GetName())
+			}
+		default:
+			t.Logf("Detected non-hardware component: (%T, %v)", c.GetType(), c.GetType())
+		}
+	}
+	return s
+}
+
+// FindActiveComponentsByType finds the list of active components based on hardware type.
+func FindActiveComponentsByType(t *testing.T, dut *ondatra.DUTDevice, cType oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT) []string {
+	components := gnmi.GetAll[*oc.Component](t, dut, gnmi.OC().ComponentAny().State())
+	var s []string
+	for _, c := range components {
+		if c.GetType() == nil {
+			t.Logf("Component %s type is missing from telemetry", c.GetName())
+			continue
+		}
+		t.Logf("Component %s has type: %v", c.GetName(), c.GetType())
+		switch v := c.GetType().(type) {
+		case oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT:
+			if v == cType && c.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
 				s = append(s, c.GetName())
 			}
 		default:
@@ -114,7 +137,7 @@ type Y struct {
 
 // New creates a new ygnmi based helper from a *ondatra.DUTDevice.
 func New(t testing.TB, dut *ondatra.DUTDevice) Y {
-	gnmic := dut.RawAPIs().GNMI().Default(t)
+	gnmic := dut.RawAPIs().GNMI(t)
 	yc, err := ygnmi.NewClient(gnmic)
 	if err != nil {
 		t.Fatalf("Could not create ygnmi.Client: %v", err)
@@ -148,9 +171,9 @@ func (y Y) FindByType(ctx context.Context, want oc.Component_Type_Union) ([]stri
 	return names, nil
 }
 
-// FindStandbyRP gets a list of two components and finds out the active and standby rp.
-func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
-	var activeRP, standbyRP string
+// FindStandbyControllerCard gets a list of two components and finds out the active and standby controller_cards.
+func FindStandbyControllerCard(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (string, string) {
+	var activeCC, standbyCC string
 	for _, supervisor := range supervisors {
 		watch := gnmi.Watch(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State(), 10*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 			return val.IsPresent()
@@ -161,17 +184,41 @@ func FindStandbyRP(t *testing.T, dut *ondatra.DUTDevice, supervisors []string) (
 		role := gnmi.Get(t, dut, gnmi.OC().Component(supervisor).RedundantRole().State())
 		t.Logf("Component(supervisor).RedundantRole().Get(t): %v, Role: %v", supervisor, role)
 		if role == standbyController {
-			standbyRP = supervisor
+			standbyCC = supervisor
 		} else if role == activeController {
-			activeRP = supervisor
+			activeCC = supervisor
 		} else {
 			t.Fatalf("Expected controller %s to be active or standby, got %v", supervisor, role)
 		}
 	}
-	if standbyRP == "" || activeRP == "" {
-		t.Fatalf("Expected non-empty activeRP and standbyRP, got activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	if standbyCC == "" || activeCC == "" {
+		t.Fatalf("Expected non-empty activeCC and standbyCC, got activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 	}
-	t.Logf("Detected activeRP: %v, standbyRP: %v", activeRP, standbyRP)
+	t.Logf("Detected activeCC: %v, standbyCC: %v", activeCC, standbyCC)
 
-	return standbyRP, activeRP
+	return standbyCC, activeCC
+}
+
+// OpticalChannelComponentFromPort finds the optical channel component for a port.
+func OpticalChannelComponentFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) string {
+	t.Helper()
+
+	if deviations.MissingPortToOpticalChannelMapping(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			return fmt.Sprintf("%s-Optical0", transceiverName)
+		default:
+			t.Fatal("Manual Optical channel name required when deviation missing_port_to_optical_channel_component_mapping applied.")
+		}
+	}
+	transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+	if transceiverName == "" {
+		t.Fatalf("Associated Transceiver for Interface (%v) not found!", p.Name())
+	}
+	opticalChannelName := gnmi.Get(t, dut, gnmi.OC().Component(transceiverName).Transceiver().Channel(0).AssociatedOpticalChannel().State())
+	if opticalChannelName == "" {
+		t.Fatalf("Associated Optical Channel for Transceiver (%v) not found!", transceiverName)
+	}
+	return opticalChannelName
 }

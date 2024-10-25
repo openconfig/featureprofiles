@@ -127,24 +127,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures port1 and port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
-	otg := ate.OTG()
-	top := otg.NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	top.Ports().Add().SetName(ate.Port(t, "port1").ID())
 	i1 := top.Devices().Add().SetName(ate.Port(t, "port1").ID())
 	eth1 := i1.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+	eth1.Connection().SetPortName(i1.Name())
 	eth1.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").
 		SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).
-		SetPrefix(int32(atePort1.IPv4Len))
+		SetPrefix(uint32(atePort1.IPv4Len))
 
 	top.Ports().Add().SetName(ate.Port(t, "port2").ID())
 	i2 := top.Devices().Add().SetName(ate.Port(t, "port2").ID())
 	eth2 := i2.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
+	eth2.Connection().SetPortName(i2.Name())
 	eth2.Ipv4Addresses().Add().SetName(atePort2.Name + ".IPv4").
 		SetAddress(atePort2.IPv4).SetGateway(dutPort2.IPv4).
-		SetPrefix(int32(atePort2.IPv4Len))
+		SetPrefix(uint32(atePort2.IPv4Len))
 
 	return top
 }
@@ -165,10 +164,10 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	flowipv4.TxRx().Port().
 		SetTxName(ate.Port(t, "port1").ID()).
 		SetRxName(ate.Port(t, "port2").ID())
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	e1.Dst().SetChoice("value").SetValue(dstMac)
+	e1.Dst().SetValue(dstMac)
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
 	v4.Dst().Increment().SetStart("203.0.113.1").SetCount(250)
@@ -182,8 +181,12 @@ func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, srcE
 	otgutils.LogFlowMetrics(t, otg, top)
 
 	time.Sleep(time.Minute)
-	txPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().OutPkts().State()))
-	rxPkts := int(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().InPkts().State()))
+	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().OutPkts().State()))
+	rxPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(flowipv4.Name()).Counters().InPkts().State()))
+
+	if txPkts == 0 {
+		t.Fatalf("TxPkts == 0, want > 0")
+	}
 
 	if !wantLoss {
 		if got := (txPkts - rxPkts) * 100 / txPkts; got != 0 {

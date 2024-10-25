@@ -1,8 +1,10 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
 name: "nokia-srlinux-dutate"
 nodes: {
     name: "dut"
     vendor: NOKIA
-    model: "ixr10"
+    model: "ixr10e"
     config: {
         image: "srlinux:latest"
         file: "config.cfg"
@@ -12,6 +14,34 @@ nodes: {
                 key_name: "N/A"
                 key_size: 4096
             }
+        }
+    }
+    services: {
+        key: 9339
+        value: {
+            name: "gnmi"
+            inside: 9339
+        }
+    }
+    services: {
+        key: 9340
+        value: {
+            name: "gribi"
+            inside: 9340
+        }
+    }
+    services: {
+        key: 22
+        value: {
+            name: "ssh"
+            inside: 22
+        }
+    }
+    services: {
+        key: 9559
+        value: {
+            name: "p4rt"
+            inside: 9559
         }
     }
     interfaces: {

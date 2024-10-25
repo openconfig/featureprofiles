@@ -23,10 +23,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	plqpb "github.com/openconfig/gnoi/packet_link_qualification"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/raw"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -44,6 +44,11 @@ func TestMain(m *testing.M) {
 //    https://github.com/fullstorydev/grpcurl
 //
 
+var (
+	minRequiredGeneratorMTU = uint64(8184)
+	minRequiredGeneratorPPS = uint64(1e8)
+)
+
 func TestCapabilitiesResponse(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
@@ -52,12 +57,20 @@ func TestCapabilitiesResponse(t *testing.T) {
 	t.Logf("dut1: %v, dut2: %v", dut1, dut2)
 	t.Logf("dut1 dp1 name: %v, dut2 dp2 name : %v", dp1.Name(), dp2.Name())
 
-	gnoiClient1 := dut1.RawAPIs().GNOI().New(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	plqResp, err := gnoiClient1.LinkQualification().Capabilities(context.Background(), &plqpb.CapabilitiesRequest{})
 
 	t.Logf("LinkQualification().Capabilities(): %v, err: %v", plqResp, err)
 	if err != nil {
 		t.Fatalf("Failed to handle gnoi LinkQualification().Capabilities(): %v", err)
+	}
+
+	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+	}
+
+	if deviations.PLQGeneratorCapabilitiesMaxPPS(dut1) != 0 {
+		minRequiredGeneratorPPS = deviations.PLQGeneratorCapabilitiesMaxPPS(dut1)
 	}
 
 	cases := []struct {
@@ -91,7 +104,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxMtu",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxMtu()),
-		min:  uint64(8184),
+		min:  minRequiredGeneratorMTU,
 	}, {
 		desc: "Generator MaxBps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxBps()),
@@ -99,7 +112,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 	}, {
 		desc: "Generator MaxPps",
 		got:  uint64(plqResp.GetGenerator().GetPacketGenerator().GetMaxPps()),
-		min:  uint64(1e8),
+		min:  minRequiredGeneratorPPS,
 	}}
 
 	for _, tc := range cases {
@@ -125,7 +138,7 @@ func TestCapabilitiesResponse(t *testing.T) {
 func TestNonexistingID(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	id := "non-extsing-ID"
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
 	getResp, err := gnoiClient1.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: []string{id}})
 
 	t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
@@ -156,10 +169,10 @@ func TestNonexistingID(t *testing.T) {
 func TestListDelete(t *testing.T) {
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
-	clients := []raw.GNOI{gnoiClient1, gnoiClient2}
+	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
 	for i, client := range clients {
 		t.Logf("Check client: %d", i+1)
 		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -225,14 +238,23 @@ func TestLinkQualification(t *testing.T) {
 		p := dut.Port(t, "port1")
 		i := &oc.Interface{Name: ygot.String(p.Name())}
 		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), configInterfaceMTU(i, dut))
+		if deviations.ExplicitPortSpeed(dut) {
+			fptest.SetPortSpeed(t, p)
+		}
 	}
 
 	plqID := dut1.Name() + ":" + dp1.Name() + "<->" + dut2.Name() + ":" + dp2.Name()
+
+	if deviations.PLQGeneratorCapabilitiesMaxMTU(dut1) != 0 {
+		minRequiredGeneratorMTU = uint64(deviations.PLQGeneratorCapabilitiesMaxMTU(dut1))
+	}
 	type LinkQualificationDuration struct {
 		// time needed to complete preparation
-		setupDuration time.Duration
+		generatorsetupDuration time.Duration
+		reflectorsetupDuration time.Duration
 		// time duration to wait before starting link qual preparation
-		preSyncDuration time.Duration
+		generatorpreSyncDuration time.Duration
+		reflectorpreSyncDuration time.Duration
 		// packet linkqual duration
 		testDuration time.Duration
 		// time to wait post link-qual before starting teardown
@@ -242,8 +264,10 @@ func TestLinkQualification(t *testing.T) {
 		tearDownDuration time.Duration
 	}
 	plqDuration := &LinkQualificationDuration{
-		preSyncDuration:           30 * time.Second,
-		setupDuration:             30 * time.Second,
+		generatorpreSyncDuration:  30 * time.Second,
+		reflectorpreSyncDuration:  0 * time.Second,
+		generatorsetupDuration:    30 * time.Second,
+		reflectorsetupDuration:    60 * time.Second,
 		testDuration:              120 * time.Second,
 		generatorPostSyncDuration: 5 * time.Second,
 		reflectorPostSyncDuration: 10 * time.Second,
@@ -258,14 +282,14 @@ func TestLinkQualification(t *testing.T) {
 				EndpointType: &plqpb.QualificationConfiguration_PacketGenerator{
 					PacketGenerator: &plqpb.PacketGeneratorConfiguration{
 						PacketRate: uint64(138888),
-						PacketSize: uint32(8184),
+						PacketSize: uint32(minRequiredGeneratorMTU),
 					},
 				},
 				Timing: &plqpb.QualificationConfiguration_Rpc{
 					Rpc: &plqpb.RPCSyncedTiming{
 						Duration:         durationpb.New(plqDuration.testDuration),
-						PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
-						SetupDuration:    durationpb.New(plqDuration.setupDuration),
+						PreSyncDuration:  durationpb.New(plqDuration.generatorpreSyncDuration),
+						SetupDuration:    durationpb.New(plqDuration.generatorsetupDuration),
 						PostSyncDuration: durationpb.New(plqDuration.generatorPostSyncDuration),
 						TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 					},
@@ -282,8 +306,8 @@ func TestLinkQualification(t *testing.T) {
 		Timing: &plqpb.QualificationConfiguration_Rpc{
 			Rpc: &plqpb.RPCSyncedTiming{
 				Duration:         durationpb.New(plqDuration.testDuration),
-				PreSyncDuration:  durationpb.New(plqDuration.preSyncDuration),
-				SetupDuration:    durationpb.New(plqDuration.setupDuration),
+				PreSyncDuration:  durationpb.New(plqDuration.reflectorpreSyncDuration),
+				SetupDuration:    durationpb.New(plqDuration.reflectorsetupDuration),
 				PostSyncDuration: durationpb.New(plqDuration.reflectorPostSyncDuration),
 				TeardownDuration: durationpb.New(plqDuration.tearDownDuration),
 			},
@@ -291,7 +315,7 @@ func TestLinkQualification(t *testing.T) {
 	}
 
 	switch dut2.Vendor() {
-	case ondatra.JUNIPER:
+	case ondatra.NOKIA, ondatra.JUNIPER:
 		intf.EndpointType = &plqpb.QualificationConfiguration_AsicLoopback{
 			AsicLoopback: &plqpb.AsicLoopbackConfiguration{},
 		}
@@ -306,8 +330,8 @@ func TestLinkQualification(t *testing.T) {
 	}
 	t.Logf("ReflectorCreateRequest: %v", reflectorCreateRequest)
 
-	gnoiClient1 := dut1.RawAPIs().GNOI().Default(t)
-	gnoiClient2 := dut2.RawAPIs().GNOI().Default(t)
+	gnoiClient1 := dut1.RawAPIs().GNOI(t)
+	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	generatorCreateResp, err := gnoiClient1.LinkQualification().Create(context.Background(), generatorCreateRequest)
 	t.Logf("LinkQualification().Create() generatorCreateResp: %v, err: %v", generatorCreateResp, err)
@@ -328,13 +352,13 @@ func TestLinkQualification(t *testing.T) {
 	}
 
 	sleepTime := 30 * time.Second
-	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.preSyncDuration + plqDuration.setupDuration + plqDuration.tearDownDuration
+	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.tearDownDuration
 	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
 	for i := 0; i <= counter; i++ {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 		time.Sleep(sleepTime)
 		testDone := true
-		for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
+		for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
 			t.Logf("Check client: %d", i+1)
 
 			listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -346,6 +370,21 @@ func TestLinkQualification(t *testing.T) {
 			for j := 0; j < len(listResp.GetResults()); j++ {
 				if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
 					testDone = false
+				}
+				if !deviations.SkipPlqInterfaceOperStatusCheck(dut1) {
+					if listResp.GetResults()[j].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+						if client == gnoiClient1 {
+							t.Logf("Checking link under qualificaton (generator) interface oper-status (dut: %v, dp: %v)", dut1.Name(), dp1.Name())
+							if got, want := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
+								t.Errorf("Interface(%v) oper-status: got %v, want %v", dp1.Name(), got, oc.Interface_OperStatus_TESTING)
+							}
+						} else if client == gnoiClient2 {
+							t.Logf("Checking link under qualificaton (reflector) interface oper-status (dut: %v, dp: %v)", dut2.Name(), dp2.Name())
+							if got, want := gnmi.Get(t, dut2, gnmi.OC().Interface(dp2.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
+								t.Errorf("Interface(%v) oper-status: got %v, want %v", dp2.Name(), got, oc.Interface_OperStatus_TESTING)
+							}
+						}
+					}
 				}
 			}
 			if len(listResp.GetResults()) == 0 {
@@ -364,7 +403,7 @@ func TestLinkQualification(t *testing.T) {
 
 	var generatorPktsSent, generatorPktsRxed, reflectorPktsSent, reflectorPktsRxed uint64
 
-	for i, client := range []raw.GNOI{gnoiClient1, gnoiClient2} {
+	for i, client := range []gnoigo.Clients{gnoiClient1, gnoiClient2} {
 		t.Logf("Check client: %d", i+1)
 		getResp, err := client.LinkQualification().Get(context.Background(), getRequest)
 		t.Logf("LinkQualification().Get(): %v, err: %v", getResp, err)
@@ -399,7 +438,12 @@ func TestLinkQualification(t *testing.T) {
 
 	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
 	var tolerance float64 = 0.0001
-	if !deviations.SkipPLQPacketsCountCheck(dut1) {
+
+	if deviations.PLQReflectorStatsUnsupported(dut1) {
+		if (math.Abs(float64(generatorPktsSent)-float64(generatorPktsRxed))/float64(generatorPktsSent))*100.00 > tolerance {
+			t.Errorf("The difference between packets sent count and packets received count at Generator is greater than %0.4f percent: generatorPktsSent %v, generatorPktsRxed %v", tolerance, generatorPktsSent, generatorPktsRxed)
+		}
+	} else {
 		if ((math.Abs(float64(generatorPktsSent)-float64(reflectorPktsRxed)))/(float64(generatorPktsSent)+float64(reflectorPktsRxed)+tolerance))*200.00 > tolerance {
 			t.Errorf("The difference between packets received count at Reflector and packets sent count at Generator is greater than %0.4f percent: generatorPktsSent %v, reflectorPktsRxed %v", tolerance, generatorPktsSent, reflectorPktsRxed)
 		}
@@ -407,5 +451,4 @@ func TestLinkQualification(t *testing.T) {
 			t.Errorf("The difference between packets received count at Generator and packets sent count at Reflector is greater than %0.4f percent: reflectorPktsSent %v, generatorPktsRxed %v", tolerance, reflectorPktsSent, generatorPktsRxed)
 		}
 	}
-
 }

@@ -103,6 +103,15 @@ func TestFunctionalTestPaths(t *testing.T) {
 }
 
 func TestPopulateTestDetail(t *testing.T) {
+	virtualDeviceTypes = []deviceType{
+		{Vendor: opb.Device_ARISTA, HardwareModel: "Device Model With Spaces 1000"},
+		{Vendor: opb.Device_CISCO, HardwareModel: "simple"},
+	}
+	physicalDeviceTypes = []deviceType{
+		{Vendor: opb.Device_JUNIPER, HardwareModel: "1000"},
+		{Vendor: opb.Device_NOKIA, HardwareModel: "a b c"},
+	}
+
 	in := pullRequest{
 		ID:      100,
 		HeadSHA: "1a2b3",
@@ -116,21 +125,21 @@ func TestPopulateTestDetail(t *testing.T) {
 	want := pullRequest{
 		ID:      100,
 		HeadSHA: "1a2b3",
-		Virtual: []device{
+		Virtual: []*device{
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_ARISTA,
-					HardwareModel: "cEOS",
+					HardwareModel: "Device Model With Spaces 1000",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
 						Path:        "feature/bgp/addpath/otg_tests/example_test",
 						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
 						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".ARISTA_cEOS.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".ARISTA_cEOS.svg",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".ARISTA_Device_Model_With_Spaces_1000.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".ARISTA_Device_Model_With_Spaces_1000.svg",
 						Status:      "pending authorization",
 					},
 				},
@@ -138,53 +147,37 @@ func TestPopulateTestDetail(t *testing.T) {
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_CISCO,
-					HardwareModel: "8000E",
+					HardwareModel: "simple",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
 						Path:        "feature/bgp/addpath/otg_tests/example_test",
 						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
 						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_8000E.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_8000E.svg",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_simple.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_simple.svg",
 						Status:      "pending authorization",
 					},
 				},
 			},
-			{
-				Type: deviceType{
-					Vendor:        opb.Device_CISCO,
-					HardwareModel: "XRd",
-				},
-				Tests: []functionalTest{
-					{
-						Name:        "plan_id-B",
-						Description: "description-B",
-						Path:        "feature/bgp/addpath/otg_tests/example_test",
-						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
-						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_XRd.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".CISCO_XRd.svg",
-						Status:      "pending authorization",
-					},
-				},
-			},
+		},
+		Physical: []*device{
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_JUNIPER,
-					HardwareModel: "cPTX",
+					HardwareModel: "1000",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
 						Path:        "feature/bgp/addpath/otg_tests/example_test",
 						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
 						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".JUNIPER_cPTX.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".JUNIPER_cPTX.svg",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".JUNIPER_1000.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".JUNIPER_1000.svg",
 						Status:      "pending authorization",
 					},
 				},
@@ -192,35 +185,17 @@ func TestPopulateTestDetail(t *testing.T) {
 			{
 				Type: deviceType{
 					Vendor:        opb.Device_NOKIA,
-					HardwareModel: "SR Linux",
+					HardwareModel: "a b c",
 				},
-				Tests: []functionalTest{
+				Tests: []*functionalTest{
 					{
 						Name:        "plan_id-B",
 						Description: "description-B",
 						Path:        "feature/bgp/addpath/otg_tests/example_test",
 						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
 						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".NOKIA_SR_Linux.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".NOKIA_SR_Linux.svg",
-						Status:      "pending authorization",
-					},
-				},
-			},
-			{
-				Type: deviceType{
-					Vendor:        opb.Device_OPENCONFIG,
-					HardwareModel: "Lemming",
-				},
-				Tests: []functionalTest{
-					{
-						Name:        "plan_id-B",
-						Description: "description-B",
-						Path:        "feature/bgp/addpath/otg_tests/example_test",
-						DocURL:      "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test/README.md",
-						TestURL:     "https://github.com/" + githubProjectOwner + "/" + githubProjectRepo + "/blob/1a2b3/feature/bgp/addpath/otg_tests/example_test",
-						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
-						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".OPENCONFIG_Lemming.svg",
+						BadgePath:   gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".NOKIA_a_b_c.svg",
+						BadgeURL:    "https://storage.googleapis.com/" + gcpBucket + "/" + gcpBucketPrefix + "/100/1a2b3/" + base64.RawURLEncoding.EncodeToString([]byte("feature/bgp/addpath/otg_tests/example_test")) + ".NOKIA_a_b_c.svg",
 						Status:      "pending authorization",
 					},
 				},

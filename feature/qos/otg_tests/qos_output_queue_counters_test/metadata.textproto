@@ -19,8 +19,6 @@ platform_exceptions: {
   }
   deviations: {
     scheduler_input_weight_limit: true
-    explicit_interface_ref_definition: true
-    qos_dropped_octets: true
   }
 }
 platform_exceptions: {
@@ -28,7 +26,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_octets: true
     interface_enabled: true
   }
 }
@@ -38,6 +38,5 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    qos_octets: true
   }
 }

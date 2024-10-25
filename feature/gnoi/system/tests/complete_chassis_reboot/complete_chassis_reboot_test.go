@@ -25,6 +25,7 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 )
 
@@ -109,9 +110,19 @@ func TestChassisReboot(t *testing.T) {
 	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
 	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
 
+	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	preCompMatrix := []string{}
+	for _, preComp := range preRebootCompDebug {
+		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+		}
+	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			gnoiClient := dut.RawAPIs().GNOI().New(t)
+			gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+			if err != nil {
+				t.Fatalf("Error dialing gNOI: %v", err)
+			}
 			bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 			t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 			prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
@@ -133,7 +144,7 @@ func TestChassisReboot(t *testing.T) {
 				for {
 					time.Sleep(10 * time.Second)
 					t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
-					if uint64(time.Since(start).Seconds()) > rebootDelay {
+					if time.Since(start).Seconds() > rebootDelay {
 						t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), rebootDelay)
 						break
 					}
@@ -180,6 +191,13 @@ func TestChassisReboot(t *testing.T) {
 
 			for {
 				postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+				postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+				postCompMatrix := []string{}
+				for _, postComp := range postRebootCompDebug {
+					if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+						postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+					}
+				}
 
 				if len(preRebootCompStatus) == len(postRebootCompStatus) {
 					t.Logf("All components on the DUT are in responsive state")
@@ -189,7 +207,10 @@ func TestChassisReboot(t *testing.T) {
 
 				if uint64(time.Since(startComp).Seconds()) > maxCompWaitTime {
 					t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
-					t.Fatalf("All the components are not in responsive state post reboot")
+					if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+						t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
+					}
+					t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
 				}
 				time.Sleep(10 * time.Second)
 			}

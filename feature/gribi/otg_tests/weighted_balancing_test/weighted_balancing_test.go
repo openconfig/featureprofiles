@@ -24,6 +24,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -196,15 +197,17 @@ func TestWeightedBalancing(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	// Configure the DUT
-	configureDUT(t, dut)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	// Run through the test cases.
 	for _, s := range scales {

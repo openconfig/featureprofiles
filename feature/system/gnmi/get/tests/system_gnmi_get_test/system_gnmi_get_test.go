@@ -122,7 +122,7 @@ func TestGNMIGet(t *testing.T) {
 		// Not assuming that oc base config  is loaded.
 		// Config the hostname to prevent the test failure when oc base config is not loaded
 		gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), "ondatraHost")
-		gnmiC := dut.RawAPIs().GNMI().New(t)
+		gnmiC := dut.RawAPIs().GNMI(t)
 
 		t.Run(tt.desc, func(t *testing.T) {
 			gotRes, err := gnmiC.Get(context.Background(), tt.inGetRequest)

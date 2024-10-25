@@ -88,6 +88,8 @@ const (
 	acceptPolicy             = "PERMIT-ALL"
 	setLocalPrefPolicy       = "SET-LOCAL-PREF"
 	localPrefValue           = 100
+	setMEDPolicy             = "SET-MED-PREF"
+	medValue                 = 100
 	setAspathPrependPolicy   = "SET-ASPATH-PREPEND"
 	asPathRepeatValue        = 3
 	aclStatement1            = "10"
@@ -170,8 +172,8 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni_proto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := ni_proto.GetOrCreateBgp()
+	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutDst.IPv4)
 	global.As = ygot.Uint32(localAs)
@@ -192,10 +194,10 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 			nv4.PeerGroup = ygot.String(peerGrpNamev4)
 			nv4.PeerAs = ygot.Uint32(nbr.as)
 			nv4.Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-			nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
+			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{policy}
@@ -210,10 +212,10 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 			nv6.PeerGroup = ygot.String(peerGrpNamev6)
 			nv6.PeerAs = ygot.Uint32(nbr.as)
 			nv6.Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
+			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{policy}
@@ -226,11 +228,11 @@ func bgpCreateNbr(localAs, peerAs uint32, policy string, dut *ondatra.DUTDevice)
 		}
 
 	}
-	return ni_proto
+	return niProto
 }
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
-// Additonally, it configures LocalPreference and ASPathprepend as part of the BGP policy.
+// Additionally, it configures LocalPreference, ASPathprepend and MED as part of the BGP policy.
 func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
@@ -281,6 +283,15 @@ func configureBGPPolicy(d *oc.Root) (*oc.RoutingPolicy, error) {
 	aspend.Asn = ygot.Uint32(ateAS)
 	aspend.RepeatN = ygot.Uint8(asPathRepeatValue)
 	actions5.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
+	pdef6 := rp.GetOrCreatePolicyDefinition(setMEDPolicy)
+	stmt, err = pdef6.AppendNewStatement(aclStatement2)
+	if err != nil {
+		return nil, err
+	}
+	actions6 := stmt.GetOrCreateActions()
+	actions6.GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+	actions6.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	return rp, nil
 }
@@ -420,26 +431,25 @@ func verifyPolicyTelemetry(t *testing.T, dut *ondatra.DUTDevice, policy string) 
 // configureATE configures the interfaces and BGP protocols on an OTG, including advertising some
 // (faked) networks over BGP.
 func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
-
-	config := otg.NewConfig(t)
+	config := gosnappi.NewConfig()
 	srcPort := config.Ports().Add().SetName("port1")
 	dstPort := config.Ports().Add().SetName("port2")
 
 	srcDev := config.Devices().Add().SetName(ateSrc.Name)
 	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(srcPort.Name())
+	srcEth.Connection().SetPortName(srcPort.Name())
 	srcIpv4 := srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4")
-	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(int32(ateSrc.IPv4Len))
+	srcIpv4.SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcIpv6 := srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6")
-	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(int32(ateSrc.IPv6Len))
+	srcIpv6.SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
 	dstDev := config.Devices().Add().SetName(ateDst.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(dstPort.Name())
+	dstEth.Connection().SetPortName(dstPort.Name())
 	dstIpv4 := dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4")
-	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(int32(ateDst.IPv4Len))
+	dstIpv4.SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstIpv6 := dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6")
-	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(int32(ateDst.IPv6Len))
+	dstIpv6.SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
 	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
 	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
@@ -478,8 +488,7 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Rate().SetPps(100)
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -492,11 +501,11 @@ func configureATE(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Rate().SetPps(100)
-	flowipv6.Duration().SetChoice("continuous")
+	flowipv6.Duration().Continuous()
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(srcEth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
+	v6.TrafficClass().SetValue(0)
 	v6.Src().SetValue(srcIpv6.Address())
 	v6.Dst().Increment().SetStart(advertisedRoutesv6Net).SetCount(routeCount)
 
@@ -514,13 +523,13 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, want
 	for _, f := range c.Flows().Items() {
 		t.Logf("Verifying flow metrics for flow %s\n", f.Name())
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f.Name()).State())
-		txPackets := recvMetric.GetCounters().GetOutPkts()
-		rxPackets := recvMetric.GetCounters().GetInPkts()
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 		if !wantLoss {
 			if lostPackets > tolerance {
-				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %d", txPackets, rxPackets)
+				t.Logf("Packets received not matching packets sent. Sent: %v, Received: %v", txPackets, rxPackets)
 			}
 			if lossPct > tolerancePct && txPackets > 0 {
 				t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want max %v pct failure", f.Name(), lossPct, tolerancePct)
@@ -597,9 +606,7 @@ func TestEstablish(t *testing.T) {
 
 	// Configure Network instance type on DUT.
 	t.Log("Configure Network Instance type")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	// Configure BGP+Neighbors on the DUT.
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -612,7 +619,7 @@ func TestEstablish(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 	dutConf := bgpCreateNbr(dutAS, ateAS, defaultPolicy, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 	// ATE Configuration.
 	t.Logf("Start ATE Config")
@@ -699,6 +706,13 @@ func TestBGPPolicy(t *testing.T) {
 		received:  routeCount,
 		sent:      0,
 		wantLoss:  false,
+	}, {
+		desc:      "Configure Set MED Policy",
+		policy:    setMEDPolicy,
+		installed: routeCount,
+		received:  routeCount,
+		sent:      0,
+		wantLoss:  false,
 	}}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -707,7 +721,7 @@ func TestBGPPolicy(t *testing.T) {
 
 			// Configure Routing Policy on the DUT.
 			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+			fptest.LogQuery(t, "DUT BGP Config before", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 			d := &oc.Root{}
 			t.Log("Configure BGP Policy with BGP actions on the neighbor")
 			rpl, err := configureBGPPolicy(d)

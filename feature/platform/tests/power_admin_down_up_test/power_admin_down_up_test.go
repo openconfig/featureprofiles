@@ -14,6 +14,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -22,9 +23,6 @@ func TestMain(m *testing.M) {
 
 func TestFabricPowerAdmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if deviations.SkipFabricCardPowerAdmin(dut) {
-		t.Skip("Fabric power down up unsupported")
-	}
 	fs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
 
 	for _, f := range fs {
@@ -109,7 +107,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
 			}
 
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 3*time.Minute)
+			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 5*time.Minute)
 		})
 	}
 	if primary != "" {
@@ -135,7 +133,11 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	default:
 		t.Fatalf("Unknown component type: %s", cType.String())
 	}
-
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(name),
+		})
+	}
 	start := time.Now()
 	t.Logf("Starting %s POWER_DISABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
@@ -146,19 +148,11 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	}
 	t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 
-	if deviations.ComponentPowerDownReturnsInactiveState(dut) {
-		oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE).Val()
-		if !ok {
-			t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE)
-		}
-		t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
-	} else {
-		oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED).Val()
-		if !ok {
-			t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
-		}
-		t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED).Val()
+	if !ok {
+		t.Errorf("Component %s oper-status, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
 	}
+	t.Logf("Component %s, oper-status after %f minutes: %v", name, time.Since(start).Minutes(), oper)
 	start = time.Now()
 	t.Logf("Starting %s POWER_ENABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
@@ -171,7 +165,7 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 		t.Logf("Component %s, power-admin-state after %f minutes: %v", name, time.Since(start).Minutes(), power)
 	}
 
-	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
+	oper, ok = gnmi.Await(t, dut, c.OperStatus().State(), timeout, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val()
 	if !ok {
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", name, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}

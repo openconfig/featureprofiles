@@ -152,8 +152,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureATE configures the interfaces and BGP on the ATE/OTG.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
-	otg := ate.OTG()
-	topo := otg.NewConfig(t)
+	topo := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	ateSrc.AddToOTG(topo, p1, &dutSrc)
 	p2 := ate.Port(t, "port2")
@@ -169,21 +168,21 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 	// Setup ATE BGP route v4/v6 advertisement
 	srcBgp := srcDev.Bgp().SetRouterId(srcIpv4.Address())
 	srcBgp4Peer := srcBgp.Ipv4Interfaces().Add().SetIpv4Name(srcIpv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
-	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(int32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	srcBgp4Peer.SetPeerAddress(srcIpv4.Gateway()).SetAsNumber(uint32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	srcBgp6Peer := srcBgp.Ipv6Interfaces().Add().SetIpv6Name(srcIpv6.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP6.peer")
-	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(int32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	srcBgp6Peer.SetPeerAddress(srcIpv6.Gateway()).SetAsNumber(uint32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	dstBgp := dstDev.Bgp().SetRouterId(dstIpv4.Address())
 	dstBgp4Peer := dstBgp.Ipv4Interfaces().Add().SetIpv4Name(dstIpv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
-	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(int32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	dstBgp4Peer.SetPeerAddress(dstIpv4.Gateway()).SetAsNumber(uint32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	dstBgp6Peer := dstBgp.Ipv6Interfaces().Add().SetIpv6Name(dstIpv6.Name()).Peers().Add().SetName(ateDst.Name + ".BGP6.peer")
-	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(int32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	dstBgp6Peer.SetPeerAddress(dstIpv6.Gateway()).SetAsNumber(uint32(bgpGlobalAttrs.ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	dstBgp4PeerRoutes := dstBgp4Peer.V4Routes().Add().SetName(ateDst.Name + ".BGP4.peer" + ".RR4")
 	dstBgp4PeerRoutes.SetNextHopIpv4Address(dstIpv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	dstBgp4PeerRoutes.Addresses().Add().
 		SetAddress(bgpRouteAttrs.advertisedRoutesv4Net).
-		SetPrefix(int32(bgpRouteAttrs.advertisedRoutesv4Prefix)).
+		SetPrefix(uint32(bgpRouteAttrs.advertisedRoutesv4Prefix)).
 		SetCount(1)
 	dstBgp6PeerRoutes := dstBgp6Peer.V6Routes().Add().SetName(ateDst.Name + ".BGP6.peer" + ".RR6")
 	dstBgp6PeerRoutes.SetNextHopIpv6Address(dstIpv6.Address()).
@@ -191,12 +190,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *config {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	dstBgp6PeerRoutes.Addresses().Add().
 		SetAddress(bgpRouteAttrs.advertisedRoutesv6Net).
-		SetPrefix(int32(bgpRouteAttrs.advertisedRoutesv6Prefix)).
+		SetPrefix(uint32(bgpRouteAttrs.advertisedRoutesv6Prefix)).
 		SetCount(1)
 	v4DstIncrement, v6DstIncrement := ateFlowConfig(t, topo, srcEth, srcIpv4, srcIpv6, dstBgp4PeerRoutes, dstBgp6PeerRoutes)
 	t.Logf("Pushing config to ATE and starting protocols...")
-	otg.PushConfig(t, topo)
-	otg.StartProtocols(t)
+	ate.OTG().PushConfig(t, topo)
+	ate.OTG().StartProtocols(t)
 	return &config{topo, dstBgp4PeerRoutes, dstBgp6PeerRoutes, v4DstIncrement, v6DstIncrement}
 }
 func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEthernet, srcIpv4 gosnappi.DeviceIpv4, srcIpv6 gosnappi.DeviceIpv6, dstBgp4PeerRoutes gosnappi.BgpV4RouteRange, dstBgp6PeerRoutes gosnappi.BgpV6RouteRange) (gosnappi.PatternFlowIpv4DstCounter, gosnappi.PatternFlowIpv6DstCounter) {
@@ -209,12 +208,12 @@ func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEth
 		SetTxNames([]string{srcIpv4.Name()}).
 		SetRxNames([]string{dstBgp4PeerRoutes.Name()})
 	flowipv4.Size().SetFixed(512)
-	flowipv4.Duration().SetChoice("continuous")
+	flowipv4.Duration().Continuous()
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(srcEth.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
 	v4.Src().SetValue(ipv4SrcTraffic)
-	v4DstIncrement := v4.Dst().Increment().SetStart(bgpRouteAttrs.advertisedRoutesv4Net).SetCount(int32(bgpGlobalAttrs.prefixLimit))
+	v4DstIncrement := v4.Dst().Increment().SetStart(bgpRouteAttrs.advertisedRoutesv4Net).SetCount(uint32(bgpGlobalAttrs.prefixLimit))
 	// BGP IP V6 traffic
 	flowipv6 := topo.Flows().Add().SetName("IPv6")
 	flowipv6.Metrics().SetEnable(true)
@@ -222,12 +221,12 @@ func ateFlowConfig(t *testing.T, topo gosnappi.Config, srcEth gosnappi.DeviceEth
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{dstBgp6PeerRoutes.Name()})
 	flowipv6.Size().SetFixed(512)
-	flowipv6.Duration().SetChoice("continuous")
+	flowipv6.Duration().Continuous()
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(srcEth.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
 	v6.Src().SetValue(ipv6SrcTraffic)
-	v6DstIncrement := v6.Dst().Increment().SetStart(bgpRouteAttrs.advertisedRoutesv6Net).SetCount(int32(bgpGlobalAttrs.prefixLimit))
+	v6DstIncrement := v6.Dst().Increment().SetStart(bgpRouteAttrs.advertisedRoutesv6Net).SetCount(uint32(bgpGlobalAttrs.prefixLimit))
 	return v4DstIncrement, v6DstIncrement
 }
 
@@ -260,8 +259,13 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 			nv4.GetOrCreateTimers().RestartTime = ygot.Uint16(bgpGlobalAttrs.grRestartTime)
 			afisafi := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			afisafi.Enabled = ygot.Bool(true)
-			prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
-			prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
+			if deviations.BGPExplicitPrefixLimitReceived(dut) {
+				prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
+				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
+			} else {
+				prefixLimit := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
+				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
+			}
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv4.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
@@ -282,8 +286,13 @@ func bgpCreateNbr(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 			nv6.GetOrCreateTimers().RestartTime = ygot.Uint16(bgpGlobalAttrs.grRestartTime)
 			afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			afisafi6.Enabled = ygot.Bool(true)
-			prefixLimit6 := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
-			prefixLimit6.MaxPrefixes = ygot.Uint32(nbr.pfxLimit)
+			if deviations.BGPExplicitPrefixLimitReceived(dut) {
+				prefixLimit := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
+				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
+			} else {
+				prefixLimit := afisafi6.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
+				prefixLimit.MaxPrefixes = ygot.Uint32(uint32(nbr.pfxLimit))
+			}
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 				rpl := pgv6.GetOrCreateApplyPolicy()
 				rpl.ImportPolicy = []string{bgpGlobalAttrs.rplName}
@@ -355,20 +364,20 @@ func (tc *testCase) verifyBGPSessionState(t *testing.T, dut *ondatra.DUTDevice) 
 }
 
 // configureBGPRoutes configure BGP routes by modifying OTG BGP configuration and starting protocol.
-func configureBGPRoutes(t *testing.T, configElement *config, routeCount int32) {
+func configureBGPRoutes(t *testing.T, configElement *config, routeCount uint32) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 	// Modifying the OTG BGP routes configuration
 	configElement.bgpv4RR.Addresses().Clear()
 	configElement.bgpv4RR.Addresses().Add().
 		SetAddress(bgpRouteAttrs.advertisedRoutesv4Net).
-		SetPrefix(int32(bgpRouteAttrs.advertisedRoutesv4Prefix)).
-		SetCount(int32(routeCount))
+		SetPrefix(bgpRouteAttrs.advertisedRoutesv4Prefix).
+		SetCount(routeCount)
 	configElement.bgpv6RR.Addresses().Clear()
 	configElement.bgpv6RR.Addresses().Add().
 		SetAddress(bgpRouteAttrs.advertisedRoutesv6Net).
-		SetPrefix(int32(bgpRouteAttrs.advertisedRoutesv6Prefix)).
-		SetCount(int32(routeCount))
+		SetPrefix(bgpRouteAttrs.advertisedRoutesv6Prefix).
+		SetCount(routeCount)
 	// Modifying the OTG flows
 	configElement.flowV4Incr.SetCount(routeCount)
 	configElement.flowV6Incr.SetCount(routeCount)
@@ -424,13 +433,13 @@ type testCase struct {
 
 func (tc *testCase) run(t *testing.T, conf *config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Log(tc.desc)
-	configureBGPRoutes(t, conf, tc.numRoutes)
+	configureBGPRoutes(t, conf, uint32(tc.numRoutes))
 	// Configure BGP Timers
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Logf("Start DUT BGP Config")
 	dutBgpTimerConf := tc.bgpTimersConfig(t, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutBgpTimerConf)
-	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "Updated DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// Verify Port Status
 	t.Log(" Verifying port status")
 	t.Run("verifyPortsUp", func(t *testing.T) {
@@ -485,13 +494,12 @@ func TestBgpKeepAliveHoldTimerConfiguration(t *testing.T) {
 	configureDUT(t, dut)
 	t.Log("Configure RPL")
 	configureRoutePolicy(t, dut, bgpGlobalAttrs.rplName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	t.Logf("Start DUT BGP Config")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpCreateNbr(dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.GetConfig(t, dut, dutConfPath.Config()))
+	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	otgConfig := configureATE(t, ate)
