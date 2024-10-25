@@ -501,7 +501,6 @@ paths:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE:
 
-      /routing-policy/policy-definitions/policy-definition/statement/actions/config/reject-route:
       /routing-policy/policy-definitions/policy-definition/config:
       /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
       /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
