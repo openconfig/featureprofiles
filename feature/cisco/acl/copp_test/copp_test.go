@@ -245,13 +245,13 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
-					} 
+					}
 				})
 			}
 		})
@@ -386,7 +386,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
@@ -522,7 +522,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
@@ -597,8 +597,8 @@ func TestAclSetIpv4(t *testing.T) {
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	badCfg := configACLIPv4()
-	badCfg.AclEntry[10].Actions.ForwardingAction = 10 
-	
+	badCfg.AclEntry[10].Actions.ForwardingAction = 10
+
 	aclIpv4Local := configACLIPv4()
 
 	tests := []struct {
@@ -657,7 +657,7 @@ func TestAclSetIpv4(t *testing.T) {
 						t.Fatalf("get response is not equal to set value.\ngot:\n%s\nwant:\n%s\n", prettyPrintObj(resp), prettyPrintObj(tt.object))
 					}
 				})
-				
+
 				t.Run("Get (Compatibility)", func(t *testing.T) {
 					rawResponse, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
 						Path: []*gpb.Path{{
@@ -669,7 +669,7 @@ func TestAclSetIpv4(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
@@ -819,7 +819,7 @@ func TestAclSetIpv6(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
@@ -962,7 +962,7 @@ func TestAclSetTransport(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_STATE,
+						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
@@ -1092,7 +1092,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 				},
 				Type: oc.Acl_ACL_TYPE_ACL_IPV4,
 			},
-			aclSet:       aclSetIpv4,
+			aclSet: aclSetIpv4,
 		},
 	}
 
@@ -1148,13 +1148,13 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 								}},
 							},
 						}},
-						Type: gpb.GetRequest_CONFIG,
+						Type:     gpb.GetRequest_CONFIG,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
 					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
-					} 
+					}
 				})
 			}
 		})
@@ -1179,7 +1179,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 				res := gnmi.Update(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
 				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					want := tt.object 
+					want := tt.object
 					for seqId := range aclSetIpv4.AclEntry {
 						want.AppendAclEntry(&oc.System_ControlPlaneTraffic_Ingress_AclSet_AclEntry{
 							SequenceId: ygot.Uint32(seqId),
