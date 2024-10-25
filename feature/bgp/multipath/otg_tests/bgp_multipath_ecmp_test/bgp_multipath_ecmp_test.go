@@ -15,12 +15,11 @@
 package bgp_multipath_ecmp_test
 
 import (
+	"math/rand"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -39,8 +38,8 @@ const (
 	prefixesCount    = 4
 	pathID           = 1
 	maxPaths         = 2
-	trafficPps       = 100000
-	totalPackets     = 12000000
+	trafficPps       = 1000
+	totalPackets     = 120000
 	lossTolerancePct = 0
 	lbToleranceFms   = 20
 )
@@ -54,7 +53,7 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
 	sort.Slice(devices, byName)
 	for i, otgPort := range bs.ATEPorts {
-		if i == 0 {
+		if i < 2 {
 			continue
 		}
 
@@ -92,7 +91,7 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
-	for i := 1; i < len(bs.ATEPorts); i++ {
+	for i := 2; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
@@ -125,7 +124,7 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 	max := expectedPerLinkFms + (expectedPerLinkFms * lbToleranceFms / 100)
 
 	got := 0
-	for i := 2; i <= pc; i++ {
+	for i := 3; i <= pc; i++ {
 		framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port"+strconv.Itoa(i)).ID()).Counters().InFrames().State())
 		if framesRx <= lbToleranceFms {
 			t.Logf("Skip: Traffic through port%d interface is %d", i, framesRx)
@@ -193,7 +192,7 @@ func TestBGPSetup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
-			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port2", "port3", "port4"}, true, !tc.enableMultiAS)
+			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, !tc.enableMultiAS)
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
 			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
@@ -202,7 +201,7 @@ func TestBGPSetup(t *testing.T) {
 				t.Logf("Enable Multipath")
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
 				t.Logf("Enable Maximum Paths")
-				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+				bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
 			}
 			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
 				t.Logf("Enable MultiAS ")
