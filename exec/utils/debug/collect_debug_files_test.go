@@ -54,12 +54,35 @@ type Targets struct {
 
 var (
 	showTechList = []string{
-		"cef", "cef platform", "ofa", "insight", "rib", "fabric",
-		"service-layer", "mgbl", "spi", "hw-ac", "bundles", "cfgmgr",
-		"ctrace", "ethernet interfaces", "fabric link-include", "p4rt",
-		"interface", "optics", "pfi", "platform-fwd", "pbr", "rdsfs", "sysdb",
-		"telemetry model-driven", "routing isis", "routing bgp", "linux networking",
+		"cef",
+		"cef platform",
+		"ofa",
+		"insight",
+		"rib",
+		"fabric",
+		"service-layer",
+		"mgbl",
+		"spi",
+		"hw-ac",
+		"bundles",
+		"cfgmgr",
+		"ctrace",
+		"ethernet interfaces",
+		"fabric link-include",
+		"p4rt",
+		"interface",
+		"optics",
+		"pfi",
+		"platform-fwd",
+		"pbr",
+		"rdsfs",
+		"sysdb",
+		"telemetry model-driven",
+		"routing isis",
+		"routing bgp",
+		"linux networking",
 		"install",
+		"health",
 	}
 
 	pipedCmdList = []string{
@@ -75,6 +98,7 @@ var (
 		"show processes blocked location all",
 		"show redundancy",
 		"show reboot history detail",
+		"show insight database entry all",
 	}
 )
 
