@@ -469,6 +469,9 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		return
 	}
 
+	// Decode the core file in the background
+	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
+
 	// Check if 'buildid-db' file exists in the workspace directory
 	buildidDbPath := filepath.Join(workspace, "buildid-db")
 	var cmd *exec.Cmd
@@ -481,9 +484,6 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 		cmd = exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode %s 2>&1 %s && rm %s &", coreFile, decodeOutput, inProgressFile))
 		t.Logf("Using command without -l option")
 	}
-
-	// Decode the core file in the background
-	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
 
 	if err := cmd.Start(); err != nil {
 		t.Logf("Error starting decode command: %v\n", err)
