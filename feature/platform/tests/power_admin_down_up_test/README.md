@@ -21,11 +21,27 @@ ControllerCard.
         to POWER_ENABLED.
     *   Verify /components/component/state/oper-status returns to ACTIVE.
 
-## Config Parameter coverage
+## Minumum DUT platform requirement
+vRX
 
-*   /components/component/{fabric|linecard|controller-card}/config/power-admin-state
+## Config Parameter coverage
+    *   /components/component/{fabric|linecard|controller-card}/config/power-admin-state
 
 ## Telemetry Parameter coverage
+    *   /components/component/state/oper-status
+    *   /components/component/{fabric|linecard|controller-card}/state/power-admin-state
 
-*   /components/component/state/oper-status
-*   /components/component/{fabric|linecard|controller-card}/state/power-admin-state
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+/components/component/name:
+/components/component/state/name:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
