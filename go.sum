@@ -1596,6 +1596,8 @@ github.com/kevinburke/ssh_config v1.2.0 h1:x584FjTGwHzMwvHx18PXxbBVzfnxogHaAReU4
 github.com/kevinburke/ssh_config v1.2.0/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
+github.com/kjahed/gnoigo v0.0.0-20240612170055-67251b49bb5c h1:03+zKT2xnFbr/QXEeT3zprjts0O95fGIJOQ9edUyBtc=
+github.com/kjahed/gnoigo v0.0.0-20240612170055-67251b49bb5c/go.mod h1:XulioAAK5rXKnwkvXSuiDmx2yN9rjavh+FULtijRq3o=
 github.com/klauspost/asmfmt v1.3.2/go.mod h1:AG8TuvYojzulgDAMCnYn50l/5QV3Bs/tp6j0HLHbNSE=
 github.com/klauspost/compress v1.15.9/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
 github.com/klauspost/compress v1.17.2 h1:RlWWUY/Dr4fL8qk9YG7DTZ7PDgME2V4csBXA8L/ixi4=
@@ -1694,10 +1696,8 @@ github.com/openconfig/gnmi v0.11.0 h1:H7pLIb/o3xObu3+x0Fv9DCK7TH3FUh7mNwbYe+34hF
 github.com/openconfig/gnmi v0.11.0/go.mod h1:9oJSQPPCpNvfMRj8e4ZoLVAw4wL8HyxXbiDlyuexCGU=
 github.com/openconfig/gnmic/pkg/api v0.1.8 h1:3N9oFduU204Ta3g7r3dC4pcYdT/Dr7PrSC13Lyc7Ymc=
 github.com/openconfig/gnmic/pkg/api v0.1.8/go.mod h1:WbME6stT7zcYzQnCwQO42a23WgZRqFQVGVsp0C4FHtc=
-github.com/openconfig/gnoi v0.4.1 h1:sONbBqRBKjPT6voRAFqhTkUIatAajBp+YRLCWgyS4Dk=
-github.com/openconfig/gnoi v0.4.1/go.mod h1:KDWxp9YvfRNR5BbiLy6uQSzHUpGhAtO8C80XXKLqNqU=
-github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c h1:egPgBUBDn0XEtbz0CvE+Bh/I/3iTzwzMq5/rmtPJdQs=
-github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c/go.mod h1:Se/HklUcFVcCGB66khgYouiesLRPoa4UL1ovvmE/68k=
+github.com/openconfig/gnoi v0.5.0 h1:r0cbY1biqAcVLCUjsQjF3UZlU1yZAgbmW24dK0R53MI=
+github.com/openconfig/gnoi v0.5.0/go.mod h1:qjMeFac9SfHyedDWjUU/x4pozK4kvgBngdIO1MwjhCs=
 github.com/openconfig/gnpsi v0.3.2 h1:+bl1bXMOTrWOcGydWB+8wGgvxlgvL8Y6joAiWFU5sog=
 github.com/openconfig/gnpsi v0.3.2/go.mod h1:+Qj2PwadJ/jvGkH6H/A3XO9ZRKQRVtl3A30ubwz0M18=
 github.com/openconfig/gnsi v1.6.0 h1:PfQa9Gy0lH1sHqA2L3Gj2fEh2zPMbWxMmIRQv2Nk1T8=

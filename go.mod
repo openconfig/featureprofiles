@@ -27,7 +27,7 @@ require (
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.11.0
 	github.com/openconfig/gnmic/pkg/api v0.1.8
-	github.com/openconfig/gnoi v0.4.1
+	github.com/openconfig/gnoi v0.5.0
 	github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c
 	github.com/openconfig/gnsi v1.6.0
 	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
@@ -206,3 +206,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
+
+replace github.com/openconfig/gnoigo => github.com/kjahed/gnoigo v0.0.0-20240612170055-67251b49bb5c
