@@ -34,8 +34,8 @@ func (c *creds) RequireTransportSecurity() bool {
 }
 
 // NewClient builds a new containerz client.
-func NewClient(ctx context.Context, addr string) (*Client, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithPerRPCCredentials(&creds{"cisco", "cisco123"}))
+func NewClient(ctx context.Context, addr string, username string, password string) (*Client, error) {
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithPerRPCCredentials(&creds{username, password}))
 	if err != nil {
 		return nil, err
 	}
