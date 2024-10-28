@@ -89,7 +89,7 @@ const (
 	v4TunnelNHGSplitCount    = 2
 	v4ReEncapNHGCount        = 256
 	egressNHGSplitCount      = 16
-	vipLevelWeight           = 16
+	vipLevelWeight           = 3
 	transitLevelWeight       = 3
 	encapLevelWeight         = 3
 	flowCount                = 254
@@ -767,7 +767,6 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	// t.Log("Configure Fallback in Encap VRF")
 	t.Log("Configure DUT-TGEN Bundle Interface")
 	aggID1, aggID2 := configureDUTInterfaces(t, dut)
-	t.Log("WAIT")
 	t.Log("Configure DUT-PEER dynamic Bundle Interface")
 	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
 	bundleIntfList = maps.Keys(bundleMap)
@@ -995,7 +994,6 @@ func configureBaseProfile(t *testing.T) {
 		ate:  otg,
 		topo: topo,
 	}
-	// t.Log("wait")
 	t.Run("Verify default BGP traffic", func(t *testing.T) {
 		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
@@ -1005,5 +1003,4 @@ func configureBaseProfile(t *testing.T) {
 	// dutIPv4 := []string{"80.1.2.2", "80.1.3.2", "80.1.4.2", "80.1.4.2", "80.1.6.2", "80.1.7.2", "80.1.8.2", "80.1.9.2", "80.1.10.2", "80.1.11.2", "80.1.12.2", "80.1.13.2", "80.1.14.2", "80.1.15.2", "80.1.16.2", "80.1.17.2"}
 	t.Log("Program base gRIBI entries")
 	BaseGRIBIProgramming(t, dut, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
-	t.Log("WAIT")
 }

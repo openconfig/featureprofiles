@@ -51,9 +51,6 @@ const (
 	noMatchSrcIP              = "198.100.200.123"
 	decapMixPrefix1           = "192.51.128.0/22"
 	decapMixPrefix2           = "192.55.200.3/32"
-	src111TeDstFlowFilter     = "4043" // Egress tracking flow filter decimal value for first 4 bits of last octet of SA 198.51.100.111 + First 8 bits of first octet of TE DA 203.0.113.1
-	src222TeDstFlowFilter     = "3787" // Egress tracking flow filter decimal value for first 4 bits of last octet of SA 198.51.100.222 + First 8 bits of first octet of TE DA 203.0.113.100
-	noMatchSrcEncapDstFilter  = "2954" // Egress tracking flow filter decimal value for first 4 bits of last octet of SA 198.100.200.123 + First 8 bits of first octet of TE DA 138.0.11.8
 	IPinIPProtocolFieldOffset = 184
 	IPinIPProtocolFieldWidth  = 8
 	IPinIPpSrcDstIPOffset     = 236
