@@ -630,6 +630,9 @@ message Metadata {
     bool power_disable_enable_leaf_ref_validation = 226;
     // Device does not support ssh server counters.
     bool ssh_server_counters_unsupported = 227;
+    // True when the optical-channel operational-mode is unsupported.
+    // Juniper: b/355456031
+    bool operational_mode_unsupported = 228;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;

@@ -1186,3 +1186,8 @@ func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
 }
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}
