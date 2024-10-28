@@ -76,6 +76,7 @@ var (
 		ondatra.ARISTA:  2500000,
 		ondatra.JUNIPER: 2500000,
 		ondatra.NOKIA:   2600000,
+		ondatra.CISCO:   2500000,
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -290,7 +291,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	var otgBgpPeer gosnappi.BgpV6Peer
 	var otgIPv6Device gosnappi.DeviceIpv6
 	otgBgpPeer, otgIPv6Device, otgConfig = configureOTG(t, otg, dstIPList)
-
+	time.Sleep(30 * time.Second)
 	verifyBgpTelemetry(t, dut)
 
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -404,7 +405,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	var nbrIP = []string{atePort1.IPv6}
 	t.Logf("Verifying BGP state.")
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
+	time.Sleep(30 * time.Second)
 	for _, nbr := range nbrIP {
 		nbrPath := bgpPath.Neighbor(nbr)
 		// Get BGP adjacency state.
