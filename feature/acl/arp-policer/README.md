@@ -5,10 +5,9 @@
 
 This test ensures that DUT is able to police the ARP traffic on an interface.
 
-## Procedure
+## Testbed type
 Test environment setup
 
-### Topology
 Create the following connections:
 ```mermaid
 graph LR; 
@@ -35,7 +34,7 @@ From ATE1:Port1 to DUT:Port1
 	
  - Send 10kbps ARP requests from ATE1:Port1 to all usable IPs of IPv4Prefix/24
 
-### DP-1.17 
+## Procedure
 
 From ATE1:Port1 to DUT:Port1, send 10kbps Send ARP traffic i.e. ARP requests from ATE1:Port1 to all usable IPs of IPv4Prefix/24
 
