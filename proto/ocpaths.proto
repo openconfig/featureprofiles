@@ -26,6 +26,19 @@ package openconfig.ocpaths;
 
 option go_package = "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto;ocpaths";
 
+// Release is at minimum a timestamp for associated with an artifact.
+// By convention, itt is expected to uniquely identify and artifact
+message Release {
+  // the date/time of the relase
+  google.protobuf.Timestamp date = 1;
+
+  // the optional version of the release, typically numbers and dots.
+  optional string version = 2;
+
+  // the optional moniker (nickname) for the release
+  optional string name = 3;
+}
+
 // OCPaths is the complete list of all OpenConfig paths associated with some
 // entity (e.g. NOS, or path requirements list for a particular device role).
 message OCPaths {
@@ -62,6 +75,24 @@ message OCPath {
   // GNMIRpc describes expected (or supported) behavior for a particular
   // Openconfig path.
   GNMIRpc gnmi_rpc = 5;
+
+  // the date/time when this path became supported. not present if 
+  // unknown.
+  optional Release origination = 6;
+
+  // the date/time when this path became deprecated. not present for active
+  // paths. origination must be defined (not enforced). not mutually 
+  // exclusive with origination and removal.
+  optional Release deprecation = 7;
+
+  // the date/time when this path was removed from support. not present
+  // for active paths or if unknown. origination must be defined (not enforced).
+  // not mutually exclusive with deprecation.
+  optional Release removal = 8;
+
+  // the YANG model version that first defined this path. this is typically
+  // an OpenConfig consortium model number. not present if unknown.
+  optional string yangModelVersion = 9;  
 }
 
 // OCPathConstraint enumerates platform_types that are required to be supported
