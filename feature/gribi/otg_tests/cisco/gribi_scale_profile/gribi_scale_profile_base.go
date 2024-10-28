@@ -19,11 +19,12 @@ package gribi_scale_profile_test
 
 import (
 	"bytes"
-	// "context"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"strconv"
+	// "strings"
 	"testing"
 	"time"
 
@@ -31,18 +32,18 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra/netutil"
-	// "github.com/openconfig/gribigo/fluent"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	util "github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/exp/maps"
@@ -83,6 +84,14 @@ const (
 	v6DefaultSrc             = "20:20:20::20"
 	dutPeerBundleIPv4Range   = "88.1.1.0/24"
 	dutPeerBundleIPv6Range   = "2001:DB8:1::/64"
+	v4TunnelCount            = 1024
+	v4TunnelNHGCount         = 256
+	v4TunnelNHGSplitCount    = 2
+	v4ReEncapNHGCount        = 256
+	egressNHGSplitCount      = 16
+	vipLevelWeight           = 16
+	transitLevelWeight       = 3
+	encapLevelWeight         = 3
 	flowCount                = 254
 	ipTTL                    = uint32(255)
 	vrfDecap                 = "DECAP"
@@ -94,6 +103,8 @@ const (
 	encapVrfIPv6Prefix       = "2001:db8::138:0:11:0/126"
 	vrfEncapA                = "ENCAP_TE_VRF_A"
 	vrfEncapB                = "ENCAP_TE_VRF_B"
+	vrfEncapC                = "ENCAP_TE_VRF_C"
+	vrfEncapD                = "ENCAP_TE_VRF_D"
 	vrfDefault               = "DEFAULT"
 	ipv4PrefixLen            = 30
 	ipv6PrefixLen            = 126
@@ -165,6 +176,16 @@ var (
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
+	bundleIntfList  = []string{}
+	dutBundleIPMap  = map[string]BundleIPAddress{}
+	peerBundleIPMap = map[string]BundleIPAddress{}
+	gribiScaleVal   = ScaleParam{
+		V4TunnelCount:         v4TunnelCount,
+		V4TunnelNHGCount:      v4TunnelNHGCount,
+		V4TunnelNHGSplitCount: v4TunnelNHGSplitCount,
+		EgressNHGSplitCount:   egressNHGSplitCount,
+		V4ReEncapNHGCount:     v4ReEncapNHGCount,
+	}
 )
 
 type PbrRule struct {
@@ -199,11 +220,13 @@ type trafficflowAttr struct {
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut    *ondatra.DUTDevice
-	peer   *ondatra.DUTDevice
-	ate    *ondatra.ATEDevice
-	topo   gosnappi.Config
-	client *gribi.Client
+	ctx        context.Context
+	client     *fluent.GRIBIClient
+	dut        *ondatra.DUTDevice
+	peer       *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	topo       gosnappi.Config
+	electionID gribi.Uint128
 }
 
 // BundleIPAddress struct to store DUT-PEER bundle interface IPv4 and IPv6 address
@@ -449,85 +472,6 @@ func applyForwardingPolicy(t *testing.T, ingressPort, policyName string, deleteP
 		gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 	}
 }
-
-// Program Base gRIBI entries for Encap, Transit TE, Repaired VRF
-// func baseGribiProgramming(t *testing.T, dut *ondatra.DUTDevice) {
-// 	// Configure the gRIBI client
-// 	gribiClient := gribi.Client{
-// 		DUT:         dut,
-// 		FIBACK:      true,
-// 		Persistence: true,
-// 	}
-// 	if err := gribiClient.Start(t); err != nil {
-// 		t.Fatalf("gRIBI Connection can not be established")
-// 	}
-// 	gribiClient.BecomeLeader(t)
-// 	gribiClient.FlushAll(t)
-// 	t.Log("Adding ENCAP VRF gRIBI entries")
-// 	//Backup NHG with redirect/NH to default VRF
-// 	gribiClient.AddNH(t, 2000, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
-// 	gribiClient.AddNHG(t, 200, map[uint64]uint64{2000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	//gRIBI entries for Encap VRF prefixes
-// 	gribiClient.AddNH(t, 201, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: "203.0.113.1", VrfName: vrfTransit})
-// 	gribiClient.AddNH(t, 202, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: "203.10.113.2", VrfName: vrfTransit})
-// 	gribiClient.AddNHG(t, 10, map[uint64]uint64{201: 1, 202: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 200})
-// 	gribiClient.AddNHG(t, 11, map[uint64]uint64{201: 3, 202: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 200})
-// 	gribiClient.AddIPv4(t, encapVrfIPv4Prefix, 10, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, encapVrfIPv4Prefix, 11, vrfEncapB, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	t.Log("Adding TRANSIT TE VRF gRIBI entries")
-// 	//gRIBI entries for Encap NH Tunnel DA=203.0.113.1
-// 	gribiClient.AddNH(t, 10, otgPort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 11, otgPort3.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 2, map[uint64]uint64{10: 1, 11: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 100, otgPort4.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 3, map[uint64]uint64{100: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 1, "192.0.2.101", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 2, "192.0.2.102", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	//Backup NHG for this Encap Tunnel
-// 	gribiClient.AddNH(t, 1000, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc222, Dest: "203.0.113.100", VrfName: vrfRepaired})
-// 	gribiClient.AddNHG(t, 100, map[uint64]uint64{1000: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	gribiClient.AddNHG(t, 1, map[uint64]uint64{1: 1, 2: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 100})
-// 	gribiClient.AddIPv4(t, "203.0.113.1"+"/"+"32", 1, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, "192.0.2.101"+"/"+"32", 2, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, "192.0.2.102"+"/"+"32", 3, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	//gRIBI entries for Encap NH Tunnel DA=203.10.113.2
-// 	gribiClient.AddNH(t, 13, otgPort6.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 4, "192.0.2.104", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 5, map[uint64]uint64{13: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	//Backup NHG for this Encap Tunnel
-// 	gribiClient.AddNH(t, 1001, "DecapEncap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: ipv4OuterSrc222, Dest: "203.0.113.101", VrfName: vrfRepaired})
-// 	gribiClient.AddNHG(t, 101, map[uint64]uint64{1001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	gribiClient.AddNHG(t, 4, map[uint64]uint64{4: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 101})
-// 	gribiClient.AddIPv4(t, "192.0.2.104"+"/"+"32", 5, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, "203.10.113.2"+"/"+"32", 4, vrfTransit, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	t.Log("Adding REPAIRED VRF gRIBI entries")
-// 	//Decap Backup NHG
-// 	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	//gRIBI entries for Backup NHG DA prefix 203.0.113.100 in Repaired VRF for Encap tunnel DA=203.0.113.1
-// 	gribiClient.AddNH(t, 12, otgPort5.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 3, "192.0.2.103", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 8, map[uint64]uint64{12: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 7, map[uint64]uint64{3: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 201})
-// 	gribiClient.AddIPv4(t, "192.0.2.103"+"/"+"32", 8, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, "203.0.113.100"+"/"+"32", 7, vrfRepaired, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	//gRIBI entries for Backup NHG DA prefix 203.0.113.101 in Repaired VRF for Encap tunnel DA=203.10.113.2
-// 	gribiClient.AddNH(t, 14, otgPort7.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNH(t, 5, "192.0.2.105", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 155, map[uint64]uint64{14: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddNHG(t, 9, map[uint64]uint64{5: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 201})
-// 	gribiClient.AddIPv4(t, "192.0.2.105"+"/"+"32", 155, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-// 	gribiClient.AddIPv4(t, "203.0.113.101"+"/"+"32", 9, vrfRepaired, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
-// 	gribiClient.Close(t)
-// }
 
 // configureDUTBundle configures DUT side bundle for DUT-TGEN.
 func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, dutIntfAttr attrs.Attributes, aggPorts []*ondatra.Port, aggID string) {
@@ -826,7 +770,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice) {
 	t.Log("WAIT")
 	t.Log("Configure DUT-PEER dynamic Bundle Interface")
 	bundleMap := util.ConfigureBundleIntfDynamic(t, dut, peer, 4)
-	bundleIntfList := maps.Keys(bundleMap)
+	bundleIntfList = maps.Keys(bundleMap)
 	t.Log("Configure BGP for DUT-PEER")
 	configureDeviceBGP(t, dut, peer, bundleIntfList)
 	t.Log("Configure ISIS for DUT-PEER")
@@ -876,12 +820,24 @@ func configureBundleIPAddr(t *testing.T, dut, peer *ondatra.DUTDevice, bundlelis
 	return dutBundleIPMap, peerBundleIPMap
 }
 
+func getDUTBundleIPAddrList(deviceBundleMap map[string]BundleIPAddress) ([]string, []string) {
+	var v4list, v6list []string
+	for bun, addr := range deviceBundleMap {
+		if bun == bundleIntfList[0] {
+			continue
+		}
+		v4list = append(v4list, addr.ipv4)
+		v6list = append(v6list, addr.ipv6)
+	}
+	return v4list, v6list
+}
+
 func configureDeviceBGP(t *testing.T, dut, peer *ondatra.DUTDevice, bundList []string) {
-	dutBund, peerBund := configureBundleIPAddr(t, dut, peer, bundList)
+	dutBundleIPMap, peerBundleIPMap = configureBundleIPAddr(t, dut, peer, bundList)
 	configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	configureRoutePolicy(t, peer, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	dutBundlev4Addr := dutBund[bundList[0]]
-	peerBundlev4Addr := peerBund[bundList[0]]
+	dutBundlev4Addr := dutBundleIPMap[bundList[0]]
+	peerBundlev4Addr := peerBundleIPMap[bundList[0]]
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	peerConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpWithNbr(dutAS, dutBGPRID, &oc.NetworkInstance_Protocol_Bgp_Neighbor{
@@ -1015,14 +971,22 @@ func configureOTGBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, 
 		SetCount(count)
 }
 
+// awaitTimeout calls a fluent client Await, adding a timeout to the context.
+func awaitTimeout(ctx context.Context, c *fluent.GRIBIClient, t testing.TB, timeout time.Duration) error {
+	subctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return c.Await(subctx, t)
+}
+
 // configureBaseProfile configures DUT,PEER,TGEN baseconfig
 func configureBaseProfile(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	peer := ondatra.DUT(t, "peer")
 	otg := ondatra.ATE(t, "ate")
-	t.Log("Configure DUT & PEER devices")
+	// configureNetworkInstance(t, dut)
+	// t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer)
-	t.Log("Configure TGEN OTG")
+	// t.Log("Configure TGEN OTG")
 	topo := configureOTG(t, otg)
 	t.Log("OTG CONFIG: ", topo)
 	tcArgs := &testArgs{
@@ -1031,9 +995,15 @@ func configureBaseProfile(t *testing.T) {
 		ate:  otg,
 		topo: topo,
 	}
-	t.Log("wait")
+	// t.Log("wait")
 	t.Run("Verify default BGP traffic", func(t *testing.T) {
 		v4BGPFlow := defaultV4.createTrafficFlow("DefaultV4", dscpEncapNoMatch)
 		validateTrafficFlows(t, tcArgs, []gosnappi.Flow{v4BGPFlow}, false, true)
 	})
+	// t.Log("Get List of IPs on NH PEER for DUT-Peer Bundle interfaces")
+	peerNHIP, _ := getDUTBundleIPAddrList(peerBundleIPMap)
+	// dutIPv4 := []string{"80.1.2.2", "80.1.3.2", "80.1.4.2", "80.1.4.2", "80.1.6.2", "80.1.7.2", "80.1.8.2", "80.1.9.2", "80.1.10.2", "80.1.11.2", "80.1.12.2", "80.1.13.2", "80.1.14.2", "80.1.15.2", "80.1.16.2", "80.1.17.2"}
+	t.Log("Program base gRIBI entries")
+	BaseGRIBIProgramming(t, dut, peerNHIP, gribiScaleVal, 1, transitLevelWeight, vipLevelWeight)
+	t.Log("WAIT")
 }
