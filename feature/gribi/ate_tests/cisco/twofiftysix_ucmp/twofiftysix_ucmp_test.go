@@ -786,6 +786,9 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	ctx := context.Background()
 	baseconfig(t)
 	addStaticRoute(t, dut, "197.51.0.0/16", true)
+	args.top.StopProtocols(t)
+	time.Sleep(30 * time.Second)
+	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1515,6 +1518,9 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 	baseconfig(t)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 	configbasePBR(t, dut, vrfDecap, "ipv6", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
+	args.top.StopProtocols(t)
+	time.Sleep(30 * time.Second)
+	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2239,6 +2245,9 @@ func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
+	args.top.StopProtocols(t)
+	time.Sleep(30 * time.Second)
+	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
