@@ -230,7 +230,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-1.17"
+  id: "CPT-1.1"
   description: "ARP Policer"
   readme: ""
   exec: " "
