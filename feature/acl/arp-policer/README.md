@@ -1,9 +1,9 @@
 
-# Interface based ARP policer
+# Test-ID - CPT-1.1: Interface based ARP policer
 
 ## Summary
 
-This test ensures that NOS is able to police the ARP traffic on an interface.
+This test ensures that DUT is able to police the ARP traffic on an interface.
 
 ## Procedure
 Test environment setup
@@ -46,12 +46,22 @@ From ATE1:Port1 to DUT:Port1, send 10kbps Send ARP traffic i.e. ARP requests fro
 #### OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  # interface configuration
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  # ACL configuration and state
+  /acl/config
+  /acl/state
+  /acl/interfaces
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/input-interface
+  /acl/acl-sets
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config
+  
 rpcs:
   gnmi:
-    gNMI.Set: /acl/config
+    gNMI.Set:
       union_replace: true
-      replace: true
-    gNMI.Get: /acl/state
     gNMI.Subscribe:
       on_change: true
 ```
