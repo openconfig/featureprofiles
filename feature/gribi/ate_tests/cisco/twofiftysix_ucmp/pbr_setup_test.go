@@ -27,8 +27,8 @@ import (
 
 const (
 	vrfDecap             = "DECAP_TE_VRF"
-	vrfTransit           = "TE_VRF_111"
-	vrfRepaired          = "TE_VRF_222"
+	vrfRepair            = "REPAIR"
+	vrfRepaired          = "REPAIRED"
 	vrfEncapA            = "ENCAP_TE_VRF_A"
 	vrfEncapB            = "ENCAP_TE_VRF_B"
 	vrfDecapPostRepaired = "DECAP"
