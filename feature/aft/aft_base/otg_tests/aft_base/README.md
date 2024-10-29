@@ -113,9 +113,9 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Paths ##
 
-  /network-instances/network-instance/protocols/protocol/bgp/global:
+  /network-instances/network-instance/protocols/protocol/bgp:
   /network-instances/network-instance/protocols/protocol/isis:
-  /network-instances/network-instance/mpls/global/config:
+  
 
   ## State Paths ##
  
