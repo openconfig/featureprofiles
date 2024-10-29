@@ -26,9 +26,9 @@ bandwidth communities to routes based on a prefix match.
     * Advertise ipv4 and ipv6 prefixes to DUT port 1 using the following communities:
       * prefix-set-1 with 2 ipv4 and 2 ipv6 routes without communities.
       * prefix-set-2 with 2 ipv4 and 2 ipv6 routes with communities `[ "100:100" ]`.
-      * prefix-set-3 with 2 ipv4 and 2 ipv6 routes with extended communities `[ "link-bandwidth:23456:0" ]`.
+      * [TODO value change] prefix-set-3 with 2 ipv4 and 2 ipv6 routes with extended communities `[ "link-bandwidth:23456:1000" ]`.
   * Configure Send community knob to IBGP neigbour to advertise the communities to IBGP peer 
-    * use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community`.
+    * [TODO] use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community-type` leaf-list  with value `[STANDARD EXTENDED]`.
 * RT-7.5.1 - Validate bgp sessions and traffic
   * For IPv4 and IPv6 prefixes:
     * Observe received prefixes at ATE port-2.
@@ -48,18 +48,6 @@ bandwidth communities to routes based on a prefix match.
     * Create an ext-community-set named 'linkbw_any' with members as follows:
       * ext-community-member = [ "^link-bandwidth:.*:.*$" ]
 
-<!-- DEPRECATED
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named **'set_linkbw_0'** with the following `statements`
-    * statement[name='zero_linkbw']/
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_0'
-      * actions/bgp-actions/set-ext-community/config/options = ADD
-      * actions/bgp-actions/set-community/config/method = REFERENCE
-      * actions/config/policy-result = NEXT_STATEMENT
-    * statement[name='accept_all_routes']/
-     * actions/config/policy-result = ACCEPT_ROUTE
--->
-
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
     named **'not_match_100_set_linkbw_1M'** with the following `statements`
     * statement[name='1-megabit-match']/
@@ -71,7 +59,7 @@ bandwidth communities to routes based on a prefix match.
       * actions/config/policy-result = ACCEPT_ROUTE
 
   * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'match_100_set_linkbw_2G' with the following `statements`
+    named **'match_100_set_linkbw_2G'** with the following `statements`
     * statement[name='2-gigabit-match']/
       * conditions/bgp-conditions/match-community-set/config/community-set = 'regex_match_comm100'
       * conditions/bgp-conditions/match-community-set/config/match-set-options = ANY
@@ -90,21 +78,7 @@ bandwidth communities to routes based on a prefix match.
     * statement[name='accept_all_routes']/
       * actions/config/policy-result = ACCEPT_ROUTE
 
-<!-- DEPRECATED>
-  * Create a `/routing-policy/policy-definitions/policy-definition/policy-definition`
-    named 'match_linkbw_0_remove_and_set_localpref_5' with the following `statements`
-    * statement[name='match_and_remove_linkbw_any_0']/
-      * conditions/bgp-conditions/match-ext-community-set/config/community-set = 'linkbw_any_0'
-      * actions/bgp-actions/set-ext-community/reference/config/ext-community-set-refs = 'linkbw_any_0'
-      * actions/bgp-actions/set-ext-community/config/method = 'REFERENCE'
-      * actions/bgp-actions/set-ext-community/config/options = 'REMOVE'
-      * actions/bgp-actions/config/set-local-pref = 5
-      * actions/config/policy-result = NEXT_STATEMENT
-    * statement[name='accept_all_routes']/
-      * actions/config/policy-result = ACCEPT_ROUTE
--->
-
-  * For each policy-definition created, run a subtest (RT-7.8.3.x-<policy_name_here>) to
+  * For each policy-definition created, run a subtest (RT-7.5.3.x-<policy_name_here>-import) to
     * Use gnmi Set REPLACE option for:
       * `/routing-policy/policy-definitions` to configure the policy
       * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy`
@@ -119,32 +93,49 @@ bandwidth communities to routes based on a prefix match.
     * Expected community values for each policy
       |              | set_linkbw_0                           | not_match_100_set_linkbw_1M |
       | ------------ | -------------------------------------- | --------------------------- |
-      | prefix-set-1 | *DEPRECATED*                           | [none]                      |
+      | prefix-set-1 | *DEPRECATED*                           | [ "link-bandwidth:23456:1000000" ] |
       | prefix-set-2 | *DEPRECATED*                           | [ "100:100" ]               |
-      | prefix-set-3 | *DEPRECATED*                           | [ "link-bandwidth:23456:0" ]  |
+      | prefix-set-3 | *DEPRECATED*                           | [ "link-bandwidth:23456:1000000" ] |
 
       |              | match_100_set_linkbw_2G                           | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
       | ------------ | ------------------------------------------------- | ------------- | ---------------------------- |
       | prefix-set-1 | [ none ]                                          | [none]        | *DEPRECATED*                 |
       | prefix-set-2 | [  "100:100", "link-bandwidth:23456:2000000000" ] | [ "100:100" ] | *DEPRECATED*                 |
-      | prefix-set-3 | [ "link-bandwidth:23456:0" ]                      | [ none ]      | *DEPRECATED*                 |
+      | prefix-set-3 | [ "link-bandwidth:23456:1000" ]                   | [ none ]      | *DEPRECATED*                 |
 
       * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
         * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
         * The DUT evaluates a match for "regex_nomatch_as100".  This does not match because the regex pattern does not include the link-bandwidth community type.
         * Community linkbw_2G should be added.
-        
-<!-- Assotiated w/ deprecated policy
-      * LocalPreference
-        The prefixes of "prefix-set-3" matching policy "rm_any_zero_bw_set_LocPref_5" should have Local Preference value 5.\
-        All other prefixes, Local Preference should be none or 100 (standard default).\
-        For all other policies, Local Preference should be none or 100 (standard default)
 
-      * Regarding policy-definition "match_linkbw_0_remove_and_set_localpref_5"
-        * The link-bandwidth value 0 is interpreted by some implementation as weight "0" in WCMP group. In these implementations the remaining members distribute traffic according to weights.
-        * Other implementations consider value 0 invalid or not having link-bandwidth. These implementations create ECMP group with all routes including this one, and ignores link-bandwidth of all members - distribute traffic equally.
-        * This policy intention is to overcome this implementation difference, by deprefering (LocPref) routes with link-bandwidth 0 (only this routes) to prevent them becoming part of multipath, and remove link-bandwidth community so route will not be treated with WCMP behavior.
--->
+[TODO] For each policy-definition created, run a subtest (RT-7.5.4.x-<policy_name_here>-export) to
+
+  * Use gnmi Set REPLACE option to attach `allow_all` policy  using `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy` to apply the policy on the DUT bgp neighbor to the ATE port 1.
+  * Use gnmi Set REPLACE option for:
+    * `/routing-policy/policy-definitions` to configure the policy
+    * Use `/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy`
+        to apply the policy on the DUT bgp neighbor to the ATE port 2.
+  * Verify expected communities are present in ATE port 2.
+    * Mark test as passing if Global Administartive valuee (ASN) of link-bakdwidth extended community **send by DUT** is either `23456` or ASN of DUT. 
+
+   * Expected community values for each policy
+
+      |              | set_linkbw_0                           | not_match_100_set_linkbw_1M |
+      | ------------ | -------------------------------------- | --------------------------- |
+      | prefix-set-1 | *DEPRECATED*                           | [ "link-bandwidth:23456:1000000" ]  |
+      | prefix-set-2 | *DEPRECATED*                           | [ "100:100" ]               |
+      | prefix-set-3 | *DEPRECATED*                           | [ "link-bandwidth:23456:1000000" ]  |
+
+      |              | match_100_set_linkbw_2G                           | del_linkbw    | rm_any_zero_bw_set_LocPref_5 |
+      | ------------ | ------------------------------------------------- | ------------- | ---------------------------- |
+      | prefix-set-1 | [ none ]                                          | [none]        | *DEPRECATED*                 |
+      | prefix-set-2 | [  "100:100", "link-bandwidth:23456:2000000000" ] | [ "100:100" ] | *DEPRECATED*                 |
+      | prefix-set-3 | [ "link-bandwidth:23456:1000" ]                   | [ none ]      | *DEPRECATED*                 |
+
+  * Regarding prefix-set-3 and policy "nomatch_100_set_linkbw_2G"
+    * prefix-set-3 is advertised to the DUT with community "link-bandwidth:100:0" set.
+    * The DUT evaluates a match for "regex_nomatch_as100".  This does not match because the regex pattern does not include the link-bandwidth community type.
+    * Community linkbw_2G should be added.
 
 ## OpenConfig Path and RPC Coverage
 
@@ -154,7 +145,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Parameter Coverage
   ## Configuration to enable advertise communities to bgp peer
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/send-community-type:
   ## Policy for community-set configuration
   /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-set-name:
   /routing-policy/defined-sets/bgp-defined-sets/ext-community-sets/ext-community-set/config/ext-community-member:
