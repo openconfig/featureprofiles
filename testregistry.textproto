@@ -168,6 +168,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ssecurity/gnsi/certz/trust_bundle_rotation/README.md"
 }
 test: {
+  id: "CPT-1.1"
+  description: "ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "Credentialz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/credentialz/tests/README.md"
 }
@@ -227,12 +233,6 @@ test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
-  exec: " "
-}
-test: {
-  id: "CPT-1.1"
-  description: "ARP Policer"
-  readme: ""
   exec: " "
 }
 test: {
