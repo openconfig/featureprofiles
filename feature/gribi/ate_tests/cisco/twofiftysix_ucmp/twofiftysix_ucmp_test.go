@@ -1071,6 +1071,9 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
+	args.top.StopProtocols(t)
+	time.Sleep(30 * time.Second)
+	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1785,6 +1788,9 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
+	args.top.StopProtocols(t)
+	time.Sleep(30 * time.Second)
+	args.top.StartProtocols(t)
 	// Configure the gRIBI client
 	client := gribi.Client{
 		DUT:                   dut,
