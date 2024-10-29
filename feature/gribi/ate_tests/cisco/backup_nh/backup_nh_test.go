@@ -2300,10 +2300,6 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 	}
 
-	// if *ciscoFlags.GRIBITrafficCheck {
-	// 	args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
-	// }
-
 	// sleep while lc reloads
 	time.Sleep(10 * time.Minute)
 
