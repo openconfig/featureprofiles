@@ -114,7 +114,7 @@ paths:
   ## Config Paths ##
 
   /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
-  	/network-instances/network-instance/protocols/protocol/isis/global/config/instance-id:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/instance-id:
   
 
   ## State Paths ##
