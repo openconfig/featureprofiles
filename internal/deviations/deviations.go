@@ -1196,4 +1196,3 @@ func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
 }
-
