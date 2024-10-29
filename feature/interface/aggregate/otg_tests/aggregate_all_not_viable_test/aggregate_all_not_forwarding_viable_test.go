@@ -198,6 +198,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
@@ -221,6 +222,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:2], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[1:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -240,6 +242,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.1.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1], true)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -267,6 +270,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		if len(dut.Ports()) > 4 {
 			t.Logf("Bring Down Port2 and Port3")
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
@@ -313,6 +317,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		flows = append(flows, configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag3", agg3, []*aggPortData{agg1}, dutAggMac[2], ipRange[0]))
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
@@ -341,6 +346,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:2], false)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:(agg2.ateLagCount+1)], dutPortList[1:(agg2.ateLagCount+1)]); err != nil {
 			t.Fatal(err)
@@ -360,6 +366,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.2.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:(agg2.ateLagCount+1)], true)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:]); err != nil {
 			t.Fatal(err)
@@ -381,6 +388,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
+	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if len(dut.Ports()) > 4 {
@@ -713,6 +721,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	if deviations.ISISLevelEnabled(dut) {
+                isisLevel2.Enabled = ygot.Bool(true)
+        }
 
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
@@ -1069,7 +1080,6 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 // startTraffic start traffic on ATE
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
-	capturePktsBeforeTraffic(t, dut, dutPortList)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
