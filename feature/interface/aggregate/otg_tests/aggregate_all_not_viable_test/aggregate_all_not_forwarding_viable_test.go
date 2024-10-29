@@ -56,30 +56,35 @@ import (
 )
 
 const (
-	ipv4PLen          = 30
-	ipv6PLen          = 126
-	isisInstance      = "DEFAULT"
-	dutAreaAddress    = "49.0001"
-	ateAreaAddress    = "49"
-	dutSysID          = "1920.0000.2001"
-	asn               = 64501
-	acceptRoutePolicy = "PERMIT-ALL"
-	trafficPPS        = 2500000
-	srcTrafficV4      = "100.0.1.1"
-	srcTrafficV6      = "2002:db8:64:64::1"
-	dstTrafficV4      = "100.0.2.1"
-	dstTrafficV6      = "2003:db8:64:64::1"
-	v4Count           = 254
-	v6Count           = 100000000
-	lagTypeLACP       = oc.IfAggregate_AggregationType_LACP
-	ieee8023adLag     = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	ethernetCsmacd    = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	LAG1              = "lag1"
-	LAG2              = "lag2"
-	LAG3              = "lag3"
-	niTeVrf111        = "TE_VRF_111"
-	niRepairVrf       = "REPAIR_VRF"
-	pfx1AdvV4WithMask = "100.0.1.0/24"
+	ipv4PLen             = 30
+	ipv6PLen             = 126
+	isisInstance         = "DEFAULT"
+	dutAreaAddress       = "49.0001"
+	ateAreaAddress       = "49"
+	dutSysID             = "1920.0000.2001"
+	asn                  = 64501
+	acceptRoutePolicy    = "PERMIT-ALL"
+	trafficPPS           = 1000
+	srcTrafficV4         = "100.0.1.1"
+	srcTrafficV6         = "2002:db8:64:64::1"
+	dstTrafficV4         = "100.0.2.1"
+	dstTrafficV6         = "2003:db8:64:64::1"
+	v4Count              = 254
+	v6Count              = 100000000
+	lagTypeLACP          = oc.IfAggregate_AggregationType_LACP
+	ieee8023adLag        = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	ethernetCsmacd       = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	LAG1                 = "lag1"
+	LAG2                 = "lag2"
+	LAG3                 = "lag3"
+	niTeVrf111           = "TE_VRF_111"
+	niRepairVrf          = "REPAIR_VRF"
+	pfx1AdvV4WithMask    = "100.0.1.0/24"
+	niTEVRF222           = "TE_VRF_222"
+	ipv4OuterSrc111Addr  = "198.51.100.111"
+	gribiIPv4EntryVRF111 = "203.0.113.1"
+	ipv4OuterSrc222Addr  = "198.51.100.222"
+	gribiIPv4EntryVRF222 = "203.0.113.100"
 )
 
 type aggPortData struct {
@@ -163,6 +168,7 @@ var (
 	ipRange                    = []uint32{250, 500}
 
 	dutAggMac []string
+	vendor    ondatra.Vendor
 )
 
 func TestMain(m *testing.M) {
@@ -443,7 +449,7 @@ func setDUTInterfaceWithState(t testing.TB, dut *ondatra.DUTDevice, ports []*ond
 func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	c := &oc.Root{}
-	vrfs := []string{niTeVrf111, niRepairVrf}
+	vrfs := []string{niTeVrf111, niRepairVrf, niTEVRF222}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -455,6 +461,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	t.Helper()
+	vendor = dut.Vendor()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	if len(dut.Ports()) < 4 {
 		t.Fatalf("Testbed requires at least 4 ports, got %d", len(dut.Ports()))
@@ -462,7 +469,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	if len(dut.Ports()) > 4 {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
-		trafficDistributionWeights = []uint64{33, 67}
+		if vendor != ondatra.CISCO {
+			trafficDistributionWeights = []uint64{33, 67}
+		}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -1000,9 +1009,18 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 			WithIndex(uint64(1000)).WithIPAddress(agg3.ateIPv4),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(1000)).AddNextHop(uint64(1000), uint64(1)),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF222+"/32").WithNextHopGroup(1000),
 
-		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithPrefix(pfx4AdvV4.ip+"/24").WithNextHopGroup(1000))
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(2000).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF222).
+			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(2000).AddNextHop(2000, 1),
+
+		fluent.IPv4Entry().WithNetworkInstance(niRepairVrf).WithNextHopGroup(2000).WithPrefix(gribiIPv4EntryVRF111+"/32").
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
 
 	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1010,7 +1028,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 	chk.HasResult(t, tcArgs.client.Results(t),
 		fluent.OperationResult().
-			WithIPv4Operation(pfx4AdvV4.ip+"/24").
+			WithIPv4Operation(gribiIPv4EntryVRF111+"/32").
 			WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			AsResult(),
@@ -1021,7 +1039,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithIndex(uint64(1)).WithEncapsulateHeader(fluent.IPinIP).
-			WithIPinIP("100.0.1.254", "100.0.4.254").
+			WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF111).
 			WithNextHopNetworkInstance(niTeVrf111),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(1)).AddNextHop(uint64(1), uint64(1)),
@@ -1043,7 +1061,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		chk.IgnoreOperationID(),
 	)
 
-	// Programming AFT entries for encapped prefixes "100.0.4.254/32"
+	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
@@ -1051,7 +1069,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
 
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix("100.0.4.254/32").WithNextHopGroup(101).
+			WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
 	)
 
@@ -1061,7 +1079,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 	chk.HasResult(t, tcArgs.client.Results(t),
 		fluent.OperationResult().
-			WithIPv4Operation("100.0.4.254/32").
+			WithIPv4Operation(gribiIPv4EntryVRF111+"/32").
 			WithOperationType(constants.Add).
 			WithProgrammingResult(fluent.InstalledInFIB).
 			AsResult(),
@@ -1107,14 +1125,12 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
 		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
 		lostPkt := txPkts - rxPkts
-		t.Logf("lostPkt - %v", lostPkt)
+
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
-				t.Logf("status - %v and got - %v", status, got)
 				return false
 			}
 		} else if got := (lostPkt * 100 / txPkts); got > 0 {
-			t.Logf("status - %v and got - %v", status, got)
 			return false
 		}
 	} else {
@@ -1123,10 +1139,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
 			lostPkt := txPkts - rxPkts
 
-			t.Logf("flow.Name() - %v", flow.Name())
-			t.Logf("lostPkt - %v", lostPkt)
 			if got := (lostPkt * 100 / txPkts); got > 0 {
-				t.Logf("status - %v and got - %v", status, got)
 				return false
 			}
 		}
