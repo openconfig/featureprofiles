@@ -158,7 +158,7 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string) {
+func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string,transModeOnATE string) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
 	if deviations.BgpSessionStateIdleInPassiveMode(dut) {
