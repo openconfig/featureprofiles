@@ -1,10 +1,8 @@
-# Interface based ARP policer
+# TEST - DP-1.18 Flow_matching_using_ACL_and_Portmirror
 
 ## Summary
 
-This test ensures that NOS is able to match the packets using egress ACL and to port mirror or Redirect the packets.
-
-## Procedure
+This test ensures that DUT is able to match the packets using egress ACL and to port mirror or Redirect the packets.
 
 ### Topology
 Create the following connections:
@@ -38,7 +36,7 @@ A2 <-- IPv4/IPV6 --> B2;
  - As DUT-Port3 and DUT-Port4 are physically looped , DUT-Port4 should do the native IPV4 & IPV6 lookup and forward the packet towards ATE-Port1 
 
        
-### DP-1.18 : Flow matching using ACL and portmirror/redirect 
+### Procedure for DP-1.18 : Flow matching using ACL and portmirror/redirect 
 
 DUT should receive IPV4 & IPV6 packets wit hMPLSoverGUE header , where the GUE decap is done and mpls label pop is done on the DUT , the native IPV4 and IPV6 packets are sent to the egress port which matches a ACL , this ACL performs port mirroring or redirect to an interface which is physically looped, as the destination IPV4 and IPV6 addresses belong to the sender ATE , the packets are routed towards the sender ATE. Need to send line rate packets from IXIA.
 
