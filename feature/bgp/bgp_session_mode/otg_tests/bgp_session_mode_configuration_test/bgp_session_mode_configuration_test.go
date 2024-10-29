@@ -158,10 +158,15 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string) {
+func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp_Neighbor_SessionState, transMode string, transModeOnATE string) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbrPath := statePath.Neighbor(ateAttrs.IPv4)
-
+	if deviations.BgpSessionStateIdleInPassiveMode(dut) {
+		if transModeOnATE == nbrLvlPassive || transModeOnATE == peerLvlPassive {
+			t.Logf("BGP session state idle is supported in passive mode, transMode: %s, transModeOnATE: %s", transMode, transModeOnATE)
+			wantState = oc.Bgp_Neighbor_SessionState_IDLE
+		}
+	}
 	// Get BGP adjacency state
 	t.Log("Checking BGP neighbor to state...")
 	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -174,6 +179,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantState oc.E_Bgp
 	}
 	status := gnmi.Get(t, dut, nbrPath.SessionState().State())
 	t.Logf("BGP adjacency for %s: %s", ateAttrs.IPv4, status)
+	t.Logf("wantState: %s, status: %s", wantState, status)
 	if status != wantState {
 		t.Errorf("BGP peer %s status got %d, want %d", ateAttrs.IPv4, status, wantState)
 	}
@@ -325,7 +331,7 @@ func TestBgpSessionModeConfiguration(t *testing.T) {
 			ate.OTG().StartProtocols(t)
 
 			t.Logf("Verify BGP telemetry")
-			verifyBgpTelemetry(t, dut, tc.wantBGPState, tc.dutTransportMode)
+			verifyBgpTelemetry(t, dut, tc.wantBGPState, tc.dutTransportMode, tc.otgTransportMode)
 
 			t.Logf("Verify BGP telemetry on otg")
 			verifyOTGBGPTelemetry(t, ate.OTG(), tc.ateConf)
