@@ -633,6 +633,9 @@ message Metadata {
     // True when the optical-channel operational-mode is unsupported.
     // Juniper: b/355456031
     bool operational_mode_unsupported = 228;
+    // BGP session state idle is supported in passive mode instead of active
+    // Cisco: b/376021545
+    bool bgp_session_state_idle_in_passive_mode = 229;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
