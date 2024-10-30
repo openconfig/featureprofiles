@@ -50,7 +50,7 @@ Use DP-2.1 test environment setup.
             "conditions": {
               "next-hop-group": {
                 "config": {
-                  # new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
+                  # TODO: new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
                   "name": "nhg_A1"
                 }
               }
@@ -297,9 +297,6 @@ entries.  Note the next-hop-groups here include a `next_hop_group_id` field
 which matches the
 `/qos/classifiers/classifier/condition/next-hop-group/config/name` leaf.
 
-* [TODO: OC AFT Encap PR in progress](https://github.com/openconfig/public/pull/1153)
-* [TODO: updated gRIBI v1 protobuf defintions](https://github.com/openconfig/gribi/blob/master/v1/proto/README.md)
-
 ```proto
 #
 # aft entries used for network instance "NI_A"
@@ -328,7 +325,7 @@ NH#101 -> {
       }
     }
   }
-  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  next_hop_group_id: "nhg_A"  # TODO: new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
   network_instance: "DEFAULT"
 }
 
@@ -358,7 +355,7 @@ NH#201 -> {
       }
     }
   }
-  next_hop_group_id: "nhg_B"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  next_hop_group_id: "nhg_B"  # TODO: new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id
   network_instance: "DEFAULT"
 }
 ```
