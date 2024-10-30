@@ -4,6 +4,10 @@
 
 IPv4/IPv6 prefix counters
 
+## Testbed
+
+* atedut_12.binding
+
 ## Test Setup
 
 ### Generate DUT and ATE Configuration
@@ -17,24 +21,24 @@ Establish eBGP sessions between ATE:port1 and DUT:port1.
 *   Configure eBGP over the interface ip.
 *   Advertise 1000 ipv4,ipv6 prefixes from ATE port1 observe received prefixes at DUT.
 
-## Procedure
+### Procedure
 
 *   Gnmi set with REPLACE option to push the configuration DUT.
 *   ATE configuration must be pushed.
 
-## verifications
+### verifications
 
 *   BGP routes advertised from ATE:port1 must have 1 nexthop.
 *   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
-*   Verify afts prefix entries using the following paths with in a period of 30s.
+*   Verify afts prefix entries using the following paths with in a timeout of 30s.
 
 /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix,
 /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix
 
 
 
-## AFT-2.1.1: AFT Prefix Counters ipv4 packets forwarded, IS-IS route.
+## AFT-2.1.1: AFT Prefix Counters ipv4 packets forwarded, ipv4 octets forwarded IS-IS route.
 
 ### Procedure
 
@@ -44,37 +48,10 @@ From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by IS-IS.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv4 forwarded packet counter entries using the path mentioned in the paths section of this test plan.
+*  The difference between final and initial value must match with the counter value in ATE then the test is marked as passed.
+*  Verify afts ipv4 forwarded packets and ipv4 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
 
-## AFT-2.1.2: AFT Prefix Counters ipv4 packets forwarded, BGP route.
-
-### Procedure
-
-From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by BGP.
-
-### Verifications
-
-*  Before the traffic measure the initial counter value.
-*  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv4 forwarded packet counter entries using the path mentioned in the paths section of this test plan.
-
-## AFT-2.1.3: AFT Prefix Counters ipv4 octets forwarded, IS-IS route.
-
-### Procedure
-
-From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by IS-IS.
-
-### Verifications
-
-*  Before the traffic measure the initial counter value.
-*  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv4 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
-
-
-## AFT-2.1.4: AFT Prefix Counters ipv4 octets forwarded, BGP route.
+## AFT-2.1.2: AFT Prefix Counters ipv4 packets forwarded, ipv4 octets forwarded BGP route.
 
 ### Procedure
 
@@ -84,38 +61,11 @@ From ATE:port2 send 10000 packets to one of the ipv4 prefix advertise by BGP.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv4 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
-
-## AFT-2.1.5: AFT Prefix Counters ipv6 packets forwarded, IS-IS route.
-
-### Procedure
-
-From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by IS-IS.
-
-### Verifications
-
-*  Before the traffic measure the initial counter value.
-*  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv6 forwarded packet counter entries using the path mentioned in the paths section of this test plan.
-
-## AFT-2.1.6: AFT Prefix Counters ipv6 packets forwarded, BGP route.
-
-### Procedure
-
-From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
-
-### Verifications
-
-*  Before the traffic measure the initial counter value.
-*  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv6 forwarded packet counter entries using the path mentioned in the paths section of this test plan.
+*  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
+*  Verify afts ipv4 forwarded packets and ipv4 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
 
 
-
-## AFT-2.1.7: AFT Prefix Counters ipv6 octets forwarded, IS-IS route.
+## AFT-2.1.3: AFT Prefix Counters ipv6 packets forwarded, ipv6 octets forwarded IS-IS route.
 
 ### Procedure
 
@@ -125,11 +75,10 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by IS-IS.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv6 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
+*  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
+*  Verify afts ipv6 forwarded packets and ipv6 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
 
-
-## AFT-2.1.8: AFT Prefix Counters ipv6 octets forwarded, BGP route.
+## AFT-2.1.4: AFT Prefix Counters ipv6 packets forwarded, ipv6 octets forwarded BGP route.
 
 ### Procedure
 
@@ -139,10 +88,10 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
-*  Verify afts ipv6 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
+*  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
+*  Verify afts ipv6 forwarded packets and ipv6 forwarded octets counter entries using the path mentioned in the paths section of this test plan.
 
-## AFT-2.1.9: AFT Prefix Counters withdraw the ipv4 prefix.
+## AFT-2.1.5: AFT Prefix Counters withdraw the ipv4 prefix.
 
 ### Procedure
 
@@ -152,10 +101,10 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 
 ### Verifications
 
-* The counters must not send incremental value as the prefix is not present in RIB/FIB.
+* The counters must not send incremental value as the prefix is not present in RIB/FIB. The test fails if the counter shows incremental values.
 * Verify afts ipv4 forwarded packet counter entries using the path mentioned in the paths section of this test plan.
 
-## AFT-2.1.10: AFT Prefix Counters add the ipv4 prefix back.
+## AFT-2.1.6: AFT Prefix Counters add the ipv4 prefix back.
 
 ### Procedure
 
@@ -167,10 +116,10 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
+*  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
 *  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
-## AFT-2.1.11: AFT Prefix Counters withdraw the ipv6 prefix.
+## AFT-2.1.7: AFT Prefix Counters withdraw the ipv6 prefix.
 
 ### Procedure
 
@@ -180,10 +129,10 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 
 ### Verifications
 
-* The counters must not send incremental value as the prefix is not present in RIB/FIB.
+* The counters must not send incremental value as the prefix is not present in RIB/FIB. The test fails if the counter shows incremental values.
 *  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
-## AFT-2.1.12: AFT Prefix Counters add the ipv6 prefix back.
+## AFT-2.1.8: AFT Prefix Counters add the ipv6 prefix back.
 
 ### Procedure
 
@@ -195,7 +144,7 @@ From ATE:port2 send 10000 packets to one of the ipv6 prefix advertise by BGP.
 
 *  Before the traffic measure the initial counter value.
 *  After the traffic measure the final counter value.
-*  The difference between final and initial value must match with the counter value in ATE.
+*  The difference between final and initial value must match with the counter value in ATE, then the test is marked as passed.
 *  Verify afts counter entries using the path mentioned in the paths section of this test plan.
 
 ## OpenConfig Path and RPC Coverage
