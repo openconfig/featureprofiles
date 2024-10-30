@@ -1749,6 +1749,8 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
 
 		testTrafficmin(t, args.ate, args.top, 2, true, true, false)
+		testTrafficWeight(t, args.ate, args.top, 2, true, 8)
+
 		testTrafficmin(t, args.ate, args.top, 2, true, false, true)
 	})
 
@@ -2001,7 +2003,10 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	}
 	testTrafficWeight(t, args.ate, args.top, 2, true, 5)
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
+
 		testTrafficmin(t, args.ate, args.top, 2, true, true, false)
+		testTrafficWeight(t, args.ate, args.top, 2, true, 8)
+
 		testTrafficmin(t, args.ate, args.top, 2, true, false, true)
 	})
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
