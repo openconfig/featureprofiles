@@ -26,6 +26,8 @@ package openconfig.ocpaths;
 
 option go_package = "github.com/openconfig/featureprofiles/proto/ocpaths_go_proto;ocpaths";
 
+import "google/protobuf/timestamp.proto";
+
 // Release is at minimum a timestamp associated with an artifact.
 // By convention, it is expected to uniquely identify an artifact
 message Release {
