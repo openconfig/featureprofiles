@@ -90,8 +90,9 @@ message OCPath {
   // (not enforced). not mutually exclusive with deprecation.
   optional Release removal = 8;
 
-  // the YANG model version that first defined this path. this is typically
-  // an OpenConfig consortium model number. not present if unknown.
+  // the public YANG model version that first defined this path, making it available
+  // for support by a vendor. this is typically an OpenConfig consortium model number.
+  // not present if unknown.
   optional string yangModelVersion = 9;  
 }
 
