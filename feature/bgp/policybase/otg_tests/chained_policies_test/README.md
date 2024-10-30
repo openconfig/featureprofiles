@@ -98,8 +98,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v4``` configure a statement with the name ```asp-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v4``` statement ```asp-statement-v4``` set AS-PATH prepend to the ASN of the DUT
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
@@ -195,8 +193,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```asp-policy-v6``` configure a statement with the name ```asp-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to prepend AS
 *   For routing-policy ```asp-policy-v6``` statement ```asp-statement-v6``` set AS-PATH prepend to the ASN of the DUT
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
@@ -260,11 +256,15 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
 
-## Protocol/RPC Parameter Coverage
 
-* gNMI
-  * Subscribe (ONCE)
-  * Set (REPLACE)
+## OpenConfig Path and RPC Coverage
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```
 
 ## Required DUT platform
 

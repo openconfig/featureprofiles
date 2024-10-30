@@ -14,14 +14,7 @@ platform_exceptions:  {
     transceiver_thresholds_unsupported:  true
   }
 }
-platform_exceptions:  {
-  platform:  {
-    vendor:  JUNIPER
-  }
-  deviations:  {
-    transceiver_thresholds_unsupported:  true
-  }
-}
+
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
@@ -37,6 +30,5 @@ platform_exceptions:  {
   deviations:  {
     transceiver_thresholds_unsupported:  true
     temperature_sensor_check: true
-    use_transceiver_name: true
   }
 }

@@ -27,27 +27,26 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
+	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/binding/ixweb"
+	opb "github.com/openconfig/ondatra/proto"
+	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	grpb "github.com/openconfig/gribi/v1/proto/service"
-	opb "github.com/openconfig/ondatra/proto"
-	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
 var (
 	// To be stubbed out by unit tests.
-	grpcDialContextFn = grpc.DialContext
+	grpcDialContextFn = grpc.NewClient
 	gosnappiNewAPIFn  = gosnappi.NewApi
 )
 
@@ -90,9 +89,9 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	if b.resv != nil {
 		return nil, fmt.Errorf("only one reservation is allowed")
 	}
-	resv, errs := reservation(tb, b.r)
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
+	resv, err := reservation(ctx, tb, b.r)
+	if err != nil {
+		return nil, err
 	}
 	resv.ID = resvID
 	b.resv = resv
@@ -275,11 +274,15 @@ func (a *staticATE) DialIxNetwork(ctx context.Context) (*binding.IxNetwork, erro
 	return &binding.IxNetwork{Session: ixs}, nil
 }
 
-func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
+func reservation(ctx context.Context, tb *opb.Testbed, r resolver) (*binding.Reservation, error) {
 	if r.Dynamic {
-		return dynamicReservation(tb, r)
+		return dynamicReservation(ctx, tb, r)
 	}
+	resv, errs := staticReservation(tb, r)
+	return resv, errors.Join(errs...)
+}
 
+func staticReservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
 	var errs []error
 
 	bduts := make(map[string]*bindpb.Device)
@@ -298,10 +301,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
 			errs = append(errs, fmt.Errorf("missing binding for DUT %q", tdut.Id))
 			continue
 		}
-		d, dimErrs := dims(tdut, bdut)
+		dims, dimErrs := staticDims(tdut, bdut)
 		errs = append(errs, dimErrs...)
 		duts[tdut.Id] = &staticDUT{
-			AbstractDUT: &binding.AbstractDUT{Dims: d},
+			AbstractDUT: &binding.AbstractDUT{Dims: dims},
 			r:           r,
 			dev:         bdut,
 		}
@@ -314,10 +317,10 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
 			errs = append(errs, fmt.Errorf("missing binding for ATE %q", tate.Id))
 			continue
 		}
-		d, dimErrs := dims(tate, bate)
+		dims, dimErrs := staticDims(tate, bate)
 		errs = append(errs, dimErrs...)
 		ates[tate.Id] = &staticATE{
-			AbstractATE: &binding.AbstractATE{Dims: d},
+			AbstractATE: &binding.AbstractATE{Dims: dims},
 			r:           r,
 			dev:         bate,
 		}
@@ -329,11 +332,7 @@ func reservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
 	}, errs
 }
 
-func dynamicReservation(tb *opb.Testbed, r resolver) (*binding.Reservation, []error) {
-	return nil, []error{fmt.Errorf("dynamic solving not implemented yet")}
-}
-
-func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
+func staticDims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 	var errs []error
 
 	// Check that the bound device matches the testbed device.
@@ -347,7 +346,7 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 		errs = append(errs, fmt.Errorf("binding software version %v and testbed software version %v do not match", bd.SoftwareVersion, tdSoftwareVersion))
 	}
 
-	portmap, portErrs := ports(td.Ports, bd)
+	portmap, portErrs := staticPorts(td.Ports, bd)
 	errs = append(errs, portErrs...)
 
 	return &binding.Dims{
@@ -359,7 +358,7 @@ func dims(td *opb.Device, bd *bindpb.Device) (*binding.Dims, []error) {
 	}, errs
 }
 
-func ports(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
+func staticPorts(tports []*opb.Port, bd *bindpb.Device) (map[string]*binding.Port, []error) {
 	var errs []error
 
 	bports := make(map[string]*bindpb.Port)
@@ -474,7 +473,7 @@ func dialConn(ctx context.Context, dev introspect.Introspector, svc introspect.S
 }
 
 func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
-	opts := []grpc.DialOption{grpc.WithBlock()}
+	opts := []grpc.DialOption{grpc.WithDisableRetry()}
 	switch {
 	case bopts.Insecure:
 		tc := insecure.NewCredentials()
@@ -524,10 +523,10 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
-				ctx, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
+				_, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
-			return grpcDialContextFn(ctx, target, opts...)
+			return grpcDialContextFn(target, opts...)
 		},
 		DialTarget: bopts.Target,
 		DialOpts:   opts,

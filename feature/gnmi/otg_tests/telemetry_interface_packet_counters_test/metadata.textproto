@@ -13,6 +13,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     interface_counters_from_container: true
     subinterface_packet_counters_missing: true
+    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {
