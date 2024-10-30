@@ -168,7 +168,6 @@ var (
 	ipRange                    = []uint32{250, 500}
 
 	dutAggMac []string
-	vendor    ondatra.Vendor
 )
 
 func TestMain(m *testing.M) {
@@ -461,7 +460,6 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	t.Helper()
-	vendor = dut.Vendor()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	if len(dut.Ports()) < 4 {
 		t.Fatalf("Testbed requires at least 4 ports, got %d", len(dut.Ports()))
@@ -469,7 +467,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	if len(dut.Ports()) > 4 {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
-		if vendor != ondatra.CISCO {
+		if dut.Vendor() != ondatra.CISCO {
 			trafficDistributionWeights = []uint64{33, 67}
 		}
 	}
