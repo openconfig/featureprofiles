@@ -46,7 +46,7 @@ const (
 type UsersMap map[string]authz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "spiffe://test-abc.foo.bar/xyz/cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
+	testInfraID = flag.String("test_infra_id", "*/cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
 	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
 	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	policyMap   map[string]authz.AuthorizationPolicy
@@ -205,7 +205,6 @@ func TestAuthz1(t *testing.T) {
 	t.Run("Authz-1.1, - Test empty source", func(t *testing.T) {
 		// Pre-Test Section
 		statusmsg, policyBefore := authz.Get(t, dut)
-		//t.Logf("Message for first authz get %s", msg)
 		if statusmsg == nil {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		} else {
