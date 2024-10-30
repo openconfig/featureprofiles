@@ -1196,6 +1196,7 @@ func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
 }
+
 // GnmiGetRequiresConfigType return true if Gnmi Get is not supported without type config
 func GnmiGetRequiresConfigType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnmiGetRequiresConfigType()
