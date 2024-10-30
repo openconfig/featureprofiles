@@ -1196,3 +1196,8 @@ func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
 }
+
+// EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path.
+func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
+}
