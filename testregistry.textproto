@@ -168,6 +168,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ssecurity/gnsi/certz/trust_bundle_rotation/README.md"
 }
 test: {
+  id: "CPT-1.1"
+  description: "ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "Credentialz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/credentialz/tests/README.md"
 }
@@ -230,8 +236,8 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-1.17"
-  description: "ARP Policer"
+  id: "DP-1.18"
+  description: "Flow matching using ACL and to Port Mirror/Redirect"
   readme: ""
   exec: " "
 }
