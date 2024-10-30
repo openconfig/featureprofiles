@@ -254,11 +254,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e.AggregateId = ygot.String(aggID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 			if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-				s1 := i.GetOrCreateSubinterface(1)
+				s1 := agg.GetOrCreateSubinterface(1)
 				s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
 				if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 					s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
-					i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+					agg.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
 				}
 			}
 			if deviations.InterfaceEnabled(dut) {
