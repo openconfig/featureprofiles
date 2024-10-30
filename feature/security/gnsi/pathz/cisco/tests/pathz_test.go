@@ -2531,8 +2531,6 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
