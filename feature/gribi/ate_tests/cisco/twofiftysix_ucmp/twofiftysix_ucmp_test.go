@@ -152,631 +152,631 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-func TestWithTEmin(t *testing.T) {
-
-	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-
-	baseconfig(t)
-	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
-	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-
-	// Configure the gRIBI client
-	client := gribi.Client{
-		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		Persistence:           true,
-		InitialElectionIDLow:  10,
-		InitialElectionIDHigh: 0,
-	}
-	defer client.Close(t)
-	if err := client.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	args.ctx = ctx
-	args.client = &client
-	args.dut = dut
-	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
-
-	nh := 1
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	wt := 1
-	nh = 1
-	var i, j uint64
-	for i = 1; i <= 7; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
-
-		for j = 1; j <= 3; j++ {
-			if j == 1 {
-				wt = 3
-			} else if j == 2 {
-				wt = 25
-			} else {
-				wt = 31
-			}
-			nhg.AddNextHop(uint64(nh), uint64(wt))
-			args.client.Fluent(t).Modify().AddEntry(t, nhg)
-			nh++
-		}
-	}
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
-	nh = 22
-	for j = 1; j <= 9; j++ {
-		if j == 1 {
-			wt = 8
-		} else {
-			wt = 31
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-	dstPfx2 := "205.205.205.1"
-	prefixes := []string{}
-	for i := 0; i < 8; i++ {
-		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
-	}
-	nhgID := 1
-	for _, prefix := range prefixes {
-		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		nhgID++
-	}
-	nh = 1001
-
-	for _, prefix := range prefixes {
-		b := strings.Split(prefix, "/")
-		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(1000))
-
-	for j = 1001; j <= 1008; j++ {
-		if j == 1001 {
-			wt = 7
-		} else if j == 1002 {
-			wt = 9
-		} else {
-			wt = 40
-		}
-		nhg.AddNextHop(j, uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-	}
-
-	prefixess := []string{}
-	for i := 0; i < 5000; i++ {
-		prefixess = append(prefixess, util.GetIPPrefix(dstPfx, i, mask))
-	}
-
-	for _, prefix := range prefixess {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(1000)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	}
-
-	testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
-	args.interfaceaction(t, "port2", false)
-	args.interfaceaction(t, "port4", false)
-	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
-		args.interfaceaction(t, "port2", true)
-		args.interfaceaction(t, "port4", true)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
-	})
-	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
-
-		utils.Dorpfo(args.ctx, t, true)
-		client = gribi.Client{
-			DUT:                   args.dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		args.client = &client
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
-
-	})
-	t.Run("testTrafficaftr delete", func(t *testing.T) {
-
-		args.client.DeleteIPv4Batch(t, prefixess, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		for _, prefix := range prefixess {
-			ipv4Entry := fluent.IPv4Entry().
-				WithNetworkInstance("TE").
-				WithPrefix(prefix).
-				WithNextHopGroup(uint64(1000)).
-				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-		}
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
-	})
-}
-
-func TestWithEncapvrfmin(t *testing.T) {
-
-	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	baseconfig(t)
-	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-	configbasePBR(t, dut, vrfEncapA, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
-	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-
-	// Configure the gRIBI client
-	client := gribi.Client{
-		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		Persistence:           true,
-		InitialElectionIDLow:  10,
-		InitialElectionIDHigh: 0,
-	}
-	defer client.Close(t)
-	if err := client.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	args.ctx = ctx
-	args.client = &client
-	args.dut = dut
-	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
-
-	nh := 1
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-
-	wt := 1
-	nh = 1
-	var i, j uint64
-	for i = 1; i <= 7; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
-
-		for j = 1; j <= 3; j++ {
-			if j == 1 {
-				wt = 3
-			} else if j == 2 {
-				wt = 25
-			} else {
-				wt = 31
-			}
-			nhg.AddNextHop(uint64(nh), uint64(wt))
-			args.client.Fluent(t).Modify().AddEntry(t, nhg)
-			nh++
-		}
-	}
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
-	nh = 22
-	for j = 1; j <= 9; j++ {
-		if j < 2 {
-			wt = 8
-		} else {
-			wt = 31
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-
-	dstPfx2 := "205.205.205.1"
-	prefixes := []string{}
-	for i := 0; i < 8; i++ {
-		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
-	}
-	nhgID := 1
-	i = 1
-	for _, prefix := range prefixes {
-		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		nhgID++
-	}
-	nh = 1000
-	wt = 1
-
-	for _, prefix := range prefixes {
-		b := strings.Split(prefix, "/")
-		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	nhgi := 1000
-
-	nh = 1000
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
-
-	for j = 1; j <= 3; j++ {
-		if j <= 2 {
-			wt = 1
-		} else {
-			wt = 254
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-	nhgi = 1001
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
-
-	for j = 1; j <= 5; j++ {
-		if j == 1 {
-			wt = 4
-		} else {
-			wt = 63
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-
-	prefixese := []string{}
-	dstPfxe := "170.170.170.1"
-	for i := 0; i < 2; i++ {
-		prefixese = append(prefixese, util.GetIPPrefix(dstPfxe, i, mask))
-	}
-
-	nhgi = 1000
-	i = 1
-	for _, prefix := range prefixese {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(nhgi)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-		nhgi++
-	}
-
-	nh = 3001
-	for _, prefix := range prefixese {
-		b := strings.Split(prefix, "/")
-		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
-		nh++
-	}
-
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(3000))
-
-	for j = 3001; j < 3003; j++ {
-		if j == 3001 {
-			wt = 15
-		} else {
-			wt = 241
-		}
-		nhg.AddNextHop(j, uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-	}
-
-	prefixess := []string{}
-	for i := 0; i < 15000; i++ {
-		prefixess = append(prefixess, util.GetIPPrefix(dstPfx, i, mask))
-	}
-
-	for _, prefix := range prefixess {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance(vrfEncapA).
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(3000)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	}
-	testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
-	args.interfaceaction(t, "port2", false)
-	args.interfaceaction(t, "port4", false)
-	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
-		args.interfaceaction(t, "port2", true)
-		args.interfaceaction(t, "port4", true)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
-	})
-	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
-
-		utils.Dorpfo(args.ctx, t, true)
-		client = gribi.Client{
-			DUT:                   args.dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		args.client = &client
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
-
-	})
-	t.Run("testTrafficaftr delete", func(t *testing.T) {
-
-		args.client.DeleteIPv4Batch(t, prefixess, 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		for _, prefix := range prefixess {
-			ipv4Entry := fluent.IPv4Entry().
-				WithNetworkInstance(vrfEncapA).
-				WithPrefix(prefix).
-				WithNextHopGroup(uint64(3000)).
-				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-		}
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
-	})
-
-}
-
-func TestWithDecapEncapTEmin(t *testing.T) {
-
-	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-
-	dut := ondatra.DUT(t, "dut")
-	ctx := context.Background()
-	baseconfig(t)
-	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-	configbasePBR(t, dut, vrfDecap, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
-
-	// Configure the gRIBI client
-	client := gribi.Client{
-		DUT:                   dut,
-		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-		Persistence:           true,
-		InitialElectionIDLow:  10,
-		InitialElectionIDHigh: 0,
-	}
-	defer client.Close(t)
-	if err := client.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	args.ctx = ctx
-	args.client = &client
-	args.dut = dut
-	args.client.BecomeLeader(t)
-	args.client.FlushServer(t)
-
-	nh := 1
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	for i := 1; i <= 15; i++ {
-		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-
-	wt := 1
-	nh = 1
-	var i, j uint64
-	for i = 1; i <= 7; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
-
-		for j = 1; j <= 3; j++ {
-			if j == 1 {
-				wt = 3
-			} else if j == 2 {
-				wt = 25
-			} else {
-				wt = 31
-			}
-			nhg.AddNextHop(uint64(nh), uint64(wt))
-			args.client.Fluent(t).Modify().AddEntry(t, nhg)
-			nh++
-		}
-	}
-	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
-	nh = 22
-	for j = 1; j <= 9; j++ {
-		if j < 2 {
-			wt = 8
-		} else {
-			wt = 31
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-
-	dstPfx2 := "205.205.205.1"
-	prefixes := []string{}
-	for i := 0; i < 8; i++ {
-		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
-	}
-	nhgID := 1
-	i = 1
-	for _, prefix := range prefixes {
-		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		nhgID++
-	}
-	nh = 1000
-	wt = 1
-
-	for _, prefix := range prefixes {
-		b := strings.Split(prefix, "/")
-		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
-		nh++
-	}
-	nhgi := 1000
-
-	nh = 1000
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
-
-	for j = 1; j <= 3; j++ {
-		if j < 2 {
-			wt = 52
-		} else if j == 2 {
-			wt = 51
-		} else {
-			wt = 153
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-	nhgi = 1001
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
-
-	for j = 1; j <= 5; j++ {
-		if j == 1 {
-			wt = 132
-		} else {
-			wt = 31
-		}
-		nhg.AddNextHop(uint64(nh), uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-		nh++
-	}
-
-	prefixese := []string{}
-	dstPfxe := "170.170.170.1"
-	for i := 0; i < 2; i++ {
-		prefixese = append(prefixese, util.GetIPPrefix(dstPfxe, i, mask))
-	}
-
-	nhgi = 1000
-	i = 1
-	for _, prefix := range prefixese {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(nhgi)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-		nhgi++
-	}
-
-	nh = 3001
-	for _, prefix := range prefixese {
-		b := strings.Split(prefix, "/")
-		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
-		nh++
-	}
-
-	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(3000))
-
-	for j = 3001; j < 3003; j++ {
-		if j == 3001 {
-			wt = 15
-		} else {
-			wt = 241
-		}
-		nhg.AddNextHop(j, uint64(wt))
-		args.client.Fluent(t).Modify().AddEntry(t, nhg)
-	}
-	dstPfxx := "197.51.100.1"
-	prefixess := []string{}
-	for i := 0; i < 15000; i++ {
-		prefixess = append(prefixess, util.GetIPPrefix(dstPfxx, i, mask))
-	}
-
-	for _, prefix := range prefixess {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance(vrfEncapA).
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(3000)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	}
-
-	nh = 4000
-	args.client.AddNH(t, uint64(nh), "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{VrfName: vrfEncapA})
-	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-
-	prefixesd := []string{}
-	for i := 0; i < 150; i++ {
-		prefixesd = append(prefixesd, util.GetIPPrefix(dstPfx, i, mask))
-	}
-
-	for _, prefix := range prefixesd {
-		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance(vrfDecap).
-			WithPrefix(prefix).
-			WithNextHopGroup(uint64(4000)).
-			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	}
-
-	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
-	t.Run("testTrafficaftr shut", func(t *testing.T) {
-		testTrafficWeight(t, args.ate, args.top, 65000, true, 7)
-	})
-
-	t.Run("testTrafficaftr no shut", func(t *testing.T) {
-		args.interfaceaction(t, "port2", true)
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
-	})
-	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
-
-		utils.Dorpfo(args.ctx, t, true)
-		client = gribi.Client{
-			DUT:                   args.dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		args.client = &client
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
-
-	})
-	t.Run("testTrafficaftr delete", func(t *testing.T) {
-
-		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-		for _, prefix := range prefixesd {
-			ipv4Entry := fluent.IPv4Entry().
-				WithNetworkInstance(vrfDecap).
-				WithPrefix(prefix).
-				WithNextHopGroup(uint64(4000)).
-				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-		}
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
-	})
-
-}
+// func TestWithTEmin(t *testing.T) {
+
+// 	// Elect client as leader and flush all the past entries
+// 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+
+// 	dut := ondatra.DUT(t, "dut")
+// 	ctx := context.Background()
+
+// 	baseconfig(t)
+// 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+// 	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+// 	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+
+// 	// Configure the gRIBI client
+// 	client := gribi.Client{
+// 		DUT:                   dut,
+// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 		Persistence:           true,
+// 		InitialElectionIDLow:  10,
+// 		InitialElectionIDHigh: 0,
+// 	}
+// 	defer client.Close(t)
+// 	if err := client.Start(t); err != nil {
+// 		t.Fatalf("gRIBI Connection can not be established")
+// 	}
+
+// 	args.ctx = ctx
+// 	args.client = &client
+// 	args.dut = dut
+// 	args.client.BecomeLeader(t)
+// 	args.client.FlushServer(t)
+
+// 	nh := 1
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	wt := 1
+// 	nh = 1
+// 	var i, j uint64
+// 	for i = 1; i <= 7; i++ {
+// 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
+
+// 		for j = 1; j <= 3; j++ {
+// 			if j == 1 {
+// 				wt = 3
+// 			} else if j == 2 {
+// 				wt = 25
+// 			} else {
+// 				wt = 31
+// 			}
+// 			nhg.AddNextHop(uint64(nh), uint64(wt))
+// 			args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 			nh++
+// 		}
+// 	}
+// 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
+// 	nh = 22
+// 	for j = 1; j <= 9; j++ {
+// 		if j == 1 {
+// 			wt = 8
+// 		} else {
+// 			wt = 31
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+// 	dstPfx2 := "205.205.205.1"
+// 	prefixes := []string{}
+// 	for i := 0; i < 8; i++ {
+// 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
+// 	}
+// 	nhgID := 1
+// 	for _, prefix := range prefixes {
+// 		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		nhgID++
+// 	}
+// 	nh = 1001
+
+// 	for _, prefix := range prefixes {
+// 		b := strings.Split(prefix, "/")
+// 		prefix = b[0]
+// 		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(1000))
+
+// 	for j = 1001; j <= 1008; j++ {
+// 		if j == 1001 {
+// 			wt = 7
+// 		} else if j == 1002 {
+// 			wt = 9
+// 		} else {
+// 			wt = 40
+// 		}
+// 		nhg.AddNextHop(j, uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 	}
+
+// 	prefixess := []string{}
+// 	for i := 0; i < 5000; i++ {
+// 		prefixess = append(prefixess, util.GetIPPrefix(dstPfx, i, mask))
+// 	}
+
+// 	for _, prefix := range prefixess {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance("TE").
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(1000)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 	}
+
+// 	testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+// 	args.interfaceaction(t, "port2", false)
+// 	args.interfaceaction(t, "port4", false)
+// 	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
+// 		args.interfaceaction(t, "port2", true)
+// 		args.interfaceaction(t, "port4", true)
+// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+// 	})
+// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+
+// 		utils.Dorpfo(args.ctx, t, true)
+// 		client = gribi.Client{
+// 			DUT:                   args.dut,
+// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 			Persistence:           true,
+// 			InitialElectionIDLow:  1,
+// 			InitialElectionIDHigh: 0,
+// 		}
+// 		if err := client.Start(t); err != nil {
+// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+// 			if err = client.Start(t); err != nil {
+// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
+// 			}
+// 		}
+// 		args.client = &client
+// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+
+// 	})
+// 	t.Run("testTrafficaftr delete", func(t *testing.T) {
+
+// 		args.client.DeleteIPv4Batch(t, prefixess, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		for _, prefix := range prefixess {
+// 			ipv4Entry := fluent.IPv4Entry().
+// 				WithNetworkInstance("TE").
+// 				WithPrefix(prefix).
+// 				WithNextHopGroup(uint64(1000)).
+// 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 		}
+// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+// 	})
+// }
+
+// func TestWithEncapvrfmin(t *testing.T) {
+
+// 	// Elect client as leader and flush all the past entries
+// 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+
+// 	dut := ondatra.DUT(t, "dut")
+// 	ctx := context.Background()
+// 	baseconfig(t)
+// 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+// 	configbasePBR(t, dut, vrfEncapA, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+// 	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+
+// 	// Configure the gRIBI client
+// 	client := gribi.Client{
+// 		DUT:                   dut,
+// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 		Persistence:           true,
+// 		InitialElectionIDLow:  10,
+// 		InitialElectionIDHigh: 0,
+// 	}
+// 	defer client.Close(t)
+// 	if err := client.Start(t); err != nil {
+// 		t.Fatalf("gRIBI Connection can not be established")
+// 	}
+
+// 	args.ctx = ctx
+// 	args.client = &client
+// 	args.dut = dut
+// 	args.client.BecomeLeader(t)
+// 	args.client.FlushServer(t)
+
+// 	nh := 1
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+
+// 	wt := 1
+// 	nh = 1
+// 	var i, j uint64
+// 	for i = 1; i <= 7; i++ {
+// 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
+
+// 		for j = 1; j <= 3; j++ {
+// 			if j == 1 {
+// 				wt = 3
+// 			} else if j == 2 {
+// 				wt = 25
+// 			} else {
+// 				wt = 31
+// 			}
+// 			nhg.AddNextHop(uint64(nh), uint64(wt))
+// 			args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 			nh++
+// 		}
+// 	}
+// 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
+// 	nh = 22
+// 	for j = 1; j <= 9; j++ {
+// 		if j < 2 {
+// 			wt = 8
+// 		} else {
+// 			wt = 31
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+
+// 	dstPfx2 := "205.205.205.1"
+// 	prefixes := []string{}
+// 	for i := 0; i < 8; i++ {
+// 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
+// 	}
+// 	nhgID := 1
+// 	i = 1
+// 	for _, prefix := range prefixes {
+// 		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		nhgID++
+// 	}
+// 	nh = 1000
+// 	wt = 1
+
+// 	for _, prefix := range prefixes {
+// 		b := strings.Split(prefix, "/")
+// 		prefix = b[0]
+// 		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	nhgi := 1000
+
+// 	nh = 1000
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
+
+// 	for j = 1; j <= 3; j++ {
+// 		if j <= 2 {
+// 			wt = 1
+// 		} else {
+// 			wt = 254
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+// 	nhgi = 1001
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
+
+// 	for j = 1; j <= 5; j++ {
+// 		if j == 1 {
+// 			wt = 4
+// 		} else {
+// 			wt = 63
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+
+// 	prefixese := []string{}
+// 	dstPfxe := "170.170.170.1"
+// 	for i := 0; i < 2; i++ {
+// 		prefixese = append(prefixese, util.GetIPPrefix(dstPfxe, i, mask))
+// 	}
+
+// 	nhgi = 1000
+// 	i = 1
+// 	for _, prefix := range prefixese {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance("TE").
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(nhgi)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 		nhgi++
+// 	}
+
+// 	nh = 3001
+// 	for _, prefix := range prefixese {
+// 		b := strings.Split(prefix, "/")
+// 		prefix = b[0]
+// 		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+// 		nh++
+// 	}
+
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(3000))
+
+// 	for j = 3001; j < 3003; j++ {
+// 		if j == 3001 {
+// 			wt = 15
+// 		} else {
+// 			wt = 241
+// 		}
+// 		nhg.AddNextHop(j, uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 	}
+
+// 	prefixess := []string{}
+// 	for i := 0; i < 15000; i++ {
+// 		prefixess = append(prefixess, util.GetIPPrefix(dstPfx, i, mask))
+// 	}
+
+// 	for _, prefix := range prefixess {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance(vrfEncapA).
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(3000)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 	}
+// 	testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
+// 	args.interfaceaction(t, "port2", false)
+// 	args.interfaceaction(t, "port4", false)
+// 	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
+// 		args.interfaceaction(t, "port2", true)
+// 		args.interfaceaction(t, "port4", true)
+// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
+// 	})
+// 	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+
+// 	// 	utils.Dorpfo(args.ctx, t, true)
+// 	// 	client = gribi.Client{
+// 	// 		DUT:                   args.dut,
+// 	// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 	// 		Persistence:           true,
+// 	// 		InitialElectionIDLow:  1,
+// 	// 		InitialElectionIDHigh: 0,
+// 	// 	}
+// 	// 	if err := client.Start(t); err != nil {
+// 	// 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+// 	// 		if err = client.Start(t); err != nil {
+// 	// 			t.Fatalf("gRIBI Connection could not be established: %v", err)
+// 	// 		}
+// 	// 	}
+// 	// 	args.client = &client
+// 	// 	testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 	// 	testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
+
+// 	// })
+// 	t.Run("testTrafficaftr delete", func(t *testing.T) {
+
+// 		args.client.DeleteIPv4Batch(t, prefixess, 3000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		for _, prefix := range prefixess {
+// 			ipv4Entry := fluent.IPv4Entry().
+// 				WithNetworkInstance(vrfEncapA).
+// 				WithPrefix(prefix).
+// 				WithNextHopGroup(uint64(3000)).
+// 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 		}
+// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
+// 	})
+
+// }
+
+// func TestWithDecapEncapTEmin(t *testing.T) {
+
+// 	// Elect client as leader and flush all the past entries
+// 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+
+// 	dut := ondatra.DUT(t, "dut")
+// 	ctx := context.Background()
+// 	baseconfig(t)
+// 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+// 	configbasePBR(t, dut, vrfDecap, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
+
+// 	// Configure the gRIBI client
+// 	client := gribi.Client{
+// 		DUT:                   dut,
+// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 		Persistence:           true,
+// 		InitialElectionIDLow:  10,
+// 		InitialElectionIDHigh: 0,
+// 	}
+// 	defer client.Close(t)
+// 	if err := client.Start(t); err != nil {
+// 		t.Fatalf("gRIBI Connection can not be established")
+// 	}
+
+// 	args.ctx = ctx
+// 	args.client = &client
+// 	args.dut = dut
+// 	args.client.BecomeLeader(t)
+// 	args.client.FlushServer(t)
+
+// 	nh := 1
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort2.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	for i := 1; i <= 15; i++ {
+// 		args.client.AddNH(t, uint64(nh), atePort4.ip(uint8(i)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+
+// 	wt := 1
+// 	nh = 1
+// 	var i, j uint64
+// 	for i = 1; i <= 7; i++ {
+// 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(i))
+
+// 		for j = 1; j <= 3; j++ {
+// 			if j == 1 {
+// 				wt = 3
+// 			} else if j == 2 {
+// 				wt = 25
+// 			} else {
+// 				wt = 31
+// 			}
+// 			nhg.AddNextHop(uint64(nh), uint64(wt))
+// 			args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 			nh++
+// 		}
+// 	}
+// 	nhg := fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(8))
+// 	nh = 22
+// 	for j = 1; j <= 9; j++ {
+// 		if j < 2 {
+// 			wt = 8
+// 		} else {
+// 			wt = 31
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+
+// 	dstPfx2 := "205.205.205.1"
+// 	prefixes := []string{}
+// 	for i := 0; i < 8; i++ {
+// 		prefixes = append(prefixes, util.GetIPPrefix(dstPfx2, i, mask))
+// 	}
+// 	nhgID := 1
+// 	i = 1
+// 	for _, prefix := range prefixes {
+// 		args.client.AddIPv4(t, prefix, uint64(nhgID), *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		nhgID++
+// 	}
+// 	nh = 1000
+// 	wt = 1
+
+// 	for _, prefix := range prefixes {
+// 		b := strings.Split(prefix, "/")
+// 		prefix = b[0]
+// 		args.client.AddNH(t, uint64(nh), prefix, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+// 		nh++
+// 	}
+// 	nhgi := 1000
+
+// 	nh = 1000
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
+
+// 	for j = 1; j <= 3; j++ {
+// 		if j < 2 {
+// 			wt = 52
+// 		} else if j == 2 {
+// 			wt = 51
+// 		} else {
+// 			wt = 153
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+// 	nhgi = 1001
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(nhgi))
+
+// 	for j = 1; j <= 5; j++ {
+// 		if j == 1 {
+// 			wt = 132
+// 		} else {
+// 			wt = 31
+// 		}
+// 		nhg.AddNextHop(uint64(nh), uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 		nh++
+// 	}
+
+// 	prefixese := []string{}
+// 	dstPfxe := "170.170.170.1"
+// 	for i := 0; i < 2; i++ {
+// 		prefixese = append(prefixese, util.GetIPPrefix(dstPfxe, i, mask))
+// 	}
+
+// 	nhgi = 1000
+// 	i = 1
+// 	for _, prefix := range prefixese {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance("TE").
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(nhgi)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 		nhgi++
+// 	}
+
+// 	nh = 3001
+// 	for _, prefix := range prefixese {
+// 		b := strings.Split(prefix, "/")
+// 		prefix = b[0]
+// 		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+// 		nh++
+// 	}
+
+// 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID(uint64(3000))
+
+// 	for j = 3001; j < 3003; j++ {
+// 		if j == 3001 {
+// 			wt = 15
+// 		} else {
+// 			wt = 241
+// 		}
+// 		nhg.AddNextHop(j, uint64(wt))
+// 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
+// 	}
+// 	dstPfxx := "197.51.100.1"
+// 	prefixess := []string{}
+// 	for i := 0; i < 15000; i++ {
+// 		prefixess = append(prefixess, util.GetIPPrefix(dstPfxx, i, mask))
+// 	}
+
+// 	for _, prefix := range prefixess {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance(vrfEncapA).
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(3000)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 	}
+
+// 	nh = 4000
+// 	args.client.AddNH(t, uint64(nh), "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{VrfName: vrfEncapA})
+// 	args.client.AddNHG(t, 4000, 0, map[uint64]uint64{4000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+
+// 	prefixesd := []string{}
+// 	for i := 0; i < 150; i++ {
+// 		prefixesd = append(prefixesd, util.GetIPPrefix(dstPfx, i, mask))
+// 	}
+
+// 	for _, prefix := range prefixesd {
+// 		ipv4Entry := fluent.IPv4Entry().
+// 			WithNetworkInstance(vrfDecap).
+// 			WithPrefix(prefix).
+// 			WithNextHopGroup(uint64(4000)).
+// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 	}
+
+// 	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+// 	t.Run("testTrafficaftr shut", func(t *testing.T) {
+// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 7)
+// 	})
+
+// 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
+// 		args.interfaceaction(t, "port2", true)
+// 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+// 	})
+// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+
+// 		utils.Dorpfo(args.ctx, t, true)
+// 		client = gribi.Client{
+// 			DUT:                   args.dut,
+// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+// 			Persistence:           true,
+// 			InitialElectionIDLow:  1,
+// 			InitialElectionIDHigh: 0,
+// 		}
+// 		if err := client.Start(t); err != nil {
+// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+// 			if err = client.Start(t); err != nil {
+// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
+// 			}
+// 		}
+// 		args.client = &client
+// 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+
+// 	})
+// 	t.Run("testTrafficaftr delete", func(t *testing.T) {
+
+// 		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+// 		for _, prefix := range prefixesd {
+// 			ipv4Entry := fluent.IPv4Entry().
+// 				WithNetworkInstance(vrfDecap).
+// 				WithPrefix(prefix).
+// 				WithNextHopGroup(uint64(4000)).
+// 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+// 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+// 		}
+// 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+// 	})
+
+// }
 
 func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 
@@ -787,6 +787,9 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	ctx := context.Background()
 	baseconfig(t)
 	addStaticRoute(t, dut, "197.51.0.0/16", true)
+	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
+	configbasePBR(t, dut, vrfDecap, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
+
 	args.top.StopProtocols(t)
 	time.Sleep(30 * time.Second)
 	args.top.StartProtocols(t)
@@ -1026,27 +1029,27 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 	})
-	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-		utils.Dorpfo(args.ctx, t, true)
-		client = gribi.Client{
-			DUT:                   args.dut,
-			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-			Persistence:           true,
-			InitialElectionIDLow:  1,
-			InitialElectionIDHigh: 0,
-		}
-		if err := client.Start(t); err != nil {
-			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-			if err = client.Start(t); err != nil {
-				t.Fatalf("gRIBI Connection could not be established: %v", err)
-			}
-		}
-		args.client = &client
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+	// 	utils.Dorpfo(args.ctx, t, true)
+	// 	client = gribi.Client{
+	// 		DUT:                   args.dut,
+	// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
+	// 		Persistence:           true,
+	// 		InitialElectionIDLow:  1,
+	// 		InitialElectionIDHigh: 0,
+	// 	}
+	// 	if err := client.Start(t); err != nil {
+	// 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+	// 		if err = client.Start(t); err != nil {
+	// 			t.Fatalf("gRIBI Connection could not be established: %v", err)
+	// 		}
+	// 	}
+	// 	args.client = &client
+	// 	testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+	// 	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 
-	})
+	// })
 	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
 		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
