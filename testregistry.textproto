@@ -168,6 +168,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ssecurity/gnsi/certz/trust_bundle_rotation/README.md"
 }
 test: {
+  id: "CPT-1.1"
+  description: "ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "Credentialz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/credentialz/tests/README.md"
 }
@@ -227,6 +233,12 @@ test: {
   id: "DP-1.16"
   description: "Ingress traffic classification and rewrite"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_traffic_classification_and_rewrite_test/README.md"
+  exec: " "
+}
+test: {
+  id: "DP-1.18"
+  description: "Flow matching using ACL and to Port Mirror/Redirect"
+  readme: ""
   exec: " "
 }
 test: {
@@ -711,6 +723,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.15"
+  description: "IS-IS Extensions for Segment Routing"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.15"
+  description: "IS-IS Graceful Restart Helper"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/isis/otg_tests/graceful_restart_helper/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
@@ -1034,6 +1058,10 @@ test {
   id: "TE-18.1"
   description: "MPLS in UDP Encapsulation with QoS scheduler"
   readme: ""
+}
+test: {
+  id: "TE-18.3"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_in_udp_scale/README.md"
 }
 test: {
   id: "TE-2.1"
