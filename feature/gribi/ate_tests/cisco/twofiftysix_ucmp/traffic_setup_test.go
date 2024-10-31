@@ -241,7 +241,7 @@ func testTrafficmin(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopolo
 		flow = flow.WithHeaders(ethHeader, ipv4Header, innerIpv4Header).WithFrameRateFPS(10).WithFrameSize(300)
 	}
 	ate.Traffic().Start(t, flow)
-	time.Sleep(2 * time.Minute)
+	time.Sleep(2000 * time.Minute)
 	ate.Traffic().Stop(t)
 	flowPath := gnmi.OC().Flow(flow.Name())
 	got := gnmi.Get(t, args.ate, flowPath.LossPct().State())
