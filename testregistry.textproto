@@ -169,7 +169,7 @@ test: {
 }
 test: {
   id: "CPT-1.1"
-  description: "ARP Policer"
+  description: "Ingress Interface ARP Policer"
   readme: ""
   exec: " "
 }
@@ -282,8 +282,12 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-2.4"
+  id: "DP-2.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_nhg/README.md"
+}
+test: {
+  id: "DP-2.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
   id: "FP-1.1"
