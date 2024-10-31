@@ -231,6 +231,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			agg.Enabled = ygot.Bool(true)
 		}
 		s := agg.GetOrCreateSubinterface(0)
+		if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+                                s1 := agg.GetOrCreateSubinterface(1)
+                                s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+                                if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+                                        s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+                                        agg.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+                                }
+                        }
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
@@ -253,14 +261,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e := i.GetOrCreateEthernet()
 			e.AggregateId = ygot.String(aggID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-			if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-				s1 := agg.GetOrCreateSubinterface(1)
-				s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
-				if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-					s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
-					agg.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
-				}
-			}
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
