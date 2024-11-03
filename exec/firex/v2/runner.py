@@ -841,7 +841,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
     otg_info = reserved_testbed['otg']
     controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
     gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
-    
+
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
@@ -871,13 +871,13 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
             'insecure': True,
-            'timeout': 200
+            'timeout': 300
         }
 
         ate['gnmi'] = {
             'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
             'skip_verify': True,
-            'timeout': 60
+            'timeout': 150
         }
 
         if 'ixnetwork' in ate:
@@ -1014,7 +1014,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     reserved_testbed['test_list_file'] = testbed_test_list_file
-    
+
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     return reserved_testbed
 
