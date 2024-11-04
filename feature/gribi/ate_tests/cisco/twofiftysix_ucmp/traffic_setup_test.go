@@ -192,10 +192,8 @@ func testTrafficmin(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopolo
 
 	} else if case5 {
 		if count == 2 {
-			for i := uint32(1); i < 2; i++ {
-				dstIP := atePort7.ip(uint8(i))
-				dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-			}
+			dstIP := atePort7.ip(uint8(0))
+			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
 		} else {	
 			for i := uint32(1); i < 2; i++ {
 				dstIP := atePort3.ip(uint8(i))
