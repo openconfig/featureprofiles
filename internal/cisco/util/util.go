@@ -24,6 +24,7 @@ import (
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/gribigo/client"
@@ -36,6 +37,7 @@ import (
 	"github.com/openconfig/ygot/ytypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 const (
@@ -1283,4 +1285,24 @@ func GenerateSubnetAttributes(baseIPv4, baseIPv6 string, vlanID, index int) (att
 	}
 
 	return dutAttrs, ateAttrs, nil
+}
+
+func GnmiProtoSetConfigPush(t *testing.T, dut *ondatra.DUTDevice, configFilePath string, timeout time.Duration) {
+	b, err := os.ReadFile(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	setReq := &gpb.SetRequest{}
+
+	if err := prototext.Unmarshal(b, setReq); err != nil {
+		panic(err)
+	}
+
+	gNMIC := dut.RawAPIs().GNMI(t)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if _, err = gNMIC.Set(ctx, setReq); err != nil {
+		t.Fatalf("gnmi Set Config Push failed with unexpected error: %v", err)
+	}
 }

@@ -18,23 +18,23 @@
 package gribi_scale_profile_test
 
 import (
-	// "context"
 	// "slices"
 	// "strconv"
 	// "context"
 	// "strings"
 	"testing"
-	// "time"
+	"time"
 
 	// "github.com/openconfig/featureprofiles/internal/deviations"
 	// "github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	// "github.com/openconfig/featureprofiles/internal/gribi"
 	// "github.com/openconfig/gribigo/fluent"
 	// "github.com/openconfig/ondatra"
 	// "github.com/openconfig/featureprofiles/internal/gribi"
 	// "github.com/openconfig/gribigo/fluent"
-	// "github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra"
 	// "github.com/openconfig/ondatra/gnmi"
 )
 
@@ -77,5 +77,34 @@ func TestGribiScaleProfile(t *testing.T) {
 }
 
 func TestGoogleBaseConfPush(t *testing.T) {
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	dut := ondatra.DUT(t, "dut")
+	cases := []struct {
+		desc           string
+		configFilePath string
+		timeout        time.Duration
+		wantTime       time.Duration
+	}{
+		{
+			desc:           "Verify Initial Config Push",
+			configFilePath: "googleConf.proto",
+			timeout:        6 * time.Minute,
+			wantTime:       4 * time.Minute,
+		},
+		{
+			desc:           "Verify subsequent Config Push",
+			configFilePath: "googleConf.proto",
+			timeout:        3 * time.Minute,
+			wantTime:       2 * time.Minute,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			// Start the timer.
+			start := time.Now()
+			util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.timeout)
+			// End the timer and calculate time requied to apply the config on DUT.
+			elapsed := time.Since(start)
+			t.Logf("Time taken for full configuration replace: %v", elapsed)
+		})
+	}
 }
