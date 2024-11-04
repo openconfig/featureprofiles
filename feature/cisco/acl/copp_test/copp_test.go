@@ -1201,3 +1201,204 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 	}
 
 }
+
+func TestLeafRefs(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+
+	t.Run("DefinedSetIpv4WithACL", func(t *testing.T) {
+		cfg := configIPv4PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config(), cfg)
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclEntry10 := acl.GetOrCreateAclEntry(10)
+		aclEntry10.SequenceId = ygot.Uint32(10)
+		aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry10.GetOrCreateIpv4()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		t.Run("AndCopp", func(t *testing.T) {
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config())
+			})
+			copp := configControlPlaneTrafficIngress(acl)
+			gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+		})
+	})
+
+	t.Run("DefinedSetIpv4WithACLWithDestination", func(t *testing.T) {
+		cfg := configIPv4PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config(), cfg)
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclEntry10 := acl.GetOrCreateAclEntry(10)
+		aclEntry10.SequenceId = ygot.Uint32(10)
+		aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry10.GetOrCreateIpv4()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+		a.DestinationAddressPrefixSet = ygot.String(cfg.GetName())
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		t.Run("AndCopp", func(t *testing.T) {
+			copp := configControlPlaneTrafficIngress(acl)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+			}); errMsg != nil {
+				t.Logf("Received error %s", *errMsg)
+			} else {
+				t.Fatalf("Did not receive expected failure")
+			}
+		})
+	})
+
+	t.Run("DefinedSetIpv6WithACL", func(t *testing.T) {
+		cfg := configIPv6PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(cfg.GetName()).Config(), cfg)
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv6", oc.Acl_ACL_TYPE_ACL_IPV6)
+		aclEntry40 := acl.GetOrCreateAclEntry(40)
+		aclEntry40.SequenceId = ygot.Uint32(40)
+		aclEntry40.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry40.GetOrCreateIpv6()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+		a.DestinationAddressPrefixSet = ygot.String(cfg.GetName())
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		t.Run("AndCopp", func(t *testing.T) {
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config())
+			})
+			copp := configControlPlaneTrafficIngress(acl)
+			gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+		})
+	})
+
+	t.Run("DefinedSetPortWithACL", func(t *testing.T) {
+		cfg := configPortSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().PortSet(cfg.GetName()).Config(), cfg)
+		d := oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsettransport", oc.Acl_ACL_TYPE_ACL_IPV4)
+
+		aclEntry := acl.GetOrCreateAclEntry(70)
+		aclEntry.SequenceId = ygot.Uint32(70)
+		aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+
+		ipv4 := aclEntry.GetOrCreateIpv4()
+		ipv4.SourceAddress = ygot.String("0.0.0.0/0")
+		// ipv4.DestinationAddress = ygot.String("192.0.2.6/32")
+		ipv4.Protocol = oc.UnionUint8(6)
+
+		transport := aclEntry.GetOrCreateTransport()
+		transport.SourcePortSet = ygot.String(cfg.GetName())
+		transport.DestinationPortSet = ygot.String(cfg.GetName())
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().PortSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		t.Run("AndCopp", func(t *testing.T) {
+			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config())
+			})
+			copp := configControlPlaneTrafficIngress(acl)
+			gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+		})
+	})
+
+	t.Run("MissingDefinedSetWithACL", func(t *testing.T) {
+		cfg := configIPv4PrefixSet()
+		// do not update config with defined set
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclEntry10 := acl.GetOrCreateAclEntry(10)
+		aclEntry10.SequenceId = ygot.Uint32(10)
+		aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry10.GetOrCreateIpv4()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+		a.DestinationAddressPrefixSet = ygot.String(cfg.GetName())
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		t.Run("AndCopp", func(t *testing.T) {
+			copp := configControlPlaneTrafficIngress(acl)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+			}); errMsg != nil {
+				t.Logf("Received error %s", *errMsg)
+			} else {
+				t.Fatalf("Did not receive expected failure")
+			}
+		})
+	})
+
+	t.Run("GetAllAppliedCopp", func(t *testing.T) {
+		cfg := configIPv4PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config(), cfg)
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclEntry10 := acl.GetOrCreateAclEntry(10)
+		aclEntry10.SequenceId = ygot.Uint32(10)
+		aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry10.GetOrCreateIpv4()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		copp := configControlPlaneTrafficIngress(acl)
+
+		gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.GetAll(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSetAny().State())
+	})
+
+	t.Run("GetAllDefinedSets", func(t *testing.T) {
+		t.Skip()
+		cfg := configIPv6PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(cfg.GetName()).Config(), cfg)
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(cfg.GetName()).Config())
+		})
+		gnmi.GetAll(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSetAny().State())
+	})
+
+}
