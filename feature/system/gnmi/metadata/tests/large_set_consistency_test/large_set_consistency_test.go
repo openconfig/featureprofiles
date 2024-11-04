@@ -49,55 +49,10 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// getDeviceConfig gets a full config from a device but refurbishes it enough so it can be
-// pushed out again
-func getDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
-	config := gnmi.Get[*oc.Root](t, dev, gnmi.OC().Config())
-	fptest.WriteQuery(t, "Untouched", gnmi.OC().Config(), config)
-
-	for cname, component := range config.Component {
-		// Keep the port components in order to preserve the breakout-mode config.
-		if component.GetPort() == nil {
-			delete(config.Component, cname)
-			continue
-		}
-		// Need to prune subcomponents that may have a leafref to a component that was
-		// pruned.
-		component.Subcomponent = nil
-	}
-
-	for iname, iface := range config.Interface {
-		if iface.GetEthernet() == nil {
-			continue
-		}
-		// Ethernet config may not contain meaningful values if it wasn't explicitly
-		// configured, so use its current state for the config, but prune non-config leaves.
-		intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
-		breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
-		e := intf.GetEthernet()
-		// Set port speed to unknown for non breakout interfaces
-		if breakout.GetGroup(1) == nil && e != nil {
-			e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
-		}
-		ygot.PruneConfigFalse(oc.SchemaTree["Interface_Ethernet"], e)
-		if e.PortSpeed != 0 && e.PortSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
-			iface.Ethernet = e
-		}
-	}
-
-	if config.Lldp != nil {
-		config.Lldp.ChassisId = nil
-		config.Lldp.ChassisIdType = oc.Lldp_ChassisIdType_UNSET
-	}
-
-	config.Qos = nil
-
+func pruneUnsupportedPaths(config *oc.Root) {
 	for _, ni := range config.NetworkInstance {
 		ni.Fdb = nil
 	}
-
-	fptest.WriteQuery(t, "Touched", gnmi.OC().Config(), config)
-	return config
 }
 
 // setEthernetFromBase merges the ethernet config from the interfaces in base config into
@@ -244,8 +199,7 @@ func checkMetadata1(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUTDev
 	t.Helper()
 	got, getRespTimeStamp := extractMetadataAnnotation(t, gnmiClient, dut)
 	want := metadata1
-	t.Logf("getResp: %v ", getRespTimeStamp)
-	if got != want && done.Load() == 0 {
+	if got != want && getRespTimeStamp < done.Load() {
 		t.Errorf("extractMetadataAnnotation: got %v, want %v", got, want)
 	}
 }
@@ -268,13 +222,15 @@ func TestLargeSetConsistency(t *testing.T) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Type().Config(),
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
-	baselineConfig := getDeviceConfig(t, dut)
+	baselineConfig := fptest.GetDeviceConfig(t, dut)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
