@@ -201,7 +201,11 @@ func TestBGPSetup(t *testing.T) {
 				t.Logf("Enable Multipath")
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
 				t.Logf("Enable Maximum Paths")
-				bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				if deviations.EnableMultipathUnderAfiSafi(bs.DUT) {
+					gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				}
 			}
 			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
 				t.Logf("Enable MultiAS ")

@@ -134,6 +134,8 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort2.IPv4)
 	global.As = ygot.Uint32(localAs)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
@@ -402,6 +404,11 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
 		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+		name := deviations.DefaultNetworkInstance(dut)
+		c := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+		gnmi.Update(t, dut, c.Config(), &oc.NetworkInstance{
+			Name: ygot.String(name),
+		})
 		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	})
 
