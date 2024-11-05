@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	dirPath = "../../test_data/"
+	dirPath = "../test_data/"
 )
 
 var (
