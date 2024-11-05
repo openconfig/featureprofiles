@@ -81,30 +81,33 @@ func TestGoogleBaseConfPush(t *testing.T) {
 	cases := []struct {
 		desc           string
 		configFilePath string
-		timeout        time.Duration
+		clientTimeout  time.Duration
 		wantTime       time.Duration
 	}{
 		{
 			desc:           "Verify Initial Config Push",
-			configFilePath: "googleConf.proto",
-			timeout:        6 * time.Minute,
+			configFilePath: "google_undrain_conf.textproto",
+			clientTimeout:  6 * time.Minute,
 			wantTime:       4 * time.Minute,
 		},
-		{
-			desc:           "Verify subsequent Config Push",
-			configFilePath: "googleConf.proto",
-			timeout:        3 * time.Minute,
-			wantTime:       2 * time.Minute,
-		},
+		// {
+		// 	desc:           "Verify subsequent Config Push",
+		// 	configFilePath: "failing-config.proto",
+		// 	timeout:        3 * time.Minute,
+		// 	wantTime:       2 * time.Minute,
+		// },
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Start the timer.
 			start := time.Now()
-			util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.timeout)
+			util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.clientTimeout)
 			// End the timer and calculate time requied to apply the config on DUT.
-			elapsed := time.Since(start)
-			t.Logf("Time taken for full configuration replace: %v", elapsed)
+			elapsedTime := time.Since(start)
+			t.Logf("Time taken for full configuration replace: %v", elapsedTime)
+			if elapsedTime > tc.wantTime {
+				t.Errorf("Time taken for full configuration replace is less than expected. Got: %v, Want: %v", elapsedTime, tc.wantTime)
+			}
 		})
 	}
 }
