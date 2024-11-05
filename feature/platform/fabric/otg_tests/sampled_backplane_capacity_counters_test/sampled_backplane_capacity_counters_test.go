@@ -65,6 +65,11 @@ func TestSampledBackplaneCapacityCounters(t *testing.T) {
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(ic).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Skipping empty integrated-circuit component %s", ic)
+			continue
+		}
 
 		t.Run(fmt.Sprintf("Backplane:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
@@ -177,6 +182,11 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
 			continue
 		}
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(ic).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Skipping empty integrated-circuit component %s", ic)
+			continue
+		}
 
 		t.Run(fmt.Sprintf("Backplane:CountersCheck:%s", ic), func(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
@@ -224,6 +234,11 @@ func getBackplaneCapacityCounters(t *testing.T, dut *ondatra.DUTDevice, ics []st
 	availablePcts := make(map[string]uint64)
 	for _, ic := range ics {
 		if !isCompNameExpected(t, ic, dut.Vendor()) {
+			continue
+		}
+		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(ic).Empty().State()).Val()
+		if ok && empty {
+			t.Logf("Skipping empty integrated-circuit component %s", ic)
 			continue
 		}
 
