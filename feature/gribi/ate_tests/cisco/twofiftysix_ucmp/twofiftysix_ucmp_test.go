@@ -1070,6 +1070,7 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	time.Sleep(15 * time. Minute)
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -1281,7 +1282,7 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
-	time.Sleep(2000 * time.Minute)
+	//time.Sleep(2000 * time.Minute)
 
 	testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 	t.Run("test traffic after frrs", func(t *testing.T) {
