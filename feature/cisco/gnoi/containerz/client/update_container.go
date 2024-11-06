@@ -1,3 +1,5 @@
+// Source: https://github.com/openconfig/containerz/blob/master/client/update_container.go
+
 // Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,12 +1,29 @@
+// Source https://github.com/openconfig/containerz/blob/master/client/client.go
+
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package client is a containerz grpc client.
 package client
 
 import (
 	"context"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"testing"
 
 	cpb "github.com/openconfig/gnoi/containerz"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding/introspect"
 )
 
 // Client is a grpc containerz client.
@@ -14,28 +31,10 @@ type Client struct {
 	cli cpb.ContainerzClient
 }
 
-// creds holds the username and password for basic authentication.
-type creds struct {
-	Username string
-	Password string
-}
-
-// GetRequestMetadata is needed by credentials.PerRPCCredentials.
-func (c *creds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": c.Username,
-		"password": c.Password,
-	}, nil
-}
-
-// RequireTransportSecurity is needed by credentials.PerRPCCredentials.
-func (c *creds) RequireTransportSecurity() bool {
-	return false
-}
-
 // NewClient builds a new containerz client.
-func NewClient(ctx context.Context, addr string, username string, password string) (*Client, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithPerRPCCredentials(&creds{username, password}))
+func NewClient(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) (*Client, error) {
+	dialer := introspect.DUTDialer(t, dut, introspect.GNOI)
+	conn, err := dialer.Dial(ctx)
 	if err != nil {
 		return nil, err
 	}

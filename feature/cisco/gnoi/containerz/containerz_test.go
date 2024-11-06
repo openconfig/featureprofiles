@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/feature/cisco/gnoi/containerz/client"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
 )
 
 const (
@@ -18,30 +19,16 @@ const (
 	--qbone_resolver_cc_algo= --qbone_bonnet_use_custom_healthz_handler --qbone_client_config_file=$QBONE_CLIENT_CONFIG_FILE --logtostderr`
 )
 
-type dutInfo struct {
-	dut      string
-	gnoiIp   string
-	gnoiPort string
-	gnoiUser string
-	sshIp    string
-	sshPort  string
-	sshUser  string
-	sshPass  string
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func TestContainerzWorkflow(t *testing.T) {
-	dutInfos := parseBindingFile(t)
-	dutInfo := dutInfos[0]
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	containerzAddr := dutInfo.gnoiIp + ":" + dutInfo.gnoiPort
-	cli, err := client.NewClient(ctx, containerzAddr, dutInfo.sshUser, dutInfo.sshPass)
+	
+	dut := ondatra.DUT(t, "dut")
+	cli, err := client.NewClient(ctx, t, dut)
 	if err != nil {
 		t.Fatalf("Unable to create gNOI containerz client: %v", err)
 	}
@@ -185,6 +172,7 @@ func TestContainerzWorkflow(t *testing.T) {
 		}
 
 	})
+	
 	t.Run("RemoveImage", func(t *testing.T) {
 		if err := cli.RemoveImage(ctx, "bonnet", "g3", true); err != nil {
 			t.Logf("Failed to remove image: %v", err)
