@@ -1070,14 +1070,17 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-	time.Sleep(15 * time. Minute)
+	//time.Sleep(15 * time. Minute)
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
-	args.top.StopProtocols(t)
+	//args.top.StopProtocols(t)
 	time.Sleep(30 * time.Second)
-	args.top.StartProtocols(t)
+	//args.top.StartProtocols(t)
+	time.Sleep(15 * time. Minute)
+	dut = ondatra.DUT(t, "dut")
+	ctx = context.Background()
 
 	// Configure the gRIBI client
 	client := gribi.Client{
