@@ -1218,9 +1218,13 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-9.1"
-  description: "Base gRIBI MPLS Compliance"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
+  id: "TE-9.1: Push MPLS Labels to MPLS payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+}
+test: {
+  id: "TE-9.3"
+  description: "gRIBI FIB Failure due to hardware resource exhaust"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test/README.md"
 }
 test: {
   id: "TE-9.2"
