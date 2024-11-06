@@ -1391,6 +1391,33 @@ func TestLeafRefs(t *testing.T) {
 		gnmi.GetAll(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSetAny().State())
 	})
 
+	t.Run("GetControlPlaneTraffic", func(t *testing.T) {
+		cfg := configIPv4PrefixSet()
+		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config(), cfg)
+		d := &oc.Root{}
+
+		acl := d.GetOrCreateAcl().GetOrCreateAclSet("aclsetipv4", oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclEntry10 := acl.GetOrCreateAclEntry(10)
+		aclEntry10.SequenceId = ygot.Uint32(10)
+		aclEntry10.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		a := aclEntry10.GetOrCreateIpv4()
+		a.SourceAddressPrefixSet = ygot.String(cfg.GetName())
+
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config(), acl)
+
+		copp := configControlPlaneTrafficIngress(acl)
+
+		gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config(), copp)
+
+		t.Cleanup(func() {
+			gnmi.Delete(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().Acl().AclSet(acl.GetName(), acl.GetType()).Config())
+			gnmi.Delete(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(cfg.GetName()).Config())
+		})
+
+		gnmi.Get(t, dut, gnmi.OC().System().ControlPlaneTraffic().State())
+	})
+
 	t.Run("GetAllDefinedSets", func(t *testing.T) {
 		t.Skip()
 		cfg := configIPv6PrefixSet()
