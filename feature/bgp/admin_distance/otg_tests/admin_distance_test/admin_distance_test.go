@@ -15,6 +15,8 @@
 package admin_distance_test
 
 import (
+	"context"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -26,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmiproto "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -139,11 +142,27 @@ func TestAdminDistance(t *testing.T) {
 			t.Run(tc.desc, func(t *testing.T) {
 				if tc.bgp == "iBGP" {
 					changeProtocolToIBGP(t, ts)
-					gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().Config(), tc.rd)
-					gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().State(), 30*time.Second, tc.rd)
+					if deviations.BgpDistanceOcPathUnsupported(ts.DUT) {
+						for _, af := range []string{"ipv4", "ipv6"} {
+							TextWithGNMI(context.Background(), t, ts.DUT, fmt.Sprintf(`
+							router bgp %d instance BGP address-family %s unicast distance bgp 20 %d 200
+							`, dutAS, af, tc.rd))
+						}
+					} else {
+						gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().Config(), tc.rd)
+						gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().State(), 30*time.Second, tc.rd)
+					}
 				} else {
-					gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().Config(), tc.rd)
-					gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().State(), 30*time.Second, tc.rd)
+					if deviations.BgpDistanceOcPathUnsupported(ts.DUT) {
+						for _, af := range []string{"ipv4", "ipv6"} {
+							TextWithGNMI(context.Background(), t, ts.DUT, fmt.Sprintf(`
+							router bgp %d instance BGP address-family %s unicast distance bgp %d 200 200
+							`, dutAS, af, tc.rd))
+						}
+					} else {
+						gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().Config(), tc.rd)
+						gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().State(), 30*time.Second, tc.rd)
+					}
 				}
 
 				ts.ATETop.Flows().Clear()
@@ -331,4 +350,30 @@ func advertisePrefixFromISISPort(t *testing.T, ts *isissession.TestSession) {
 
 	netv6 := ts.ATEIntf1.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10).SetOriginType(gosnappi.IsisV6RouteRangeOriginType.EXTERNAL)
 	netv6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix).SetCount(uint32(prefixesCount))
+}
+
+func TextWithGNMI(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cfg string) *gnmiproto.SetResponse {
+	t.Helper()
+	gnmiC := dut.RawAPIs().GNMI(t)
+	textReplaceReq := &gnmiproto.Update{
+		Path: &gnmiproto.Path{Origin: "cli"},
+		Val: &gnmiproto.TypedValue{
+			Value: &gnmiproto.TypedValue_AsciiVal{
+				AsciiVal: cfg,
+			},
+		},
+	}
+	setRequest := &gnmiproto.SetRequest{
+		Update: []*gnmiproto.Update{textReplaceReq},
+	}
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		tmpCtx, cncl := context.WithTimeout(ctx, time.Second*120)
+		ctx = tmpCtx
+		defer cncl()
+	}
+	resp, err := gnmiC.Set(ctx, setRequest)
+	if err != nil {
+		t.Fatalf("GNMI replace is failed; %v", err)
+	}
+	return resp
 }

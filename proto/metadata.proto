@@ -641,6 +641,8 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 231;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
