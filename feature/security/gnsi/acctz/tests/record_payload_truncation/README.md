@@ -1,4 +1,4 @@
-# ACCTZ-4.2 - gNSI.acctz.v1 (Accounting) Test Record Payload Truncation
+# ACCTZ-4.2: Record Payload Truncation
 
 ## Summary
 
