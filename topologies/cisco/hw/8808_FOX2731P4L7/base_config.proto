@@ -61,6 +61,7 @@ replace: {
 " ipv4 address 10.85.72.42 255.255.255.0\n"
 "!\n"
 "interface TenGigE0/0/0/2/0\n"
+" no shutdown\n"
 " description not connected interface\n"
 " no shutdown\n"
 "!\n"
