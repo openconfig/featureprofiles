@@ -60,7 +60,7 @@ func ConfigureOtgNetworkInterface(t *testing.T, top gosnappi.Config, ate *ondatr
 		top.Ports().Add().SetName(a.Name)
 	}
 	for _, intf := range a.Interfaces {
-		ConfigureOtgInterface(t, top, intf, a)
+		ConfigureOtgInterface(top, intf, a)
 	}
 }
 // ConfigureOtgLag configures the aggregate port.
@@ -80,7 +80,7 @@ func ConfigureOtgLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index i
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 }
 // ConfigureOtgInterface configures the Ethernet for the LAG or subinterface.
-func ConfigureOtgInterface(t *testing.T, top gosnappi.Config, intf *InterfaceProperties, a *Port) {
+func ConfigureOtgInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port) {
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(intf.Name + ".Eth").SetMac(intf.Mac)
 	if a.Islag {
