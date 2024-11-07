@@ -1,18 +1,14 @@
+
 // Package otgconfighelpers provides helper functions to setup Protocol configurations on traffic generators.
 package otgconfighelpers
-
 import (
 	"testing"
-
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 )
-
 /*
 Port is a struct to hold aggregate/physical port data.
-
 Usage for Aggregate port:
-
 	  agg1 = &otgconfighelpers.Port{
 		Name:        "Port-Channel1",
 		AggMAC:      "02:00:01:01:01:07",
@@ -21,16 +17,12 @@ Usage for Aggregate port:
 		LagID:       1,
 		Islag:       true,
 	}
-
 Usage for Physical port:
-
 	phy1 = &otgconfighelpers.Port{
 		Name:        "port1",
 		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface1, interface2, interface3, interface4, interface5, interface6},
 	}
-
 Interface properties has attributes required for creating interfaces/subinterfaces on the port..
-
 	interface1 = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "169.254.0.12",
 		IPv4Gateway: "169.254.0.11",
@@ -48,7 +40,6 @@ type Port struct {
 	LagID       uint32
 	Islag       bool
 }
-
 // InterfaceProperties is a struct to hold interface data.
 type InterfaceProperties struct {
 	IPv4        string
@@ -61,7 +52,6 @@ type InterfaceProperties struct {
 	IPv6Len     uint32
 	Mac         string
 }
-
 // ConfigureOtgNetworkInterface configures the network interface.
 func ConfigureOtgNetworkInterface(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
 	if a.Islag {
@@ -73,7 +63,6 @@ func ConfigureOtgNetworkInterface(t *testing.T, top gosnappi.Config, ate *ondatr
 		ConfigureOtgInterface(t, top, intf, a)
 	}
 }
-
 // ConfigureOtgLag configures the aggregate port.
 func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
 	agg := top.Lags().Add().SetName(a.Name)
@@ -84,14 +73,12 @@ func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, 
 		ConfigureOtgLagMemberPort(agg, p.ID(), a, index)
 	}
 }
-
 // ConfigureOtgLagMemberPort configures the member port in the LAG.
 func ConfigureOtgLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index int) {
 	lagPort := agg.Ports().Add().SetPortName(portID)
 	lagPort.Ethernet().SetMac(a.AggMAC).SetName(a.Name + "-" + portID)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 }
-
 // ConfigureOtgInterface configures the Ethernet for the LAG or subinterface.
 func ConfigureOtgInterface(t *testing.T, top gosnappi.Config, intf *InterfaceProperties, a *Port) {
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
