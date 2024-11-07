@@ -9,7 +9,7 @@
 # @openconfig/featureprofiles-maintainers will be requested for
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-maintainers
-*.text @self-maurya
+*.text  @openconfig/featureprofiles-go-reviewers
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
