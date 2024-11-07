@@ -1201,3 +1201,8 @@ func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
+
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
