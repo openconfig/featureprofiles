@@ -9,11 +9,11 @@
 # @openconfig/featureprofiles-maintainers will be requested for
 # review when someone opens a pull request.
 *       @openconfig/featureprofiles-maintainers
+*.text @self-maurya
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
-/feature/aft/          @sudhinj
-/feature/bgp/          @dplore
+/feature/bgp/          @dplore @self-maurya
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/interface/    @ram-mac
@@ -25,12 +25,11 @@
 /feature/platform/           @amrindrr
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
-/feature/sampling/           @sudhinj
 /feature/security            @mihirpitale-googler
 /feature/staticroute/        @swetha-haridasula
 /feature/stp/                @alokmtri-g
 /feature/system              @swetha-haridasula
 /feature/vrrp                @amrindrr
 
-# Common OTG utilities 
+# Common OTG utilities
 /internal/otgutils/  @openconfig/featureprofiles-maintainers-otg
