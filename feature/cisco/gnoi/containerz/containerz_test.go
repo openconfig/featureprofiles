@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 func TestContainerzWorkflow(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	dut := ondatra.DUT(t, "dut")
 	cli, err := client.NewClient(ctx, t, dut)
 	if err != nil {
@@ -120,7 +120,8 @@ func TestContainerzWorkflow(t *testing.T) {
 		for msg := range logCh {
 			logs = append(logs, msg.Msg)
 			if msg.Error != nil {
-				t.Errorf("logs returned an error: %v", err)
+				t.Logf("Message: %v", msg.Msg)
+				t.Errorf("logs returned an error: %v", msg.Error)
 			}
 		}
 
@@ -166,13 +167,12 @@ func TestContainerzWorkflow(t *testing.T) {
 	})
 
 	t.Run("StopContainer", func(t *testing.T) {
-
 		if err := cli.StopContainer(ctx, "bonnet-1", true, false); err != nil {
-			t.Logf("container already stopping: %v", err)
+			t.Logf("Failed to stop container: %v", err)
 		}
 
 	})
-	
+
 	t.Run("RemoveImage", func(t *testing.T) {
 		if err := cli.RemoveImage(ctx, "bonnet", "g3", true); err != nil {
 			t.Logf("Failed to remove image: %v", err)
