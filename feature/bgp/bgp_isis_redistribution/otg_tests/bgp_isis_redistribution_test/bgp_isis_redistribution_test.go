@@ -200,7 +200,6 @@ func TestBGPToISISRedistribution(t *testing.T) {
 					checkTraffic(t, ts, v4FlowName)
 				} else {
 					createFlowV6(t, ts)
-					//time.Sleep(3 * time.Second)
 					checkTraffic(t, ts, v6FlowName)
 				}
 			}
