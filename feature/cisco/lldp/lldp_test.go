@@ -59,7 +59,6 @@ func TestLldpState(t *testing.T) {
 	})
 
 	t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
-		// path := gnmi.OC().Interface(iut.Name()).Enabled()
 		d := &oc.Root{}
 		i, _ := d.GetOrCreateLldp().NewInterface(iut.Name())
 		i.Enabled = ygot.Bool(true)
@@ -68,7 +67,7 @@ func TestLldpState(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), i)
 
 	})
-	t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
 		d := &oc.Root{}
 		i, _ := d.GetOrCreateLldp().NewInterface(peerintf.Name())
 		i.Enabled = ygot.Bool(true)
@@ -82,7 +81,7 @@ func TestLldpState(t *testing.T) {
 		gnmi.Update(t, dut, path.Config(), true)
 
 	})
-	t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
 		path := gnmi.OC().Interface(peerintf.Name()).Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, peer, path.Config(), true)
