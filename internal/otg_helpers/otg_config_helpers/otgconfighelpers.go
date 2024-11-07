@@ -86,7 +86,7 @@ func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, 
 }
 
 // ConfigureOtgLagMemberPort configures the member port in the LAG.
-func ConfigureOtgLagMemberPort(t *testing.T, top gosnappi.Config, agg gosnappi.Lag, portID string, a *Port, index int) {
+func ConfigureOtgLagMemberPort( agg gosnappi.Lag, portID string, a *Port, index int) {
 	lagPort := agg.Ports().Add().SetPortName(portID)
 	lagPort.Ethernet().SetMac(a.AggMAC).SetName(a.Name + "-" + portID)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
