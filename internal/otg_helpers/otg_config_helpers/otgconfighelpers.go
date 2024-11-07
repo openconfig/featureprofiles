@@ -10,8 +10,8 @@ import (
 
 /*
 Port is a struct to hold aggregate/physical port data.
-Creating basic port (Agg/physical port )
 
+Usage for Aggregate port:
 
 	  agg1 = &otgconfighelpers.Port{
 		Name:        "Port-Channel1",
@@ -22,7 +22,15 @@ Creating basic port (Agg/physical port )
 		Islag:       true,
 	}
 
+Usage for Physical port:
+
+	phy1 = &otgconfighelpers.Port{
+		Name:        "port1",
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface1, interface2, interface3, interface4, interface5, interface6},
+	}
+
 Interface properties has attributes required for creating interfaces/subinterfaces on the port..
+
 	interface1 = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "169.254.0.12",
 		IPv4Gateway: "169.254.0.11",
@@ -32,13 +40,11 @@ Interface properties has attributes required for creating interfaces/subinterfac
 		Mac:         "02:00:01:01:01:08",
 	}
 */
-// Port is a struct to hold aggregate/physical port data.
 type Port struct {
 	Name        string
 	AggMAC      string
 	Interfaces  []*InterfaceProperties
 	MemberPorts []string
-	PortName    string
 	LagID       uint32
 	Islag       bool
 }
@@ -61,10 +67,9 @@ func ConfigureOtgNetworkInterface(t *testing.T, top gosnappi.Config, ate *ondatr
 	if a.Islag {
 		ConfigureOtgLag(t, top, ate, a)
 	} else {
-		top.Ports().Add().SetName(a.PortName)
+		top.Ports().Add().SetName(a.Name)
 	}
 	for _, intf := range a.Interfaces {
-
 		ConfigureOtgInterface(t, top, intf, a)
 	}
 }
@@ -80,10 +85,9 @@ func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, 
 	}
 }
 
-// ConfigureOtgLagPort configures the port in the LAG.
+// ConfigureOtgLagMemberPort configures the member port in the LAG.
 func ConfigureOtgLagMemberPort(t *testing.T, top gosnappi.Config, agg gosnappi.Lag, portID string, a *Port, index int) {
 	lagPort := agg.Ports().Add().SetPortName(portID)
-
 	lagPort.Ethernet().SetMac(a.AggMAC).SetName(a.Name + "-" + portID)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
 }
@@ -92,13 +96,15 @@ func ConfigureOtgLagMemberPort(t *testing.T, top gosnappi.Config, agg gosnappi.L
 func ConfigureOtgInterface(t *testing.T, top gosnappi.Config, intf *InterfaceProperties, a *Port) {
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(intf.Name + ".Eth").SetMac(intf.Mac)
-	eth.Connection().SetLagName(a.Name)
-
+	if a.Islag {
+		eth.Connection().SetLagName(a.Name)
+  } else {
+		eth.Connection().SetPortName(a.Name)
+	}
 	// VLAN configuration
 	if intf.Vlan != 0 {
 		eth.Vlans().Add().SetName(intf.Name + ".vlan").SetId(intf.Vlan)
 	}
-
 	// IP address configuration
 	if intf.IPv4 != "" {
 		eth.Ipv4Addresses().Add().SetName(intf.Name + ".IPv4").SetAddress(intf.IPv4).SetGateway(intf.IPv4Gateway).SetPrefix(intf.IPv4Len)
