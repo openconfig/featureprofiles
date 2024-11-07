@@ -15,6 +15,8 @@
 package bgp_isis_redistribution_test
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -28,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -197,6 +200,7 @@ func TestBGPToISISRedistribution(t *testing.T) {
 					checkTraffic(t, ts, v4FlowName)
 				} else {
 					createFlowV6(t, ts)
+					//time.Sleep(3 * time.Second)
 					checkTraffic(t, ts, v6FlowName)
 				}
 			}
@@ -307,7 +311,9 @@ func nonMatchingPrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv4.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -350,14 +356,16 @@ func nonMatchingCommunityRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 		communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v4CommunitySet)
 		communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", dummyAS, 200))})
-		communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 			stmt.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(v4CommunitySet)
 		} else {
-			stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v4CommunitySet)
+			ref1 := stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+			ref1.SetCommunitySet(v4CommunitySet)
+			ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 		}
-		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 }
 
@@ -397,8 +405,10 @@ func verifyNonMatchingPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, ate 
 	if pName := prefixSet.GetName(); pName != v4PrefixSet {
 		t.Errorf("Prefix set name: %s, want: %s", pName, v4PrefixSet)
 	}
-	if pMode := prefixSet.GetMode(); pMode != oc.PrefixSet_Mode_IPV4 {
-		t.Errorf("Prefix set mode: %s, want: %s", pMode, oc.PrefixSet_Mode_IPV4)
+	if !deviations.SkipPrefixSetMode(dut) {
+		if pMode := prefixSet.GetMode(); pMode != oc.PrefixSet_Mode_IPV4 {
+			t.Errorf("Prefix set mode: %s, want: %s", pMode, oc.PrefixSet_Mode_IPV4)
+		}
 	}
 	if prefix := prefixSet.GetPrefix(nonAdvertisedIPv4.cidr(t), maskLenExact); prefix == nil {
 		t.Errorf("Prefix is nil, want: %s", nonAdvertisedIPv4.cidr(t))
@@ -523,7 +533,9 @@ func nonMatchingPrefixRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixSet)
-	prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV6)
+	}
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv6.cidr(t), maskLenExact)
 
 	if !deviations.SkipSetRpMatchSetOptions(dut) {
@@ -566,14 +578,16 @@ func nonMatchingCommunityRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 		communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(v6CommunitySet)
 		communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", dummyAS, 200))})
-		communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 
 		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 			stmt.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(v6CommunitySet)
 		} else {
-			stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(v6CommunitySet)
+			ref1 := stmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+			ref1.SetCommunitySet(v6CommunitySet)
+			ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 		}
-		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 }
 
@@ -613,8 +627,11 @@ func verifyNonMatchingPrefixTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 	if pName := prefixSet.GetName(); pName != v6PrefixSet {
 		t.Errorf("Prefix set name: %s, want: %s", pName, v6PrefixSet)
 	}
-	if pMode := prefixSet.GetMode(); pMode != oc.PrefixSet_Mode_IPV6 {
-		t.Errorf("Prefix set mode: %s, want: %s", pMode, oc.PrefixSet_Mode_IPV6)
+
+	if !deviations.SkipPrefixSetMode(dut) {
+		if pMode := prefixSet.GetMode(); pMode != oc.PrefixSet_Mode_IPV6 {
+			t.Errorf("Prefix set mode: %s, want: %s", pMode, oc.PrefixSet_Mode_IPV6)
+		}
 	}
 	if prefix := prefixSet.GetPrefix(nonAdvertisedIPv6.cidr(t), maskLenExact); prefix == nil {
 		t.Errorf("Prefix is nil, want: %s", nonAdvertisedIPv6.cidr(t))
@@ -725,6 +742,12 @@ func verifyMatchingCommunityTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, at
 func bgpISISRedistribution(t *testing.T, dut *ondatra.DUTDevice) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	root := &oc.Root{}
+
+	if deviations.EnableTableConnections(dut) {
+		state := "enable"
+		configEnableTbNative(t, dut, state)
+	}
+
 	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tableConn.SetDisableMetricPropagation(false)
@@ -809,6 +832,47 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	} else {
 		bgpTablePolicyCLI = fmt.Sprintf("router bgp %v instance BGP address-family ipv6 unicast \n table-policy %v", dutAS, tablePolicyMatchCommunitySetTag)
 		helpers.GnmiCLIConfig(t, dut, bgpTablePolicyCLI)
+	}
+}
+
+func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
+	t.Helper()
+	switch d.Vendor() {
+	case ondatra.NOKIA:
+		//value := state
+		adminEnable, err := json.Marshal(state)
+		if err != nil {
+			t.Fatalf("Error with json Marshal: %v", err)
+		}
+
+		gpbSetRequest := &gpb.SetRequest{
+			Prefix: &gpb.Path{
+				Origin: "native",
+			},
+			Update: []*gpb.Update{
+				{
+					Path: &gpb.Path{
+						Elem: []*gpb.PathElem{
+							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+							{Name: "table-connections"},
+							{Name: "admin-state"},
+						},
+					},
+					Val: &gpb.TypedValue{
+						Value: &gpb.TypedValue_JsonIetfVal{
+							JsonIetfVal: adminEnable,
+						},
+					},
+				},
+			},
+		}
+
+		gnmiClient := d.RawAPIs().GNMI(t)
+		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
+		}
+	default:
+		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
 	}
 }
 

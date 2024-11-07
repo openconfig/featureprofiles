@@ -45,3 +45,15 @@ platform_exceptions: {
     default_route_policy_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+  explicit_interface_in_default_vrf: true
+  interface_enabled: true
+  skip_prefix_set_mode: true
+  enable_table_connections: true
+  bgp_community_member_is_a_string: true
+   }
+}
