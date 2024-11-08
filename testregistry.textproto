@@ -698,6 +698,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.63"
+  description: "BGP Multihop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multihop/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
