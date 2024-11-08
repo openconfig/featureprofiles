@@ -200,8 +200,8 @@ func TestBGPSetup(t *testing.T) {
 				t.Logf("Enable Multipath")
 				switch bs.DUT.Vendor() {
 				case ondatra.NOKIA:
-					//BGP multipath enable/disable at the peer-group level not supported b/376799583
-					t.Logf("BGP Multipath enable/disable not supported under Peer-group by %s hence skipping", bs.DUT.Vendor())
+					//BGP multipath enable/disable at the peer-group level not required b/376799583
+					t.Logf("BGP Multipath enable/disable not required under Peer-group by %s hence skipping", bs.DUT.Vendor())
 				default:
 					bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 				}
