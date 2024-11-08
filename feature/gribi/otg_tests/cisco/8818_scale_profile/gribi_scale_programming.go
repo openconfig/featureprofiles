@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package tescale provides functions for tescale
-package gribi_scale_profile_test
+package b4_scale_profile_test
 
 import (
 	"context"

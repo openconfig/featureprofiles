@@ -15,12 +15,13 @@
 // Package setup is scoped only to be used for scripts in path
 // feature/experimental/system/gnmi/benchmarking/otg_tests/
 // Do not use elsewhere.
-package gribi_scale_profile_test
+package b4_scale_profile_test
 
 import (
 	// "slices"
 	// "strconv"
 	// "context"
+	// "os"
 	// "strings"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ import (
 	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+
 	// "github.com/openconfig/featureprofiles/internal/gribi"
 	// "github.com/openconfig/gribigo/fluent"
 	// "github.com/openconfig/ondatra"
@@ -78,6 +80,18 @@ func TestGribiScaleProfile(t *testing.T) {
 
 func TestGoogleBaseConfPush(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	baseConf := "configpushfiles/google_conf.textproto"
+	drainConf := "configpushfiles/google_drain_conf.textproto"
+	undrainConf := "configpushfiles/google_undrain_conf.textproto"
+	// var dutConf string
+	// cwd, err := os.Getwd()
+	// if err != nil {
+	// 	t.Fatalf("Failed to get current working directory: %v", err)
+	// }
+	// if strings.Contains(cwd, "/featureprofiles/") {
+	// 	rootSrc := strings.Split(cwd, "featureprofiles")[0]
+	// 	dutConf = rootSrc + "featureprofiles/topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNY_baseconfig.proto"
+	// }
 	cases := []struct {
 		desc           string
 		configFilePath string
@@ -85,29 +99,50 @@ func TestGoogleBaseConfPush(t *testing.T) {
 		wantTime       time.Duration
 	}{
 		{
-			desc:           "Verify Initial Config Push",
-			configFilePath: "google_undrain_conf.textproto",
-			clientTimeout:  6 * time.Minute,
-			wantTime:       4 * time.Minute,
+			desc:           "Initial Google config push",
+			configFilePath: drainConf,
+			clientTimeout:  10 * time.Minute,
+			wantTime:       5 * time.Minute,
+		},
+		{
+			desc:           "Subsequent same google config push",
+			configFilePath: baseConf,
+			clientTimeout:  10 * time.Minute,
+			wantTime:       2 * time.Minute,
+		},
+		{
+			desc:           "Drain config push",
+			configFilePath: drainConf,
+			clientTimeout:  10 * time.Minute,
+			wantTime:       5 * time.Minute,
+		},
+		{
+			desc:           "Undrain config push",
+			configFilePath: undrainConf,
+			clientTimeout:  10 * time.Minute,
+			wantTime:       3 * time.Minute,
 		},
 		// {
-		// 	desc:           "Verify subsequent Config Push",
-		// 	configFilePath: "failing-config.proto",
-		// 	timeout:        3 * time.Minute,
-		// 	wantTime:       2 * time.Minute,
+		// 	desc:           "Initial DUT config",
+		// 	configFilePath: dutConf,
+		// 	clientTimeout:  10 * time.Minute,
+		// 	wantTime:       5 * time.Minute,
 		// },
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Start the timer.
 			start := time.Now()
+			t.Log("Config Push start time: ", start)
 			util.GnmiProtoSetConfigPush(t, dut, tc.configFilePath, tc.clientTimeout)
 			// End the timer and calculate time requied to apply the config on DUT.
 			elapsedTime := time.Since(start)
-			t.Logf("Time taken for full configuration replace: %v", elapsedTime)
+			t.Logf("Time taken for %v configuration replace: %v", tc.desc, elapsedTime)
 			if elapsedTime > tc.wantTime {
-				t.Errorf("Time taken for full configuration replace is less than expected. Got: %v, Want: %v", elapsedTime, tc.wantTime)
+				t.Errorf("Time taken for %v configuration replace is less than expected. Got: %v, Want: %v", tc.desc, elapsedTime, tc.wantTime)
 			}
 		})
 	}
+	t.Run("Config Push after LC reload", func(t *testing.T) {
+	})
 }

@@ -15,7 +15,7 @@
 // Package setup is scoped only to be used for scripts in path
 // feature/experimental/system/gnmi/benchmarking/otg_tests/
 // Do not use elsewhere.
-package gribi_scale_profile_test
+package b4_scale_profile_test
 
 import (
 	"bytes"
