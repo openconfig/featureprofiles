@@ -82,6 +82,7 @@ var (
 		"linux networking",
 		"install",
 		"health",
+		"lldp",
 	}
 
 	pipedCmdList = []string{
