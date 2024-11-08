@@ -404,6 +404,7 @@ func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	client.Start(ctx, t)
 	defer client.Stop(t)
 	gribi.FlushAll(client)
+	defer gribi.FlushAll(client)
 	client.StartSending(ctx, t)
 	gribi.BecomeLeader(t, client)
 
