@@ -198,7 +198,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	t.Logf("ISIS cost of LAG_2 lower then ISIS cost of LAG_3 Test-01")
 	t.Run("RT-5.7.1.1: Setting Forwarding-Viable to False on Lag2 all ports except port 2", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[2:agg2.ateLagCount+1], false)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
@@ -222,7 +221,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:2], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[1:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -242,7 +240,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.1.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1], true)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:agg2.ateLagCount+1]); err != nil {
 			t.Fatal(err)
@@ -270,7 +267,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		if len(dut.Ports()) > 4 {
 			t.Logf("Bring Down Port2 and Port3")
 			setDUTInterfaceWithState(t, dut, []*ondatra.Port{dut.Port(t, "port2"), dut.Port(t, "port3")}, false)
@@ -317,7 +313,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		flows = append(flows, configureFlows(t, top, pfx2AdvV4, pfx1AdvV4, "pfx2ToPfx1Lag3", agg3, []*aggPortData{agg1}, dutAggMac[2], ipRange[0]))
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[1:2]); err != nil {
 			t.Fatal(err)
@@ -329,7 +324,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal(err)
 		}
 		// Ensure Load WECMP on LAG_2 and LAG_3 for prefix's pfx2, pfx3 and pfx4
-		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[0])
+		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName}, flows[1], agg2.ateAggName)
 		for idx, weight := range trafficDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
@@ -346,7 +341,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:2], false)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:(agg2.ateLagCount+1)], dutPortList[1:(agg2.ateLagCount+1)]); err != nil {
 			t.Fatal(err)
@@ -366,7 +360,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 	t.Run("RT-5.7.2.3: Setting Forwarding-Viable to True for Lag2 one of the port", func(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[agg2.ateLagCount:(agg2.ateLagCount+1)], true)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		startTraffic(t, dut, ate, top)
 		if err := checkBidirectionalTraffic(t, dut, dutPortList[agg2.ateLagCount:]); err != nil {
 			t.Fatal(err)
@@ -388,7 +381,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 			t.Fatal("ISIS Adjacency is Down on LAG_2")
 		}
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
-	        capturePktsBeforeTraffic(t, dut, dutPortList)
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if len(dut.Ports()) > 4 {
@@ -459,7 +451,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	if len(dut.Ports()) > 4 {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
-		trafficDistributionWeights = []uint64{33, 67}
+		trafficDistributionWeights = []uint64{50, 50}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -724,7 +716,6 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	if deviations.ISISLevelEnabled(dut) {
                 isisLevel2.Enabled = ygot.Bool(true)
         }
-
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
@@ -955,7 +946,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 		flowV4.TxRx().Port().
 			SetRxNames([]string{dstAgg[0].ateAggName, dstAgg[1].ateAggName})
 	}
-	flowV4.Size().SetFixed(1500)
+	flowV4.Size().SetFixed(1400)
 	flowV4.Rate().SetPps(trafficPPS)
 	eV4 := flowV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(srcAgg.ateAggMAC)
@@ -1080,6 +1071,7 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 // startTraffic start traffic on ATE
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
+	capturePktsBeforeTraffic(t, dut, dutPortList)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
@@ -1199,12 +1191,19 @@ func validateLag3Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 }
 
 // trafficRXWeights to ensure 50:50 Load Balancing
-func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow) []uint64 {
+func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
 	t.Helper()
 	var rxs []uint64
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	flowInOctets := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
 		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
+		inOctets := metrics.GetCounters().GetInFrames()
+		if aggName == aggregateAggName {
+			inOctets = inOctets - flowInOctets
+		}
+		rxs = append(rxs, inOctets)
 	}
 	var total uint64
 	for _, rx := range rxs {
