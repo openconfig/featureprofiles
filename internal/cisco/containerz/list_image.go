@@ -20,8 +20,8 @@ import (
 	"context"
 	"io"
 
-	"k8s.io/klog/v2"
 	cpb "github.com/openconfig/gnoi/containerz"
+	"k8s.io/klog/v2"
 )
 
 // ListImage implements the client logic for listing the existing images on the target system.

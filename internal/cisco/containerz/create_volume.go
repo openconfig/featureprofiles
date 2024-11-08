@@ -29,7 +29,7 @@ func (c *Client) CreateVolume(ctx context.Context, name, driver string, labels, 
 }
 
 // requestForDriver returns a CreateVolumeRequest given the string representation of the driver name
-// and an arbitrary list of key-value entries representing options of the driver. 
+// and an arbitrary list of key-value entries representing options of the driver.
 func requestForDriver(driver string, options map[string]string) (*cpb.CreateVolumeRequest, error) {
 	req := &cpb.CreateVolumeRequest{}
 	switch strings.ToLower(driver) {

@@ -20,11 +20,11 @@ import (
 	"context"
 	"io"
 
+	"github.com/openconfig/containerz/chunker"
+	cpb "github.com/openconfig/gnoi/containerz"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
-	"github.com/openconfig/containerz/chunker"
-	cpb "github.com/openconfig/gnoi/containerz"
 )
 
 // State represents the state of the state machine

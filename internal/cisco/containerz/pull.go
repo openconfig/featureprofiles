@@ -20,10 +20,10 @@ import (
 	"context"
 	"io"
 
-	"k8s.io/klog/v2"
 	commonpb "github.com/openconfig/gnoi/common"
 	cpb "github.com/openconfig/gnoi/containerz"
 	tpb "github.com/openconfig/gnoi/types"
+	"k8s.io/klog/v2"
 )
 
 // PullImage implements the client logic for the target to pull an image from a remote location.
