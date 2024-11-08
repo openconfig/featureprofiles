@@ -49,12 +49,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func pruneUnsupportedPaths(config *oc.Root) {
-	for _, ni := range config.NetworkInstance {
-		ni.Fdb = nil
-	}
-}
-
 // setEthernetFromBase merges the ethernet config from the interfaces in base config into
 // the destination config.
 func setEthernetFromBase(t testing.TB, config *oc.Root) {
