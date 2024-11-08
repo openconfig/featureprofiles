@@ -1195,13 +1195,13 @@ func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, f
 	t.Helper()
 	var rxs []uint64
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	flowInOctets := flowMetrics.GetCounters().GetInPkts()
+	flowInFrames := flowMetrics.GetCounters().GetInPkts()
 	for _, aggName := range aggNames {
 		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
 		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
-		inOctets := metrics.GetCounters().GetInFrames()
+		inFrames := metrics.GetCounters().GetInFrames()
 		if aggName == aggregateAggName {
-			inOctets = inOctets - flowInOctets
+			inFrames = inFrames - flowInFrames
 		}
 		rxs = append(rxs, inOctets)
 	}
