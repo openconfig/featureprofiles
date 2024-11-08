@@ -83,7 +83,7 @@ class FireX:
                     failure.text if failure.text is not None else "",
                 )
 
-                print(f"Called FireX._create_testsuites() and generated for {testcase.get("name")} the following labels: {labels}")
+                print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
 
                 if len(labels) > 0:
                     testcase_data["generated_labels"] = labels
