@@ -1172,7 +1172,6 @@ func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
 }
 
-
 // ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
 func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
