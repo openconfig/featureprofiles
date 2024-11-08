@@ -271,22 +271,36 @@ func enableExtCommunityCLIConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func removeImportAndExportPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	dni := deviations.DefaultNetworkInstance(dut)
+
+	bd := &gnmi.SetBatch{}
+	path1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path2 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path3 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	path4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	gnmi.BatchDelete(bd, path1.Config())
+	gnmi.BatchDelete(bd, path2.Config())
+	gnmi.BatchDelete(bd, path3.Config())
+	gnmi.BatchDelete(bd, path4.Config())
+	bd.Set(t, dut)
+}
+
 func applyImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
+	removeImportAndExportPolicy(t, dut)
 
 	// Apply ipv4 policy to bgp neighbour.
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{policyName})
-	gnmi.Delete(t, dut, path.Config())
 	gnmi.Replace(t, dut, path.Config(), policy)
 
 	// Apply ipv6 policy to bgp neighbour.
 	path = gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy = root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{policyName})
-	gnmi.Delete(t, dut, path.Config())
 	gnmi.Replace(t, dut, path.Config(), policy)
 
 	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -304,19 +318,18 @@ func applyImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
+	removeImportAndExportPolicy(t, dut)
 
 	// Apply ipv4 policy to bgp neighbour.
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{policyName})
-	gnmi.Delete(t, dut, path.Config())
 	gnmi.Replace(t, dut, path.Config(), policy)
 
 	// Apply ipv6 policy to bgp neighbour.
 	path = gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	policy = root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{policyName})
-	gnmi.Delete(t, dut, path.Config())
 	gnmi.Replace(t, dut, path.Config(), policy)
 
 	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -768,7 +781,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			ref1.SetCommunitySet("regex_match_comm100_deviation2")
 		}
 	} else {
-		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
+		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 		ref1.SetCommunitySet("regex_match_comm100")
 		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	}
@@ -827,6 +840,8 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDelLinkbw)
 	}
+
+	fptest.LogQuery(t, "", gnmi.OC().RoutingPolicy().Config(), root)
 }
 
 func createFlow(t *testing.T, td testData, fc flowConfig) {
