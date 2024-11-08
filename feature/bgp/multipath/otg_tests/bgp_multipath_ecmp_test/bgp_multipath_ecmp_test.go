@@ -196,10 +196,15 @@ func TestBGPSetup(t *testing.T) {
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
 			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-			pgUseMulitplePaths := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths()
 			if tc.enableMultipath {
 				t.Logf("Enable Multipath")
-				pgUseMulitplePaths.Enabled = ygot.Bool(true)
+				switch bs.DUT.Vendor() {
+				case ondatra.NOKIA:
+					//BGP multipath enable/disable at the peer-group level not supported b/376799583
+					t.Logf("BGP Multipath enable/disable not supported under Peer-group by %s hence skipping", bs.DUT.Vendor())
+				default:
+					bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+				}
 				t.Logf("Enable Maximum Paths")
 				if deviations.EnableMultipathUnderAfiSafi(bs.DUT) {
 					gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
