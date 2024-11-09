@@ -20,6 +20,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -222,24 +223,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 	time.Sleep(30 * time.Second)
 
 	return iDut1Bgp4Peer, iDut1Ipv4, config
-}
-
-// bgpClearConfig removes all BGP configuration from the DUT.
-func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
-	resetBatch := &gnmi.SetBatch{}
-	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
-
-	if deviations.NetworkInstanceTableDeletionRequired(dut) {
-		tablePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableAny()
-		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
-			if val, ok := table.Val(); ok {
-				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
-					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
-				}
-			}
-		}
-	}
-	resetBatch.Set(t, dut)
 }
 
 // Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -531,7 +514,7 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		bgpClearConfig(t, dut)
+		cfgplugins.BGPClearConfig(t, dut)
 		dutConf := bgpCreateNbr(t, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
