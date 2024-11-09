@@ -354,6 +354,15 @@ type NeighborConfig struct {
 	AS           uint32
 }
 
+// BgpNeighbor holds BGP Peer information.
+type BgpNeighbor struct {
+	LocalAS    uint32
+	PeerAS     uint32
+	Neighborip string
+	IsV4       bool
+	PeerGrp    string
+}
+
 // buildNeigborConfig builds neighbor config based on given flags
 func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []string) []*NeighborConfig {
 	nc1 := &NeighborConfig{
@@ -509,4 +518,39 @@ func BGPClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	resetBatch.Set(t, dut)
+}
+
+// VerifyBGPCapabilities function is used to Verify BGP capabilities like route refresh as32 and mpbgp.
+func VerifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []*BgpNeighbor) {
+	t.Log("Verifying BGP capabilities")
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	for _, nbr := range nbrs {
+		nbrPath := statePath.Neighbor(nbr.Neighborip)
+
+		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
+			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+		}
+		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[cap] = true
+		}
+		for cap, present := range capabilities {
+			if !present {
+				t.Errorf("Capability not reported: %v", cap)
+			}
+		}
+	}
+}
+
+// VerifyPortsUp asserts that each port on the device is operating.
+func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
+	t.Helper()
+	for _, p := range dev.Ports() {
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
+			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		}
+	}
 }

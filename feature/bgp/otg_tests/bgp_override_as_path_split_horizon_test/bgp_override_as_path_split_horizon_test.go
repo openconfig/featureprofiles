@@ -84,8 +84,8 @@ var (
 		IPv6Len: plenIPv6,
 	}
 
-	nbr1 = &bgpNeighbor{localAS: dutLocalAS1, peerAS: ateAS1, neighborip: atePort1.IPv4, isV4: true, peerGrp: peerGrpName1}
-	nbr2 = &bgpNeighbor{localAS: dutLocalAS2, peerAS: ateAS2, neighborip: atePort2.IPv4, isV4: true, peerGrp: peerGrpName2}
+	nbr1 = &cfgplugins.BgpNeighbor{LocalAS: dutLocalAS1, PeerAS: ateAS1, Neighborip: atePort1.IPv4, IsV4: true, PeerGrp: peerGrpName1}
+	nbr2 = &cfgplugins.BgpNeighbor{LocalAS: dutLocalAS2, PeerAS: ateAS2, Neighborip: atePort2.IPv4, IsV4: true, PeerGrp: peerGrpName2}
 
 	otgPort1V4Peer = "atePort1.BGP4.peer"
 	otgPort2V4Peer = "atePort2.BGP4.peer"
@@ -102,17 +102,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 }
 
-// verifyPortsUp asserts that each port on the device is operating.
-func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
-	t.Helper()
-	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
-		}
-	}
-}
-
 // bgpCreateNbr creates a BGP object with neighbors pointing to atePort1 and atePort2
 func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	t.Helper()
@@ -127,16 +116,16 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 	// Note: we have to define the peer group even if we aren't setting any policy because it's
 	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
 
-	for _, nbr := range []*bgpNeighbor{nbr1, nbr2} {
+	for _, nbr := range []*cfgplugins.BgpNeighbor{nbr1, nbr2} {
 
-		pg := bgp.GetOrCreatePeerGroup(nbr.peerGrp)
-		pg.PeerAs = ygot.Uint32(nbr.peerAS)
-		pg.LocalAs = ygot.Uint32(nbr.localAS)
-		pg.PeerGroupName = ygot.String(nbr.peerGrp)
+		pg := bgp.GetOrCreatePeerGroup(nbr.PeerGrp)
+		pg.PeerAs = ygot.Uint32(nbr.PeerAS)
+		pg.LocalAs = ygot.Uint32(nbr.LocalAS)
+		pg.PeerGroupName = ygot.String(nbr.PeerGrp)
 
-		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv4.PeerGroup = ygot.String(nbr.peerGrp)
-		nv4.PeerAs = ygot.Uint32(nbr.peerAS)
+		nv4 := bgp.GetOrCreateNeighbor(nbr.Neighborip)
+		nv4.PeerGroup = ygot.String(nbr.PeerGrp)
+		nv4.PeerAs = ygot.Uint32(nbr.PeerAS)
 		nv4.Enabled = ygot.Bool(true)
 		af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.Enabled = ygot.Bool(true)
@@ -154,30 +143,6 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 		}
 	}
 	return niProto
-}
-
-// verifyBgpTelemetry checks that the dut has an established BGP session with reasonable settings.
-func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrsList []*bgpNeighbor) {
-	t.Helper()
-	t.Logf("Verifying BGP state.")
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
-	for _, nbr := range nbrsList {
-		nbrPath := bgpPath.Neighbor(nbr.neighborip)
-		t.Logf("Waiting for BGP neighbor to establish...")
-		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
-			state, ok := val.Val()
-			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-		}).Await(t)
-		if !ok {
-			t.Fatal("No BGP neighbor formed")
-		}
-		state, _ := status.Val()
-		t.Logf("BGP adjacency for %s: %v", nbr.neighborip, state)
-		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
-			t.Errorf("BGP peer %s status got %d, want %d", nbr.neighborip, state, want)
-		}
-	}
 }
 
 // configureOTG configures the interfaces and BGP protocols on an ATE.
@@ -223,30 +188,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 	time.Sleep(30 * time.Second)
 
 	return iDut1Bgp4Peer, iDut1Ipv4, config
-}
-
-// Verify BGP capabilities like route refresh as32 and mpbgp.
-func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
-	t.Log("Verifying BGP capabilities")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
-	for _, nbr := range nbrs {
-		nbrPath := statePath.Neighbor(nbr.neighborip)
-
-		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
-			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
-			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
-			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
-		}
-		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
-			capabilities[cap] = true
-		}
-		for cap, present := range capabilities {
-			if !present {
-				t.Errorf("Capability not reported: %v", cap)
-			}
-		}
-	}
 }
 
 // advBGPRouteFromOTG is to advertise prefix with specific AS sequence set.
@@ -333,12 +274,12 @@ func testSplitHorizonNoAllowOwnIn(t *testing.T, args *otgTestArgs) {
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 
 	t.Log("Validate session state and capabilities received on DUT using telemetry.")
-	verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-	verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+	cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+	cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 	t.Log("Verify that the ATE Port2 doesn't receive the route. due to the presence of its own AS in the path.")
-	verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 0, 0)
-	verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 0)
+	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 0, 0)
+	verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 0)
 	verifyOTGPrefixTelemetry(t, args.otg, false)
 }
 
@@ -356,12 +297,12 @@ func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 
 	t.Log("Validate session state and capabilities received on DUT using telemetry.")
-	verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-	verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+	cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+	cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 	t.Log("Verify that the DUT accepts the route.")
-	verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-	verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+	verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 	t.Log("Verify that the ATE Port2 receives the route.")
 	verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -382,12 +323,12 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-		verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -397,11 +338,11 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -411,12 +352,12 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-		verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 0, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 0, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 0)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, false)
@@ -437,12 +378,12 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-		verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -452,11 +393,12 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -466,24 +408,16 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
 
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		verifyBgpTelemetry(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
-		verifyBGPCapabilities(t, args.dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 
 		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.neighborip, 0, 1)
+		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
 
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
 	})
-}
-
-type bgpNeighbor struct {
-	localAS    uint32
-	peerAS     uint32
-	neighborip string
-	isV4       bool
-	peerGrp    string
 }
 
 type otgTestArgs struct {
@@ -536,12 +470,12 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 	}
 
 	t.Run("Verify port status on DUT", func(t *testing.T) {
-		verifyPortsUp(t, dut.Device)
+		cfgplugins.VerifyPortsUp(t, args.dut.Device)
 	})
 
 	t.Run("Verify BGP telemetry", func(t *testing.T) {
-		verifyBgpTelemetry(t, dut, []*bgpNeighbor{nbr1, nbr2})
-		verifyBGPCapabilities(t, dut, []*bgpNeighbor{nbr1, nbr2})
+		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
+		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
 	})
 
 	cases := []struct {
