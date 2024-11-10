@@ -699,6 +699,8 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
     
     with open(reserved_testbed['test_list_file'], "a+") as fp:
         fp.write(f'{skuid}\n')
+    shutil.copyfile(reserved_testbed['test_list_file'],
+            os.path.join(test_log_directory_path, "testbed_tests_list.txt"))
     
     go_args = ''
     test_args = test_args or ''
