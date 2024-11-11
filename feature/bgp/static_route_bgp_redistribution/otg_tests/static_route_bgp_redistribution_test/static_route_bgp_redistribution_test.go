@@ -197,7 +197,7 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
 	}
-	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString("192.168.1.6"))
+	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv4))
 
 	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("2024:db8:128:128::/64")
 	if !deviations.UseVendorNativeTagSetConfig(dut) {
@@ -212,7 +212,7 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
 	}
-	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString("2001:DB8::6"))
+	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv6))
 
 	gnmi.Replace(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
 }
@@ -1479,8 +1479,8 @@ func validateRedistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDe
 // Used by multiple IPv4 test validations for route presence and MED value
 func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
 	time.Sleep(5 * time.Second)
-	var foundPrefix string
-	var foundMED uint32
+	var gotPrefix string
+	var gotMED uint32
 
 	found := false
 	_, ok := gnmi.WatchAll(t,
@@ -1491,11 +1491,11 @@ func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 			prefix, present := v.Val()
 			if present {
 				if prefix.GetAddress() == subnet {
-					foundPrefix = prefix.GetAddress()
-					foundMED = prefix.GetMultiExitDiscriminator()
-					if foundMED == expectedMED {
-						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", foundPrefix, subnet)
-						t.Logf("Prefix MED %d", foundMED)
+					gotPrefix = prefix.GetAddress()
+					gotMED = prefix.GetMultiExitDiscriminator()
+					if gotMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", gotPrefix, subnet)
+						t.Logf("Prefix MED %d", gotMED)
 						found = true
 						return true
 					}
@@ -1509,15 +1509,15 @@ func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 	}
 
 	if !found {
-		t.Fatalf("For Prefix %v, got MED %d want MED %d", foundPrefix, foundMED, expectedMED)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", gotPrefix, gotMED, expectedMED)
 	}
 }
 
 // Used by multiple IPv6 test validations for route presence and MED value
 func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
 	time.Sleep(5 * time.Second)
-	var foundPrefix string
-	var foundMED uint32
+	var gotPrefix string
+	var gotMED uint32
 
 	found := false
 	_, ok := gnmi.WatchAll(t,
@@ -1528,11 +1528,11 @@ func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 			prefix, present := v.Val()
 			if present {
 				if prefix.GetAddress() == subnet {
-					foundPrefix = prefix.GetAddress()
-					foundMED = prefix.GetMultiExitDiscriminator()
-					if foundMED == expectedMED {
-						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", foundPrefix, subnet)
-						t.Logf("Prefix MED %d", foundMED)
+					gotPrefix = prefix.GetAddress()
+					gotMED = prefix.GetMultiExitDiscriminator()
+					if gotMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", gotPrefix, subnet)
+						t.Logf("Prefix MED %d", gotMED)
 						found = true
 						return true
 					}
@@ -1546,7 +1546,7 @@ func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName
 	}
 
 	if !found {
-		t.Fatalf("For Prefix %v, got MED %d want MED %d", foundPrefix, foundMED, expectedMED)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", gotPrefix, gotMED, expectedMED)
 	}
 }
 

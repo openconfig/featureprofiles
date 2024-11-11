@@ -49,6 +49,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
+
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra"
 )
@@ -56,12 +57,12 @@ import (
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
-	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		if platformExceptions.GetPlatform().Vendor.String() == "" {
+	for _, platformExceptions := range metadata.Get().GetPlatformExceptions() {
+		if platformExceptions.GetPlatform().GetVendor().String() == "" {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
-		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+		if dvc.Vendor().String() != platformExceptions.GetPlatform().GetVendor().String() {
 			continue
 		}
 
@@ -1136,7 +1137,68 @@ func SflowSourceAddressUpdateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSflowSourceAddressUpdateUnsupported()
 }
 
-// LinklocalMaskLen returns true if linklocal mask length is not 64
+// LinkLocalMaskLen returns true if linklocal mask length is not 64
 func LinkLocalMaskLen(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinkLocalMaskLen()
+}
+
+// UseParentComponentForTemperatureTelemetry returns true if parent component supports temperature telemetry
+func UseParentComponentForTemperatureTelemetry(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseParentComponentForTemperatureTelemetry()
+}
+
+// ComponentMfgDateUnsupported returns true if component's mfg-date leaf is unsupported
+func ComponentMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetComponentMfgDateUnsupported()
+}
+
+// InterfaceCountersUpdateDelayed returns true if telemetry for interface counters
+// does not return the latest counter values.
+func InterfaceCountersUpdateDelayed(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersUpdateDelayed()
+}
+
+// OTNChannelTribUnsupported returns true if TRIB parameter is unsupported under OTN channel configuration
+func OTNChannelTribUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelTribUnsupported()
+}
+
+// EthChannelIngressParametersUnsupported returns true if ingress parameters are unsupported under ETH channel configuration
+func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelIngressParametersUnsupported()
+}
+
+// EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
+func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
+}
+
+// ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
+func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
+}
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}
+
+// BgpSessionStateIdleInPassiveMode returns true if BGP session state idle is not supported instead of active in passive mode.
+func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
+}
+
+// EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path.
+func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
