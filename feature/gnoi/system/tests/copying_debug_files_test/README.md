@@ -20,14 +20,15 @@
    * If the configuration push is successful, make a gNMI.Get() RPC call and compare the configuration received with the originally pushed configuration for a match. Test is a failure if either the gNMI.Get() operation fails or the configuration do not match with the one that was pushed
   
 * gNOI-5.3.3 - Chassis Component Health Check
-   * Issue Healthz Check RPC to the DUT for Chassis component to trigger the generation of Artifact ID(s) equivalent to 'show tech support'.
-   * Verify that the DUT returns the artifact IDs in the Check RPC's response.
-   * Invoke ArtifactRequest to transfer the requested Artifact ID(s).
-   * Verify that the DUT returns the artifacts requested.
+   * Issue Healthz Check RPC to the DUT for Chassis component to trigger the generation of Artifact ID(s). Artifacts returned should be sufficient for vendor tech support teams to determine if any of the field replaceable components are faulty and must be replaced for that device.
+   * Verify that the DUT returns the artifact IDs in the [Check RPC's](https://github.com/openconfig/gnoi/blob/main/healthz/README.md#healthzcheck) response.
+   * Invoke ArtifactRequest to transfer the requested Artifact ID(s) via [Artifact RPC](https://github.com/openconfig/gnoi/blob/main/healthz/README.md#healthzartifact)
+   * Verify that the DUT returns the artifacts requested. TODO: (https://github.com/openconfig/featureprofiles/issues/3013) Test has gap and does not retrieve artifacts.
+   * If ArtifactHeader is of FileArtifactType and a hash field is populated, the hash should be calculated against the Artifact body. TODO: (https://github.com/openconfig/featureprofiles/issues/3013) Test has gap and doesn't validate FileArtifactType hash against artifact body content.
 
 ## Process names by vendor
 * BGP Process
-   * ARISTA:  "Bgp-main"
+   * ARISTA:  "IpRib"
    * CISCO: " "
    * JUNIPER: "rpd"
    * NOKIA:   "sr_bgp_mgr"
@@ -39,19 +40,22 @@
   
 * NOS implementations will need to model their agent that handles device configuration as a [" component of the type SOFTWARE_MODULE"](https://github.com/openconfig/public/blob/master/release/models/platform/openconfig-platform-types.yang#L394) and represent it under the componenets/component tree
 
+## OpenConfig Path and RPC Coverage
 
-## Config Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-N/A
+TODO(OCPATH): State paths (if any)
 
-## Telemetry Parameter Coverage
+```yaml
+paths:
 
-## Protocol/RPC Parameter Coverage
+  ## State paths
 
-*   gNOI
-    *   System
-        *   KillProcess
-    *   Healthz
-        *   Get
-        *   Check
-        *   Artifact
+rpcs:
+  gnoi:
+    system.System.KillProcess:
+    healthz.Healthz.Artifact:
+    healthz.Healthz.Check:
+    healthz.Healthz.Get:
+```

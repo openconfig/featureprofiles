@@ -2,14 +2,7 @@
 
 ## Summary
 WBB is required to support gNMI Subscribe with SAMPLE or ON_CHANGE mode for various counters.
-This test if to verify that DUT supports gNMI Subscribe with sample mode, updating
-the available backplane capacity counters correctly while forwarding traffic
-
-*   Get backplace capacity before any traffic is sent
-
-*   Send some traffic and wait for the sample to be collected
-
-*   Send more traffic and wait for the sample to be collected
+This test if to verify that DUT supports gNMI Subscribe with ON_CHANGE for backplane-facing-capacity
 
 ## Testbed type
 
@@ -17,7 +10,7 @@ the available backplane capacity counters correctly while forwarding traffic
 
 ## Procedure
 
-### gNMI-1.18.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2322]
+### gNMI-1.18.1
 
 *   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
 
@@ -25,40 +18,23 @@ the available backplane capacity counters correctly while forwarding traffic
 
 *   Configure IPv4/IPv6 addresses on the interfaces
 
-*   Using gNMI subscribe with "SAMPLE" mode
-
-    *   Run the test twice, once with a SAMPLE interval of 10 Seconds and once again
-        with a SAMPLE interval of 15 seconds for the below telemetry path
+*   Using gNMI subscribe with "ON_CHANGE" mode
 
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
 
-    *   Initiate traffic:
+        *   consumed-capacity is the sum of the admin-up front panel interface speeds connected to the integrated-circuit
 
-        *   Initiate traffic as per below threshold:
-    
-             Port number   | Interface1(line rate %)
-            -------------- | -----------------------
-            Port1          | 20%
-            Port2          | 20%
+*   Ensure that we receieve the initial consumed-capacity metric
 
-    *   Validate that we are receiving consumed capacity metrics at the selected SAMPLE interval
+*   Set port-2 enabled=false
 
-        *   Increase the traffic as per below threshold
+    *   Validate that we recieve a changed consumed-capacity metric of a higher value
 
-             Port number   | Interface1(line rate %)
-            -------------- | -----------------------
-            Port1          | 70%
-            Port2          | 70%
+*   Set port-2 enable=true
 
-    *   Validate we are now receiving increased consumed capacity metrics at the selected SAMPLE interval
+    *   Validate that we recieve a changed consumed-capacity metric matching the initial value
 
-### gNMI-1.18.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2323]
-
-*   Connect DUT port-1 and 2 to ATE port-1 and 2 respectively
-
-    *   For MFF DUT ports 1 and 2 SHOULD be on different linecards
-
-*   Configure IPv4/IPv6 addresses on the interfaces
+### gNMI-1.18.2
 
 *   Use gNMI subscribe with "ON_CHANGE" mode for the below telemetry paths
 
@@ -66,39 +42,84 @@ the available backplane capacity counters correctly while forwarding traffic
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
     *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
 
-*   Disable one of the available FABRIC component
+*   Make sure we recieve the initial metric for each of the telemetry paths
+
+*   Disable two FABRIC components
 
     *   set /components/component/{fabric}/config/power-admin-state to POWER_DISABLED
 
-*   Validate that we recieve changed metrics of a lower value for each of the telemetry paths
+*   Validate that we recieve changed metric of a lower value for the below telemetry paths
 
-*   Enable the FABRIC component that was disabled in the previous step
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
 
-    *   Set /components/component/{fabric|linecard|controller-card}/config/power-admin-state to POWER_ENABLED
+*   Ensure that the metric for the below telemetry path should not have changed hence no updated metric should be received
 
-*   Validate that we recieve changed metrics of a higher value for each of the telemetry paths
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
 
-## Config parameter coverage
+*   Enable the FABRIC components that were disabled previously
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
-*   /components/component/{fabric}/config/power-admin-state
+    *   Set /components/component/{fabric}/config/power-admin-state to POWER_ENABLED
 
-## Telemetry parameter coverage (gNMI subscribe with sample every 10 seconds)
+*   Validate that we recieve changed metric matching the initial metric for the below of the telemetry paths
 
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total
-*   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct
 
-## Protocol/RPC Parameter Coverage
+*   Ensure that the metric for the below telemetry path should not have changed hence no updated metric should be received
 
-* gNMI
-  * Set
-  * Update
-  * Subscribe
+    *   /components/component/integrated-circuit/backplane-facing-capacity/state/total
+
+## OpenConfig Path and RPC Coverage
+
+This example yaml defines the OC paths intended to be covered by this test.  OC paths used for test environment setup are not required to be listed here.
+```yaml
+paths:
+  ## Config parameter coverage
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /components/component/fabric/config/power-admin-state:
+    platform_type: ["FABRIC"]
+
+  ## Telemetry parameter coverage
+  /components/component/integrated-circuit/backplane-facing-capacity/state/available-pct:
+    platform_type: ["INTEGRATED_CIRCUIT"]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/consumed-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+  /components/component/integrated-circuit/backplane-facing-capacity/state/total-operational-capacity:
+    platform_type: [ "INTEGRATED_CIRCUIT" ]
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+          Mode: [ "ON_CHANGE", "SAMPLE" ]
+```
 
 ## Required DUT platform
 
 * MFF
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  ## Config paths:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /components/component/fabric/config/power-admin-state:
+
+  ## State paths: N/A
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      Replace:
+```
