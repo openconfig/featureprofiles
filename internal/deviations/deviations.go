@@ -1202,3 +1202,8 @@ func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
+
+// Device have different default value for allow own as.
+func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}
