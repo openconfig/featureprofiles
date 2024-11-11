@@ -628,9 +628,21 @@ message Metadata {
     // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
     // b/373581140
     bool power_disable_enable_leaf_ref_validation = 226;
+    // Device does not support ssh server counters.
+    bool ssh_server_counters_unsupported = 227;
+    // True when the optical-channel operational-mode is unsupported.
+    // Juniper: b/355456031
+    bool operational_mode_unsupported = 228;
+    // BGP session state idle is supported in passive mode instead of active
+    // Cisco: b/376021545
+    bool bgp_session_state_idle_in_passive_mode = 229;
+    // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
+    // CISCO: b/376241033
+    // CISCO: b/340859662
+    bool enable_multipath_under_afi_safi = 230;
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
-    bool bgp_setmed_union_type_unsupported = 227;
+    bool bgp_setmed_union_type_unsupported = 231;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
