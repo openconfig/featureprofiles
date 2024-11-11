@@ -15,7 +15,6 @@ platform_exceptions:  {
     aggregate_atomic_update:  true
     static_protocol_name:  "static"
     interface_enabled:  true
-    skip_set_rp_match_set_options:  true
     skip_prefix_set_mode:  true
     table_connections_unsupported:  true
     use_vendor_native_tag_set_config:  true
