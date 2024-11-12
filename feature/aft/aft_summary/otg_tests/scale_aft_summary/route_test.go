@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/ygot/ygot/ygot"
 	"github.com/open_traffic_generator/gosnappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations/deviations"
@@ -28,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc/oc"
 	"github.com/openconfig/ondatra/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
