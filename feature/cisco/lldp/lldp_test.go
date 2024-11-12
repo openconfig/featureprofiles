@@ -2,9 +2,11 @@ package basetest
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -58,35 +60,49 @@ func TestLldpState(t *testing.T) {
 
 	})
 
-	t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
-		d := &oc.Root{}
-		i, _ := d.GetOrCreateLldp().NewInterface(iut.Name())
-		i.Enabled = ygot.Bool(true)
-		path := gnmi.OC().Lldp().Interface(iut.Name())
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), i)
+	majVer, _, _, _, err := util.GetVersion(t, dut)
+	if err != nil {
+		t.Fatal("wrong version format")
+	}
+	majorVersion, err := strconv.Atoi(majVer)
+	if err != nil {
+		t.Error("major version is not a number")
+		majorVersion = 25
+	}
+	// From 25.1.1 lldp behaviour changed, TZ link for reference
+	// https://techzone.cisco.com/t5/IOS-XR-LLDP-PI-Eng/interface-level-lldp-is-enabled-even-when-lldp-is-disabled/td-p/13879301#M1775
+	if majorVersion >= 25 {
+		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+			d := &oc.Root{}
+			i, _ := d.GetOrCreateLldp().NewInterface(iut.Name())
+			i.Enabled = ygot.Bool(true)
+			path := gnmi.OC().Lldp().Interface(iut.Name())
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), i)
 
-	})
-	t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
-		d := &oc.Root{}
-		i, _ := d.GetOrCreateLldp().NewInterface(peerintf.Name())
-		i.Enabled = ygot.Bool(true)
-		path := gnmi.OC().Lldp().Interface(peerintf.Name())
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, peer, path.Config(), i)
-	})
-	t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
-		path := gnmi.OC().Interface(iut.Name()).Enabled()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), true)
+		})
+		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
+			d := &oc.Root{}
+			i, _ := d.GetOrCreateLldp().NewInterface(peerintf.Name())
+			i.Enabled = ygot.Bool(true)
+			path := gnmi.OC().Lldp().Interface(peerintf.Name())
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, peer, path.Config(), i)
+		})
+		t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+			path := gnmi.OC().Interface(iut.Name()).Enabled()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), true)
 
-	})
-	t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
-		path := gnmi.OC().Interface(peerintf.Name()).Enabled()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, peer, path.Config(), true)
+		})
+		t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
+			path := gnmi.OC().Interface(peerintf.Name()).Enabled()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, peer, path.Config(), true)
 
-	})
+		})
+	}
+
 	time.Sleep(30 * time.Second)
 	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/config/enabled", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
