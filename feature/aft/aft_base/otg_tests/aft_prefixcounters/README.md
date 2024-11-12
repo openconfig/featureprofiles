@@ -6,7 +6,7 @@ IPv4/IPv6 prefix counters
 
 ## Testbed
 
-* atedut_12.binding
+* atedut_4.testbed
 
 ## Test Setup
 
