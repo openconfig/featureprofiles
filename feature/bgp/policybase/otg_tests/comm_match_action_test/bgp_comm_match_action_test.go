@@ -315,7 +315,6 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 			}
 			cs.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 			gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().DefinedSets().Config(), ds)
-			configureCommunitySet(t, dut, communitySets[0])
 		} else {
 			cs := stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 			cs.SetCommunitySet(matchStdCommunitySet)
