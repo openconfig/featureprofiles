@@ -6,7 +6,7 @@ IPv4/IPv6 unicast routes next hop group and next hop.
 
 ## Testbed
 
-* atedut_2.testbed
+* atedut_4.testbed
 
 ## Test Setup
 
