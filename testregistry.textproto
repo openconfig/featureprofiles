@@ -794,6 +794,13 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-4.11"
+  description: " Scale AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
+  exec: " "
+}
+
+test: {
   id: "RT-5.1"
   description: "Singleton Interface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md"
