@@ -40,3 +40,18 @@ dut.testbed
 
 ## Minimum DUT platform
 FFF
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+  /interfaces/interface/config:
+  /network-instances/network-instance/config:
+  /@/openconfig-metadata:protobuf-metadata:
+  
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
+
+```
