@@ -83,6 +83,8 @@ class FireX:
                     failure.text if failure.text is not None else "",
                 )
 
+                print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
+
                 if len(labels) > 0:
                     testcase_data["generated_labels"] = labels
                     testcase_data["generated"] = True
@@ -95,12 +97,15 @@ class FireX:
     def _create_testsuites_with_inheritance(self, database, testcases, group, plan, errors_count):
 
         historial_testsuite = database.get_historical_testsuite(group, plan)
+        print(f"Called FireX._create_testsuites_with_inheritance() on {group}/{plan} and recieved {historial_testsuite}")
 
         testsuites = []
 
         for testcase_index in range(len(testcases)):
             testcase = testcases[testcase_index]
             history = historial_testsuite["testcases"][testcase_index]
+
+            print(f"Called FireX._create_testsuites_with_inheritance() on {group}/{plan} with history as: {history}")
 
             failure = testcase.find("failure")
 
