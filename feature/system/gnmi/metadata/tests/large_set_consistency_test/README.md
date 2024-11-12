@@ -45,9 +45,7 @@ FFF
 
 ```yaml
 paths:
-  /interfaces/interface/config:
-  /network-instances/network-instance/config:
-  /@/openconfig-metadata:protobuf-metadata:
+  @/openconfig-metadata:protobuf-metadata:
   
 rpcs:
   gnmi:
