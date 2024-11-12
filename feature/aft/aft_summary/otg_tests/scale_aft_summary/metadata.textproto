@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "89da0b4c-9a16-44f8-9757-d98ccdd6aaf4"
-plan_id: "RT-4.10"
+plan_id: "RT-4.11"
 description: "AFTs Route Summary"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
