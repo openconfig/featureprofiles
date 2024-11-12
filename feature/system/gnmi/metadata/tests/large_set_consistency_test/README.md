@@ -44,9 +44,6 @@ FFF
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-paths:
-  @/openconfig-metadata:protobuf-metadata:
-  
 rpcs:
   gnmi:
     gNMI.Get:
