@@ -731,7 +731,7 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 	p2Flow := createFlow(t, p2FlowName, args.top, true, false, &atePort2)
 	p3Flow := createFlow(t, p3FlowName, args.top, true, false, &atePort3)
 	p4Flow := createFlow(t, p4FlowName, args.top, true, false, &atePort4)
-
+	deleteinterfaceconfig(t, args.dut)
 	configDUTDrain(t, args.dut)
 
 	args.ate.OTG().PushConfig(t, args.top)
