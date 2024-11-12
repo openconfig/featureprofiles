@@ -14,7 +14,10 @@ class DDTS:
         query = { "_id": id }
         projection = { "_id": 1, "Status": 1, "Submitted-on": 1, "CLOSED": 1 }
 
-        return self._ddts.find_one(query, projection)
+        document = self._ddts.find_one(query, projection)
+        print(f"Called DDTS._search() on {id} and recieved: {document}")
+
+        return document
 
     def is_open(self, id):
         document = self._search(id)

@@ -9,30 +9,41 @@ parser = argparse.ArgumentParser(description='Inject FireX Run Results in MongoD
 parser.add_argument('run_id', help="FireX Run ID")
 parser.add_argument('xunit_file', help="XUnit Result File")
 parser.add_argument('--version',  default='', help="OS Version")
+parser.add_argument('--workspace',  default='', help="Workspace")
 args = parser.parse_args()
 
-database = Database()
+production = Database("auto-triage")
+development = Database("auto-triage-dev")
+
 firex = FireX()
 vectorstore = Vectorstore()
 ddts = DDTS()
 
 def main():
     # Get Metdata from run.json
-    run_info = firex.get_run_information(args.xunit_file, args.version)
+    run_info = firex.get_run_information(args.xunit_file, args.version, args.workspace)
 
     # Only Consider Subscribed Groups
-    if database.is_subscribed(run_info["group"]) == False:
+    if production.is_subscribed(run_info["group"]) == False:
+        print(f"{run_info['group']} is not a subscribed group. Please subscribe via the CIT Dashboard")
         return
     
     # Add FireX Metadata
-    database.insert_metadata(run_info)
+    production.insert_metadata(run_info)
+    development.insert_metadata(run_info)
+    print("Successfully Inserted Metadata into MongoDB")
     
     # Create FAISS Index
-    datapoints = database.get_datapoints()
+    datapoints = production.get_datapoints()
     vectorstore.create_index(datapoints)
+    print("Successfully Created FAISS Index")
     
     # Add Testsuite Data
-    documents = firex.get_testsuites(vectorstore, database, args.xunit_file, run_info)
-    database.insert_logs(documents)
+    documents = firex.get_testsuites(vectorstore, production, args.xunit_file, run_info)
+    print("Successfully Created Documents")
+
+    production.insert_logs(documents)
+    development.insert_logs(documents)
+    print("Successfully Inserted Documents into MongoDB")
 
 main()
