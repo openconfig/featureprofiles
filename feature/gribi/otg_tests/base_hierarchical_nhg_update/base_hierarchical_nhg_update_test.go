@@ -273,7 +273,6 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
 		}
 	}()
-
 }
 
 type transitKey struct{}
@@ -894,11 +893,6 @@ func configDUTDrain(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(*i2.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(*i3.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(*i4.Name).Subinterface(0).Ipv6().Enabled().Config(), true)
-	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, *i2.Name, deviations.DefaultNetworkInstance(dut), 0)
