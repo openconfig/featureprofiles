@@ -262,17 +262,18 @@ func TestBaseHierarchicalNHGUpdate(t *testing.T) {
 			}
 			tt.fn(ctx, t, tcArgs)
 		})
-
-		defer func() {
-			t.Log("Unconfig interfaces")
-			deleteinterfaceconfig(t, dut)
-			if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
-				sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-				gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
-				gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
-			}
-		}()
 	}
+
+	defer func() {
+		t.Log("Unconfig interfaces")
+		deleteinterfaceconfig(t, dut)
+		if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
+			sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+			gnmi.Delete(t, dut, sp.Static(atePort2DummyIP.IPv4CIDR()).Config())
+			gnmi.Delete(t, dut, sp.Static(atePort3DummyIP.IPv4CIDR()).Config())
+		}
+	}()
+
 }
 
 type transitKey struct{}
@@ -417,12 +418,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(p3.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
 		gnmi.Update(t, dut, d.Interface(p4.Name()).Subinterface(0).Ipv6().Enabled().Config(), true)
-	}
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
 	}
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -721,7 +716,6 @@ func configStaticArp(p string, ipv4addr string, macAddr string, trunk bool) *oc.
 
 // TE3.7 case2 - Drain Implementation test.
 func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
-
 	t.Log("Create flows for port1 to port2, port1 to port3 and port1 to port4")
 	args.top.Flows().Clear()
 
