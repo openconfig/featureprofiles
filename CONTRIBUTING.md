@@ -100,8 +100,6 @@ For example:
     profile.
 *   `feature/interface/singleton/README.md` - documents the singleton interface
     feature profile.
-*   `feature/interface/singleton/feature.textproto` - defines the singleton
-    interface feature profile in machine readable format.
 *   `feature/interface/singleton/ate_tests/` contains the singleton interfaces
     test suite using ATE traffic generation API.  Note, use of the ATE API is
     deprecated and should not be used for any new test development.
