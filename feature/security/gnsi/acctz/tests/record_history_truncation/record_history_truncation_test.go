@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"google.golang.org/protobuf/types/known/timestamppb"
