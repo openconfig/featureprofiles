@@ -170,6 +170,8 @@ class FireX:
                             "value"
                         )
 
+            existing = False
+            
             if data.get("plan_id") and data.get("group"):
                 existing_bugs, existing = database.inherit_bugs(data['group'], data['plan_id'])
 
