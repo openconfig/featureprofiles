@@ -45,8 +45,6 @@ paths used for test setup are not listed here.
 ```yaml
 paths:
 ## Config Parameter Coverage
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-cluster-id:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/route-reflector/config/route-reflector-client:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-type:
