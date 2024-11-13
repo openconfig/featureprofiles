@@ -62,9 +62,9 @@ func newFakeGNMI(ctx context.Context) (*fakeGNMI, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := grpc.DialContext(ctx, agent.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(agent.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, fmt.Errorf("DialContext(%s): %w", agent.Address(), err)
+		return nil, fmt.Errorf("NewClient(%s): %w", agent.Address(), err)
 	}
 
 	client, err := ygnmi.NewClient(gpb.NewGNMIClient(conn))

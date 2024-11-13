@@ -1,0 +1,112 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
+# proto-message: FeatureProfile
+
+id {
+  name: "bgp_addpath"
+  version: 1
+}
+
+# Global Level
+
+# AFI/SAFI
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/receive"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/send-max"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/config/eligible-prefix-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/receive"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/send-max"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/add-paths/state/eligible-prefix-policy"
+}
+
+# Neighbor Level
+
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/receive"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/send-max"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/config/eligible-prefix-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/receive"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/send-max"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/add-paths/state/eligible-prefix-policy"
+}
+
+# Peer Groups
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/receive"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/send-max"
+}
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/config/eligible-prefix-policy"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/receive"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/send-max"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/add-paths/state/eligible-prefix-policy"
+}
+
+feature_profile_dependency {
+  name: "bgp"
+  version: 1
+}
+
+feature_profile_dependency {
+  name: "bgp_policybase"
+  version: 1
+}

@@ -1,0 +1,36 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
+# proto-message: FeatureProfile
+
+id {
+  name: "staticroute"
+  version: 1
+}
+
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop"
+}
+config_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/config/interface"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/index"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop"
+}
+telemetry_path {
+    path: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/interface-ref/state/interface"
+}
+feature_profile_dependency {
+  name: "networkinstance"
+  version: 1
+}

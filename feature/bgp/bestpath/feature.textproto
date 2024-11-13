@@ -1,0 +1,61 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# proto-file: github.com/openconfig/featureprofiles/proto/feature.proto
+# proto-message: FeatureProfile
+
+id {
+  name: "bgp_bestpath"
+  version: 1
+}
+
+# Global Level
+
+#always-compare-med
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/always-compare-med"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/always-compare-med"
+}
+
+#ignore-as-path-length
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/ignore-as-path-length"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/ignore-as-path-length"
+}
+
+#compare-rid
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/external-compare-router-id"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/external-compare-router-id"
+}
+
+#advertise-inactive-routes
+config_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/config/advertise-inactive-routes"
+}
+telemetry_path {
+  path: "/network-instances/network-instance/protocols/protocol/bgp/global/route-selection-options/state/advertise-inactive-routes"
+}
+
+
+feature_profile_dependency {
+  name: "bgp"
+  version: 1
+}

@@ -1,4 +1,4 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "25b389ff-8526-46e3-acf2-016e86aff406"
@@ -34,5 +34,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     static_protocol_name: "STATIC"
+    sflow_source_address_update_unsupported: true
   }
 }
