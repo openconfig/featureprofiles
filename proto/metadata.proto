@@ -643,7 +643,12 @@ message Metadata {
     // Device have different default value for allow own as.
     // Juniper : b/373559004
     bool bgp_allowownas_diff_default_value = 231;
-
+    // Cisco: b/378801305
+    bool isis_interface_level_passive_unsupported = 232;
+    // Cisco: b/378616912
+    bool isis_dis_sysid_unsupported = 233;
+    // Cisco: b/378616912
+    bool isis_database_overloads_unsupported = 234;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
