@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func prettyPrint(i interface{}) string {
+func prettyPrint(i any) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
 }
