@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnsi/acctz"
+	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 type recordRequestResult struct {
-	record *acctz.RecordResponse
+	record *acctzpb.RecordResponse
 	err    error
 }
 
@@ -66,7 +66,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
 
-	err = acctzSubClient.Send(&acctz.RecordRequest{
+	err = acctzSubClient.Send(&acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
 	})
 	if err != nil {
@@ -77,7 +77,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		r := make(chan recordRequestResult)
 
 		go func(r chan recordRequestResult) {
-			var response *acctz.RecordResponse
+			var response *acctzpb.RecordResponse
 			response, err = acctzSubClient.Recv()
 			r <- recordRequestResult{
 				record: response,
@@ -105,7 +105,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 		grpcServiceRecord := resp.record.GetGrpcService()
 
-		if grpcServiceRecord.GetServiceType() != acctz.GrpcService_GRPC_SERVICE_TYPE_GNMI {
+		if grpcServiceRecord.GetServiceType() != acctzpn.GrpcService_GRPC_SERVICE_TYPE_GNMI {
 			// Not our gnmi set, nothing to see here.
 			continue
 		}
