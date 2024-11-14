@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gnsi/acctz"
+	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -47,7 +47,7 @@ func TestAccountzRecordHistoryTruncation(t *testing.T) {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
 
-	err = acctzSubClient.Send(&acctz.RecordRequest{
+	err = acctzSubClient.Send(&acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(recordStartTime),
 	})
 	if err != nil {
