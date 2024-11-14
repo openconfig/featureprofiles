@@ -59,7 +59,7 @@ var (
 	// osVersion = flag.String("osver", "24.4.1.39I", "Version of the OS image for the install operation")
 	osFileForceDownloadSupported = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
 	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osfile", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
+	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
 
 	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
 	// osVersion = flag.String("osver", "25.1.1.22I", "Version of the OS image for the install operation")
