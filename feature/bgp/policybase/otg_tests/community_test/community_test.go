@@ -78,7 +78,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			}
 		}
 		communitySet.SetCommunityMember(cs)
-		communitySet.SetMatchSetOptions(matchSetOptions)
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {

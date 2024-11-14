@@ -37,7 +37,6 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf:  true
     interface_enabled: true
-    bgp_conditions_match_community_set_unsupported: true
   }
 }
 platform_exceptions: {
