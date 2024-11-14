@@ -52,55 +52,14 @@ class FireX:
             })
         return testsuites_metadata
 
-    def _create_testsuites(self, vectorstore, testcases, errors_count):
-        testsuites = []
-
-        for testcase in testcases:
-            failure = testcase.find("failure")
-
-            testcase_data = {
-                "name": testcase.get("name"),
-                "time": float(testcase.get("time", 0))
-            }
-
-            if errors_count > 0:
-                # Aborted
-                testcase_data["status"] = "aborted"
-                testcase_data["triage_status"] = "New"
-                testcase_data["label"] = ""
-            elif failure is None:
-                # Passed Testcase
-                testcase_data["status"] = "passed"
-                testcase_data["label"] = "Test Passed. No Label Required."
-            else:
-                # Failed Testcase
-                testcase_data["message"] = failure.get("message")
-                testcase_data["logs"] = str(failure.text).strip()
-                testcase_data["status"] = "failed"
-                testcase_data["triage_status"] = "New"
-
-                labels = vectorstore.query(
-                    failure.text if failure.text is not None else "",
-                )
-
-                if len(labels) > 0:
-                    testcase_data["generated_labels"] = labels
-                    testcase_data["generated"] = True
-                    testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
-                else:
-                    testcase_data["label"] = ""
-            testsuites.append(testcase_data)
-        return testsuites
-
-    def _create_testsuites_with_inheritance(self, database, testcases, group, plan, errors_count):
-
-        historial_testsuite = database.get_historical_testsuite(group, plan)
-
+    def _create_testsuites(self, vectorstore, testcases, errors_count, historial_testsuite, inherit = False):
         testsuites = []
 
         for testcase_index in range(len(testcases)):
             testcase = testcases[testcase_index]
-            history = historial_testsuite["testcases"][testcase_index]
+
+            if inherit:
+                history = historial_testsuite["testcases"][testcase_index]
 
             failure = testcase.find("failure")
 
@@ -112,19 +71,46 @@ class FireX:
             if errors_count > 0:
                 # Aborted
                 testcase_data["status"] = "aborted"
-                testcase_data["triage_status"] = history["triage_status"]
-                testcase_data["label"] = history["label"]
+
+                if inherit and history.get("status") == "aborted":
+                    testcase_data["triage_status"] = history.get("triage_status", "Resolved")
+                    testcase_data["label"] = history["label"]
+                else:
+                    testcase_data["triage_status"] = "New"
+                    testcase_data["label"] = ""
             elif failure is None:
-                # Passed Testcase
-                testcase_data["status"] = "passed"
-                testcase_data["label"] = "Test Passed. No Label Required."
+                if testcase.find("skipped"):
+                    # Skipped Testcase
+                    testcase_data["status"] = "skipped"
+                    testcase_data["label"] = "Test Skipped. No Label Required."
+                else:    
+                    # Passed Testcase
+                    testcase_data["status"] = "passed"
+                    testcase_data["label"] = "Test Passed. No Label Required."
             else:
                 # Failed Testcase
                 testcase_data["message"] = failure.get("message")
                 testcase_data["logs"] = str(failure.text).strip()
-                testcase_data["status"] = "failed"
-                testcase_data["triage_status"] = history["triage_status"]
-                testcase_data["label"] = history["label"]
+
+                if inherit and history.get("status") == "failed":
+                    testcase_data["triage_status"] = history.get("triage_status", "Resolved")
+                    testcase_data["label"] = history["label"]
+                else:
+                    testcase_data["status"] = "failed"
+                    testcase_data["triage_status"] = "New"
+
+                    labels = vectorstore.query(
+                        failure.text if failure.text is not None else "",
+                    )
+
+                    print(f"Called FireX._create_testsuites() and generated for {testcase.get('name')} the following labels: {labels}")
+
+                    if len(labels) > 0:
+                        testcase_data["generated_labels"] = labels
+                        testcase_data["generated"] = True
+                        testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+                    else:
+                        testcase_data["label"] = ""
             testsuites.append(testcase_data)
         return testsuites
 
@@ -184,7 +170,10 @@ class FireX:
                             "value"
                         )
 
-            existing_bugs, existing = database.inherit_bugs(data["group"], data["plan_id"])
+            existing = False
+            
+            if data.get("plan_id") and data.get("group"):
+                existing_bugs, existing = database.inherit_bugs(data['group'], data['plan_id'])
 
             if existing:
                 for bug in existing_bugs[0]["bugs"]:
@@ -194,9 +183,10 @@ class FireX:
                             data["bugs"].append(ddts.inherit(name))
                     elif bug["type"] == "TechZone":
                         data["bugs"].append(techzone.inherit(name))
-                data["testcases"] = self._create_testsuites_with_inheritance(database, testcases, data["group"], data["plan_id"], data["errors"])
+                historial_testsuite = database.get_historical_testsuite(data["group"], data["plan_id"])
+                data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"], historial_testsuite, inherit = True)
             else:
-                data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"])
+                data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"], None, inherit = False)
             documents.append(data)
         return documents
 

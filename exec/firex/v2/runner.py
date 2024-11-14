@@ -7,7 +7,6 @@ from firexapp.firex_subprocess import check_output
 from firexkit.task import FireXTask
 from firexapp.submit.arguments import whitelist_arguments
 from microservices.testbed_tasks import register_testbed_file_generator
-from microservices.runners.go_b4_tasks import copy_test_logs_dir, write_output_from_results_json
 from microservices.firex_base import returns, flame, InjectArgs, FireX
 from services.cflow.code_coverage_tasks import CollectCoverageData
 from microservices.runners.runner_base import FireXRunnerBase
@@ -578,6 +577,7 @@ def b4_chain_provider(ws, testsuite_id,
                         internal_test=False,
                         test_debug=False,
                         test_verbose=True,
+                        test_enable_grpc_logs=True,
                         test_html_report=False,
                         release_ixia_ports=True,
                         collect_debug_files=True,
@@ -606,6 +606,7 @@ def b4_chain_provider(ws, testsuite_id,
                     test_timeout=test_timeout,
                     test_debug=test_debug,
                     test_verbose=test_verbose,
+                    test_enable_grpc_logs=test_enable_grpc_logs,
                     collect_debug_files=collect_debug_files,
                     override_test_args_from_env=override_test_args_from_env,
                     **kwargs)
@@ -623,6 +624,9 @@ def b4_chain_provider(ws, testsuite_id,
 
     if release_ixia_ports:
         chain |= ReleaseIxiaPorts.s(binding_file=reserved_testbed['ate_binding_file'])
+
+    if test_enable_grpc_logs:
+        chain |= PatchTestRepoForGRPCBinLogs.s(internal_test=internal_test)
 
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     if 'otg' in test_path:
@@ -672,8 +676,9 @@ def b4_chain_provider(ws, testsuite_id,
 def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
-        collect_dut_info=True, override_test_args_from_env=True, test_debug=False, test_verbose=False,
-        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False):
+        collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
+        test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
+        test_enable_grpc_logs=False):
 
     logger.print('Running Go test...')
     logger.print('----- env start ----')
@@ -699,6 +704,8 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
     
     with open(reserved_testbed['test_list_file'], "a+") as fp:
         fp.write(f'{skuid}\n')
+    shutil.copyfile(reserved_testbed['test_list_file'],
+            os.path.join(test_log_directory_path, "testbed_tests_list.txt"))
     
     go_args = ''
     test_args = test_args or ''
@@ -741,6 +748,11 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
     else:
         cmd = f'{GO_BIN} test -p 1 ./{test_path} {go_args} -args {test_args}'
 
+    test_ws = test_repo_dir
+    test_env = _get_go_env(ws)
+    if test_enable_grpc_logs:
+        test_env["GRPC_BINARY_LOG_FILTER"] = "*"
+
     start_time = self.get_current_time()
     start_timestamp = int(time.time())
 
@@ -749,8 +761,8 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
             self.run_script(cmd,
                             inactivity_timeout=inactivity_timeout,
                             ok_nonzero_returncodes=(1,),
-                            extra_env_vars=_get_go_env(ws),
-                            cwd=test_repo_dir)
+                            extra_env_vars=test_env,
+                            cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
         suite = _get_testsuite_from_xml(xml_results_file)
@@ -760,6 +772,11 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
                 suite = _generate_dummy_suite(test_name, reserved_testbed, fail=test_skip and test_fail_skipped)
             else:
                 suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
+
+        if test_enable_grpc_logs:
+            grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
+            if os.path.exists(grpc_bin_log_file):
+                shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -776,8 +793,8 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
         
         _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
         _write_xml_suite(suite, xunit_results_filepath)
-            
-        copy_test_logs_dir(test_logs_dir_in_ws, test_log_directory_path)
+
+        shutil.move(test_logs_dir_in_ws, os.path.join(test_log_directory_path, "test_logs"))
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
 
         if not Path(xunit_results_filepath).is_file():
@@ -841,7 +858,7 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
     otg_info = reserved_testbed['otg']
     controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
     gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
-    
+
     # convert binding to json
     with tempfile.NamedTemporaryFile() as of:
         outFile = of.name
@@ -871,13 +888,13 @@ def _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed):
         ate['otg'] = {
             'target': '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port),
             'insecure': True,
-            'timeout': 200
+            'timeout': 300
         }
 
         ate['gnmi'] = {
             'target': '{host}:{gnmi_port}'.format(host=otg_info['host'], gnmi_port=gnmi_port),
             'skip_verify': True,
-            'timeout': 60
+            'timeout': 150
         }
 
         if 'ixnetwork' in ate:
@@ -1014,7 +1031,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['binding_file'] = reserved_testbed['ate_binding_file']
     reserved_testbed['test_list_file'] = testbed_test_list_file
-    
+
     _write_otg_binding(ws, internal_fp_repo_dir, reserved_testbed)
     return reserved_testbed
 
@@ -1348,6 +1365,19 @@ def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
             remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
             remote.fetch()
     remote.repo.git.checkout(f'{remote.name}/otg_sim_opt', 'internal/otgutils/arp.go')
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PatchTestRepoForGRPCBinLogs(self, test_repo_dir, internal_test):
+    repo = git.Repo(test_repo_dir)
+    remote = repo.remote()
+    if not internal_test:
+        try:
+            remote = repo.remote("b4test")
+        except:
+            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
+            remote.fetch()
+    remote.repo.git.checkout(f'{remote.name}/grpc_record', 'internal/fptest/cisco.go')
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

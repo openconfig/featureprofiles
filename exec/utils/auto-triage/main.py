@@ -25,19 +25,25 @@ def main():
 
     # Only Consider Subscribed Groups
     if production.is_subscribed(run_info["group"]) == False:
+        print(f"{run_info['group']} is not a subscribed group. Please subscribe via the CIT Dashboard")
         return
     
     # Add FireX Metadata
     production.insert_metadata(run_info)
     development.insert_metadata(run_info)
+    print("Successfully Inserted Metadata into MongoDB")
     
     # Create FAISS Index
     datapoints = production.get_datapoints()
     vectorstore.create_index(datapoints)
+    print("Successfully Created FAISS Index")
     
     # Add Testsuite Data
     documents = firex.get_testsuites(vectorstore, production, args.xunit_file, run_info)
+    print("Successfully Created Documents")
+
     production.insert_logs(documents)
     development.insert_logs(documents)
+    print("Successfully Inserted Documents into MongoDB")
 
 main()

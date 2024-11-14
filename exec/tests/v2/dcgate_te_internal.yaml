@@ -28,11 +28,29 @@ tests:
   args:
     - '-test.run="TestEncapFrr"'
 
+- name: Transit-FRR
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-test.run="TestTransitFrr"'
+
 - name: TE-Regionalization
   path: feature/gribi/otg_tests/cisco/dcgate
   timeout: 8400
   mustpass: true
   internal: true
-  branch: master    
+  branch: master
   args:
     - '-test.run="TestRegionalization"'
+
+- name: FIB-CHAINS
+  path: feature/gribi/otg_tests/cisco/dcgate
+  timeout: 8400
+  mustpass: true
+  internal: true
+  branch: master
+  args:
+    - '-test.run="TestFibChains"'

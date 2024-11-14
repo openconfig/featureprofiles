@@ -14,11 +14,13 @@ class Database:
 
     def insert_logs(self, documents):
         if(len(documents) == 0):
+            print("Called Database.insert_logs() and No Documents to Insert into MongoDB")
             return
         self._data.insert_many(documents)
 
     def insert_metadata(self, document = {}):
         if(document == {}):
+            print("Called Database.insert_metadata() and No Metadata to Insert into MongoDB")
             return
         self._firex_ids.insert_one(document)
 
@@ -76,7 +78,10 @@ class Database:
         
         sort = [["timestamp", -1]]
 
-        return self._data.find_one(filter = filter, projection = projection, sort = sort)
+        document = self._data.find_one(filter = filter, projection = projection, sort = sort)
+        print(f"Called Database.get_historical_testsuite() on {group}/{plan} and recieved: {document}")
+
+        return document
 
 
     def inherit_bugs(self, group, plan):
@@ -107,6 +112,8 @@ class Database:
                 }
             }
         ]))     
+
+        print(f"Called Database.inherit_bugs() on {group}/{plan} and recieved: {bugs}")
 
         return bugs, len(bugs) > 0
 
