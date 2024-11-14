@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/gnoi/system"
+	system "github.com/openconfig/gnoi/system/system_go_proto"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	cpb "github.com/openconfig/gnsi/credentialz"
@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	gnmi "github.com/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
