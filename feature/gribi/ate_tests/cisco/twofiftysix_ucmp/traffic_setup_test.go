@@ -333,7 +333,7 @@ func testTrafficWeight(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETop
 	var results2 map[string]float64
 	if val != 7 {
 		ate.Traffic().Start(t, flow)
-		time.Sleep(2000 * time.Minute)
+		time.Sleep(2 * time.Minute)
 		ate.Traffic().Stop(t)
 		results = filterPacketReceived(t, "flow", ate)
 	}
