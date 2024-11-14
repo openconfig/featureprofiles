@@ -40,6 +40,9 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice, p *ond
 	}
 	s.GetOrCreateIpv6().GetOrCreateAutoconf()
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p.Name()).Config(), intf)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, intf.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 func getAllIPv6Addresses(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) []string {
