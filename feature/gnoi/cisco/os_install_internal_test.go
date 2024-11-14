@@ -57,14 +57,14 @@ var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx contex
 var (
 	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
 	// osVersion = flag.String("osver", "24.4.1.39I", "Version of the OS image for the install operation")
-	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	// osFileForceDownloadNotSupported = flag.String("osfile", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
+	osFileForceDownloadSupported = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
+	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
+	osFileForceDownloadNotSupported = flag.String("osfile", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
 
-	osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	osVersion = flag.String("osver", "25.1.1.22I", "Version of the OS image for the install operation")
-	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image for the install operation")
-	// osVersion = flag.String("osver", "25.1.1.21I", "Version of the OS image for the install operation")
+	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
+	// osVersion = flag.String("osver", "25.1.1.22I", "Version of the OS image for the install operation")
+	osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image for the install operation")
+	osVersion = flag.String("osver", "25.1.1.21I", "Version of the OS image for the install operation")
 
 	timeout        = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 	osFileOriginal = ""
@@ -415,7 +415,7 @@ func TestOSNormalInstall4(t *testing.T) {
 		t1, _ := listISOFile(t, dut, *osVersion)
 		tc.transferOS(ctx, t, false, *osVersion, "")
 		t2, _ := listISOFile(t, dut, *osVersion)
-		if t1 != 0 && t1 != t2 {
+		if t1 == 0 && t1 != t2 {
 			t.Fatal("image changed")
 		}
 	})
@@ -757,7 +757,9 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 	}
 
 	iresp, err := ic.Recv()
-
+	if err != nil {
+		t.Fatalf("OS.Install error receiving: %s", err)
+	}
 	Message := ""
 	switch v := iresp.GetResponse().(type) {
 	case *ospb.InstallResponse_TransferReady:
