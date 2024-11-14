@@ -114,13 +114,13 @@ var (
 	extCommunitySet = map[string]string{
 		"linkbw_1M":  "link-bandwidth:23456:1M",
 		"linkbw_2G":  "link-bandwidth:23456:2G",
-		"linkbw_any": "^link-bandwidth:.*:.$",
+		"linkbw_any": "^link-bandwidth:.*:.*$",
 	}
 
 	extCommunitySetCisco = map[string]string{
 		"linkbw_1M":  "23456:1000000",
 		"linkbw_2G":  "23456:2000000000",
-		"linkbw_any": "^.*:.$",
+		"linkbw_any": "^.*:.*$",
 	}
 
 	CommunitySet = map[string]string{
