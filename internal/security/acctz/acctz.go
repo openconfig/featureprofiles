@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/gnmi/proto/gnmi"
 	system_pb "github.com/openconfig/gnoi/system"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
