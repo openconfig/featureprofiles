@@ -41,11 +41,13 @@ var (
 			desc: "testGrpcListenAddress",
 			fn:   testGrpcListenAddress,
 		},
-		{
-			name: "testSysNonDefaultGrpcConfig",
-			desc: "testSysNonDefaultGrpcConfig",
-			fn:   testSysNonDefaultGrpcConfig,
-		},
+		// After CSCwm71666 we cannot change the GRPC name directly
+		// Assciated TZ - https://techzone.cisco.com/t5/IOS-XR-PI-GNMI-GNOI-Infra-Eng/grpc-server-update-name-fails/m-p/13675271#M7023
+		// {
+		// 	name: "testSysNonDefaultGrpcConfig",
+		// 	desc: "testSysNonDefaultGrpcConfig",
+		// 	fn:   testSysNonDefaultGrpcConfig,
+		// },
 	}
 	CpuTestcases = []Testcase{
 		{
