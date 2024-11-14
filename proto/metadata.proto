@@ -640,8 +640,11 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
+    // Device have different default value for allow own as.
+    // Juniper : b/373559004
+    bool bgp_allowownas_diff_default_value = 231;
     // Check is transceiver subcomponent should look for the temperature sensor
-    bool temperature_sensor_check = 231;
+    bool temperature_sensor_check = 232;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
