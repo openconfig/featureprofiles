@@ -140,10 +140,10 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	commands := []string{}
-
+	// increase depth to 2 to handle new corefile path /misc/disk1/coredumps
 	if *coreCheck {
 		commands = append(commands,
-			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
+			"run find /misc/disk1 -maxdepth 2 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
 		)
 	}
 
