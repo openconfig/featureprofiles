@@ -303,7 +303,7 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 	client.Start(ctx, t)
 	defer client.Stop(t)
-
+	gribi.FlushAll(client)
 	defer func() {
 		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
@@ -334,6 +334,12 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 		otg:           otg,
 	}
 	start := time.Now()
+	// cleanup fib table
+	defer func() {
+		ate.OTG().StopProtocols(t)
+		time.Sleep(5 * time.Minute)
+	}()
+
 	injectEntry(ctx, t, args, dstIPList, vipList)
 	t.Logf("Main Function: Time elapsed %.2f seconds since start", time.Since(start).Seconds())
 

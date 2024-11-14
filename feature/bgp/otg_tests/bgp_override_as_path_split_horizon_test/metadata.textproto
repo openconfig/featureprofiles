@@ -1,32 +1,15 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "4f04fb5b-5bc0-4214-a74d-2a30c0433078"
-plan_id: "TE-9.3"
-description: "FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST"
+uuid: "97f0e45a-2970-4227-9409-3003e7c7cdd7"
+plan_id: "RT-1.54"
+description: "BGP Override AS-path split-horizon"
 testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: CISCO
-  }
-  deviations: {
-    ipv4_missing_enabled: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    skip_fib_failed_traffic_forwarding_check: true
-  }
-}
 platform_exceptions: {
   platform: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
@@ -40,7 +23,15 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
-    bgp_missing_oc_max_prefixes_configuration: true
+    bgp_set_med_requires_equal_ospf_set_metric: true
   }
 }
-tags: TAGS_TRANSIT
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_allowownas_diff_default_value: true
+  }
+}
+tags: TAGS_AGGREGATION
