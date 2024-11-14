@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	systempb "github.com/openconfig/gnoi/system"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
@@ -43,7 +44,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
