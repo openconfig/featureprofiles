@@ -134,9 +134,7 @@ paths:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/origin-protocol:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
   /network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/origin-protocol:
-  /network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/counters/aft-entries:
   /network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/origin-protocol:
-  /network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/counters/aft-entries:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/index:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
