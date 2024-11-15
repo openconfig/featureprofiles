@@ -1694,8 +1694,8 @@ github.com/openconfig/gnmi v0.11.0 h1:H7pLIb/o3xObu3+x0Fv9DCK7TH3FUh7mNwbYe+34hF
 github.com/openconfig/gnmi v0.11.0/go.mod h1:9oJSQPPCpNvfMRj8e4ZoLVAw4wL8HyxXbiDlyuexCGU=
 github.com/openconfig/gnmic/pkg/api v0.1.8 h1:3N9oFduU204Ta3g7r3dC4pcYdT/Dr7PrSC13Lyc7Ymc=
 github.com/openconfig/gnmic/pkg/api v0.1.8/go.mod h1:WbME6stT7zcYzQnCwQO42a23WgZRqFQVGVsp0C4FHtc=
-github.com/openconfig/gnoi v0.4.1 h1:sONbBqRBKjPT6voRAFqhTkUIatAajBp+YRLCWgyS4Dk=
-github.com/openconfig/gnoi v0.4.1/go.mod h1:KDWxp9YvfRNR5BbiLy6uQSzHUpGhAtO8C80XXKLqNqU=
+github.com/openconfig/gnoi v0.5.0 h1:r0cbY1biqAcVLCUjsQjF3UZlU1yZAgbmW24dK0R53MI=
+github.com/openconfig/gnoi v0.5.0/go.mod h1:qjMeFac9SfHyedDWjUU/x4pozK4kvgBngdIO1MwjhCs=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c h1:egPgBUBDn0XEtbz0CvE+Bh/I/3iTzwzMq5/rmtPJdQs=
 github.com/openconfig/gnoigo v0.0.0-20240320202954-ebd033e3542c/go.mod h1:Se/HklUcFVcCGB66khgYouiesLRPoa4UL1ovvmE/68k=
 github.com/openconfig/gnpsi v0.3.2 h1:+bl1bXMOTrWOcGydWB+8wGgvxlgvL8Y6joAiWFU5sog=

@@ -79,7 +79,6 @@ const (
 	bundleEther122        = "Bundle-Ether122"
 	bundleEther123        = "Bundle-Ether123"
 	bundleEther124        = "Bundle-Ether124"
-	lc                    = "0/0/CPU0"
 	vrf1                  = "TE"
 	vrf2                  = "VRF1"
 	vrf3                  = "REPAIRED"
@@ -2280,31 +2279,32 @@ func testIPv4BackUpLCOIR(ctx context.Context, t *testing.T, args *testArgs) {
 		defer args.interfaceaction(t, intf, true)
 	}
 
-	gnoiClient := args.dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(args.dut)
-	lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
-	rebootSubComponentRequest := &gnps.RebootRequest{
-		Method: gnps.RebootMethod_COLD,
-		Subcomponents: []*tpb.Path{
-			lineCardPath,
-		},
-	}
-	t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
-	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
+	lcs := components.FindComponentsByType(t, args.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	t.Logf("Found linecard list: %v", lcs)
 
-	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(), true, []string{"Bundle-Ether127"})
+	for _, lc := range lcs {
+		gnoiClient := args.dut.RawAPIs().GNOI(t)
+		useNameOnly := deviations.GNOISubcomponentPath(args.dut)
+		lineCardPath := components.GetSubcomponentPath(lc, useNameOnly)
+		rebootSubComponentRequest := &gnps.RebootRequest{
+			Method: gnps.RebootMethod_COLD,
+			Subcomponents: []*tpb.Path{
+				lineCardPath,
+			},
+		}
+		t.Logf("rebootSubComponentRequest: %v", rebootSubComponentRequest)
+		rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootSubComponentRequest)
+		if err != nil {
+			t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+		}
+		t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 	}
 
 	// sleep while lc reloads
 	time.Sleep(10 * time.Minute)
 
 	if *ciscoFlags.GRIBITrafficCheck {
-		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether127"})
+		args.validateTrafficFlows(t, args.allFlows(), false, []string{"Bundle-Ether121", "Bundle-Ether122", "Bundle-Ether123", "Bundle-Ether124", "Bundle-Ether125", "Bundle-Ether126", "Bundle-Ether127"})
 	}
 }
 

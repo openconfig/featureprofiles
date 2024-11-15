@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"math/rand"
 	"net"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -704,6 +706,325 @@ func RebootDevice(t *testing.T) {
 		}
 	}
 	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+}
+
+type InterfacePhysicalLink struct {
+	Intf               *oc.Interface
+	IntfName           string
+	LineCardNumber     string
+	PeerIntfName       string
+	PeerIntf           *oc.Interface
+	PeerLineCardNumber string
+}
+
+// Assumptions
+// dut is connected only to peer (no other lldp device in the topology)
+// no  bundle is configured before calling this function
+func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *ondatra.DUTDevice, memberCount int) map[string][]InterfacePhysicalLink {
+
+	if !enableLldp(t, dut) {
+		t.Fatalf("LLDP configuration for device %s failed", dut.Name())
+	}
+	if !enableLldp(t, peer) {
+		t.Fatalf("LLDP configuration for device %s failed", peer.Name())
+	}
+
+	dutInterfaces := getAllInterfaces(t, dut)
+	peerInterfaces := getAllInterfaces(t, peer)
+
+	// Enable all dut and peer interfaces
+	// DUT
+	if !enableInterfacesAll(t, dut, dutInterfaces) {
+		t.Fatalf("Failed to enable all interfaces for device %s", dut.Name())
+	}
+	// PEER
+	if !enableInterfacesAll(t, peer, peerInterfaces) {
+		t.Fatalf("Failed to enable all interfaces for device %s", peer.Name())
+	}
+
+	// Enable LLDP on all DUT and PEER interfaces
+	// DUT
+	if !enableInterfaceLldp(t, dut, dutInterfaces) {
+		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", dut.Name())
+	}
+	// PEER
+	if !enableInterfaceLldp(t, peer, peerInterfaces) {
+		t.Fatalf("Failed to enable LLDP on all interfaces for device %s", peer.Name())
+	}
+
+	// Get only enabled interfaces of DUT
+	dutEnabledInterfaces := getEnabledInterfaces(dutInterfaces)
+	linkInfos := make([]InterfacePhysicalLink, 0)
+
+	lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
+	lldpIntfStateAny := gnmi.GetAll(t, dut, lldpIntfStatePathAny)
+
+	peerIntfPathAny := gnmi.OC().InterfaceAny().State()
+	peerIntfAny := gnmi.GetAll(t, peer, peerIntfPathAny)
+
+	// logic to create the link by using LLDP neighbour
+	// re := regexp.MustCompile(`\d`)
+	re := regexp.MustCompile(`\d+/(\d+)/\d+/\d+`)
+	for _, dutIntf := range dutEnabledInterfaces {
+		intfName := dutIntf.GetName()
+		// lcNumber := re.FindString(intfName)
+		matches := re.FindStringSubmatch(intfName)
+		var lcNumber string
+		if len(matches) > 1 {
+			lcNumber = matches[1]
+		}
+
+		// Get the peer interface name using LLDP data
+		peerIntfName := getPeerInterfaceName(lldpIntfStateAny, intfName)
+
+		// TODO logic to fectch the NPU
+		// npu := getNpu(t,dut,intfName)
+		// PeerNpu := getNpu(t,peer,peerIntfName)
+
+		if peerIntfName != "" && strings.Contains(peerIntfName, "Gig") {
+			// Retrieve the peer interface state
+			// peerIntfPath := gnmi.OC().Interface(peerIntfName).State()
+			// peerIntf := gnmi.Get(t, peer, peerIntfPath)
+			var peerIntf *oc.Interface
+			for _, intf := range peerIntfAny {
+				if intf.GetName() == peerIntfName {
+					peerIntf = intf
+					break
+				}
+			}
+
+			if peerIntf != nil {
+				// peerLcNumber := re.FindString(peerIntfName)
+				peerMatches := re.FindStringSubmatch(peerIntfName)
+				var peerLcNumber string
+				if len(peerMatches) > 1 {
+					peerLcNumber = peerMatches[1]
+				}
+				linkInfo := InterfacePhysicalLink{
+					Intf:           dutIntf,
+					IntfName:       intfName,
+					LineCardNumber: lcNumber,
+					// Npu:				npu,
+					PeerIntfName:       peerIntfName,
+					PeerIntf:           peerIntf,
+					PeerLineCardNumber: peerLcNumber,
+					// PeerNpu:		  	peerNpu,
+				}
+				linkInfos = append(linkInfos, linkInfo)
+			}
+		}
+	}
+
+	// Sort the linkInfos based on LineCardNumber
+	sortedLinkInfos := sortLinkInfosByLineCardNumber(linkInfos)
+
+	// Count the number of InterfacePhysicalLink
+	linkCount := len(sortedLinkInfos)
+
+	// Calculate the number of bundles
+	numBundles := linkCount / memberCount
+	if linkCount%memberCount != 0 {
+		numBundles++
+	}
+
+	// Create the map with keys as bundle names and values as slices of InterfacePhysicalLink
+	bundleMap := make(map[string][]InterfacePhysicalLink)
+	for i := 0; i < numBundles; i++ {
+		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+i)
+		bundleMap[bundleName] = []InterfacePhysicalLink{}
+	}
+
+	// Distribute the sortedLinkInfos into bundles in a round-robin fashion
+	for i, link := range sortedLinkInfos {
+		bundleName := fmt.Sprintf("Bundle-Ether%d", 100+(i%numBundles))
+		bundleMap[bundleName] = append(bundleMap[bundleName], link)
+	}
+
+	fmt.Printf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
+
+	for bundleName, links := range bundleMap {
+		fmt.Printf("Bundle: %s\n", bundleName)
+		for _, link := range links {
+			fmt.Printf("  DUT Interface: %v, DUT LC: %v, Peer Interface: %v, Peer LC: %v\n",
+				link.IntfName, link.LineCardNumber, link.PeerIntfName, link.PeerLineCardNumber)
+		}
+	}
+
+	// Create bundles in both DUT and Peer devices
+	createBundles(t, dut, peer, bundleMap)
+
+	return bundleMap
+}
+
+func configureBundle(ocRoot *oc.Root, bundleName string, bundleIP net.IP) {
+	bundle := ocRoot.GetOrCreateInterface(bundleName)
+	bundle.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	bundle.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	bundle.Enabled = ygot.Bool(true)
+	// subIntf := bundle.GetOrCreateSubinterface(0)
+	// //  subIntf.Enabled = ygot.Bool(true)  // deviation
+	// subIntfV4 := subIntf.GetOrCreateIpv4()
+	// //  subIntfV4.Enabled = ygot.Bool(true)  // deviation
+	// address4 := subIntfV4.GetOrCreateAddress(bundleIP.String())
+	// address4.PrefixLength = ygot.Uint8(30)
+	// address4.Type = oc.IfIp_Ipv4AddressType_PRIMARY
+	// subIntfV6 := subIntf.GetOrCreateIpv6()
+	// //  subIntfV6.Enabled = ygot.Bool(true)  // deviation
+	// ipv6Address := fmt.Sprintf("2002::%s:%s", hex.EncodeToString(bundleIP[:2]), hex.EncodeToString(bundleIP[2:]))
+	// address6 := subIntfV6.GetOrCreateAddress(ipv6Address)
+	// address6.PrefixLength = ygot.Uint8(126)
+	// address6.Type = oc.IfIp_Ipv6AddressType_GLOBAL_UNICAST
+}
+
+func createBundles(t *testing.T, dut, peer *ondatra.DUTDevice, bundleMap map[string][]InterfacePhysicalLink) {
+	dutBatchConfig := &gnmi.SetBatch{}
+	peerBatchConfig := &gnmi.SetBatch{}
+	ipAddress := net.IP{192, 192, 1, 0}
+	for bundleName, links := range bundleMap {
+		ipAddress = incrementIP(ipAddress, 1)
+		// Create bundle interface on DUT
+		dutRoot := &oc.Root{}
+		configureBundle(dutRoot, bundleName, ipAddress)
+
+		// Add member interfaces to the bundle on DUT
+		for _, link := range links {
+			member := dutRoot.GetOrCreateInterface(link.IntfName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+		}
+		// gnmi.Update(t, dut, gnmi.OC().Config(), dutRoot)
+		gnmi.BatchUpdate(dutBatchConfig, gnmi.OC().Config(), dutRoot)
+
+		// increment the ip
+		ipAddress = incrementIP(ipAddress, 1)
+		// Create bundle interface on Peer
+		peerRoot := &oc.Root{}
+		configureBundle(peerRoot, bundleName, ipAddress)
+
+		// Add member interfaces to the bundle on Peer
+		for _, link := range links {
+			member := peerRoot.GetOrCreateInterface(link.PeerIntfName)
+			member.GetOrCreateEthernet().AggregateId = ygot.String(bundleName)
+			member.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		}
+		gnmi.BatchUpdate(peerBatchConfig, gnmi.OC().Config(), peerRoot)
+		// gnmi.Update(t, peer, gnmi.OC().Config(), peerRoot)
+		ipAddress = incrementIP(ipAddress, 2)
+	}
+	dutBatchConfig.Set(t, dut)
+	peerBatchConfig.Set(t, peer)
+}
+
+// Function to increment the ip address by `increment` times
+func incrementIP(ip net.IP, increment int) net.IP {
+	ip = ip.To4()
+	if ip == nil {
+		return nil
+	}
+	ipInt := big.NewInt(0).SetBytes(ip)
+	ipInt.Add(ipInt, big.NewInt(int64(increment)))
+	return net.IP(ipInt.Bytes())
+}
+
+// Define a custom type that implements the sort.Interface
+type ByLineCardNumber []InterfacePhysicalLink
+
+func (a ByLineCardNumber) Len() int           { return len(a) }
+func (a ByLineCardNumber) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByLineCardNumber) Less(i, j int) bool { return a[i].LineCardNumber < a[j].LineCardNumber }
+
+// sortLinkInfosByLineCardNumber sorts the linkInfos based on LineCardNumber
+func sortLinkInfosByLineCardNumber(linkInfos []InterfacePhysicalLink) []InterfacePhysicalLink {
+	sort.Sort(ByLineCardNumber(linkInfos))
+	return linkInfos
+}
+
+func enableLldp(t *testing.T, device *ondatra.DUTDevice) bool {
+	path := gnmi.OC().Lldp().Enabled()
+	gnmi.Update(t, device, path.Config(), true)
+	// TODO: logic to capture the gnmi result and validate
+	return true
+}
+
+// getAllInterfaces retrieves all interfaces whose name contains the string "Gig".
+func getAllInterfaces(t *testing.T, device *ondatra.DUTDevice) []*oc.Interface {
+	path := gnmi.OC().InterfaceAny().State()
+	allInterfaces := gnmi.GetAll(t, device, path)
+	var filteredInterfaces []*oc.Interface
+
+	for _, intf := range allInterfaces {
+		intfName := intf.GetName()
+		if strings.Contains(intfName, "Gig") {
+			filteredInterfaces = append(filteredInterfaces, intf)
+		}
+	}
+	return filteredInterfaces
+}
+
+// enableInterfacesAll enables all interfaces provided in the list.
+func enableInterfacesAll(t *testing.T, device *ondatra.DUTDevice, interfaces []*oc.Interface) bool {
+	batchConfig := &gnmi.SetBatch{}
+	for _, intf := range interfaces {
+		d := &oc.Root{}
+		i := d.GetOrCreateInterface(intf.GetName())
+		i.Enabled = ygot.Bool(true)
+		i.Type = intf.Type // type is mandatory
+		path := gnmi.OC().Interface(intf.GetName()).Config()
+		gnmi.BatchUpdate(batchConfig, path, i)
+	}
+	// TODO logic to capture any failure during batchconfig
+	batchConfig.Set(t, device)
+	return true
+}
+
+// getEnabledInterfaces returns a list of interfaces that are enabled.
+func getEnabledInterfaces(interfaces []*oc.Interface) []*oc.Interface {
+	var enabledInterfaces []*oc.Interface
+	for _, intf := range interfaces {
+		if (intf.GetEnabled()) && (intf.GetOperStatus() == oc.Interface_OperStatus_UP) {
+			enabledInterfaces = append(enabledInterfaces, intf)
+		}
+	}
+	return enabledInterfaces
+}
+
+// enableInterfaceLldp enables LLDP on all interfaces provided in the list.
+func enableInterfaceLldp(t *testing.T, device *ondatra.DUTDevice, interfaces []*oc.Interface) bool {
+	batchConfig := &gnmi.SetBatch{}
+	for _, intf := range interfaces {
+		d := &oc.Root{}
+		i, _ := d.GetOrCreateLldp().NewInterface(intf.GetName())
+		i.Enabled = ygot.Bool(true)
+		path := gnmi.OC().Lldp().Interface(intf.GetName()).Config()
+		gnmi.BatchUpdate(batchConfig, path, i)
+	}
+	batchConfig.Set(t, device)
+	return true
+}
+
+// getPeerInterfaceName retrieves the peer interface name using LLDP data.
+func getPeerInterfaceName(lldpIntfStateAny []*oc.Lldp_Interface, intfName string) string {
+	// Retrieve the LLDP interface state
+	// lldpIntfStatePathAny := gnmi.OC().Lldp().InterfaceAny().State()
+	// lldpIntfStateAny := gnmi.GetAll(t, device, lldpIntfStatePathAny)
+	// lldpIntfStatePath := gnmi.OC().Lldp().Interface(intfName).State()
+	// lldpIntfState := gnmi.Get(t, device, lldpIntfStatePath)
+
+	for _, lldpIntfState := range lldpIntfStateAny {
+		if lldpIntfState.GetName() == intfName {
+			// Check if neighbors are present
+			if lldpIntfState != nil && lldpIntfState.Neighbor != nil {
+				for _, neighbor := range lldpIntfState.Neighbor {
+					if neighbor.PortId != nil && strings.Contains(*neighbor.PortId, "Gig") {
+						return *neighbor.PortId
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // GNMIStreamManager manages multiple gNMI streams.
