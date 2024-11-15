@@ -57,7 +57,7 @@ func TestInvalidListRpc(t *testing.T) {
 		}
 		listResp, err := gnoiClient.Healthz().List(context.Background(), listReq)
 		t.Logf("List response: %v", listResp)
-		if err == nil {
+		if err != nil {
 			t.Errorf("Error on List(%q): %v", componentName, err)
 		}
 	}

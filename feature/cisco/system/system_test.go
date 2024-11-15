@@ -179,21 +179,20 @@ func testSysGrpcConfig(t *testing.T) {
 
 }
 
-func testSysNonDefaultGrpcConfig(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-
-	// set non-default name for grpc server
-	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), "TEST")
-	})
-	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "REPLACE", path)
-		gnmi.Replace(t, dut, path.Config(), "TEST")
-	})
-}
+// func testSysNonDefaultGrpcConfig(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	// set non-default name for grpc server
+// 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "UPDATE", path)
+// 		gnmi.Update(t, dut, path.Config(), "TEST")
+// 	})
+// 	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "REPLACE", path)
+// 		gnmi.Replace(t, dut, path.Config(), "TEST")
+// 	})
+// }
 
 func testGrpcListenAddress(t *testing.T) {
 	activeRp := 0

@@ -3,8 +3,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
-    #pf_default_rule_variable_sequence_unsupported: true
     gribi_mac_override_with_static_arp: true
   }
 }

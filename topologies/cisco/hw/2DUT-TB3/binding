@@ -10,13 +10,10 @@ duts {
   #   gnmi_set_file: "$BASE_CONF_PATH"
   # }
   options {
+    insecure: false 
+    skip_verify: true
     username: "cafyauto"
     password: "cisco123"
-    # skip_verify: true
-    mutual_tls: true
-    trust_bundle_file: "$TRUST_BUNDLE_FILE"
-    cert_file: "$CERT_FILE"
-    key_file:  "$KEY_FILE"
   }
 
   # Options specific to gNMI.  Remove if not needed.
@@ -94,15 +91,6 @@ duts {
 }
 ###################################### DUT2 8808-8808_FOX2730P191 ######################################
 ### https://wwwin-github.cisco.com/B4Test/featureprofiles/tree/master/topologies/cisco/hw/8808_FOX2730P191 ###
-options {
-  username: "cafyauto"
-  password: "cisco123"
-  insecure: false 
-  skip_verify: false
-  trust_bundle_file: "$TRUST_BUNDLE_FILE"
-  cert_file: "$CERT_FILE"
-  key_file:  "$KEY_FILE"
-}
 
 duts {
   id: "dut2"
@@ -115,12 +103,11 @@ duts {
 
   options {
     insecure: false 
-    skip_verify: false
-    mutual_tls: true
+    skip_verify: true
     username: "cafyauto"
     password: "cisco123"
   }
-
+  
   # Options specific to gNMI.  Remove if not needed.
   gnsi{
     target: "10.85.72.46:57400"

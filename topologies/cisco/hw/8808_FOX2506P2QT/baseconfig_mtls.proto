@@ -263,6 +263,7 @@ replace: {
   " description FourHundredGigE0/7/0/1\n"
   "!\n"
   "interface HundredGigE0/7/0/2\n"
+  " no shutdown\n"
   " description HundredGigE0/7/0/2\n"
   "!\n"
   "interface FourHundredGigE0/7/0/3\n"
