@@ -63,3 +63,16 @@ The test validates that the device completes TPM enrollment and attestation duri
 17. Call `Attest` for standby control card with correct `ControlCardSelection`, random nonce, hash algo of choice (all should be supported and tested) and all PCR indices.
 18. Verify that the oIDevID cert of active control card was used for establishing TLS session and verify that oIDevID cert of standby control card was specified in the response payload.
 19. Repeat steps (12-16) for the standby control card.
+
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test. OC paths used for test setup are not listed here.
+
+```yaml
+rpcs:
+  attestz:
+     TpmAttestzService.Attest:
+     TpmEnrollzService.GetIakCert:
+     TpmEnrollzService.RotateOIakCert:
+```

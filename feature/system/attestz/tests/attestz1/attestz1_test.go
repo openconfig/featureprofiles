@@ -59,7 +59,7 @@ func TestAttestz1(t *testing.T) {
 		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer(*attestzServer.Name).Config())
 		attestz.DeleteProfile(t, dut, *attestzServer.SslProfileId)
 	})
-	tc := &attestz.TlsConf{
+	tc := &attestz.TLSConf{
 		Target:     attestzTarget,
 		CaKeyFile:  *ownerCaKeyPem,
 		CaCertFile: *ownerCaCertPem,
@@ -79,8 +79,7 @@ func TestAttestz1(t *testing.T) {
 	})
 
 	t.Run("Attestz-1.3 - Bad request", func(t *testing.T) {
-		var as *attestz.AttestzSession
-		as = tc.NewAttestzSession(t)
+		as := tc.NewSession(t)
 		defer as.Conn.Close()
 		invalidSerial := attestz.ParseSerialSelection("000")
 
@@ -119,8 +118,7 @@ func TestAttestz1(t *testing.T) {
 		roleB := attestz.ParseRoleSelection(cdpbStandby)
 
 		// Get vendor certs.
-		var as *attestz.AttestzSession
-		as = tc.NewAttestzSession(t)
+		as := tc.NewSession(t)
 		defer as.Conn.Close()
 		resp := as.GetVendorCerts(t, roleA)
 		activeCard.IAKCert, activeCard.IDevIDCert = resp.IakCert, resp.IdevidCert
@@ -198,8 +196,7 @@ func TestAttestz1(t *testing.T) {
 		attestzTarget, attestzServer = attestz.SetupBaseline(t, dut)
 		activeCard, standbyCard = attestz.FindControlCards(t, dut)
 
-		var as *attestz.AttestzSession
-		as = tc.NewAttestzSession(t)
+		as := tc.NewSession(t)
 		defer as.Conn.Close()
 
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
@@ -217,8 +214,7 @@ func TestAttestz1(t *testing.T) {
 
 	t.Run("Attestz-1.7 - Invalid PCR indices", func(t *testing.T) {
 		activeCard.EnrollzWorkflow(t, dut, tc, *vendorCaCertPem)
-		var as *attestz.AttestzSession
-		as = tc.NewAttestzSession(t)
+		as := tc.NewSession(t)
 		defer as.Conn.Close()
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
 			ControlCardSelection: attestz.ParseRoleSelection(activeCard.Role),
@@ -239,8 +235,7 @@ func TestAttestz1(t *testing.T) {
 		activeCard.EnrollzWorkflow(t, dut, tc, *vendorCaCertPem)
 		activeCard.AttestzWorkflow(t, dut, tc)
 
-		var as *attestz.AttestzSession
-		as = tc.NewAttestzSession(t)
+		as := tc.NewSession(t)
 		defer as.Conn.Close()
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
 			ControlCardSelection: attestz.ParseRoleSelection(cdpbStandby),

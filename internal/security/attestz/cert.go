@@ -50,14 +50,14 @@ const (
 )
 
 // AddProfile adds ssl profile on the dut.
-func AddProfile(t *testing.T, dut *ondatra.DUTDevice, sslProfileId string) {
-	t.Logf("Performing Certz.AddProfile on device %s for profile %s", dut.Name(), sslProfileId)
+func AddProfile(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string) {
+	t.Logf("Performing Certz.AddProfile on device %s for profile %s", dut.Name(), sslProfileID)
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Errorf("gNSI client error: %v", err)
 	}
 	_, err = gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{
-		SslProfileId: sslProfileId,
+		SslProfileId: sslProfileID,
 	})
 	if err != nil {
 		t.Fatalf("Error adding tls profile via certz. error: %v", err)
@@ -65,14 +65,14 @@ func AddProfile(t *testing.T, dut *ondatra.DUTDevice, sslProfileId string) {
 }
 
 // DeleteProfile delete ssl profile from the dut.
-func DeleteProfile(t *testing.T, dut *ondatra.DUTDevice, sslProfileId string) {
-	t.Logf("Performing Certz.DeleteProfile on device %s for profile %s", dut.Name(), sslProfileId)
+func DeleteProfile(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string) {
+	t.Logf("Performing Certz.DeleteProfile on device %s for profile %s", dut.Name(), sslProfileID)
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
 		t.Errorf("gNSI client error: %v", err)
 	}
 	_, err = gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{
-		SslProfileId: sslProfileId,
+		SslProfileId: sslProfileID,
 	})
 	if err != nil {
 		t.Fatalf("Error deleting tls profile via certz. error: %v", err)
@@ -129,7 +129,7 @@ func createCertificate(rotateType CertType, keyContents, certContents []byte) *c
 }
 
 // RotateCerts rotates certificates on the dut for a given ssl profile.
-func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslProfileId string, dutKey, dutCert, trustBundle []byte) {
+func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslProfileID string, dutKey, dutCert, trustBundle []byte) {
 	t.Logf("Performing Certz.Rotate request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
@@ -160,7 +160,7 @@ func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslP
 	// Create rotate request.
 	certzRequest := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: true,
-		SslProfileId:   sslProfileId,
+		SslProfileId:   sslProfileID,
 		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
 			Certificates: &certzpb.UploadRequest{
 				Entities: entities,
@@ -182,7 +182,7 @@ func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslP
 
 	// Finalize rotation.
 	finalizeRotateRequest := &certzpb.RotateCertificateRequest{
-		SslProfileId: sslProfileId,
+		SslProfileId: sslProfileID,
 		RotateRequest: &certzpb.RotateCertificateRequest_FinalizeRotation{
 			FinalizeRotation: &certzpb.FinalizeRequest{},
 		},
@@ -201,7 +201,7 @@ func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslP
 func LoadCertificate(cert string) (*x509.Certificate, error) {
 	certPem, _ := pem.Decode([]byte(cert))
 	if certPem == nil {
-		return nil, fmt.Errorf("Error decoding certificate.")
+		return nil, fmt.Errorf("error decoding certificate")
 	}
 	return x509.ParseCertificate(certPem.Bytes)
 }
@@ -286,7 +286,7 @@ func GenTlsCert(ip string, signingCert *x509.Certificate, signingKey any, keyAlg
 			return nil, nil, err
 		}
 	default:
-		return nil, nil, fmt.Errorf("Key algorithm %v is not supported.", keyAlgo)
+		return nil, nil, fmt.Errorf("key algorithm %v is not supported", keyAlgo)
 	}
 	pubKey := privKey.(crypto.Signer).Public()
 	certBytes, err := x509.CreateCertificate(rand.Reader, certSpec, signingCert, pubKey, signingKey)

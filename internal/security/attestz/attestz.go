@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package attestz provides helper APIs to simplify writing attestz test cases.
+// attestz.go: provides functions for attest rpcs and verification.
+// cert.go: provides functions for certz rpcs and certificate creation.
+// events.go: provides functions for triggering gnoi events on the dut.
+// setup.go: provides functions for initial setup of attestz test cases.
 package attestz
 
 import (
@@ -59,8 +64,8 @@ type ControlCard struct {
 	MtlsCert   string
 }
 
-// AttestzSession represents grpc session used for attestz rpcs.
-type AttestzSession struct {
+// Session represents grpc session used for attestz rpcs.
+type Session struct {
 	Conn          *grpc.ClientConn
 	Peer          *peer.Peer
 	EnrollzClient enrollzpb.TpmEnrollzServiceClient
@@ -93,9 +98,8 @@ func PrettyPrint(i interface{}) string {
 }
 
 // EnrollzWorkflow performs enrollment workflow for a given control card.
-func (cc *ControlCard) EnrollzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc *TlsConf, vendorCaCertFile string) {
-	var as *AttestzSession
-	as = tc.NewAttestzSession(t)
+func (cc *ControlCard) EnrollzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc *TLSConf, vendorCaCertFile string) {
+	as := tc.NewSession(t)
 	defer as.Conn.Close()
 
 	// Get vendor certs.
@@ -147,7 +151,7 @@ func (cc *ControlCard) EnrollzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc 
 	cc.ODevIDCert = GenOwnerCert(t, caKey, caCert, cc.IDevIDCert, nil, tc.Target)
 
 	// Rotate owner certificates.
-	as.RotateOwnerCerts(t, cc.Role, cc.OIAKCert, cc.ODevIDCert, sslProfileId)
+	as.RotateOwnerCerts(t, cc.Role, cc.OIAKCert, cc.ODevIDCert, sslProfileID)
 }
 
 // GenNonce creates a random 32 byte nonce used for attest rpc.
@@ -161,9 +165,8 @@ func GenNonce(t *testing.T) []byte {
 }
 
 // AttestzWorkflow performs attestation workflow for a given control card.
-func (cc *ControlCard) AttestzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc *TlsConf) {
-	var as *AttestzSession
-	as = tc.NewAttestzSession(t)
+func (cc *ControlCard) AttestzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc *TLSConf) {
+	as := tc.NewSession(t)
 	defer as.Conn.Close()
 
 	for _, hashAlgo := range PcrBankHashAlgoMap[dut.Vendor()] {
@@ -212,7 +215,7 @@ func ParseSerialSelection(inputSerial string) *cdpb.ControlCardSelection {
 }
 
 // GetVendorCerts returns vendor certs from the dut for a given card.
-func (as *AttestzSession) GetVendorCerts(t *testing.T, cardSelection *cdpb.ControlCardSelection) *enrollzpb.GetIakCertResponse {
+func (as *Session) GetVendorCerts(t *testing.T, cardSelection *cdpb.ControlCardSelection) *enrollzpb.GetIakCertResponse {
 	enrollzRequest := &enrollzpb.GetIakCertRequest{
 		ControlCardSelection: cardSelection,
 	}
@@ -226,12 +229,12 @@ func (as *AttestzSession) GetVendorCerts(t *testing.T, cardSelection *cdpb.Contr
 }
 
 // RotateOwnerCerts pushes owner certs to the dut for a given card & ssl profile.
-func (as *AttestzSession) RotateOwnerCerts(t *testing.T, cardRole cdpb.ControlCardRole, oIAKCert string, oDevIDCert string, sslProfileId string) {
+func (as *Session) RotateOwnerCerts(t *testing.T, cardRole cdpb.ControlCardRole, oIAKCert string, oDevIDCert string, sslProfileID string) {
 	enrollzRequest := &enrollzpb.RotateOIakCertRequest{
 		ControlCardSelection: ParseRoleSelection(cardRole),
 		OiakCert:             oIAKCert,
 		OidevidCert:          oDevIDCert,
-		SslProfileId:         sslProfileId,
+		SslProfileId:         sslProfileID,
 	}
 	t.Logf("Sending Enrollz.Rotate request on device: \n %s", PrettyPrint(enrollzRequest))
 	_, err := as.EnrollzClient.RotateOIakCert(context.Background(), enrollzRequest, grpc.Peer(as.Peer))
@@ -243,7 +246,7 @@ func (as *AttestzSession) RotateOwnerCerts(t *testing.T, cardRole cdpb.ControlCa
 }
 
 // RequestAttestation requests attestation from the dut for a given card, hash algo & pcr indices.
-func (as *AttestzSession) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo attestzpb.Tpm20HashAlgo, pcrIndices []int32) *attestzpb.AttestResponse {
+func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo attestzpb.Tpm20HashAlgo, pcrIndices []int32) *attestzpb.AttestResponse {
 	attestzRequest := &attestzpb.AttestRequest{
 		ControlCardSelection: ParseRoleSelection(cardRole),
 		Nonce:                nonce,
@@ -405,7 +408,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		return c.Card == cardDesc
 	})
 	if idx == -1 {
-		return fmt.Errorf("Could not find card %v in reference data.", cardDesc)
+		return fmt.Errorf("could not find card %v in reference data", cardDesc)
 	}
 
 	pcrBankData := nokiaPcrData.Cards[idx].Pcrs
@@ -413,7 +416,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		return p.Bank == hashAlgoMap[hashAlgo]
 	})
 	if idx == -1 {
-		return fmt.Errorf("Could not find pcr bank %v in reference data.", hashAlgoMap[hashAlgo])
+		return fmt.Errorf("could not find pcr bank %v in reference data", hashAlgoMap[hashAlgo])
 	}
 
 	wantPcrValues := pcrBankData[idx].Values
@@ -422,7 +425,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 			return p.Pcr == pcrIndex
 		})
 		if idx == -1 {
-			return fmt.Errorf("Could not find pcr index %v in reference data.", pcrIndex)
+			return fmt.Errorf("could not find pcr index %v in reference data", pcrIndex)
 		}
 		if got, want := hex.EncodeToString(gotPcrValues[pcrIndex]), wantPcrValues[idx].Value; got != want {
 			t.Errorf("%v pcr %v value does not match expectations, got: %v want: %v", hashAlgoMap[hashAlgo], pcrIndex, got, want)

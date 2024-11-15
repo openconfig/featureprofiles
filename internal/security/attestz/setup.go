@@ -38,7 +38,7 @@ import (
 
 const (
 	attestzServerName   = "attestz-server"
-	sslProfileId        = "tls-attestz"
+	sslProfileID        = "tls-attestz"
 	mgmtVrf             = "mgmtVrf"
 	attestzServerPort   = 9000
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
@@ -48,8 +48,8 @@ const (
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
 )
 
-// TlsConf struct holds mtls configs for attestz grpc connections.
-type TlsConf struct {
+// TLSConf struct holds mtls configs for attestz grpc connections.
+type TLSConf struct {
 	Target     string
 	Mtls       bool
 	CaKeyFile  string
@@ -60,8 +60,8 @@ type TlsConf struct {
 	ServerKey  []byte
 }
 
-// NewAttestzSession creates a grpc client used in attestz tests.
-func (tc *TlsConf) NewAttestzSession(t *testing.T) *AttestzSession {
+// NewSession creates a grpc client used in attestz tests.
+func (tc *TLSConf) NewSession(t *testing.T) *Session {
 	tlsConf := new(tls.Config)
 	if tc.Mtls {
 		keyPair, err := tls.X509KeyPair(tc.ClientCert, tc.ClientKey)
@@ -90,7 +90,7 @@ func (tc *TlsConf) NewAttestzSession(t *testing.T) *AttestzSession {
 	if err != nil {
 		t.Fatalf("Could not connect gnsi. error: %v", err)
 	}
-	return &AttestzSession{
+	return &Session{
 		Conn:          conn,
 		Peer:          new(peer.Peer),
 		EnrollzClient: enrollzpb.NewTpmEnrollzServiceClient(conn),
@@ -99,7 +99,7 @@ func (tc *TlsConf) NewAttestzSession(t *testing.T) *AttestzSession {
 }
 
 // EnableMtls creates client/server certificates signed by the given ca & pushes server certificate to the dut for a given ssl profile.
-func (tc *TlsConf) EnableMtls(t *testing.T, dut *ondatra.DUTDevice, sslProfile string) {
+func (tc *TLSConf) EnableMtls(t *testing.T, dut *ondatra.DUTDevice, sslProfile string) {
 	caKey, caCert, err := svid.LoadKeyPair(tc.CaKeyFile, tc.CaCertFile)
 	if err != nil {
 		t.Fatalf("Error loading ca key/cert. error: %v", err)
@@ -124,8 +124,8 @@ func (tc *TlsConf) EnableMtls(t *testing.T, dut *ondatra.DUTDevice, sslProfile s
 
 // SetupBaseline setup a test ssl profile & grpc server to be used in attestz tests.
 func SetupBaseline(t *testing.T, dut *ondatra.DUTDevice) (string, *oc.System_GrpcServer) {
-	AddProfile(t, dut, sslProfileId)
-	RotateCerts(t, dut, CertTypeIdevid, sslProfileId, nil, nil, nil)
+	AddProfile(t, dut, sslProfileID)
+	RotateCerts(t, dut, CertTypeIdevid, sslProfileID, nil, nil, nil)
 	gs := createTestGrpcServer(t, dut)
 	// Prepare target for the newly created gRPC Server
 	dialTarget := introspect.DUTDialer(t, dut, introspect.GNSI).DialTarget
@@ -138,9 +138,8 @@ func SetupBaseline(t *testing.T, dut *ondatra.DUTDevice) (string, *oc.System_Grp
 	return resolvedTarget.String(), gs
 }
 
-func getGrpcPeers(t *testing.T, tc *TlsConf) (string, string) {
-	var as *AttestzSession
-	as = tc.NewAttestzSession(t)
+func getGrpcPeers(t *testing.T, tc *TLSConf) (string, string) {
+	as := tc.NewSession(t)
 	defer as.Conn.Close()
 	// Make a test grpc call to get peer endpoints from the connection.
 	_, err := as.EnrollzClient.GetIakCert(context.Background(), &enrollzpb.GetIakCertRequest{ControlCardSelection: ParseRoleSelection(cdpbActive)}, grpc.Peer(as.Peer))
@@ -160,7 +159,7 @@ func createTestGrpcServer(t *testing.T, dut *ondatra.DUTDevice) *oc.System_GrpcS
 	gs := s.GetOrCreateGrpcServer(attestzServerName)
 	gs.SetEnable(true)
 	gs.SetPort(uint16(attestzServerPort))
-	gs.SetCertificateId(sslProfileId)
+	gs.SetCertificateId(sslProfileID)
 	gs.SetServices([]oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI, oc.SystemGrpc_GRPC_SERVICE_GNSI})
 	gs.SetMetadataAuthentication(false)
 	gs.SetNetworkInstance(mgmtVrf)
