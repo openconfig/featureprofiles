@@ -130,7 +130,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestOSInstallDiskFull(t *testing.T) {
+func TestOSTransferDiskFull(t *testing.T) {
 	// dbg.CollectDebugFiles(t, "", "0", true, true, true, true, "", "")
 	osFileOriginal = *osFile
 	*osFile = *osFileForceDownloadSupported
@@ -259,7 +259,8 @@ func TestOSNormalTransferStandby(t *testing.T) {
 	// Attempt to transfer the OS with standby flag and verify failure
 	tc.transferOS(ctx, t, true, "", "stand")
 }
-func TestOSForceInstall1(t *testing.T) {
+
+func TestOSForceTransfer1(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -301,7 +302,7 @@ func TestOSForceInstall1(t *testing.T) {
 	})
 }
 
-func TestOSForceInstall2(t *testing.T) {
+func TestOSForceTransfer2(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -342,7 +343,8 @@ func TestOSForceInstall2(t *testing.T) {
 		}
 	})
 }
-func TestOSNormalInstall3(t *testing.T) {
+
+func TestOSNormalTransfer1(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -382,7 +384,8 @@ func TestOSNormalInstall3(t *testing.T) {
 		}
 	})
 }
-func TestOSNormalInstall4(t *testing.T) {
+
+func TestOSNormalTransfer2(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -422,7 +425,8 @@ func TestOSNormalInstall4(t *testing.T) {
 		}
 	})
 }
-func TestOSForceInstall5(t *testing.T) {
+
+func TestOSForceTransfer3(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -462,7 +466,8 @@ func TestOSForceInstall5(t *testing.T) {
 		}
 	})
 }
-func TestOSForceInstallActivate6(t *testing.T) {
+
+func TestOSForceInstall1(t *testing.T) {
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -526,7 +531,8 @@ func TestOSForceInstallActivate6(t *testing.T) {
 
 	tc.verifyInstall(ctx, t)
 }
-func TestOSForceInstall7(t *testing.T) {
+
+func TestOSForceInstall2(t *testing.T) {
 	*osFile = *osFileForceDownloadNotSupported
 	if *osFile == "" {
 		t.Fatal("Missing osfile or osver args")
@@ -590,7 +596,8 @@ func TestOSForceInstall7(t *testing.T) {
 
 	tc.verifyInstall(ctx, t)
 }
-func TestOSForceInstall8(t *testing.T) {
+
+func TestOSForceInstall3(t *testing.T) {
 	*osFile = osFileOriginal
 
 	if *osFile == "" {
@@ -825,10 +832,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 	} else {
 		t.Log("OS.Install supervisor image transfer complete.")
 	}
-	// if !strings.Contains(Message, ErrorString) {
-	// 	t.Fatalf("Expected disk full error, but got: %v", err)
-	// }
-	// t.Logf("Expected disk full error, and got: %v", err)
 }
 
 // verifyInstall validates the OS.Verify RPC returns no failures and version numbers match the
