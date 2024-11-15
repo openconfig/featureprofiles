@@ -325,6 +325,7 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 
 	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500 dutLocalAS1 65499", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
+
 		t.Log("Validate session state and capabilities received on DUT using telemetry.")
 		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
 		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
@@ -440,13 +441,7 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
-		dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		name := deviations.DefaultNetworkInstance(dut)
-		c := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Update(t, dut, c.Config(), &oc.NetworkInstance{
-			Name: ygot.String(name),
-		})
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 	})
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
