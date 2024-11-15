@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "7378f860-e39e-4239-b233-deda1d7bd9db"
+plan_id: "attestz-2"
+description: "Validate oIAK and oIDevID rotation"
+testbed: TESTBED_DUT

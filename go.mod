@@ -1,6 +1,6 @@
 module github.com/openconfig/featureprofiles
 
-go 1.21
+go 1.22
 
 require (
 	cloud.google.com/go/pubsub v1.36.1
@@ -11,11 +11,13 @@ require (
 	github.com/golang/glog v1.2.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v50 v50.1.0
+	github.com/google/go-tpm v0.9.1
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.3.0
+	github.com/openconfig/attestz v0.2.0
 	github.com/openconfig/containerz v0.0.0-20240620162940-e0bf23af17d6
 	github.com/openconfig/entity-naming v0.0.0-20230912181021-7ac806551a31
 	github.com/openconfig/gnmi v0.11.0
@@ -120,7 +122,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
-	github.com/openconfig/attestz v0.2.0 // indirect
 	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.0.0-20220819142823-6f5422b8ca70 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
