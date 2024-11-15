@@ -376,6 +376,7 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 	} else {
 		gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 4)
 	}
+	
 	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500, dutLocalAS1, 65499", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 
@@ -390,6 +391,7 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
 	})
+
 	t.Run("Re-advertise the prefix from the ATE with 3 Occurrences: dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
 
