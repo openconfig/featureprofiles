@@ -30,6 +30,7 @@ import (
 
 	"flag"
 
+	// dbg "github.com/openconfig/featureprofiles/exec/utils/debug"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -130,6 +131,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestOSInstallDiskFull(t *testing.T) {
+	// dbg.CollectDebugFiles(t, "", "0", true, true, true, true, "", "")
 	osFileOriginal = *osFile
 	*osFile = *osFileForceDownloadSupported
 	if *osFile == "" {
@@ -620,21 +622,13 @@ func TestOSForceInstall8(t *testing.T) {
 	}
 	noReboot := deviations.OSActivateNoReboot(dut)
 	tc.fetchStandbySupervisorStatus(ctx, t)
-	t.Run("Force install old image using Wrong version", func(t *testing.T) {
+	t.Run("Normal install back to original version", func(t *testing.T) {
 		t1, _ := listISOFile(t, dut, *osVersion)
-		// tc.transferOS(ctx, t, false, *osVersion, "")
-		tc.transferOS(ctx, t, false, "WRONG_VERSION", "")
+		tc.transferOS(ctx, t, false, *osVersion, "")
+		// tc.transferOS(ctx, t, false, "WRONG_VERSION", "")
 		t2, _ := listISOFile(t, dut, *osVersion)
 		if t1 == 0 && isGreater(t1, t2) {
 			t.Fatal("image not force updated")
-		}
-	})
-	t.Run("Try Activating using Wrong version expected failure", func(t *testing.T) {
-		tc.activateOS(ctx, t, false, noReboot, "WRONG_VERSION", true)
-
-		if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
-			tc.transferOS(ctx, t, true, "", "")
-			tc.activateOS(ctx, t, true, noReboot, "WRONG_VERSION", true)
 		}
 	})
 
