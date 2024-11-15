@@ -82,12 +82,14 @@ var (
 		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA384,
 		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA512,
 	}
+	// PcrBankHashAlgoMap vendor supported hash algorithms for pcr bank.
 	PcrBankHashAlgoMap = map[ondatra.Vendor][]attestzpb.Tpm20HashAlgo{
 		ondatra.NOKIA:   {attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA1, attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256},
 		ondatra.ARISTA:  pcrBankHashAlgo,
 		ondatra.JUNIPER: pcrBankHashAlgo,
 		ondatra.CISCO:   pcrBankHashAlgo,
 	}
+	// PcrIndices pcr indices to be attested.
 	PcrIndices = []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23}
 )
 

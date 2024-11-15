@@ -105,11 +105,11 @@ func (tc *TLSConf) EnableMtls(t *testing.T, dut *ondatra.DUTDevice, sslProfile s
 		t.Fatalf("Error loading ca key/cert. error: %v", err)
 	}
 	clientIP, serverIP := getGrpcPeers(t, tc)
-	tc.ClientCert, tc.ClientKey, err = GenTlsCert(clientIP, caCert, caKey, caCert.PublicKeyAlgorithm)
+	tc.ClientCert, tc.ClientKey, err = GenTLSCert(clientIP, caCert, caKey, caCert.PublicKeyAlgorithm)
 	if err != nil {
 		t.Fatalf("Error generating client tls certs. error: %s", err)
 	}
-	tc.ServerCert, tc.ServerKey, err = GenTlsCert(serverIP, caCert, caKey, caCert.PublicKeyAlgorithm)
+	tc.ServerCert, tc.ServerKey, err = GenTLSCert(serverIP, caCert, caKey, caCert.PublicKeyAlgorithm)
 	if err != nil {
 		t.Fatalf("Error generating server tls certs. error: %s", err)
 	}

@@ -35,11 +35,13 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-type CertType int
+type certType int
 
 const (
-	CertTypeRaw    CertType = 0
-	CertTypeIdevid CertType = 1
+	// CertTypeRaw represents raw certificate type.
+	CertTypeRaw certType = 0
+	// CertTypeIdevid represents idevid certificate type.
+	CertTypeIdevid certType = 1
 )
 
 type entityType int
@@ -102,7 +104,7 @@ func createEntity(entityType entityType, certificate *certzpb.Certificate) *cert
 	return entity
 }
 
-func createCertificate(rotateType CertType, keyContents, certContents []byte) *certzpb.Certificate {
+func createCertificate(rotateType certType, keyContents, certContents []byte) *certzpb.Certificate {
 	cert := &certzpb.Certificate{
 		Type:     certzpb.CertificateType_CERTIFICATE_TYPE_X509,
 		Encoding: certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
@@ -129,7 +131,7 @@ func createCertificate(rotateType CertType, keyContents, certContents []byte) *c
 }
 
 // RotateCerts rotates certificates on the dut for a given ssl profile.
-func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType CertType, sslProfileID string, dutKey, dutCert, trustBundle []byte) {
+func RotateCerts(t *testing.T, dut *ondatra.DUTDevice, rotateType certType, sslProfileID string, dutKey, dutCert, trustBundle []byte) {
 	t.Logf("Performing Certz.Rotate request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
@@ -266,8 +268,8 @@ func GenOwnerCert(t *testing.T, caKey any, caCert *x509.Certificate, inputCert s
 	return certPEM.String()
 }
 
-// GenTlsCert creates mtls client/server certificates & signs it based on given signing cert/key.
-func GenTlsCert(ip string, signingCert *x509.Certificate, signingKey any, keyAlgo x509.PublicKeyAlgorithm) ([]byte, []byte, error) {
+// GenTLSCert creates mtls client/server certificates & signs it based on given signing cert/key.
+func GenTLSCert(ip string, signingCert *x509.Certificate, signingKey any, keyAlgo x509.PublicKeyAlgorithm) ([]byte, []byte, error) {
 	certSpec, err := populateCertTemplate(ip)
 	if err != nil {
 		return nil, nil, err

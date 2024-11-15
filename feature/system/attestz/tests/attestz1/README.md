@@ -71,8 +71,10 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 
 ```yaml
 rpcs:
-  attestz:
-     TpmAttestzService.Attest:
-     TpmEnrollzService.GetIakCert:
-     TpmEnrollzService.RotateOIakCert:
+   gnsi:
+      certz.v1.Certz.Rotate:
+   gnoi:
+      system.System.Reboot:
+      system.System.SwitchControlProcessor:
+      factory_reset.FactoryReset.Start:
 ```
