@@ -62,10 +62,10 @@ var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx contex
 }
 
 var (
-	// osFile                          = flag.String("osfile", "", "Path to the OS image under test for the install operation")
+	// osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
 	// osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
 	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	osFile                          = flag.String("osfile", "/auto/b4ws/xr/builds/nightly/latest/img-8000/8000-x64.iso", "Path to the OS image under test for the install operation")
+	osFile                          = flag.String("osFile", "/auto/b4ws/xr/builds/nightly/latest/img-8000/8000-x64.iso", "Path to the OS image under test for the install operation")
 	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image (Force Download Supported) for the install operation")
 	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
 	osVersion                       = flag.String("osVersion", "", "Path to new OS Version, will be auto filled by new logic")
