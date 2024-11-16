@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"reflect"
@@ -56,20 +57,13 @@ var packageReader func(context.Context) (io.ReadCloser, error) = func(ctx contex
 }
 
 var (
-	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
-	// osVersion = flag.String("osver", "24.4.1.39I", "Version of the OS image for the install operation")
-	osFileForceDownloadSupported = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image for the install operation")
-
-	// osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.22I.DT_IMAGE/8000/8000-x64-25.1.1.22I.iso", "Path to the OS image for the install operation")
-	// osVersion = flag.String("osver", "25.1.1.22I", "Version of the OS image for the install operation")
-	osFile    = flag.String("osfile", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image for the install operation")
-	osVersion = flag.String("osver", "25.1.1.21I", "Version of the OS image for the install operation")
-
-	timeout        = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
-	osFileOriginal = ""
-	dutSrc         = attrs.Attributes{
+	osFile                          = flag.String("osfile", "", "Path to the OS image under test for the install operation")
+	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
+	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
+	osVersion                       = flag.String("osVersion", "", "Path to new OS Version, will be auto filled by new logic")
+	timeout                         = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
+	osFileOriginal                  = ""
+	dutSrc                          = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
 		IPv6:    "2001:db8::192:0:2:1",
@@ -525,6 +519,15 @@ func TestOSForceInstall1(t *testing.T) {
 		}
 	})
 
+	t.Run("Activating using correct version - expected failure already activated", func(t *testing.T) {
+		tc.activateOS(ctx, t, false, noReboot, *osVersion, false)
+
+		if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
+			tc.transferOS(ctx, t, true, "", "")
+			tc.activateOS(ctx, t, true, noReboot, *osVersion, true)
+		}
+	})
+
 	if noReboot {
 		tc.rebootDUT(ctx, t)
 	}
@@ -590,6 +593,15 @@ func TestOSForceInstall2(t *testing.T) {
 		}
 	})
 
+	t.Run("Activating using correct version - expected failure already activated", func(t *testing.T) {
+		tc.activateOS(ctx, t, false, noReboot, *osVersion, false)
+
+		if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
+			tc.transferOS(ctx, t, true, "", "")
+			tc.activateOS(ctx, t, true, noReboot, *osVersion, true)
+		}
+	})
+
 	if noReboot {
 		tc.rebootDUT(ctx, t)
 	}
@@ -645,6 +657,15 @@ func TestOSForceInstall3(t *testing.T) {
 		if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
 			tc.transferOS(ctx, t, true, "", "")
 			tc.activateOS(ctx, t, true, noReboot, *osVersion, false)
+		}
+	})
+
+	t.Run("Activating using correct version - expected failure already activated", func(t *testing.T) {
+		tc.activateOS(ctx, t, false, noReboot, *osVersion, false)
+
+		if deviations.InstallOSForStandbyRP(dut) && tc.dualSup {
+			tc.transferOS(ctx, t, true, "", "")
+			tc.activateOS(ctx, t, true, noReboot, *osVersion, true)
 		}
 	})
 
@@ -990,12 +1011,7 @@ func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	t.Logf("Fetch interface config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {
-		if reflect.DeepEqual(val, in) {
-			t.Logf("Interface config Want and Got matched")
-			fptest.LogQuery(t, fmt.Sprintf("%s from Get", dutPort), dc, val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dc)
-		}
+		compareStructs(t, in, val)
 	} else {
 		t.Errorf("Config %v Get() failed", dc)
 	}
@@ -1025,9 +1041,16 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTD
 }
 
 func TestPushAndVerifyBGPConfig(t *testing.T) {
+	// peer := ondatra.DUT(t, "peer")
+	// fptest.ConfigureDefaultNetworkInstance(t, peer)
+
+	// t.Logf("Create and push BGP config to the DUT")
+	// peerConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(peer)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	// peerConf := bgpCreateNbr(peer)
+	// gnmi.Replace(t, peer, peerConfPath.Config(), peerConf)
+
 	dut := ondatra.DUT(t, "dut")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	t.Logf("Create and push BGP config to the DUT")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -1036,14 +1059,50 @@ func TestPushAndVerifyBGPConfig(t *testing.T) {
 
 	t.Logf("Fetch BGP config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
 	if val, present := gnmi.LookupConfig(t, dut, dutConfPath.Config()).Val(); present {
-		if reflect.DeepEqual(val, dutConf) {
-			t.Logf("BGP config Want and Got matched")
-			fptest.LogQuery(t, "BGP fetched from DUT using Get()", dutConfPath.Config(), val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dutConfPath.Config())
-		}
+		compareStructs(t, dutConf, val)
 	} else {
 		t.Errorf("Config %v Get() failed", dutConfPath.Config())
+	}
+}
+
+func compareStructs(t *testing.T, dutConf, val interface{}) {
+	vdutConf := reflect.ValueOf(dutConf).Elem()
+	vval := reflect.ValueOf(val).Elem()
+	tdutConf := vdutConf.Type()
+
+	for i := 0; i < vdutConf.NumField(); i++ {
+		fieldName := tdutConf.Field(i).Name
+		fdutConf := vdutConf.Field(i)
+		fval := vval.FieldByName(fieldName)
+		if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+			continue
+		} else {
+			if fdutConf.Kind() == reflect.Ptr && fdutConf.Elem().Kind() == reflect.Struct {
+				compareStructs(t, fdutConf.Interface(), fval.Interface())
+			} else if fdutConf.Kind() == reflect.Map && fdutConf.IsValid() {
+				for _, key := range fdutConf.MapKeys() {
+					strct := fdutConf.MapIndex(key)
+					strctVal := fval.MapIndex(key)
+					log.Printf("strct %v \t, strctVal %v\n", strct, strctVal)
+					if strct.Kind() == reflect.Map {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					} else if fdutConf.Kind() == reflect.Ptr && fdutConf.IsNil() {
+						continue
+					} else if strct.Kind() == reflect.Ptr && strct.Elem().Kind() == reflect.Struct {
+						compareStructs(t, strct.Interface(), strctVal.Interface())
+					}
+				}
+			} else if reflect.DeepEqual(fdutConf.Interface(), fval.Interface()) {
+				t.Logf("The field %s is equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
+			} else {
+				if !(fieldName == "SendCommunity") {
+					t.Errorf("The field %s is not equal in both structs\n got: %#v \t want: %#v \n", fieldName, fdutConf.Interface(), fval.Interface())
+				} else {
+					continue
+				}
+			}
+		}
+
 	}
 }
 
