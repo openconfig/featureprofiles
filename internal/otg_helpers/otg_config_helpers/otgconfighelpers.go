@@ -2,6 +2,8 @@
 package otgconfighelpers
 
 import (
+	"testing"
+
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/ondatra"
 )
@@ -73,7 +75,7 @@ func ConfigureOtgNetworkInterface(top gosnappi.Config, ate *ondatra.ATEDevice, a
 }
 
 // ConfigureOtgLag configures the aggregate port.
-func ConfigureOtgLag(top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
+func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
 	agg := top.Lags().Add().SetName(a.Name)
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(a.AggMAC)
 	for index, portName := range a.MemberPorts {
