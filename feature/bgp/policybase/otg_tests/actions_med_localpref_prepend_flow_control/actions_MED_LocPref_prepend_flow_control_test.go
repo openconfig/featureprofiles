@@ -54,7 +54,6 @@ const (
 	initialLocalPrefValue       = 50
 	initialMEDValue             = 50
 	setMEDPolicy                = "med-policy"
-	setMEDIncreasePolicy        = "med-increase-policy"
 	matchStatement1             = "match-statement-1"
 	setPrependPolicy            = "prepend-policy"
 	testASN                     = 23456
@@ -228,11 +227,15 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
-		metric, _ := strconv.Atoi(policyValue)
-		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	case setMEDIncreasePolicy:
-		actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+		if strings.Contains(policyValue, "+") {
+			actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+			if deviations.BgpSetmedUnionTypeUnsupported(dut) {
+				t.Skip("BGP set med union string is not supported in OC, skipping test.")
+			}
+		} else {
+			metric, _ := strconv.Atoi(policyValue)
+			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+		}
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
@@ -468,12 +471,6 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
-				case setMEDIncreasePolicy:
-					if bgpPrefix.GetMultiExitDiscriminator() != metric {
-						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
-					} else {
-						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
-					}
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
@@ -533,12 +530,6 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 				foundPrefix = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
-				case setMEDIncreasePolicy:
-					if bgpPrefix.GetMultiExitDiscriminator() != metric {
-						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
-					} else {
-						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
-					}
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
 						t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
@@ -646,13 +637,13 @@ func TestBGPPolicy(t *testing.T) {
 		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP increase MED Import Export Policy",
-		rpPolicy:        setMEDIncreasePolicy,
+		rpPolicy:        setMEDPolicy,
 		policyTypePort1: "",
 		policyValue:     "+100",
 		policyStatement: matchStatement1,
 		defPolicyPort1:  defAcceptRoute,
 		defPolicyPort2:  defRejectRoute,
-		policyTypePort2: setMEDIncreasePolicy,
+		policyTypePort2: setMEDPolicy,
 		port1v4Prefix:   advertisedRoutesv4Net2,
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
@@ -750,9 +741,6 @@ func TestBGPPolicy(t *testing.T) {
 			// Delete BGP import export policy
 			if tc.isDeletePolicy {
 				deleteBGPImportExportPolicy(t, dut, tc.deleteNbrv4, tc.deleteNbrv6, atePort2.IPv4, atePort2.IPv6)
-			}
-			if tc.rpPolicy == setMEDIncreasePolicy && deviations.BgpSetmedUnionTypeUnsupported(dut) {
-				t.Skip("BGP set med union is not supported in OC, skipping test.")
 			}
 
 			// Configure Routing Policy on the DUT.
