@@ -93,9 +93,9 @@ func main() {
 	}
 
 	oc_release_tag := ""
-    	if profile.Ocpaths.GetVersion() != "" {
-        	oc_release_tag = "v"+profile.Ocpaths.GetVersion()
-    	}
+	if profile.Ocpaths.GetVersion() != "" {
+		oc_release_tag = "v" + profile.Ocpaths.GetVersion()
+	}
 	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, oc_release_tag)
 	if err != nil {
 		fmt.Println(err)
