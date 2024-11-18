@@ -1207,3 +1207,9 @@ func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
 }
+
+// TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
+// Default value is false.
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
