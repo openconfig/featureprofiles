@@ -226,8 +226,6 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
 				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -273,8 +271,6 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
 				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -367,8 +363,6 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
 				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -414,8 +408,6 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
 				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -503,8 +495,6 @@ func TestDefinedSetsPortSets(t *testing.T) {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
 				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -550,8 +540,6 @@ func TestDefinedSetsPortSets(t *testing.T) {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
 				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					// TODO: Reenable test once CSCwm96980 fix is committed
-					t.Skip()
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
@@ -1419,7 +1407,6 @@ func TestLeafRefs(t *testing.T) {
 	})
 
 	t.Run("GetAllDefinedSets", func(t *testing.T) {
-		t.Skip()
 		cfg := configIPv6PrefixSet()
 		gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(cfg.GetName()).Config(), cfg)
 		t.Cleanup(func() {
