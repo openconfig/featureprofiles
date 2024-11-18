@@ -44,7 +44,8 @@ we have the following that is different from EER.
   *   The routes passed through the retention-policy should be the post-policy
       adj-rib-in of the neighbor. Any other import policy applied to the routes
       must not be overridden by this policy, it should be additive.
-  *   Default action if no policy is specified should be to reject.
+  *   Default action if no ERR policy is specified should be to follow RFC8538
+      behavior.
   *   Please Note: In the case of an ERR policy, when the action of a given
       MATCH criteria is REJECT, the matching prefixes will be treated similar to
       RFC8538 expectations. Therefore such prefixes wouldnt experience extended
