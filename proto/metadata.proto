@@ -640,6 +640,9 @@ message Metadata {
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
+    // Device have different default value for allow own as.
+    // Juniper : b/373559004
+    bool bgp_allowownas_diff_default_value = 231;
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
     bool bgp_setmed_union_type_unsupported = 231;
