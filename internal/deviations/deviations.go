@@ -1208,8 +1208,14 @@ func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
 }
 
+// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
+func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
+}
+
 // BgpSetmedUnionTypeUnsupported returns true if devices which are not
 // supporting bgp set med union type in OC.
 func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
 }
+
