@@ -17,13 +17,13 @@ package twofiftysix_ucmp_test
 import (
 	"context"
 	"strings"
-	"time"
+	//"time"
 
 	"testing"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	//"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/gribigo/fluent"
