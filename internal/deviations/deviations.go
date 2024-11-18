@@ -1203,7 +1203,12 @@ func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
 
-// Device have different default value for allow own as.
+// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
 func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}
+
+// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
+func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
 }
