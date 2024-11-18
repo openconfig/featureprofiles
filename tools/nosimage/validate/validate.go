@@ -92,11 +92,11 @@ func main() {
 		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
 	}
 
-	oc_release_tag := ""
+	ocReleaseTag := ""
 	if profile.Ocpaths.GetVersion() != "" {
-		oc_release_tag = "v" + profile.Ocpaths.GetVersion()
+		ocReleaseTag = "v" + profile.Ocpaths.GetVersion()
 	}
-	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, oc_release_tag)
+	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, ocReleaseTag)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
