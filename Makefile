@@ -18,9 +18,6 @@ GO_PROTOS:=proto/feature_go_proto/feature.pb.go proto/metadata_go_proto/metadata
 .PHONY: all clean protos validate_paths protoimports
 all: openconfig_public protos validate_paths
 
-openconfig_public:
-	tools/clone_oc_public.sh openconfig_public
-
 protos: $(GO_PROTOS)
 
 protoimports:
@@ -38,11 +35,6 @@ protoimports:
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/kne | xargs -L1 -- ln -s
 	ln -s $(ROOT_DIR) protobuf-import/github.com/openconfig/featureprofiles
-
-proto/feature_go_proto/feature.pb.go: proto/feature.proto
-	mkdir -p proto/feature_go_proto
-	protoc --proto_path=proto --go_out=./ --go_opt=Mfeature.proto=proto/feature_go_proto feature.proto
-	goimports -w proto/feature_go_proto/feature.pb.go
 
 proto/metadata_go_proto/metadata.pb.go: proto/metadata.proto protoimports
 	mkdir -p proto/metadata_go_proto
