@@ -35,9 +35,10 @@ we have the following that is different from EER.
     by other receiving peers." and anyone that receives that route MUST treat
     the route as least-preferred. This isnt the case for ERR. There arent any
     communities attached to Stale routes thereby mandating their depreference.
-  *   Section 4.7: Different conditions for partial deployment of LLGR is a no-op
-    for ERR as it builds on the concepts of RFC8538 and hence there arent any
-    special communities expected to be sent or received for the stale routes.
+  *   Section 4.7: Different conditions for partial deployment of LLGR is a
+    no-op for ERR as it builds on the concepts of RFC8538 and hence there arent
+    any special communities expected to be sent or received for the stale
+    routes.
 
 **More about the ERR policy**
   *   This policy can be attached at the Global, Peer-group or Neighbor levels.
@@ -47,12 +48,12 @@ we have the following that is different from EER.
   *   Default action if no ERR policy is specified should be to follow RFC8538
       behavior.
   *   Please Note: In the case of an ERR policy, when the action of a given
-      MATCH criteria is REJECT, the matching prefixes will be treated similar to
-      RFC8538 expectations. Therefore such prefixes wouldnt experience extended
-      Retention. Similarly, when the policy match condition translates to an
-      ACCEPT action, the prefixes are considered for ERR operation and the
+      MATCH criteria is REJECT, the matching prefixes will be treated similar
+      to RFC8538 expectations. Therefore such prefixes wouldnt experience
+      extended Retention. Similarly, when the policy match condition translates
+      to an ACCEPT action, the prefixes are considered for ERR operation and the
       configured Retention time becomes applicable. The Prefix also gets other
-      attributes as configured part of ACTION 
+      attributes as configured part of ACTION
   *   While the Yang definition for ERR is yet to be defined, following is a
       representation of how the entire config used in this test will look like.
 
@@ -92,7 +93,7 @@ we have the following that is different from EER.
     /routing-policy/policy-definitions/policy-definition[name='STALE-ROUTE-POLICY']/statement[name='default-retention']/actions/bgp-actions/accept-route = true
     ```
   *   Following for the corresponding STATE paths.
-    
+
     ```
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state
     /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor[neighbor-address='192.168.1.1']/state/hold-time
@@ -117,11 +118,18 @@ we have the following that is different from EER.
 ## Testbed type
 [atedut_2.testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
 
-## Procedure
+## Topology
+Create the following connections:
 
-*   Test environment setup ## Topology Create the following connections:
-    `mermaid graph LR; A[ATE:Port1] <-- IBGP(ASN100) --> B[Port1:DUT:Port2]; B
-    <-- EBGP(ASN200) --> C[Port2:ATE];`
+ ```mermaid
+ graph LR
+ A[ATE:Port1] <-- IBGP(ASN100) --> B[Port1:DUT:Port2]
+ B <-- EBGP(ASN200) --> C[Port2:ATE]
+ ```
+
+
+## Test environment setup
+
 *   ATE:Port1 runs IBGP and must advertise the following IPv4 and IPv6 prefixes
     with the corresponding commiunitty attributes
     *   IPv4Prefix1 and IPv6Prefix1 with community NO-ERR
@@ -174,6 +182,7 @@ we have the following that is different from EER.
     *   IPv4Prefix3 <-> IPv4Prefix6, IPv6Prefix3 <-> IPv6Prefix6
 
 
+## Procedure
 
 **RT-1.35.1: Validate Graceful-Restart (Baseline)**
 
@@ -187,6 +196,7 @@ we have the following that is different from EER.
     bit) is set. Also verify that the restart-time = 220 Secs.
 *   Validate ERR retention-time is as configured i.e. 300s
 *   Validate the ERR retention-policy matches "STALE-ROUTE-POLICY".
+
     a. Ensure the DUT has learnt all the Prefixes over the IBGP and EBGP
     sessions and has the correct community list attached to the routes in its
     post-policy ADJ-RIBIN
@@ -216,8 +226,6 @@ we have the following that is different from EER.
     *   Start traffic as per the Test flows above and ensure 100% success
 
     If any of the above verifications fail, then the test is a failure.
-
-
 
 
 **RT-1.35.2**
@@ -258,7 +266,7 @@ case ERR policy is attached to the BGP neighborship.`***
         peerings from the DUT post advertisement of all routes. If not, then the
         test must fail.
 
-    ***`b. Restarting DUT speaker whose BGP process was killed gracefully after
+***`b. Restarting DUT speaker whose BGP process was killed gracefully after
     removing the ERR policy`***
 
 *   In this case too, Once the BGP process on the DUT is killed, configure both
@@ -342,8 +350,9 @@ and all traffic is expected to be successful.
 **RT-1.35.6**
 
 `TODO: gNOI.ClearBGPNeighborRequest_GRACEFUL used in this case is under review
-in https://github.com/openconfig/gnoi/pull/214` 
-***`a. DUT Helper for a restarting EBGP speaker whose BGP process was killed 
+in https://github.com/openconfig/gnoi/pull/214`
+
+***`a. DUT Helper for a restarting EBGP speaker whose BGP process was killed
 abruptly. In this case ERR policy is attached to the BGP neighborship.`***
 *   Start traffic. Send `gNOI.killProcessRequest_Signal_KILL` as per
 `gNOI proto` to ATE:Port1 to stop its BGP process abruptly. Configure ATE:Port1
