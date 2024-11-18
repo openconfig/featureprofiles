@@ -1218,4 +1218,3 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetmedUnionTypeUnsupported()
 }
-
