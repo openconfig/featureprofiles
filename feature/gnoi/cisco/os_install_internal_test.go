@@ -242,6 +242,9 @@ func testOSForceInstall1(t *testing.T, tc testCase) {
 			t1, _ := listISOFile(t, tc.dut, tc.osVersion)
 			// tc.transferOS(ctx, t, false, tc.osVersion, "")
 			tc.transferOS(tc.ctx, t, false, "", "")
+			if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
+				tc.transferOS(tc.ctx, t, true, "", "")
+			}
 			t2, _ := listISOFile(t, tc.dut, tc.osVersion)
 			if isGreater(t1, t2) {
 				t.Fatal("image not force updated")
@@ -253,7 +256,6 @@ func testOSForceInstall1(t *testing.T, tc testCase) {
 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, false, "")
 
 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-			tc.transferOS(tc.ctx, t, true, "", "")
 			tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, false, "")
 		}
 	})
@@ -263,18 +265,21 @@ func testOSForceInstall1(t *testing.T, tc testCase) {
 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, alreadyActivatedError)
 
 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
-			tc.transferOS(tc.ctx, t, true, "", "")
 			tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, alreadyActivatedError)
+		}
+		if tc.noReboot {
+			tc.rebootDUT(tc.ctx, t)
 		}
 	})
 
-	if tc.noReboot {
-		tc.rebootDUT(tc.ctx, t)
-	}
+	t.Run(fmt.Sprintf("%v:Verify correct image comes up, expected image: %v", tc.dut.Name(), tc.osVersion), func(t *testing.T) {
+		tc.verifyInstall(tc.ctx, t)
+	})
 
-	tc.verifyInstall(tc.ctx, t)
-	// testPushAndVerifyInterfaceConfig(t, dut)
-	// testPushAndVerifyBGPConfig(t, dut)
+	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+		testPushAndVerifyInterfaceConfig(t, tc.dut)
+		testPushAndVerifyBGPConfig(t, tc.dut)
+	})
 }
 
 func testSupervisorSwitchover(t *testing.T, tc testCase) {
@@ -428,15 +433,19 @@ func testOSForceInstall2(t *testing.T, tc testCase) {
 			tc.transferOS(tc.ctx, t, true, "", "")
 			tc.activateOS(tc.ctx, t, true, noReboot, tc.osVersion, false, alreadyActivatedError)
 		}
+		if noReboot {
+			tc.rebootDUT(tc.ctx, t)
+		}
 	})
 
-	if noReboot {
-		tc.rebootDUT(tc.ctx, t)
-	}
+	t.Run(fmt.Sprintf("%v:Verify correct image comes up, expected image: %v", tc.dut.Name(), tc.osVersion), func(t *testing.T) {
+		tc.verifyInstall(tc.ctx, t)
+	})
 
-	tc.verifyInstall(tc.ctx, t)
-	// testPushAndVerifyInterfaceConfig(t, dut)
-	// testPushAndVerifyBGPConfig(t, dut)
+	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+		testPushAndVerifyInterfaceConfig(t, tc.dut)
+		testPushAndVerifyBGPConfig(t, tc.dut)
+	})
 }
 
 func testOSForceInstall3(t *testing.T, tc testCase) {
@@ -471,13 +480,18 @@ func testOSForceInstall3(t *testing.T, tc testCase) {
 			tc.transferOS(tc.ctx, t, true, "", "")
 			tc.activateOS(tc.ctx, t, true, tc.noReboot, tc.osVersion, true, alreadyActivatedError)
 		}
+		if tc.noReboot {
+			tc.rebootDUT(tc.ctx, t)
+		}
 	})
 
-	if tc.noReboot {
-		tc.rebootDUT(tc.ctx, t)
-	}
+	t.Run(fmt.Sprintf("%v:Verify correct image comes up, expected image: %v", tc.dut.Name(), tc.osVersion), func(t *testing.T) {
+		tc.verifyInstall(tc.ctx, t)
+	})
 
-	tc.verifyInstall(tc.ctx, t)
-	testPushAndVerifyInterfaceConfig(t, tc.dut)
-	testPushAndVerifyBGPConfig(t, tc.dut)
+	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+		testPushAndVerifyInterfaceConfig(t, tc.dut)
+		testPushAndVerifyBGPConfig(t, tc.dut)
+	})
+
 }
