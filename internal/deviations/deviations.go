@@ -49,6 +49,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
+
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra"
 )
@@ -56,12 +57,12 @@ import (
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
-	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		if platformExceptions.GetPlatform().Vendor.String() == "" {
+	for _, platformExceptions := range metadata.Get().GetPlatformExceptions() {
+		if platformExceptions.GetPlatform().GetVendor().String() == "" {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
-		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+		if dvc.Vendor().String() != platformExceptions.GetPlatform().GetVendor().String() {
 			continue
 		}
 
@@ -1180,6 +1181,36 @@ func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
 // PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
 func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}
+
+// BgpSessionStateIdleInPassiveMode returns true if BGP session state idle is not supported instead of active in passive mode.
+func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
+}
+
+// EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path.
+func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
+}
+
+// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
+func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}
+
+// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
+func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
 }
 
 // OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
