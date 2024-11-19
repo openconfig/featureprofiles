@@ -269,8 +269,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 		if operation == "set" {
 			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 		} else if operation == "delete" {
-			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(v4PrefixPolicy).Config())
-			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(v4LPPolicy).Config())
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		}
 	}
 	dni := deviations.DefaultNetworkInstance(dut)
@@ -598,8 +597,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 		if operation == "set" {
 			gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 		} else if operation == "delete" {
-			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(v6ASPPolicy).Config())
-			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(v6MedPolicy).Config())
+			gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().Config())
 		}
 	}
 
