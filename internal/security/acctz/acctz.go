@@ -27,8 +27,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/gnoi/system"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	systempb "github.com/openconfig/gnoi/system"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	cpb "github.com/openconfig/gnsi/credentialz"
@@ -113,7 +113,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 	time.Sleep(time.Second)
 }
 
-func nokiaFailCliRole(t *testing.T) *gnmi.SetRequest {
+func nokiaFailCliRole(t *testing.T) *gnmipb.SetRequest {
 	failRoleData, err := json.Marshal([]any{
 		map[string]any{
 			"services": []string{"cli"},
@@ -126,22 +126,22 @@ func nokiaFailCliRole(t *testing.T) *gnmi.SetRequest {
 		t.Fatalf("Error with json marshal: %v", err)
 	}
 
-	return &gnmi.SetRequest{
-		Prefix: &gnmi.Path{
+	return &gnmipb.SetRequest{
+		Prefix: &gnmipb.Path{
 			Origin: "native",
 		},
-		Replace: []*gnmi.Update{
+		Replace: []*gnmipb.Update{
 			{
-				Path: &gnmi.Path{
-					Elem: []*gnmi.PathElem{
+				Path: &gnmipb.Path{
+					Elem: []*gnmipb.PathElem{
 						{Name: "system"},
 						{Name: "aaa"},
 						{Name: "authorization"},
 						{Name: "role", Key: map[string]string{"rolename": failRoleName}},
 					},
 				},
-				Val: &gnmi.TypedValue{
-					Value: &gnmi.TypedValue_JsonIetfVal{
+				Val: &gnmipb.TypedValue{
+					Value: &gnmipb.TypedValue_JsonIetfVal{
 						JsonIetfVal: failRoleData,
 					},
 				},
@@ -157,7 +157,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 	successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
 	failUser := auth.GetOrCreateUser(failUsername)
 	if configureFailCliRole {
-		var SetRequest *gnmi.SetRequest
+		var SetRequest *gnmipb.SetRequest
 
 		// Create failure cli role in native.
 		switch dut.Vendor() {
@@ -325,13 +325,13 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	grpcConn := dialGrpc(t, target)
-	gnmiClient := gnmi.NewGNMIClient(grpcConn)
+	gnmiClient := gnmipb.NewGNMIClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
 
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
-	_, err := gnmiClient.Capabilities(ctx, &gnmi.CapabilityRequest{})
+	_, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
 		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err)
 	} else {
@@ -364,7 +364,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
-	req := &gnmi.CapabilityRequest{}
+	req := &gnmipb.CapabilityRequest{}
 	payload, err := anypb.New(req)
 	if err != nil {
 		t.Fatal("Failed creating anypb payload.")
@@ -422,14 +422,14 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	grpcConn := dialGrpc(t, target)
-	gnoiSystemClient := system.NewSystemClient(grpcConn)
+	gnoiSystemClient := systempb.NewSystemClient(grpcConn)
 	ctx := context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
 
 	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
-	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &system.PingRequest{
+	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
 		Destination: "127.0.0.1",
 		Count:       1,
 	})
@@ -468,7 +468,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
-	req := &system.PingRequest{
+	req := &systempb.PingRequest{
 		Destination: "127.0.0.1",
 		Count:       1,
 	}

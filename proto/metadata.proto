@@ -636,11 +636,15 @@ message Metadata {
     // BGP session state idle is supported in passive mode instead of active
     // Cisco: b/376021545
     bool bgp_session_state_idle_in_passive_mode = 229;
-
     // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
     // CISCO: b/376241033
     // CISCO: b/340859662
     bool enable_multipath_under_afi_safi = 230;
+    // Device have different default value for allow own as.
+    // Juniper : b/373559004
+    bool bgp_allowownas_diff_default_value = 231;
+    // Cisco numbering for OTN channel assignment starts from 1 instead of 0
+    bool otn_channel_assignment_cisco_numbering = 232;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

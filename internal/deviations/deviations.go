@@ -1202,3 +1202,13 @@ func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
 func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
 }
+
+// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
+func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}
+
+// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
+func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
+}
