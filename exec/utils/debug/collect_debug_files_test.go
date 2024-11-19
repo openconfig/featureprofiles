@@ -84,6 +84,7 @@ var (
 		"health",
 		"lldp",
 		"spio",
+		"gnsi",
 	}
 
 	pipedCmdList = []string{
