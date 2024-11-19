@@ -1212,3 +1212,8 @@ func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
 func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
 }
+
+// CiscoPreFECBERInactiveValue returns true if a non-zero pre-fec-ber value is to be used for Cisco
+func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
+}
