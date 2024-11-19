@@ -1,4 +1,4 @@
-# ACCTZ-2.1 - gNSI.acctz.v1 (Accounting) Test Record Subscribe Partial
+# ACCTZ-2.1: Record Subscribe Partial
 
 ## Summary
 Test RecordSubscribe for records since a non-zero timestamp
