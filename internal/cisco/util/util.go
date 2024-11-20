@@ -840,12 +840,12 @@ func ConfigureBundleIntfDynamic(t *testing.T, dut *ondatra.DUTDevice, peer *onda
 		bundleMap[bundleName] = append(bundleMap[bundleName], link)
 	}
 
-	fmt.Printf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
+	t.Logf("Total Links: %d, Member Count: %d, Number of Bundles: %d\n", linkCount, memberCount, numBundles)
 
 	for bundleName, links := range bundleMap {
-		fmt.Printf("Bundle: %s\n", bundleName)
+		t.Logf("Bundle: %s\n", bundleName)
 		for _, link := range links {
-			fmt.Printf("  DUT Interface: %v, DUT LC: %v, Peer Interface: %v, Peer LC: %v\n",
+			t.Logf("  DUT Interface: %v, DUT LC: %v, Peer Interface: %v, Peer LC: %v\n",
 				link.IntfName, link.LineCardNumber, link.PeerIntfName, link.PeerLineCardNumber)
 		}
 	}
@@ -1179,12 +1179,12 @@ func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersio
 
 	// Split the version string by '.' to get the parts.
 	parts := strings.Split(versionString, ".")
-	fmt.Printf("Debug: Split version string into parts: %v\n", parts)
+	t,Logf("Debug: Split version string into parts: %v\n", parts)
 
 	// Ensure the version string has at least three parts.
 	if len(parts) < 3 {
 		err := fmt.Errorf("unexpected version format: %s", versionString)
-		fmt.Printf("Error: %v\n", err)
+		t.Logf("Error: %v\n", err)
 		return "", "", "", "", err
 	}
 
@@ -1192,14 +1192,14 @@ func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersio
 	majorVersion = parts[0]
 	minorVersion = parts[1]
 	runningVersion = parts[2]
-	fmt.Printf("Debug: Parsed Major: %s, Minor: %s, Running: %s\n", majorVersion, minorVersion, runningVersion)
+	t.Logf("Debug: Parsed Major: %s, Minor: %s, Running: %s\n", majorVersion, minorVersion, runningVersion)
 
 	// Check if there is an optional label version.
 	if len(parts) > 3 {
 		labelVersion = parts[3]
-		fmt.Printf("Debug: Parsed Label: %s\n", labelVersion)
+		t.Logf("Debug: Parsed Label: %s\n", labelVersion)
 	} else {
-		fmt.Println("Debug: No label version found.")
+		t.Log("Debug: No label version found.")
 	}
 
 	return majorVersion, minorVersion, runningVersion, labelVersion, nil
