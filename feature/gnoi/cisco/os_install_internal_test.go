@@ -24,12 +24,9 @@ import (
 )
 
 var (
-	// osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
-	// osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
-	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	osFile                          = flag.String("osFile", "/auto/prod_weekly_archive1/bin/25.1.1.23I.DT_IMAGE/8000/8000-x64-25.1.1.23I.iso", "Path to the OS image under test for the install operation")
-	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.23I.DT_IMAGE/8000/8000-x64-25.1.1.23I.iso", "Path to the OS image (Force Download Supported) for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.41I.SIT_IMAGE/8000/8000-x64-24.4.1.41I.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
+	osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
+	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
+	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
 	timeout                         = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 )
 
