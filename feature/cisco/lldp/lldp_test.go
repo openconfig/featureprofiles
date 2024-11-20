@@ -73,21 +73,20 @@ func TestLldpState(t *testing.T) {
 	// https://techzone.cisco.com/t5/IOS-XR-LLDP-PI-Eng/interface-level-lldp-is-enabled-even-when-lldp-is-disabled/td-p/13879301#M1775
 	if majorVersion >= 25 {
 		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
-			d := &oc.Root{}
-			i, _ := d.GetOrCreateLldp().NewInterface(iut.Name())
-			i.Enabled = ygot.Bool(true)
 			path := gnmi.OC().Lldp().Interface(iut.Name())
 			defer observer.RecordYgot(t, "UPDATE", path)
-			gnmi.Update(t, dut, path.Config(), i)
-
+			gnmi.Update(t, dut, path.Config(), &oc.Lldp_Interface{
+				Name:    ygot.String(iut.Name()),
+				Enabled: ygot.Bool(true),
+			})
 		})
 		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
-			d := &oc.Root{}
-			i, _ := d.GetOrCreateLldp().NewInterface(peerintf.Name())
-			i.Enabled = ygot.Bool(true)
 			path := gnmi.OC().Lldp().Interface(peerintf.Name())
 			defer observer.RecordYgot(t, "UPDATE", path)
-			gnmi.Update(t, peer, path.Config(), i)
+			gnmi.Update(t, peer, path.Config(), &oc.Lldp_Interface{
+				Name:    ygot.String(peerintf.Name()),
+				Enabled: ygot.Bool(true),
+			})
 		})
 		t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
 			path := gnmi.OC().Interface(iut.Name()).Enabled()
