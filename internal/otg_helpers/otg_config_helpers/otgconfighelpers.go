@@ -76,6 +76,8 @@ func ConfigureOtgNetworkInterface(top gosnappi.Config, ate *ondatra.ATEDevice, a
 
 // ConfigureOtgLag configures the aggregate port.
 func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
+	t.Helper()
+
 	agg := top.Lags().Add().SetName(a.Name)
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(a.AggMAC)
 	for index, portName := range a.MemberPorts {
