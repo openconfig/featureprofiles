@@ -1170,3 +1170,37 @@ func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams 
 
 	return activeStreams
 }
+
+// GetVersion fetches the software version from the device and splits it into components.
+func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
+	// Simulate fetching the version string from the device.
+	path := gnmi.OC().System().SoftwareVersion()
+	versionString := gnmi.Get(t, dut, path.State())
+
+	// Split the version string by '.' to get the parts.
+	parts := strings.Split(versionString, ".")
+	fmt.Printf("Debug: Split version string into parts: %v\n", parts)
+
+	// Ensure the version string has at least three parts.
+	if len(parts) < 3 {
+		err := fmt.Errorf("unexpected version format: %s", versionString)
+		fmt.Printf("Error: %v\n", err)
+		return "", "", "", "", err
+	}
+
+	// Assign the mandatory parts to their respective variables.
+	majorVersion = parts[0]
+	minorVersion = parts[1]
+	runningVersion = parts[2]
+	fmt.Printf("Debug: Parsed Major: %s, Minor: %s, Running: %s\n", majorVersion, minorVersion, runningVersion)
+
+	// Check if there is an optional label version.
+	if len(parts) > 3 {
+		labelVersion = parts[3]
+		fmt.Printf("Debug: Parsed Label: %s\n", labelVersion)
+	} else {
+		fmt.Println("Debug: No label version found.")
+	}
+
+	return majorVersion, minorVersion, runningVersion, labelVersion, nil
+}

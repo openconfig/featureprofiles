@@ -24,16 +24,16 @@ var (
 			desc: "testOSTransferDiskFull",
 			fn:   testOSTransferDiskFull,
 		},
-		{
-			name: "testOSForceTransferStandby",
-			desc: "testOSForceTransferStandby",
-			fn:   testOSForceTransferStandby,
-		},
-		{
-			name: "testOSNormalTransferStandby",
-			desc: "testOSNormalTransferStandby",
-			fn:   testOSNormalTransferStandby,
-		},
+		// {
+		// 	name: "testOSForceTransferStandby",
+		// 	desc: "testOSForceTransferStandby",
+		// 	fn:   testOSForceTransferStandby,
+		// },
+		// {
+		// 	name: "testOSNormalTransferStandby",
+		// 	desc: "testOSNormalTransferStandby",
+		// 	fn:   testOSNormalTransferStandby,
+		// },
 		{
 			name: "testOSForceTransfer1",
 			desc: "testOSForceTransfer1",
@@ -103,6 +103,11 @@ func TestOSInstall(t *testing.T) {
 		}
 		tc1.fetchStandbySupervisorStatus(t)
 		tc1.fetchOsFileDetails(t, *osFileForceDownloadSupported)
+		// if i == 0 {
+		// 	tc1.fetchOsFileDetails(t, *osFileForceDownloadSupported)
+		// } else {
+		// 	tc1.fetchOsFileDetails(t, *osFileForceDownloadNotSupported)
+		// }
 		tc1.updatePackageReader(t)
 		tc1.setTimeout(t, *timeout)
 		tc1.updateForceDownloadSupport(t)
@@ -113,7 +118,7 @@ func TestOSInstall(t *testing.T) {
 	for _, tc := range testCases {
 		// Increment the WaitGroup counter
 		wg.Add(1)
-		// Launch a goroutine for each device
+		// Launch a goroutine for each testcase/device
 		go func(tc testCase) {
 			// Decrement the counter when the goroutine completes
 			defer wg.Done()

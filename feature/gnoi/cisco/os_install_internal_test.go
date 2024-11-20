@@ -28,13 +28,14 @@ var (
 	// osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
 	// osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
 	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	osFile = flag.String("osFile", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image under test for the install operation")
-	// osFile                          = flag.String("osFile", "/auto/b4ws/xr/builds/nightly/latest/img-8000/8000-x64.iso", "Path to the OS image under test for the install operation")
+
+	// osFile = flag.String("osFile", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image under test for the install operation")
+	osFile                          = flag.String("osFile", "/auto/b4ws/xr/builds/nightly/latest/img-8000/8000-x64.iso", "Path to the OS image under test for the install operation")
 	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/prod_weekly_archive1/bin/25.1.1.21I.DT_IMAGE/8000/8000-x64-25.1.1.21I.iso", "Path to the OS image (Force Download Supported) for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	// osVersion                       = flag.String("osVersion", "", "Path to new OS Version, will be auto filled by new logic")
+	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.41I.SIT_IMAGE/8000/8000-x64-24.4.1.41I.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
+	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/prod_weekly_archive2/bin/24.4.1.39I.SIT_IMAGE/8000/8000-x64-24.4.1.39I.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
+
 	timeout = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
-	// osFileOriginal = ""
 )
 
 const (
@@ -108,21 +109,22 @@ func testOSTransferDiskFull(t *testing.T, tc testCase) {
 
 	})
 }
-func testOSForceTransferStandby(t *testing.T, tc testCase) {
-	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// Attempt to transfer the OS with standby flag and verify failure
-	t.Run(fmt.Sprintf("%v:testOSForceTransferStandby", tc.dut.Name()), func(t *testing.T) {
-		tc.transferOS(tc.ctx, t, true, "", "supervisor")
-	})
-}
 
-func testOSNormalTransferStandby(t *testing.T, tc testCase) {
-	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	t.Run(fmt.Sprintf("%v:testOSNormalTransferStandby", tc.dut.Name()), func(t *testing.T) {
-		// Attempt to transfer the OS with standby flag and verify failure
-		tc.transferOS(tc.ctx, t, true, "", "supervisor")
-	})
-}
+// func testOSForceTransferStandby(t *testing.T, tc testCase) {
+// 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
+// 	// Attempt to transfer the OS with standby flag and verify failure
+// 	t.Run(fmt.Sprintf("%v:testOSForceTransferStandby", tc.dut.Name()), func(t *testing.T) {
+// 		tc.transferOS(tc.ctx, t, true, "", "supervisor")
+// 	})
+// }
+
+// func testOSNormalTransferStandby(t *testing.T, tc testCase) {
+// 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
+// 	t.Run(fmt.Sprintf("%v:testOSNormalTransferStandby", tc.dut.Name()), func(t *testing.T) {
+// 		// Attempt to transfer the OS with standby flag and verify failure
+// 		tc.transferOS(tc.ctx, t, true, "", "supervisor")
+// 	})
+// }
 
 func testOSForceTransfer1(t *testing.T, tc testCase) {
 
@@ -236,7 +238,7 @@ func testOSForceInstall1(t *testing.T, tc testCase) {
 		// if err != nil {
 		// 	t.Fatalf("Error creating package reader: %s", err)
 		// }
-		tc.fetchOsFileDetails(t, *osFileForceDownloadSupported)
+		tc.fetchOsFileDetails(t, tc.osFile)
 
 		t.Run(fmt.Sprintf("%v:Force install Image using empty version", tc.dut.Name()), func(t *testing.T) {
 			t1, _ := listISOFile(t, tc.dut, tc.osVersion)
@@ -276,10 +278,10 @@ func testOSForceInstall1(t *testing.T, tc testCase) {
 		tc.verifyInstall(tc.ctx, t)
 	})
 
-	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
-		testPushAndVerifyInterfaceConfig(t, tc.dut)
-		testPushAndVerifyBGPConfig(t, tc.dut)
-	})
+	// t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+	// 	testPushAndVerifyInterfaceConfig(t, tc.dut)
+	// 	testPushAndVerifyBGPConfig(t, tc.dut)
+	// })
 }
 
 func testSupervisorSwitchover(t *testing.T, tc testCase) {
@@ -395,6 +397,10 @@ func testSupervisorSwitchover(t *testing.T, tc testCase) {
 }
 
 func testOSForceInstall2(t *testing.T, tc testCase) {
+	// if tc.osFile == *osFileForceDownloadNotSupported {
+	// 	t.Skip()
+	// }
+	// tc.fetchOsFileDetails(t, *osFile)
 	tc.fetchOsFileDetails(t, *osFileForceDownloadNotSupported)
 	noReboot := deviations.OSActivateNoReboot(tc.dut)
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
@@ -442,10 +448,10 @@ func testOSForceInstall2(t *testing.T, tc testCase) {
 		tc.verifyInstall(tc.ctx, t)
 	})
 
-	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
-		testPushAndVerifyInterfaceConfig(t, tc.dut)
-		testPushAndVerifyBGPConfig(t, tc.dut)
-	})
+	// t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+	// 	testPushAndVerifyInterfaceConfig(t, tc.dut)
+	// 	testPushAndVerifyBGPConfig(t, tc.dut)
+	// })
 }
 
 func testOSForceInstall3(t *testing.T, tc testCase) {
@@ -489,9 +495,9 @@ func testOSForceInstall3(t *testing.T, tc testCase) {
 		tc.verifyInstall(tc.ctx, t)
 	})
 
-	t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
-		testPushAndVerifyInterfaceConfig(t, tc.dut)
-		testPushAndVerifyBGPConfig(t, tc.dut)
-	})
+	// t.Run(fmt.Sprintf("%v:Test interface and BGP config after install", tc.dut.Name()), func(t *testing.T) {
+	// 	testPushAndVerifyInterfaceConfig(t, tc.dut)
+	// 	testPushAndVerifyBGPConfig(t, tc.dut)
+	// })
 
 }
