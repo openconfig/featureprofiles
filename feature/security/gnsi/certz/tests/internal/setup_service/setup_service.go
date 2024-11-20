@@ -427,7 +427,7 @@ func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san stri
 
 // VerifyGnsi function to validate the gNSI service RPC after successful rotation.
 func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
@@ -463,7 +463,7 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 
 // VerifyGnoi function to validate the gNOI service RPC after successful rotation.
 func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
@@ -492,7 +492,7 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 
 // VerifyGnmi function to validate the gNMI service RPC after successful rotation.
 func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
@@ -523,7 +523,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 
 // VerifyGribi function to validate the gRIBI service RPC after successful rotation.
 func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
@@ -552,7 +552,7 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 
 // VerifyP4rt function to validate the P4rt service RPC after successful rotation.
 func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	credOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(credentials.NewTLS(
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
