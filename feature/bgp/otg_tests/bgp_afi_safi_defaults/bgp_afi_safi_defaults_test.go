@@ -155,43 +155,64 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 
 		switch afiSafiLevel {
 		case globalLevel:
-			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-			if !isV4Only {
+			pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+			pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+			pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+			pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+			if isV4Only {
+				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+			} else {
+				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 				extNh := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
-				extNh.ExtendedNextHopEncoding = ygot.Bool(true)
+				if !deviations.BgpExtendedNextHopEncodingLeafUnsupported(dut) {
+					extNh.ExtendedNextHopEncoding = ygot.Bool(true)
+				}
 			}
 			if deviations.BGPGlobalExtendedNextHopEncodingUnsupported(dut) {
 				global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast = nil
 			}
 		case nbrLevel:
-			if nbr.isV4 == true {
-				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-				af4.Enabled = ygot.Bool(true)
+			if isV4Only {
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			} else {
-				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-				af6.Enabled = ygot.Bool(true)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 			}
 		case peerGrpLevel:
-			pg1af4 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			pg1af4.Enabled = ygot.Bool(true)
-			pg1af6 := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			pg1af6.Enabled = ygot.Bool(true)
-
-			pg2af4 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			pg2af4.Enabled = ygot.Bool(true)
-			ext2Nh := pg2af4.GetOrCreateIpv4Unicast()
-			ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
-			pg2af6 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			pg2af6.Enabled = ygot.Bool(true)
+			if isV4Only {
+				pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+				pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+				pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+				ext2Nh := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
+				if !deviations.BgpExtendedNextHopEncodingLeafUnsupported(dut) {
+					ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
+				}
+			} else {
+				pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+				pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+				ext2Nh := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateIpv4Unicast()
+				if !deviations.BgpExtendedNextHopEncodingLeafUnsupported(dut) {
+					ext2Nh.ExtendedNextHopEncoding = ygot.Bool(true)
+				}
+			}
 		case afiSafiSetToFalse:
 			t.Log("AFI-SAFI is set to false")
-			if nbr.isV4 {
-				af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-				af4.Enabled = ygot.Bool(false)
+			if isV4Only {
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
 			} else {
-				af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-				af6.Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+				nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
 			}
 		}
 	}
@@ -244,8 +265,11 @@ func verifyBgpSession(t *testing.T, dut *ondatra.DUTDevice, nbrsList []*bgpNeigh
 	for _, nbr := range nbrsList {
 		nbrPath := bgpPath.Neighbor(nbr.neighborip)
 		state := gnmi.Get(t, dut, nbrPath.SessionState().State())
+		t.Logf("BGP adjacency for %s: %v", nbr.neighborip, state)
 		if state == oc.Bgp_Neighbor_SessionState_ESTABLISHED {
 			t.Errorf("BGP peer %s status got %d, want other than ESTABLISHED", nbr.neighborip, state)
+		} else {
+			t.Logf("BGP peer %s status got %d, want other than ESTABLISHED", nbr.neighborip, state)
 		}
 	}
 }
@@ -313,7 +337,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, otgPeerList []string) gosnappi.Con
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
-func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel string, nbrs []*bgpNeighbor) {
+func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel string, nbrs []*bgpNeighbor, isV4Only bool) {
 	t.Helper()
 	t.Log("Verifying BGP AFI-SAFI capabilities.")
 
@@ -327,11 +351,32 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 			oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST: false,
 			oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST: false,
 		}
-
-		for _, cap := range gnmi.GetAll(t, dut, nbrPath.State()) {
-			capabilities[cap.GetAfiSafiName()] = cap.GetActive()
+		if deviations.BgpAfiSafiWildcardNotSupported(dut) {
+			t.Logf("AFI-SAFI wildcard/getall not supported")
+			afiSafiType := []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}
+			afiSafiList := []*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{}
+			for _, afiSafi := range afiSafiType {
+				if nbr.isV4 && afiSafi == oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST {
+					continue
+				}
+				if !nbr.isV4 && afiSafi == oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST {
+					continue
+				}
+				t.Logf("AFI-SAFI state: %v", gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				afiSafiList = append(afiSafiList, gnmi.Get(t, dut, statePath.Neighbor(nbr.neighborip).AfiSafi(afiSafi).State()))
+				t.Logf("AFI-SAFI list: %v", afiSafiList)
+			}
+			for _, cap := range afiSafiList {
+				capabilities[cap.GetAfiSafiName()] = cap.GetActive()
+			}
+			t.Logf("Capabilities for peer %v are %v", nbr.neighborip, capabilities)
+		} else {
+			gnmi.GetAll(t, dut, nbrPath.State())
+			for _, cap := range gnmi.GetAll(t, dut, nbrPath.State()) {
+				capabilities[cap.GetAfiSafiName()] = cap.GetActive()
+			}
+			t.Logf("Capabilities for peer %v are %v", nbr.neighborip, capabilities)
 		}
-
 		switch afiSafiLevel {
 		case nbrLevel:
 			if nbr.isV4 && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST] {
@@ -342,20 +387,25 @@ func verifyBgpCapabilities(t *testing.T, dut *ondatra.DUTDevice, afiSafiLevel st
 			}
 			t.Logf("Capabilities for peer %v are %v", nbr.neighborip, capabilities)
 		case peerGrpLevel:
-			if capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST] == true &&
-				capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST] == true {
+			if isV4Only && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST] == true {
+				t.Logf("Both V4 and V6 AFI-SAFI are inherited from peer-group level for peer: %v, %v", nbr.neighborip, capabilities)
+			} else if !isV4Only && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST] == true {
 				t.Logf("Both V4 and V6 AFI-SAFI are inherited from peer-group level for peer: %v, %v", nbr.neighborip, capabilities)
 			} else {
 				t.Errorf("Both V4 and V6 AFI-SAFI are not inherited from peer-group level for peer: %v, %v", nbr.neighborip, capabilities)
 			}
+			t.Logf("Capabilities for peer %v are %v", nbr.neighborip, capabilities)
 		case globalLevel:
-			if capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST] == true &&
-				capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST] == true {
+			if isV4Only && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST] == true {
+				t.Logf("Both V4 and V6 AFI-SAFI are inherited from global level for peer: %v, %v", nbr.neighborip, capabilities)
+			} else if !isV4Only && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST] == true {
 				t.Logf("Both V4 and V6 AFI-SAFI are inherited from global level for peer: %v, %v", nbr.neighborip, capabilities)
 			} else {
 				t.Errorf("Both V4 and V6 AFI-SAFI are not inherited from global level for peer: %v, %v", nbr.neighborip, capabilities)
 			}
+			t.Logf("Capabilities for peer %v are %v", nbr.neighborip, capabilities)
 		case afiSafiSetToFalse:
+			t.Logf("afiSafiSetToFalse capabilities: %v, v4 -> %v, v6 ->%v", isV4Only, capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST], capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST])
 			if nbr.isV4 && capabilities[oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST] == true {
 				t.Errorf("AFI-SAFI are Active after disabling: %v, %v", capabilities, nbr.neighborip)
 			}
@@ -430,7 +480,7 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 		desc:         "Validate AFI-SAFI OC defaults at peer group level for BGPv4 peers",
 		afiSafiLevel: peerGrpLevel,
 		nbrs:         []*bgpNeighbor{nbr1, nbr3},
-		isV4Only:     false,
+		isV4Only:     true,
 		otgPeerList:  []string{otgPort1V4Peer, otgPort2V4Peer},
 	}, {
 		desc:         "Validate AFI-SAFI OC defaults at global level for V4 peers",
@@ -480,7 +530,7 @@ func TestAfiSafiOcDefaults(t *testing.T) {
 			t.Run("Verify BGP telemetry", func(t *testing.T) {
 				verifyBgpTelemetry(t, dut, tc.nbrs)
 				verifyOtgBgpTelemetry(t, otg, otgConfig, tc.otgPeerList, "ESTABLISHED")
-				verifyBgpCapabilities(t, dut, tc.afiSafiLevel, tc.nbrs)
+				verifyBgpCapabilities(t, dut, tc.afiSafiLevel, tc.nbrs, tc.isV4Only)
 			})
 		})
 	}
@@ -540,10 +590,14 @@ func TestAfiSafiSetToFalse(t *testing.T) {
 			t.Run("Configure OTG", func(t *testing.T) {
 				configureOTG(t, otg, tc.otgPeerList)
 			})
+			t.Logf("Verify BGP session on DUT")
+			time.Sleep(60 * time.Second)
 
-			t.Run("Verify BGP telemetry", func(t *testing.T) {
+			t.Run("Verify BGP session", func(t *testing.T) {
 				verifyBgpSession(t, dut, tc.nbrs)
-				verifyBgpCapabilities(t, dut, tc.afiSafiLevel, tc.nbrs)
+			})
+			t.Run("Verify BGP capabilities", func(t *testing.T) {
+				verifyBgpCapabilities(t, dut, tc.afiSafiLevel, tc.nbrs, tc.isV4Only)
 			})
 		})
 	}

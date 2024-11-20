@@ -1217,3 +1217,13 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
+
+// BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
+func BgpExtendedNextHopEncodingLeafUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedNextHopEncodingLeafUnsupported()
+}
+
+// BgpAfiSafiWildcardNotSupported return true if bgp afi/safi wildcard is not supported
+func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
+}
