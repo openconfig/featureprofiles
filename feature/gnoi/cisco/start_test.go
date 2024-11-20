@@ -24,16 +24,16 @@ var (
 			desc: "testOSTransferDiskFull",
 			fn:   testOSTransferDiskFull,
 		},
-		// {
-		// 	name: "testOSForceTransferStandby",
-		// 	desc: "testOSForceTransferStandby",
-		// 	fn:   testOSForceTransferStandby,
-		// },
-		// {
-		// 	name: "testOSNormalTransferStandby",
-		// 	desc: "testOSNormalTransferStandby",
-		// 	fn:   testOSNormalTransferStandby,
-		// },
+		{
+			name: "testOSForceTransferStandby",
+			desc: "testOSForceTransferStandby",
+			fn:   testOSForceTransferStandby,
+		},
+		{
+			name: "testOSNormalTransferStandby",
+			desc: "testOSNormalTransferStandby",
+			fn:   testOSNormalTransferStandby,
+		},
 		{
 			name: "testOSForceTransfer1",
 			desc: "testOSForceTransfer1",
