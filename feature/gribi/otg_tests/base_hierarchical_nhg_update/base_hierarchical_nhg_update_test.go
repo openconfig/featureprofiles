@@ -541,7 +541,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transi
 	flowipv4.Rate().SetPps(fps)
 	eth := flowipv4.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(38).SetLength(10)
 
 	return flowipv4
 }

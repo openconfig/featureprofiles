@@ -309,7 +309,7 @@ func configureOTGFlows(t *testing.T, top gosnappi.Config, ts *isissession.TestSe
 
 	eth := v4F.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("MACTrackingv4").SetOffset(36).SetLength(12)
+	ethTag.SetName("MACTrackingv4").SetOffset(38).SetLength(10)
 
 	v6F := top.Flows().Add()
 	v6F.SetName(v6Flow).Metrics().SetEnable(true)
@@ -324,7 +324,7 @@ func configureOTGFlows(t *testing.T, top gosnappi.Config, ts *isissession.TestSe
 
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
-	ethTag.SetName("MACTrackingv6").SetOffset(36).SetLength(12)
+	ethTag.SetName("MACTrackingv6").SetOffset(38).SetLength(10)
 }
 
 func advertiseRoutesWithISIS(t *testing.T, ts *isissession.TestSession) {
