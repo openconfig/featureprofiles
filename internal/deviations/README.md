@@ -7,8 +7,8 @@
 2. Deviations should not be created which change the operational intent.  See
    below for guidance on changing operational intent.
 3. Deviations may be created to change which OC path is used for telemetry or
-   even using an implementation's native yang path.  Deviations for telemetry
-   should not introduce CLI depedency.
+   use an implementation's native yang path.  Deviations for telemetry
+   should not introduce a depedency on CLI output.
 4. As with any pull request (PR), the CODEOWNERs must review and approve (or
    delegate if appropriate).
 5. The CODEOWNERs must ensure the README and code reflects the agreed to
