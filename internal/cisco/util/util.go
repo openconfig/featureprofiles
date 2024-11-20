@@ -1179,7 +1179,7 @@ func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersio
 
 	// Split the version string by '.' to get the parts.
 	parts := strings.Split(versionString, ".")
-	t,Logf("Debug: Split version string into parts: %v\n", parts)
+	t.Logf("Debug: Split version string into parts: %v\n", parts)
 
 	// Ensure the version string has at least three parts.
 	if len(parts) < 3 {
