@@ -132,7 +132,7 @@ func TestOSInstall(t *testing.T) {
 
 func runner(t *testing.T, tc testCase) {
 	for _, tf := range OSForceTransferTestCases {
-		t.Run(fmt.Sprintf("%v:%v", tc.dut.Name(), tf.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v:%v", tc.dut.ID(), tf.name), func(t *testing.T) {
 			t.Logf("Name: %s", tf.name)
 			t.Logf("Description: %s", tf.desc)
 			tf.fn(t, tc)
