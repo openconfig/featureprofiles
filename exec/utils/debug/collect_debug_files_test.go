@@ -83,13 +83,15 @@ var (
 		"install",
 		"health",
 		"lldp",
+		"spio",
+		"gnsi",
 	}
 
 	pipedCmdList = []string{
-		// "show grpc trace all",
-		// "show telemetry model-driven trace all",
-		// "show cef global gribi aft internal location all",
-		// "show logging",
+		"show grpc trace all",
+		"show telemetry model-driven trace all",
+		"show cef global gribi aft internal location all",
+		"show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
@@ -99,6 +101,13 @@ var (
 		"show redundancy",
 		"show reboot history detail",
 		"show insight database entry all",
+		"show grpc",
+		"show gnoi statistics",
+		"show install history all",
+		"show install history all errors global",
+		"show install active all",
+		"show install request verbose",
+		"show install available all",
 	}
 )
 
@@ -149,6 +158,47 @@ func TestCollectDebugFiles(t *testing.T) {
 	for dutID, target := range targets.targetInfo {
 		fileNamePrefix := ""
 		if !*splitPerDut && len(targets.targetInfo) > 1 {
+			fileNamePrefix = dutID + "_"
+		}
+		wg.Add(1)
+		go func(dutID string, target targetInfo) {
+			defer wg.Done()
+			t.Logf("Executing commands for DUT: %s", dutID)
+			executeCommandsForDUT(t, dutID, target, fileNamePrefix, commands)
+		}(dutID, target)
+	}
+	wg.Wait()
+	t.Log("Completed TestCollectDebugFiles")
+}
+
+// TestCollectDebugFiles collects debug files from the targets
+func CollectDebugFiles(t *testing.T, outDir, timestamp string, coreCheck, collectTech, runCmds, splitPerDut bool, showTechs, cmds string) {
+	t.Log("Starting TestCollectDebugFiles")
+	targets := NewTargets(t)
+	if outDir == "" {
+		t.Fatalf("outDir was not set")
+	}
+
+	if showTechs != "" {
+		showTechList = strings.Split(showTechs, ",")
+	}
+
+	if cmds != "" {
+		pipedCmdList = append(pipedCmdList, strings.Split(cmds, ",")...)
+	}
+
+	commands := []string{}
+
+	if coreCheck {
+		commands = append(commands,
+			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
+		)
+	}
+
+	var wg sync.WaitGroup
+	for dutID, target := range targets.targetInfo {
+		fileNamePrefix := ""
+		if !splitPerDut && len(targets.targetInfo) > 1 {
 			fileNamePrefix = dutID + "_"
 		}
 		wg.Add(1)
