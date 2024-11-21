@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-
-	//"io"
 	"os"
 	"os/exec"
 	"testing"
@@ -50,6 +48,7 @@ var (
 	password = "certzpasswd"
 	sn       = "role001.pop55.net.example.com"
 	servers  []string
+	retries  int
 )
 
 type rpcCredentials struct {
@@ -252,7 +251,8 @@ func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzC
 		t.Fatalf("Error sending rotate request: %v", err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	for i := 0; i < 6; i++ {
+	retries = 6
+	for i := 0; i < retries; i++ {
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
 			break
@@ -305,7 +305,8 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 		t.Fatalf("Error sending rotate request: %v", err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	for i := 0; i < 6; i++ {
+	retries = 6
+	for i := 0; i < retries; i++ {
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
 			break
@@ -323,13 +324,15 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	batch := gnmi.SetBatch{}
 	for _, server := range servers {
+		t.Logf("Server:%s", server)
 		gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID)
 	}
 	batch.Set(t, dut)
-	t.Logf("gNMI config is replaced with new ssl profile successfully.")
+	t.Logf("gNMI config is replaced with new ssl profile %s successfully.", profileID)
+	time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation
 	success := false
 	//Trying for 60s for the connection to succeed.
-	for i := 0; i < 6; i++ {
+	for i := 0; i < retries; i++ {
 		success = VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
 		if success {
 			break
@@ -356,7 +359,7 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 		}
 		return true
 	} else {
-		t.Logf("gNSI service RPC  did not succeed ~60s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent")
+		t.Logf("gNSI service RPC  did not succeed ~%ds after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 		return false
 	}
 }
@@ -531,7 +534,6 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 			RootCAs:      caCert,
 			ServerName:   san,
 		}))}
-
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
@@ -583,6 +585,7 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 
 // PreInitCheck function to dial gNMI/gNOI/gRIBI/p4RT services before certz rotation.
 func PreInitCheck(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
+
 	gnmiC, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("%s Failed to dial gNMI Connection with error: %v.", time.Now().String(), err)

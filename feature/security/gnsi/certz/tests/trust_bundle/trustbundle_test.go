@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,15 +21,13 @@ import (
 	"os"
 	"testing"
 	"time"
-
 	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
-
-	certzpb "github.com/openconfig/gnsi/certz"
 )
 
 const (
@@ -37,11 +35,10 @@ const (
 )
 
 var (
-	testProfile     = "newprofile"
-	serverAddr      string
-	username        = "certzuser"
-	password        = "certzpasswd"
-	servers         []string
+	testProfile = "newprofile"
+	serverAddr  string
+	username    = "certzuser"
+	password    = "certzpasswd"
 	expected_result bool
 )
 
@@ -174,7 +171,6 @@ func TestServerCert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-
 			san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
@@ -196,25 +192,13 @@ func TestServerCert(t *testing.T) {
 			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
 				t.Fatalf("%s Failed to parse %v", time.Now().String(), tc.trustBundleFile)
 			}
-
-			certzClient := gnsiC.Certz()
-			success := setupService.CertzRotate(t, cacert, certzClient, cert, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+        	certzClient := gnsiC.Certz()
+			success := setupService.ServerCertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s %s:Trustbundle rotation failed.", time.Now().String(), tc.desc)
 			}
 			t.Logf("%s %s:Trustbundle rotation completed!", time.Now().String(), tc.desc)
-
-			// Replace config with newly added ssl profile after successful rotate.
-			servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
-			batch := gnmi.SetBatch{}
-			for _, server := range servers {
-				gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), testProfile)
-			}
-			batch.Set(t, dut)
-			t.Logf("%s %s:replaced gNMI config with new ssl profile successfully.", time.Now().String(), tc.desc)
-			time.Sleep(5 * time.Second) //waiting 5s for gnmi config propagation
-			t.Logf("Service validation begins.")
-
+     		t.Logf("%s %s:Service validation begins.",time.Now().String(), tc.desc)
 			expected_result = true
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
 				result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
