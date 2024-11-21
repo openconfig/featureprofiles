@@ -698,6 +698,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.63"
+  description: "BGP Multihop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multihop/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -803,6 +809,13 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/route_summary_counters_test/README.md"
   exec: " "
 }
+test: {
+  id: "RT-4.11"
+  description: " Scale AFTs Route Summary"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
+  exec: " "
+}
+
 test: {
   id: "RT-5.1"
   description: "Singleton Interface"
@@ -1218,7 +1231,8 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-9.1: Push MPLS Labels to MPLS payload"
+  id: "TE-9.1"
+  description: "Push MPLS Labels to MPLS payload"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
 }
 test: {
@@ -1790,5 +1804,17 @@ test: {
   id: "CNTR-2.4"
   description: "Connect to another container on a local node"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
+  exec: " "
+}
+test: {
+  id: "AFT-1.1"
+  description: "AFT Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
+  exec: " "
+}
+test: {
+  id: "AFT-2.1"
+  description: "AFT Streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
   exec: " "
 }
