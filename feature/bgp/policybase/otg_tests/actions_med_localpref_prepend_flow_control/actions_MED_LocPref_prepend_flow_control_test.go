@@ -15,6 +15,8 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -209,6 +212,44 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
+func metricAdd(dut *ondatra.DUTDevice, polName string, metric int) string {
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		return fmt.Sprintf(`
+		policy-options {
+ 		   policy-statement %s {
+        		term 1 {
+            		then {
+                		metric add %d;
+            		}
+        		}
+        		term 2 {
+            		then accept;
+        		}
+    		}
+		}`, polName, metric)
+	default:
+		return ""
+	}
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	// Build config with Origin set to cli and Ascii encoded config.
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
+}
+
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
 func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
@@ -228,15 +269,24 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
 		if strings.Contains(policyValue, "+") {
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
 			if deviations.BgpSetmedUnionTypeUnsupported(dut) {
-				t.Skip("BGP set med union string is not supported in OC, skipping test.")
+				metric, _ := strconv.Atoi(policyValue)
+				gnmiClient := dut.RawAPIs().GNMI(t)
+				config := metricAdd(dut, setMEDPolicy, metric)
+				t.Logf("Push the CLI config:%s", dut.Vendor())
+				gpbSetRequest := buildCliConfigRequest(config)
+				if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+					t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+				}
+			} else {
+				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			}
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
-		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
 		asPrepend := actions.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
