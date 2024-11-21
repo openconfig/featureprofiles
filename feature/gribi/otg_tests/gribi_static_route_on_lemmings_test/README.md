@@ -1,4 +1,4 @@
-# GRIBI static route on lemmings test
+# GRIBI Static Route On Lemmings Test
 
 ## Summary
 
