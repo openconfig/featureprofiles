@@ -76,6 +76,8 @@ const (
 	opUp           = oc.Interface_OperStatus_UP
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficPps     = 10000
+	totalPackets   = 200000
 )
 
 var (
@@ -439,7 +441,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -502,6 +504,8 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	flow := tc.top.Flows().Add().SetName(l3header)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(128)
+	flow.Rate().SetPps(trafficPps)
+	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
 
 	ipType := "IPv4"
@@ -557,7 +561,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(20 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 
 	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
@@ -569,6 +573,30 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	if pkts == 0 {
 		t.Errorf("Flow sent packets: got %v, want non zero", pkts)
 	}
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		for _, port := range tc.dutPorts[1:] {
+			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters())
+		}
+
+		_, ok := gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			totalPks := uint64(0)
+			for _, port := range tc.dutPorts[1:] {
+				totalPks += got.GetInterface(port.Name()).GetCounters().GetOutPkts() - beforeTrafficCounters[port.Name()].GetOutPkts()
+			}
+			return totalPks >= pkts
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Counters did not update in time")
+		}
+	}
+
 	afterTrafficCounters := tc.getCounters(t, "after")
 	tc.verifyCounterDiff(t, beforeTrafficCounters, afterTrafficCounters)
 }

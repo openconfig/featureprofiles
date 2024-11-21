@@ -29,23 +29,25 @@ G[DUT:LAG4] <-- IS-IS --> H[LAG3:ATE2];
 
 ## Procedure
 
-In the topology above,
+### Test environment setup
 
-*   Configure 1xLAG interface between ATE1<->DUT and 3xLAG interfaces between
-    DUT and ATE2. Each LAG interface is expected to be of 2x100Gbps
+*   Configure 1 aggregate interface with 2 100GE ports between DUT and ATE1
+*   Configure 3 aggregate interfaces, each with 2 100GE ports between DUT and ATE2.
+*   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE aggregate interfaces.
+    Therefore, DUT will have
+    * 1xIS-IS adjacency with ATE1 DUT:LAG1<->ATE1:LAG1, 
+    * 3xIS-IS adjacencies between DUT and ATE2
+        * DUT:LAG2<->ATE2:LAG1
+        * DUT:LAG3<->ATE2:LAG2
+        * DUT:LAG4<->ATE2:LAG3
 
-*   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE LAG bundles.
-    Therefore, DUT will have 1xIS-IS adjacency with ATE1 i.e.
-    DUT:LAG1<->ATE1:LAG1, and 3xIS-IS adjacencies with ATE2 i.e.
-    DUT:LAG2<->ATE2:LAG1, DUT:LAG3<->ATE2:LAG2 and DUT:LAG4<->ATE2:LAG3
-
-    *   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
-
-    *   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability,
-        set to LEVEL_2
-
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style
-        set to WIDE_METRIC
+    * Set ISIS parameters as
+        * /network-instances/network-instance/protocols/protocol/isis/global/
+            * afi-safi/af/config/afi-name: IPV4, IPV6
+            * afi-safi/af/config/safi-name: UNICAST
+            * afi-safi/af/config/enabled: true
+            * config/level-capability = LEVEL_2
+        * /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style = WIDE_METRIC
 
 
 *   Attach a network with an IPv4 and an IPv6 prefix to ATE2 and have it
@@ -70,7 +72,7 @@ In the topology above,
     *   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight
         set to Auto
 
-## RT-9.1: Equal distribution of traffic
+## RT-2.13.1: Equal distribution of traffic
 
 *   Start 1024 flows from IPv4 addresses in 100.0.2.0/24 to 100.0.1.0/24
 
@@ -110,7 +112,7 @@ In the topology above,
 
         *   /interfaces/interface/state/counters/in-pkts
 
-## RT-9.2: Unequal distribution of traffic
+## RT-2.13.2: Unequal distribution of traffic
 
 *   Stop traffic from RT-9.1 and introduce a failure by disabling one of the
     member interfaces in ATE2:LAG1.
@@ -138,16 +140,7 @@ In the topology above,
 
         *   /interfaces/interface/state/counters/in-pkts
 
-### Config paths
-
-### Telemetry Parameter Coverage
-
 ## OpenConfig Path and RPC Coverage
-
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
-
-TODO(OCPATH): Container path originally part of spec that needs to be separated
-into leaves: /routing-policy/defined-sets/prefix-sets/prefix-set:
 
 ```yaml
 paths:
