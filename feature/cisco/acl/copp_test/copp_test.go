@@ -246,7 +246,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -288,8 +288,8 @@ func configIPv6PrefixSet() *oc.DefinedSets_Ipv6PrefixSet {
 
 	ipv6Set := d.GetOrCreateDefinedSets().GetOrCreateIpv6PrefixSet("objv6")
 	ipv6Set.Prefix = []string{
-		"2001:db8:85a3::8a2e:370:7334/128",
 		"2001:db8:85a3::/64",
+		"2001:db8:85a3::8a2e:370:7334/128",
 	}
 
 	return ipv6Set
@@ -324,8 +324,8 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				Name:        ygot.String("objv6"),
 				Description: ygot.String("obj-grp-v6-via-oc"),
 				Prefix: []string{
-					"2001:db8:85a3::8a2e:370:7334/128",
 					"2001:db8:85a3::/64",
+					"2001:db8:85a3::8a2e:370:7334/128",
 				},
 			},
 		},
@@ -383,7 +383,8 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
+					// "time"
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -408,7 +409,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
 				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
-					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
+					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
 					if !reflect.DeepEqual(resp, tt.object) {
 						t.Fatalf("get response is not equal to set value. got: %v, want: %v", resp, tt.object)
@@ -425,11 +426,11 @@ func configPortSet() *oc.DefinedSets_PortSet {
 	d := &oc.Root{}
 
 	portSet := d.GetOrCreateDefinedSets().GetOrCreatePortSet("objport")
-	portSet.Port =
-		[]oc.DefinedSets_PortSet_Port_Union{
-			oc.UnionString("5555..6000"),
-			oc.UnionString("3000"),
-		}
+	portSet.Port = []oc.DefinedSets_PortSet_Port_Union{
+		oc.UnionUint16(3000),
+		oc.UnionUint16(5000),
+		oc.UnionString("5555..6000"),
+	}
 
 	return portSet
 }
@@ -515,7 +516,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -660,7 +661,7 @@ func TestAclSetIpv4(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -810,7 +811,7 @@ func TestAclSetIpv6(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -953,7 +954,7 @@ func TestAclSetTransport(t *testing.T) {
 						Type:     gpb.GetRequest_STATE,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
@@ -1139,7 +1140,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 						Type:     gpb.GetRequest_CONFIG,
 						Encoding: gpb.Encoding_JSON_IETF,
 					})
-					t.Logf("Get response: %s", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal())
+					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
 						t.Errorf("Compatibility get request failed: %s", err)
 					}
