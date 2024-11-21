@@ -1213,6 +1213,11 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
 }
 
+// CiscoPreFECBERInactiveValue returns true if a non-zero pre-fec-ber value is to be used for Cisco
+func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
+}
+
 // BgpSetmedUnionTypeUnsupported returns true if devices which are not
 // supporting bgp set med union type in OC.
 func BgpSetmedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
