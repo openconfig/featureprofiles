@@ -16,7 +16,6 @@ import (
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/otg"
 )
 
 const (
@@ -54,12 +53,9 @@ var (
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut       *ondatra.DUTDevice
-	ctx       context.Context
-	client    *fluent.GRIBIClient
-	ate       *ondatra.ATEDevice
-	otgConfig gosnappi.Config
-	otg       *otg.OTG
+	dut    *ondatra.DUTDevice
+	ctx    context.Context
+	client *fluent.GRIBIClient
 }
 
 func TestMain(m *testing.M) {
