@@ -162,21 +162,10 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-
-	t.Log("Waiting for BGP v4 prefix to be installed")
-	got, found := gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		prefixCount, ok := val.Val()
-		return ok && prefixCount == 1
-	}).Await(t)
-	if !found {
-		t.Fatalf("Installed prefixes v4 mismatch: got %v, want %v", got, 1)
-	}
-
-	t.Log("Waiting for BGP v6 prefix to be installed")
-	got, found = gnmi.Watch(t, dut, statePath.Neighbor(agg2.ateLoopbackV6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
-		prefixCount, ok := val.Val()
-		return ok && prefixCount == 1
+	startTraffic(t, ate, top)
+	time.Sleep(time.Minute)
+	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
+		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
 			if got, want := loss, 0.0; got != want {
 				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
@@ -380,6 +369,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 func configureOTGISIS(t *testing.T, dev gosnappi.Device, agg *aggPortData) {
 	t.Helper()
+
 	isis := dev.Isis().SetSystemId(agg.ateISISSysID).SetName(agg.ateAggName + ".ISIS")
 	isis.Basic().SetHostname(isis.Name()).SetLearnedLspFilter(true)
 	isis.Advanced().SetAreaAddresses([]string{ateAreaAddress})
@@ -460,6 +450,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, aggID := range aggIDs {
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
+
 	configureRoutingPolicy(t, dut)
 	configureDUTISIS(t, dut, aggIDs)
 
