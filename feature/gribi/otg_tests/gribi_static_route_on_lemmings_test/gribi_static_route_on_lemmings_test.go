@@ -1,4 +1,4 @@
-package basic_static_route_support_test
+package gribi_static_route_on_lemmings_test
 
 import (
 	"context"
@@ -6,22 +6,22 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/gribi/gribi"
-	"google3/third_party/openconfig/gribigo/chk/chk"
-	"google3/third_party/openconfig/gribigo/constants/constants"
-	"google3/third_party/openconfig/gribigo/fluent/fluent"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ondatra/otg/otg"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/gribigo/chk"
+	"github.com/openconfig/gribigo/constants"
+	"github.com/openconfig/gribigo/fluent"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/otg"
 )
 
 const (
-	niTransitTeVrf          = "DEFAULT"
-	ipv4OuterDst111         = "198.50.100.64"
+	niTransitTeVrf  = "DEFAULT"
+	ipv4OuterDst111 = "198.50.100.64"
 )
 
 var (
