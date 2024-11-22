@@ -36,11 +36,3 @@ platform_exceptions: {
   }
 }
 
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    bgp_aspathset_unsupported: true
-  }
-}
