@@ -371,7 +371,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 65
-    pr: 2805
+    pr: 3536
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.11 (Telemetry Interface Packet Counters)
