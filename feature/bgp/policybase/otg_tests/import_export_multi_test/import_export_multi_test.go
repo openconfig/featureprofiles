@@ -391,11 +391,9 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 
 	// configure match-prefix-set: prefix-set-5 to match_comm_and_prefix_add_2_community_sets statement
 	stmt4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
+	stmt4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
 	stmt6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName + "_V6")
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt4.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
-		stmt6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
-	}
+	stmt6.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(prefixSetNameSetOptions)
 
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
 	pset.GetOrCreatePrefix(prefixesV4[4][0]+"/29", "29..30")
