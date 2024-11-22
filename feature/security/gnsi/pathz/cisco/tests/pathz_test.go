@@ -312,7 +312,7 @@ func performOperations(t *testing.T, dut *ondatra.DUTDevice) {
 func TestPathz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// Perform eMSD process restart
+	// Perform eMSD process restart to clear the pathz statistics before starting the test.
 	t.Logf("Restarting emsd at %s", time.Now())
 	perf.RestartProcess(t, dut, "emsd")
 	t.Logf("Restart emsd finished at %s", time.Now())
@@ -7761,7 +7761,7 @@ func TestPathz(t *testing.T) {
 func TestRPSO_Pathz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// Perform eMSD process restart
+	// Perform eMSD process restart to clear the pathz statistics before starting the test.
 	t.Logf("Restarting emsd at %s", time.Now())
 	perf.RestartProcess(t, dut, "emsd")
 	t.Logf("Restart emsd finished at %s", time.Now())
