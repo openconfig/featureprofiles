@@ -1217,3 +1217,8 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
+
+// VerifyExpectedBreakoutSupportedConfig is to skip checking for breakout config mode.
+func VerifyExpectedBreakoutSupportedConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVerifyExpectedBreakoutSupportedConfig()
+}
