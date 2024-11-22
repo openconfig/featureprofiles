@@ -15,6 +15,7 @@
 package aspath_and_community_test
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -26,19 +27,22 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 const (
-	prefixV4Len  = 30
-	prefixV6Len  = 126
-	trafficPps   = 100
-	totalPackets = 1200
-	bgpName      = "BGP"
-	ImpPolicy    = "routing-policy-ASPATH-COMMUNITY"
-	RPLPermitAll = "PERMIT-ALL"
+	prefixV4Len      = 30
+	prefixV6Len      = 126
+	trafficPps       = 100
+	totalPackets     = 1200
+	bgpName          = "BGP"
+	ImpPolicy        = "routing-policy-ASPATH-COMMUNITY"
+	RPLPermitAll     = "PERMIT-ALL"
+	communitySetName = "any_my_3_comms"
+	aspathSetName    = "any_my_aspath"
 )
 
 var prefixesV4 = [][]string{
@@ -61,7 +65,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string, ipv6 string, aspathMatch []string, communityMatch string, aspathSetName string, communitySetName string, commMatchSetOptions oc.E_BgpPolicy_MatchSetOptionsType, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
+func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6 string, aspathMatch []string, communityMatch, aspathSetName, communitySetName string, commMatchSetOptions, aspMatchSetOptions oc.E_RoutingPolicy_MatchSetOptionsType) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	pdef1 := rp.GetOrCreatePolicyDefinition(ImpPolicy)
@@ -73,10 +77,15 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 
-	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
-	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	if !deviations.BgpAspathsetUnsupported(dut) {
+		aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
+		aspathSet.SetAsPathSetMember(aspathMatch)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	} else {
+		configureAsPolicy(t, dut)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -100,7 +109,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			cs = append(cs, oc.UnionString(communityMatch))
 		}
 		communitySet.SetCommunityMember(cs)
-		communitySet.SetMatchSetOptions(commMatchSetOptions)
 	}
 
 	var communitySetCLIConfig string
@@ -118,6 +126,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(commMatchSetOptions)
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {
@@ -144,13 +153,67 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	gnmi.Replace(t, dut, pathV4.Config(), policyV4)
 }
 
+// configureAsPolicy is used to configure vendor specific config statement.
+func configureAsPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	var config string
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		config = juniperCLI()
+		t.Logf("Push the CLI config:%s", dut.Vendor())
+	}
+
+	gpbSetRequest, err := buildCliConfigRequest(config)
+	if err != nil {
+		t.Fatalf("Cannot build a gNMI SetRequest: %v", err)
+	}
+
+	if _, err = gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+
+// Build config with Origin set to cli and Ascii encoded config.
+func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest, nil
+}
+
+// juniperCLI returns Juniper CLI config statement.
+func juniperCLI() string {
+	return fmt.Sprintf(`
+	policy-options {
+		policy-statement %s {
+			term match_as_and_community {
+				from as-path %s;
+				then accept;                
+			}
+		}
+		as-path %s ".*([100-109]|200)+.*";
+	}`, ImpPolicy, aspathSetName, aspathSetName)
+}
+
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession, prefixesV4 [][]string, prefixesV6 [][]string) {
 	var communityMembers = [][][]int{
 		{
 			{100, 1}, {200, 2}, {300, 3},
 		},
 		{
-			{100, 1},
+			{101, 1},
 		},
 		{
 			{109, 1},
@@ -285,9 +348,7 @@ func TestCommunitySet(t *testing.T) {
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 	aspathMatch := []string{"(10[0-9]|200)"}
 	communityMatch := "(10[0-9]:1)"
-	communitySetName := "any_my_3_comms"
-	aspathSetName := "any_my_aspath"
-	commMatchSetOptions := oc.BgpPolicy_MatchSetOptionsType_ANY
+	commMatchSetOptions := oc.RoutingPolicy_MatchSetOptionsType_ANY
 	aspMatchSetOptions := oc.RoutingPolicy_MatchSetOptionsType_ANY
 	configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, aspathMatch, communityMatch, aspathSetName, communitySetName, commMatchSetOptions, aspMatchSetOptions)
 	sleepTime := time.Duration(totalPackets/trafficPps) + 5
