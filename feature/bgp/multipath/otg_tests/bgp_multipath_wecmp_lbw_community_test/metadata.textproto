@@ -29,6 +29,7 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
+    skip_bgp_send_community_type: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
   }
