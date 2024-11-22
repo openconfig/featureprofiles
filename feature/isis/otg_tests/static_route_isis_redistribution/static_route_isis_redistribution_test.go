@@ -411,7 +411,7 @@ func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
 			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
 		}
 	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'UseVendorNativeACLConfiguration'", d.Vendor())
+		t.Fatalf("Unsupported vendor %s for deviation 'EnableTableConnections'", d.Vendor())
 	}
 }
 
