@@ -645,8 +645,10 @@ message Metadata {
     bool bgp_allowownas_diff_default_value = 231;
     // Cisco numbering for OTN channel assignment starts from 1 instead of 0
     bool otn_channel_assignment_cisco_numbering = 232;
+    // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
+    bool cisco_pre_fec_ber_inactive_value = 233;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
-    bool enable_table_connections = 233;
+    bool enable_table_connections = 234;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

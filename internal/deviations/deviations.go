@@ -1213,6 +1213,11 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
 }
 
+// CiscoPreFECBERInactiveValue returns true if a non-zero pre-fec-ber value is to be used for Cisco
+func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
+}
+
 // Admin Enable Table Connections in SRL native
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
