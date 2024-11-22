@@ -685,6 +685,8 @@ tests:
     owners:
       - mbagherz
     mustpass: true
+    internal: true
+    branch: liawalsh/gnmi-container-replace-fix
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
