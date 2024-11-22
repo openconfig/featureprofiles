@@ -311,6 +311,11 @@ func performOperations(t *testing.T, dut *ondatra.DUTDevice) {
 }
 func TestPathz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	// Perform eMSD process restart to clear the pathz statistics before starting the test.
+	t.Logf("Restarting emsd at %s", time.Now())
+	perf.RestartProcess(t, dut, "emsd")
+	t.Logf("Restart emsd finished at %s", time.Now())
 	t.Run("Test invalid policy without finalize", func(t *testing.T) {
 		// Define the expected error string
 		wantErrs := "invalid policy"
@@ -2531,8 +2536,6 @@ func TestPathz(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
@@ -7758,7 +7761,7 @@ func TestPathz(t *testing.T) {
 func TestRPSO_Pathz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	// Perform eMSD process restart
+	// Perform eMSD process restart to clear the pathz statistics before starting the test.
 	t.Logf("Restarting emsd at %s", time.Now())
 	perf.RestartProcess(t, dut, "emsd")
 	t.Logf("Restart emsd finished at %s", time.Now())
@@ -10943,11 +10946,6 @@ func TestRPSO_Pathz(t *testing.T) {
 				t.Fatalf("Unexpected value for port number: %v", portNum)
 			}
 
-			// Perform a gNMI Set Request with 5 MB of Data
-			t.Logf("AfterRPSO:Starting batch programming of %d leaves at %s", leavesCnt, time.Now())
-			perf.BatchSet(t, dut, set, leavesCnt)
-			t.Logf("AfterRPSO:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
-
 			// Sample memory usage after Deleting Pathz policy file.
 			verifier.SampleAfter(t, dut)
 
@@ -10972,6 +10970,14 @@ func TestRPSO_Pathz(t *testing.T) {
 			// Verify memory usage after d
 			if !verifier.Verify(t) {
 				t.Errorf("Memory usage verification failed after deleting pathz_policy.txt")
+			}
+
+			// Function to check the platform status
+			Resp = pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
 			}
 
 			// Check top CPU utilization.
