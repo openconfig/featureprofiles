@@ -371,7 +371,14 @@ def _get_testsuite_from_xml(file_name):
         return None
     except:
         return None
-    
+
+def _should_disable_testbed(suite):
+    for failure in suite.findall('.//failure'):
+        message = failure.get('message')
+        if message and re.match("Port [\d.]+;\d+;\d+ is not DOD ready", message):
+            return True
+    return False
+
 def _extract_env_var_from_arg(arg):
     m = re.findall('\$[0-9a-zA-Z_]+', arg)
     if len(m) > 0: return m[0]
@@ -436,6 +443,8 @@ def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
+            if os.path.exists(testbed_logs_dir, f'testbed_{t}_disabled.lock'):
+                continue
             reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
             if reserved_testbed: break
         time.sleep(random.randint(5,60))
@@ -773,6 +782,9 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
             else:
                 suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
 
+        if _should_disable_testbed(suite):
+            Path(reserved_testbed['disabled_lock_file']).touch()
+
         if test_enable_grpc_logs:
             grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
             if os.path.exists(grpc_bin_log_file):
@@ -924,6 +936,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     ondatra_otg_binding_path = os.path.join(ws, f'ondatra_otg_{ondatra_files_suffix}.binding')
     testbed_info_path = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_info.txt')
     install_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_install.lock')
+    disabled_lock_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_disabled.lock')
     testbed_test_list_file = os.path.join(testbed_logs_dir, f'testbed_{ondatra_files_suffix}_tests_list.txt')
     pyats_testbed = kwargs.get('testbed', reserved_testbed.get('pyats_testbed', None))
             
@@ -992,6 +1005,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             f'testbed_{reserved_testbed["id"]}_info.txt')
         install_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_install.lock')
+        disabled_lock_file = os.path.join(os.path.dirname(testbed_logs_dir), 
+            f'testbed_{reserved_testbed["id"]}_disabled.lock')
         testbed_test_list_file = os.path.join(os.path.dirname(testbed_logs_dir), 
             f'testbed_{reserved_testbed["id"]}_tests_list.txt')
         
@@ -1026,6 +1041,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['testbed_file'] = ondatra_testbed_path
     reserved_testbed['testbed_info_file'] = testbed_info_path
     reserved_testbed['install_lock_file'] = install_lock_file
+    reserved_testbed['disabled_lock_file'] = disabled_lock_file
+
     reserved_testbed['pyats_testbed_file'] = pyats_testbed
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
