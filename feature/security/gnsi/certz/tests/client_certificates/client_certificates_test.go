@@ -101,7 +101,6 @@ func TestClientCert(t *testing.T) {
 		desc            string
 		clientCertFile  string
 		clientKeyFile   string
-		sequence        uint32
 		serverCertFile  string
 		serverKeyFile   string
 		trustBundleFile string
@@ -131,6 +130,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-02/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_rsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-rsa-a-key.pem",
 		},
@@ -139,6 +139,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-02/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-ecdsa-a-key.pem",
 		},
@@ -147,6 +148,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-10/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_rsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-rsa-a-key.pem",
 		},
@@ -155,6 +157,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-10/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-ecdsa-a-key.pem",
 		},
@@ -163,6 +166,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-1000/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-rsa-a-key.pem",
 		},
@@ -171,6 +175,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-1000/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-ecdsa-a-key.pem",
 		},
