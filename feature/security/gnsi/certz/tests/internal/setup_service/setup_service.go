@@ -203,28 +203,28 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	//a valid check for trust not empty
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
-	} else {
-		var prevCert *certzpb.CertificateChain
-		var bundleToReturn *certzpb.CertificateChain
-		for i := len(trust) - 1; i >= 0; i-- {
-			if i == len(trust)-1 {
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: nil}
-				prevCert = bundleToReturn
-			} else {
-				prevCert = bundleToReturn
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: prevCert}
-			}
-		}
-		return bundleToReturn
 	}
+	var prevCert *certzpb.CertificateChain
+	var bundleToReturn *certzpb.CertificateChain
+	for i := len(trust) - 1; i >= 0; i-- {
+		if i == len(trust)-1 {
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: nil}
+			prevCert = bundleToReturn
+		} else {
+			prevCert = bundleToReturn
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: prevCert}
+		}
+	}
+	return bundleToReturn
+
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
