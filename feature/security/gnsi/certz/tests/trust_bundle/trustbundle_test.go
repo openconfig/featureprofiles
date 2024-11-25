@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 	"time"
+
 	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
@@ -35,10 +36,10 @@ const (
 )
 
 var (
-	testProfile = "newprofile"
-	serverAddr  string
-	username    = "certzuser"
-	password    = "certzpasswd"
+	testProfile     = "newprofile"
+	serverAddr      string
+	username        = "certzuser"
+	password        = "certzpasswd"
 	expected_result bool
 )
 
@@ -190,20 +191,20 @@ func TestServerCert(t *testing.T) {
 				t.Fatalf("%s Failed to read ca bundle :%v", time.Now().String(), err)
 			}
 			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
-				t.Fatalf("%s Failed to parse %v", time.Now().String(), tc.trustBundleFile)
+				t.Fatalf("%s Failed to parse %s", time.Now().String(), tc.trustBundleFile)
 			}
-        	certzClient := gnsiC.Certz()
+			certzClient := gnsiC.Certz()
 			success := setupService.ServerCertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s %s:Trustbundle rotation failed.", time.Now().String(), tc.desc)
 			}
 			t.Logf("%s %s:Trustbundle rotation completed!", time.Now().String(), tc.desc)
-     		t.Logf("%s %s:Service validation begins.",time.Now().String(), tc.desc)
+			t.Logf("%s %s:Service validation begins.", time.Now().String(), tc.desc)
 			expected_result = true
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
 				result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
 				if result != expected_result {
-					t.Fatalf("%s postTestcase service validation failed after successful rotate -got %v, want %v .", tc.desc, result, expected_result)
+					t.Fatalf("%s postTestcase service validation failed after successful rotate -got %t, want %t .", tc.desc, result, expected_result)
 				}
 				t.Logf("%s postTestcase service validation done after trustbundle rotation!", tc.desc)
 				t.Logf("PASS: %s successfully completed!", tc.desc)
