@@ -145,7 +145,7 @@ func TestServerCertRotation(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			san := setupService.ReadDecodeServerCertificate(t, tc.serverCert)
+            san := setupService.ReadDecodeServerCertificate(t, tc.serverCert)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCert,
@@ -164,19 +164,19 @@ func TestServerCertRotation(t *testing.T) {
 				t.Fatalf("%s Failed to read ca bundle :%v", timeNow, err)
 			}
 			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
-				t.Fatalf("%s Failed to parse %v", timeNow, tc.trustBundle)
+				t.Fatalf("%s Failed to parse %s", timeNow, tc.trustBundle)
 			}
 			certzClient := gnsiC.Certz()
 		    success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
-			expected_result = true
 			if !success {
 				t.Fatalf("%s %s:Server certificate rotation failed.", timeNow, tc.desc)
 			}
 			t.Logf("%s %s:Server certificate rotation completed!", timeNow, tc.desc)
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
+				expected_result = true
 				result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
 				if !result {
-					t.Fatalf("%s postTestcase service validation failed after successful rotate -got %v, want %v .", tc.desc, result, expected_result)
+					t.Fatalf("%s postTestcase service validation failed after successful rotate.", tc.desc)
 				}
 				t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
 			})
