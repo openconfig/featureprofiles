@@ -783,9 +783,6 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
             else:
                 suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
 
-        if _should_disable_testbed(suite):
-            Path(reserved_testbed['disabled_lock_file']).touch()
-
         if test_enable_grpc_logs:
             grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
             if os.path.exists(grpc_bin_log_file):
