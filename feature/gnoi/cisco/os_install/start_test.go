@@ -3,16 +3,11 @@ package osinstall_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/cliparser"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	ospb "github.com/openconfig/gnoi/os"
-	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 )
 
@@ -86,33 +81,6 @@ var (
 		},
 	}
 )
-
-type activateNegativeTestCases struct {
-	version       bool
-	noReboot      bool
-	standby       bool
-	expectFail    bool
-	expectedError string
-}
-type testCase struct {
-	dut *ondatra.DUTDevice
-	// dualSup indicates if the DUT has a standby supervisor available.
-	dualSup bool
-	reader  io.ReadCloser
-
-	osc                    ospb.OSClient
-	sc                     spb.SystemClient
-	ctx                    context.Context
-	noReboot               bool
-	forceDownloadSupported bool
-	oss                    cliparser.OSPProtoStats
-
-	osFile    string
-	osVersion string
-	timeout   time.Duration
-
-	negActivateTestCases []activateNegativeTestCases
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)

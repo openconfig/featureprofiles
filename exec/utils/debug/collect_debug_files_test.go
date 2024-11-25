@@ -97,10 +97,10 @@ var (
 		"show redundancy",
 		"show reboot history detail",
 		"show insight database entry all",
-		"show grpc",
 	}
 
 	extendedPipedCmdList = []string{
+		"show grpc",
 		"show grpc trace all",
 		"show telemetry model-driven trace all",
 		"show cef global gribi aft internal location all",

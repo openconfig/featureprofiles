@@ -161,23 +161,6 @@ func extractCreationTime(output string) (int64, error) {
 	return creationTime.Unix(), nil
 }
 
-// // Helper function to run a command on the DUT and return the output
-// func runCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
-// 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-// 	defer cancel()
-// 	sshClient := dut.RawAPIs().CLI(t)
-
-// 	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-// 		t.Logf("%s> %s", dut.ID(), cmd)
-// 		t.Log(result.Output())
-// 		return result.Output()
-// 	} else {
-// 		t.Logf("%s> %s", dut.ID(), cmd)
-// 		t.Log(err.Error())
-// 		return ""
-// 	}
-// }
-
 // Removes the specified ISO file on the DUT
 // get version and the image file name is derived
 func removeISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) {
