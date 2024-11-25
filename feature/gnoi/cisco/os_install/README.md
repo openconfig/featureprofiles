@@ -23,7 +23,7 @@ Note: os upgrade operation will be performed parllely in two device covering mod
                 *    if empty or wrong version provided, force transfer is triggred
         *   StandbySupervisor: populate this field with
             *   bool
-            *   Ciso 8000 series does not support install on StandbySupervisor. So always set it to False
+            *   CISCO 8000 series does not support install on StandbySupervisor. So always set it to False
             *   set to True if install has to happen on standby Superviosor 
             *   only applicable for device wich support install on StandbySupervisor
     *   Issue gnoi.os.Install.InstallRequest_TransferContent Provide following parameters:
@@ -48,18 +48,35 @@ Note: os upgrade operation will be performed parllely in two device covering mod
             *   if image of version provided is not existing on device harddisk(/misc/disk1/), responds with error
         *   StandbySupervisor: populate this field with
             *   bool
-            *   Ciso 8000 series does not support install on StandbySupervisor. So always set it to False
+            *   CISCO 8000 series does not support install on StandbySupervisor. So always set it to False
             *   set to True if install has to happen on standby Superviosor 
             *   only applicable for device wich support install on StandbySupervisor
         *   NoReboot: populate this field with
             *   bool
-            *   Ciso 8000 series does not support noboot install. So always set it to False
+            *   CISCO 8000 series does not support noboot install. So always set it to False
             *   set to True if reboot should not happen after activate
             *   only applicable for device wich support NoReboot activate.
 
 *   **Issue gnoi.os.Verify**
     *   Issue gnoi.os.Verify.VerifyRequest No parameters required:
         *   Verify the version activated in Activated is loaded properly and all supervisor (in modular system) are up and running properly
+
+## File organisation
+
+```shell
+┌─[feature/gnoi/cisco/os_install]
+└──> tree
+.
+├── helper_functions.go             <- helper methods
+├── metadata.textproto              <- metadata information file
+├── os_install_internal_test.go     <- test case file
+├── os_install_methods.go           <- OS.Proto function implementation
+├── push_verify_config.go           <- interface, bgp config verifcation methods
+├── README.md                       <- this readme file
+└── start_test.go                   <- test starting, contains go test Main
+
+0 directories, 7 files
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -68,7 +85,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 ```yaml
 rpcs:
   gnoi:
-    os.Install:
-    os.Activate:
-    os.verify:
+    os.OS.Install:
+    os.OS.Activate:
+    os.OS.verify:
 ```

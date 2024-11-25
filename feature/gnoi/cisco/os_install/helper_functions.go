@@ -89,6 +89,7 @@ func retrieveAndFillDiskSpace(ctx context.Context, sshClient binding.CLIClient, 
 // Function to get ISO version information
 func getIsoVersionInfo(imagePath string) (string, error) {
 	// Construct the command with the image path
+	// cmd := exec.Command("/bin/isoinfo -R -x /mdata/build-info.txt -i", imagePath)
 	cmd := exec.Command("/auto/ioxprojects13/lindt-giso/isols.py", "--iso", imagePath, "--build-info")
 
 	// Run the command and capture the output
@@ -118,9 +119,12 @@ func parseVersionInfo(input string) (string, string) {
 
 	// Regex to find the version number
 	versionRegex := regexp.MustCompile(`Version:\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[A-Z]?)`)
+	// versionRegex := regexp.MustCompile(`XR version =\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+[A-Z]?)`)
 	versionMatches := versionRegex.FindStringSubmatch(input)
+
 	if len(versionMatches) > 1 {
 		version = versionMatches[1]
+		// version = strings.ReplaceAll(version, "-LNT", "")
 	}
 
 	// Regex to find the label in GISO Build Command
@@ -138,15 +142,15 @@ func isGreater(epochTime1, epochTime2 int64) bool {
 
 // Extracts the creation time from the ls command output and converts it to epoch time
 func extractCreationTime(output string) (int64, error) {
-	// Regex to match the file creation date and time
-	regex := regexp.MustCompile(`\w{3}\s+\d{1,2}\s+\d{2}:\d{2}`) // Matches "Nov 13 13:25"
+	// Regex to match the full datetime format including timezone
+	regex := regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ [-+]\d{4}`)
 	matches := regex.FindStringSubmatch(output)
 	if len(matches) < 1 {
 		return 0, fmt.Errorf("no match found for creation date and time")
 	}
 
 	// Parse the date and time into a time.Time object
-	layout := "Jan 2 15:04"
+	layout := "2006-01-02 15:04:05.000000000 -0700"
 	creationTime, err := time.Parse(layout, matches[0])
 	if err != nil {
 		return 0, err
@@ -174,6 +178,7 @@ func runCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 }
 
 // Removes the specified ISO file on the DUT
+// get version and the image file name is derived
 func removeISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) {
 	cmd := fmt.Sprintf("run rm -rf /misc/disk1/8000-golden-x-%s.iso", version)
 	runCommand(t, dut, cmd)
@@ -181,7 +186,7 @@ func removeISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) {
 
 // Lists the specified ISO file on the DUT and extracts its creation date and time
 func listISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) (int64, error) {
-	cmd := fmt.Sprintf("run ls -ltr /misc/disk1/8000-golden-x-%s.iso", version)
+	cmd := fmt.Sprintf("run ls -l --full-time /misc/disk1/8000-golden-x-%s.iso", version)
 	output := runCommand(t, dut, cmd)
 
 	// Extract date and time from the output

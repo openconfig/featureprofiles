@@ -88,10 +88,6 @@ var (
 	}
 
 	pipedCmdList = []string{
-		"show grpc trace all",
-		"show telemetry model-driven trace all",
-		"show cef global gribi aft internal location all",
-		"show logging",
 		"show version",
 		"show platform",
 		"show install fixes active",
@@ -102,6 +98,13 @@ var (
 		"show reboot history detail",
 		"show insight database entry all",
 		"show grpc",
+	}
+
+	extendedPipedCmdList = []string{
+		"show grpc trace all",
+		"show telemetry model-driven trace all",
+		"show cef global gribi aft internal location all",
+		"show logging",
 		"show gnoi statistics",
 		"show install history all",
 		"show install history all errors global",
@@ -144,6 +147,9 @@ func TestCollectDebugFiles(t *testing.T) {
 
 	if *cmds != "" {
 		pipedCmdList = append(pipedCmdList, strings.Split(*cmds, ",")...)
+	}
+	if *collectTech {
+		pipedCmdList = append(pipedCmdList, extendedPipedCmdList...)
 	}
 
 	commands := []string{}

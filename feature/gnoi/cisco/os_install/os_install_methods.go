@@ -14,32 +14,15 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+
 	ospb "github.com/openconfig/gnoi/os"
 	spb "github.com/openconfig/gnoi/system"
 	closer "github.com/openconfig/gocloser"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type testCase struct {
-	dut *ondatra.DUTDevice
-	// dualSup indicates if the DUT has a standby supervisor available.
-	dualSup bool
-	reader  io.ReadCloser
-
-	osc                    ospb.OSClient
-	sc                     spb.SystemClient
-	ctx                    context.Context
-	noReboot               bool
-	forceDownloadSupported bool
-
-	osFile    string
-	osVersion string
-	timeout   time.Duration
-}
 
 var packageReader func(context.Context, string) (io.ReadCloser, error) = func(ctx context.Context, os_file string) (io.ReadCloser, error) {
 	f, err := os.Open(os_file)
@@ -74,20 +57,35 @@ func (tc *testCase) activateOS(ctx context.Context, t *testing.T, standby, noReb
 		} else {
 			t.Log("OS.Activate complete.")
 		}
+		tc.oss.ActivateOKActivated += 1
 	case *ospb.ActivateResponse_ActivateError:
 		actErr := resp.ActivateError
 		v := fmt.Sprintf("%v", resp)
-		if !expectFail && !strings.Contains(v, expectedError) {
-			t.Fatalf("OS.Activate error want = %s ,got = %s: %s", expectedError, actErr.Type, actErr.Detail)
+		// tc.oss.Activate
+		switch actErr.Type {
+		case ospb.ActivateError_NON_EXISTENT_VERSION:
+			tc.oss.ActivateErrorNoImage += 1
+		case ospb.ActivateError_NOT_SUPPORTED_ON_BACKUP:
+			tc.oss.ActivateErrorStandbyActivation += 1
+		default:
+			tc.oss.ActivateErrorActivationFailed += 1
 		}
-		t.Logf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
+		// failure expected and expected error got
+		if expectFail && strings.Contains(v, expectedError) {
+			t.Logf("OS.Activate error %s: %s", actErr.Type, actErr.Detail)
+		} else {
+			t.Fatalf("OS.Activate error want = %s, got = %s: %s", expectedError, actErr.Type, actErr.Detail)
+		}
 
 	default:
 		v := fmt.Sprintf("%v", resp)
-		if !expectFail && !strings.Contains(v, expectedError) {
+		tc.oss.ActivateErrorActivationFailed += 1
+		// failure expected and expected error got
+		if expectFail && strings.Contains(v, expectedError) {
+			t.Logf("OS.Activate error want: %v , got: %v (%T)", expectedError, v, v)
+		} else {
 			t.Fatalf("OS.Activate error want: %v , got: %v (%T)", expectedError, v, v)
 		}
-		t.Logf("OS.Activate error want: %v , got: %v (%T)", expectedError, v, v)
 	}
 }
 
@@ -97,6 +95,7 @@ func (tc *testCase) fetchStandbySupervisorStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tc.oss.VerifyRequests += 1
 
 	switch v := r.GetVerifyStandby().GetState().(type) {
 	case *ospb.VerifyStandby_StandbyState:
@@ -108,6 +107,7 @@ func (tc *testCase) fetchStandbySupervisorStatus(t *testing.T) {
 		tc.dualSup = false
 	case *ospb.VerifyStandby_VerifyResponse:
 		t.Log("DUT is detected as dual supervisor.")
+		tc.oss.VerifyResponses += 1
 		tc.dualSup = true
 	default:
 		t.Fatalf("Unexpected OS.Verify Standby State RPC Response: got %v (%T)", v, v)
@@ -178,17 +178,6 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 	if err != nil {
 		t.Fatalf("OS.Install client request failed: %s", err)
 	}
-	// versionString := ""
-	// if !force {
-	// 	versionString = *osVersion
-	// }
-	// if dummyVersion {
-	// 	if !force {
-	// 		t.Fatalf("only force install can have dummy version")
-	// 	} else {
-	// 		versionString = "DUMMY"
-	// 	}
-	// }
 
 	ireq := &ospb.InstallRequest{
 		Request: &ospb.InstallRequest_TransferRequest{
@@ -201,20 +190,32 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 	if err = ic.Send(ireq); err != nil {
 		t.Fatalf("OS.Install error sending install request: %s", err)
 	}
+	tc.oss.InstallRequests += 1
+	tc.oss.InstallTransferRequestMessages += 1
+	if standby {
+		tc.oss.InstallSupervisorTransferRequestMessages += 1
+	}
+
+	// if version == "" {
+	// 	tc.oss.InstallForcedTransferRequestMessages += 1
+	// }
 
 	iresp, err := ic.Recv()
 	if err != nil {
 		t.Fatalf("OS.Install error receiving: %s", err)
+		tc.oss.FailedPrecondition += 1
 	}
 	Message := ""
 	switch v := iresp.GetResponse().(type) {
 	case *ospb.InstallResponse_TransferReady:
+		tc.oss.InstallTransferReadyMessagesSent += 1
 	case *ospb.InstallResponse_Validated:
 		if standby {
 			t.Log("DUT standby supervisor has valid preexisting image; skipping transfer.")
 		} else {
 			t.Log("DUT supervisor has valid preexisting image; skipping transfer.")
 		}
+		tc.oss.InstallValidatedMessagesSentUponTransfer += 1
 		osVersionReceived := iresp.GetValidated().GetVersion()
 		t.Logf("Version :: got: %v ,want: %v", osVersionReceived, tc.osVersion)
 		if osVersionReceived != tc.osVersion {
@@ -226,22 +227,16 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 			t.Fatalf("Unexpected SyncProgress on single supervisor: got %v (%T)", v, v)
 		}
 		t.Logf("Sync progress: %v%% synced from supervisor", v.SyncProgress.GetPercentageTransferred())
-		// Message = fmt.Sprintf("Sync progress: %v%% synced from supervisor", v.SyncProgress.GetPercentageTransferred())
-		// xx := iresp.GetValidated().Version
-		// yy := iresp.GetValidated().GetVersion()
-		// t.Logf("%v,%v", xx, yy)
-		// if err != nil {
-		// 	t.Fatalf("OS.Install error receiving: %s", err)
-		// }
 	default:
 		Message = fmt.Sprintf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
 		// t.Fatalf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
 		t.Logf("Expected TransferReady following TransferRequest: got %v (%T)", v, v)
+		// COUNTER: disk fill error not counted
 	}
 
 	awaitChan := make(chan error)
 	go func() {
-		err := watchStatus(t, ic, standby, tc.osVersion)
+		err := watchStatus(t, ic, standby, tc.osVersion, *tc)
 		awaitChan <- err
 	}()
 
@@ -254,18 +249,12 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 		}
 	}
 
-	// xx := iresp.GetValidated().Version
-	// yy := iresp.GetValidated().GetVersion()
-	// t.Logf("%v,%v", xx, yy)
-	// if err != nil {
-	// 	t.Fatalf("OS.Install error receiving: %s", err)
-	// }
-
 	if !standby {
-		err = transferContent(ic, tc.reader)
+		err = transferContent(ic, tc.reader, *tc)
 		if err != nil {
 			t.Fatalf("Error transferring content: %s", err)
 		}
+		tc.oss.InstallTransferEndMessages += 1
 	}
 
 	if err = <-awaitChan; err != nil {
@@ -310,7 +299,6 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 			continue
 		}
 
-		// dut := ondatra.DUT(t, "dut")
 		if !deviations.SwVersionUnsupported(tc.dut) {
 			ver, ok := gnmi.Lookup(t, tc.dut, gnmi.OC().System().SoftwareVersion().State()).Val()
 			if !ok {
@@ -422,7 +410,7 @@ func (tc *testCase) pollRpc(t *testing.T) {
 
 }
 
-func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser) error {
+func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser, testCase testCase) error {
 	// The gNOI SetPackage operation sets the maximum chunk size at 64K,
 	// so assuming the install operation allows for up to the same size.
 	buf := make([]byte, 64*1024)
@@ -438,6 +426,7 @@ func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser) error {
 			if err := ic.Send(tc); err != nil {
 				return err
 			}
+			testCase.oss.InstallTransferContentMessages += 1
 		}
 		if err == io.EOF {
 			break
@@ -454,7 +443,7 @@ func transferContent(ic ospb.OS_InstallClient, reader io.ReadCloser) error {
 	return ic.Send(te)
 }
 
-func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool, version string) error {
+func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool, version string, tc testCase) error {
 	var gotProgress bool
 
 	for {
@@ -473,6 +462,7 @@ func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool, version s
 			}
 			t.Logf("Transfer progress: %v bytes received by DUT", v.TransferProgress.GetBytesReceived())
 			gotProgress = true
+			tc.oss.InstallTransferProgressMessagesSent += 1
 		case *ospb.InstallResponse_SyncProgress:
 			if !standby {
 				return fmt.Errorf("unexpected SyncProgress: got %v, want TransferProgress", v)
