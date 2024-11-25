@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 )
@@ -160,34 +161,34 @@ func extractCreationTime(output string) (int64, error) {
 	return creationTime.Unix(), nil
 }
 
-// Helper function to run a command on the DUT and return the output
-func runCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	defer cancel()
-	sshClient := dut.RawAPIs().CLI(t)
+// // Helper function to run a command on the DUT and return the output
+// func runCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+// 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+// 	defer cancel()
+// 	sshClient := dut.RawAPIs().CLI(t)
 
-	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
-		t.Logf("%s> %s", dut.ID(), cmd)
-		t.Log(result.Output())
-		return result.Output()
-	} else {
-		t.Logf("%s> %s", dut.ID(), cmd)
-		t.Log(err.Error())
-		return ""
-	}
-}
+// 	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+// 		t.Logf("%s> %s", dut.ID(), cmd)
+// 		t.Log(result.Output())
+// 		return result.Output()
+// 	} else {
+// 		t.Logf("%s> %s", dut.ID(), cmd)
+// 		t.Log(err.Error())
+// 		return ""
+// 	}
+// }
 
 // Removes the specified ISO file on the DUT
 // get version and the image file name is derived
 func removeISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) {
 	cmd := fmt.Sprintf("run rm -rf /misc/disk1/8000-golden-x-%s.iso", version)
-	runCommand(t, dut, cmd)
+	util.SshRunCommand(t, dut, cmd)
 }
 
 // Lists the specified ISO file on the DUT and extracts its creation date and time
 func listISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) (int64, error) {
 	cmd := fmt.Sprintf("run ls -l --full-time /misc/disk1/8000-golden-x-%s.iso", version)
-	output := runCommand(t, dut, cmd)
+	output := util.SshRunCommand(t, dut, cmd)
 
 	// Extract date and time from the output
 	creationTime, err := extractCreationTime(output)

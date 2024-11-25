@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/featureprofiles/internal/cisco/util/cliparser"
+	"github.com/openconfig/featureprofiles/internal/cisco/cliparser"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	ospb "github.com/openconfig/gnoi/os"
