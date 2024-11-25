@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -205,7 +205,8 @@ func TestServerCert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-            san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
+
+			san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
