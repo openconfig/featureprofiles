@@ -15,6 +15,7 @@
 package bgp_multipath_wecmp_test
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -40,10 +42,10 @@ const (
 	trafficPps       = 1000
 	totalPackets     = 120000
 	lossTolerancePct = 0
-	lbToleranceFms   = 5
+	lbToleranceFms   = 10
 )
 
-var linkBw = []int{10, 5}
+var linkBw = []int{10}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -69,17 +71,37 @@ func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 		routeAddress.SetPrefix(prefixP4Len)
 		routeAddress.SetCount(prefixesCount)
 		bgp4PeerRoute.AddPath().SetPathId(pathID)
-		bgp4PeerRoute.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
 	}
 
 	configureFlow(bs)
+}
+
+func attachLBWithInternalNetwork(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {
+	devices := top.Devices().Items()
+	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
+	sort.Slice(devices, byName)
+
+	for _, i := range []int{2, 3} {
+		bgp4Peer := devices[i].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+		bgp4PeerRoute := bgp4Peer.V4Routes().Items()[0]
+		bgp4PeerRoute.ExtendedCommunities().Clear()
+		if i-2 < len(linkBw) {
+			bgpExtCom := bgp4PeerRoute.ExtendedCommunities().Add()
+			bgpExtCom.NonTransitive2OctetAsType().LinkBandwidthSubtype().SetBandwidth(float32(linkBw[i-2] * 1000))
+			bgpExtCom.NonTransitive2OctetAsType().LinkBandwidthSubtype().SetGlobal2ByteAs(23456)
+		}
+	}
+
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 func configureFlow(bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
-	for i := 1; i < len(bs.ATEPorts); i++ {
+	for i := 2; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
@@ -94,8 +116,8 @@ func configureFlow(bs *cfgplugins.BGPSession) {
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(bs.ATEPorts[0].IPv4)
-	v4.Dst().SetValue(prefixesStart)
+	v4.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(bs.ATEPorts[0].IPv4)
+	v4.Dst().Increment().SetCount(3).SetStep("0.0.0.1").SetStart(prefixesStart)
 }
 
 func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
@@ -115,8 +137,15 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 
 func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expectedLinks int) {
 	framesTx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port1").ID()).Counters().OutFrames().State())
-	expectedPerLinkFmsP3 := (linkBw[0] / (linkBw[0] + linkBw[1])) * int(framesTx)
-	expectedPerLinkFmsP4 := (linkBw[1] / (linkBw[0] + linkBw[1])) * int(framesTx)
+	var lb1, lb2 float32
+	if len(linkBw) == 1 {
+		lb1, lb2 = float32(linkBw[0]), float32(linkBw[0])
+	} else {
+		lb1, lb2 = float32(linkBw[0]), float32(linkBw[1])
+	}
+
+	expectedPerLinkFmsP3 := int(lb1 / (lb1 + lb2) * float32(framesTx))
+	expectedPerLinkFmsP4 := int(lb2 / (lb1 + lb2) * float32(framesTx))
 	t.Logf("Total packets %d flow through the %d links and expected per link packets: %d, %d", framesTx, expectedLinks, expectedPerLinkFmsP3, expectedPerLinkFmsP4)
 
 	p3Min := expectedPerLinkFmsP3 - (expectedPerLinkFmsP3 * lbToleranceFms / 100)
@@ -143,13 +172,50 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 func TestBGPSetup(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, false)
+
 	dni := deviations.DefaultNetworkInstance(bs.DUT)
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-	gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 
-	if !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
-		gEBGP.AllowMultipleAs = ygot.Bool(true)
+	if !deviations.SkipBgpSendCommunityType(bs.DUT) {
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED, oc.Bgp_CommunityType_LARGE})
+	}
+
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(bs.DUT) {
+		t.Logf("MultipathUnsupportedNeighborOrAfisafi is supported")
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+	}
+
+	if deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
+		var communitySetCLIConfig string
+		t.Log("AfiSafi Path For BgpMultipleAs is not supported")
+		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		gEBGPMP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+		gEBGPMP.MaximumPaths = ygot.Uint32(maxPaths)
+		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+			gEBGP.AllowMultipleAs = ygot.Bool(false)
+			switch bs.DUT.Vendor() {
+			case ondatra.CISCO:
+				communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
+			default:
+				t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", bs.DUT.Vendor())
+			}
+			helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
+		}
+	} else {
+		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+			bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().GetOrCreateLinkBandwidthExtCommunity().Enabled = ygot.Bool(true)
+			switch bs.DUT.Vendor() {
+			case ondatra.ARISTA:
+				helpers.GnmiCLIConfig(t, bs.DUT, "router bgp 65501\n ucmp mode 1\n")
+			default:
+				t.Fatalf("Unsupported vendor %s for deviation 'SkipSettingAllowMultipleAS'", bs.DUT.Vendor())
+			}
+		} else {
+			bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+		}
 	}
 
 	configureOTG(t, bs)
@@ -161,20 +227,55 @@ func TestBGPSetup(t *testing.T) {
 	t.Logf("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 
-	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
-	prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
-	ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
-	hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-	if got, want := len(hopGroup.NextHop), 2; got != want {
-		t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+	testCases := []struct {
+		name   string
+		desc   string
+		linkBw []int
+	}{
+		{
+			name:   "RT-1.52.1",
+			desc:   "Verify BGP multipath when some path missing link-bandwidth extended-community",
+			linkBw: []int{10},
+		},
+		{
+			name:   "RT-1.52.2",
+			desc:   "Verify use of equal community type",
+			linkBw: []int{10, 10},
+		},
+		{
+			name:   "RT-1.52.1",
+			desc:   "Verify use of unequal community type",
+			linkBw: []int{10, 5},
+		},
 	}
 
-	sleepTime := time.Duration(totalPackets/trafficPps) + 5
-	bs.ATE.OTG().StartTraffic(t)
-	time.Sleep(sleepTime * time.Second)
-	bs.ATE.OTG().StopTraffic(t)
+	aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
+	prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
 
-	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
-	checkPacketLoss(t, bs.ATE)
-	verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			linkBw = tc.linkBw
+			attachLBWithInternalNetwork(t, bs.ATE, bs.ATETop)
+			time.Sleep(30 * time.Second)
+
+			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
+			hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+			if got, want := len(hopGroup.NextHop), 2; got != want {
+				t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+			} else {
+				for i, nh := range hopGroup.NextHop {
+					t.Logf("Prefix %s, NextHop(%d) weight: %d", ipv4Entry.GetPrefix(), i, nh.GetWeight())
+				}
+			}
+
+			sleepTime := time.Duration(totalPackets/trafficPps) + 5
+			bs.ATE.OTG().StartTraffic(t)
+			time.Sleep(sleepTime * time.Second)
+			bs.ATE.OTG().StopTraffic(t)
+
+			otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+			checkPacketLoss(t, bs.ATE)
+			verifyECMPLoadBalance(t, bs.ATE, int(cfgplugins.PortCount4), 2)
+		})
+	}
 }

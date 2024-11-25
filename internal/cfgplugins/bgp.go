@@ -93,7 +93,7 @@ var (
 		Name:    "port4",
 		IPv4:    "192.0.2.13",
 		IPv4Len: plenIPv4,
-		IPv6:    "2001:0db8::192:0:2:13",
+		IPv6:    "2001:0db8::192:0:2:d",
 		IPv6Len: plenIPv6,
 	}
 
@@ -354,6 +354,15 @@ type NeighborConfig struct {
 	AS           uint32
 }
 
+// BgpNeighbor holds BGP Peer information.
+type BgpNeighbor struct {
+	LocalAS    uint32
+	PeerAS     uint32
+	Neighborip string
+	IsV4       bool
+	PeerGrp    string
+}
+
 // buildNeigborConfig builds neighbor config based on given flags
 func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []string) []*NeighborConfig {
 	nc1 := &NeighborConfig{
@@ -449,7 +458,7 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, afi
 				},
 			}
 
-			peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, afiType)
+			peerGroups[nc.PeerGroup] = getPeerGroup(nc.PeerGroup, dut, afiTypes)
 		}
 	}
 
@@ -461,7 +470,7 @@ func BuildBGPOCConfig(t *testing.T, dut *ondatra.DUTDevice, routerID string, afi
 }
 
 // getPeerGroup build peer-config
-func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
+func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType []oc.E_BgpTypes_AFI_SAFI_TYPE) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
 
@@ -474,11 +483,13 @@ func getPeerGroup(pgn string, dut *ondatra.DUTDevice, afiType oc.E_BgpTypes_AFI_
 	}
 
 	// policy under peer group AFI
-	afisafi := pg.GetOrCreateAfiSafi(afiType)
-	afisafi.Enabled = ygot.Bool(true)
-	rpl := afisafi.GetOrCreateApplyPolicy()
-	rpl.SetExportPolicy([]string{RPLPermitAll})
-	rpl.SetImportPolicy([]string{RPLPermitAll})
+	for _, afi := range afiType {
+		afisafi := pg.GetOrCreateAfiSafi(afi)
+		afisafi.Enabled = ygot.Bool(true)
+		rpl := afisafi.GetOrCreateApplyPolicy()
+		rpl.SetExportPolicy([]string{RPLPermitAll})
+		rpl.SetImportPolicy([]string{RPLPermitAll})
+	}
 	return pg
 }
 
@@ -489,4 +500,57 @@ func containsValue[T comparable](slice []T, value T) bool {
 		}
 	}
 	return false
+}
+
+// BGPClearConfig removes all BGP configuration from the DUT.
+func BGPClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	resetBatch := &gnmi.SetBatch{}
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+
+	if deviations.NetworkInstanceTableDeletionRequired(dut) {
+		tablePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableAny()
+		for _, table := range gnmi.LookupAll[*oc.NetworkInstance_Table](t, dut, tablePath.Config()) {
+			if val, ok := table.Val(); ok {
+				if val.GetProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Table(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, val.GetAddressFamily()).Config())
+				}
+			}
+		}
+	}
+	resetBatch.Set(t, dut)
+}
+
+// VerifyBGPCapabilities function is used to Verify BGP capabilities like route refresh as32 and mpbgp.
+func VerifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []*BgpNeighbor) {
+	t.Log("Verifying BGP capabilities")
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	for _, nbr := range nbrs {
+		nbrPath := statePath.Neighbor(nbr.Neighborip)
+
+		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
+			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+		}
+		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[cap] = true
+		}
+		for cap, present := range capabilities {
+			if !present {
+				t.Errorf("Capability not reported: %v", cap)
+			}
+		}
+	}
+}
+
+// VerifyPortsUp asserts that each port on the device is operating.
+func VerifyPortsUp(t *testing.T, dev *ondatra.Device) {
+	t.Helper()
+	for _, p := range dev.Ports() {
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
+			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		}
+	}
 }
