@@ -41,7 +41,6 @@ var (
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
-	servers         []string
 	expected_result bool
 )
 
@@ -79,14 +78,12 @@ func TestServerCert(t *testing.T) {
 	if !setupService.PreInitCheck(context.Background(), t, dut) {
 		t.Fatalf("%s: Failed in the preInit checks.", time.Now().String())
 	}
-
 	ctx := context.Background()
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx)
 	if err != nil {
 		t.Fatalf("%s: Failed to create gNSI Connection %v", time.Now().String(), err)
 	}
 	t.Logf("%s Precheck:gNSI connection is successful %v", time.Now().String(), gnsiC)
-
 	t.Logf("%s:Creation of test data.", time.Now().String())
 	if setupService.CertGeneration(t, dirPath) != nil {
 		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
@@ -102,7 +99,6 @@ func TestServerCert(t *testing.T) {
 	t.Logf("%s AddProfileResponse: %v", time.Now().String(), addProfileResponse)
 	t.Logf("%s: Getting the ssl profile list after new ssl profile addition.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
-
 	cases := []struct {
 		desc            string
 		serverCertFile  string
@@ -110,6 +106,7 @@ func TestServerCert(t *testing.T) {
 		trustBundleFile string
 		clientCertFile  string
 		clientKeyFile   string
+		p7btrustBundle  string
 		mismatch        bool
 	}{
 		{
@@ -117,6 +114,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-01/ca-01/trust_bundle_01_rsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
 		},
@@ -125,6 +123,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
 		},
@@ -133,6 +132,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-02/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_rsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-rsa-a-key.pem",
 		},
@@ -141,6 +141,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-02/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-ecdsa-a-key.pem",
 		},
@@ -149,6 +150,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-10/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_rsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-rsa-a-key.pem",
 		},
@@ -157,6 +159,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-10/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-ecdsa-a-key.pem",
 		},
@@ -165,6 +168,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-1000/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-rsa-a-key.pem",
 		},
@@ -173,6 +177,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-1000/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-ecdsa-a-key.pem",
 		},
@@ -181,6 +186,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_rsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
 			mismatch:        true,
@@ -190,6 +196,7 @@ func TestServerCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
+			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
 			mismatch:        true,
@@ -198,8 +205,7 @@ func TestServerCert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-
-			san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
+            san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
@@ -220,48 +226,42 @@ func TestServerCert(t *testing.T) {
 			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
 				t.Fatalf("%s Failed to parse %v", time.Now().String(), tc.trustBundleFile)
 			}
-
-			certzClient := gnsiC.Certz()
-			success := setupService.CertzRotate(t, cacert, certzClient, cert, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
-			if !success {
-				t.Fatalf("%s %s:Certz rotation failed.", time.Now().String(), tc.desc)
-			}
-			t.Logf("%s %s:Certz rotation completed!", time.Now().String(), tc.desc)
-
-			// Replace config with newly added ssl profile after successful rotate.
-			servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
-			batch := gnmi.SetBatch{}
-			for _, server := range servers {
-				gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), testProfile)
-			}
-			batch.Set(t, dut)
-			t.Logf("%s %s:replaced gNMI config with new ssl profile successfully.", time.Now().String(), tc.desc)
-
 			switch tc.mismatch {
 			case true:
-				t.Run("Verification of new connection after mismatch trustbundle server certificate rotation", func(t *testing.T) {
+				expected_result = false
+				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				if success {
+					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
+				}
+				t.Logf("%s:Mismatch server certificate rotation failed as expected before finalize!", tc.desc)
+				t.Run("Verification of new connections with mismatch rotate of trustbundle.", func(t *testing.T) {
 					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
 					if !result {
-						t.Fatalf("%s postTestcase service validation failed with mismatch trustbundle from ca-02 - got %v , want %v", tc.desc, result, expected_result)
+						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, false)
 					}
-					t.Logf("postTestcase service validation done for mismatch trustbundle from ca-02!")
-					t.Logf("PASS: %s successfully completed!", tc.desc)
+					t.Logf("%s postTestcase service validation done!", tc.desc)
 				})
 			case false:
-				expected_result := true
-				t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
+				expected_result = true
+				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				if !success {
+					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
+				}
+				t.Logf("%s:successfully completed server certificate rotation!", tc.desc)
+				// Verification check of the new connection post rotation.
+				t.Run("Verification of new connections after rotate ", func(t *testing.T) {
 					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
 					if !result {
-						t.Fatalf("%s postTestcase service validation failed after successful rotate -got %v, want %v .", tc.desc, result, expected_result)
+						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, true)
 					}
-					t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
-					t.Logf("PASS: %s successfully completed!", tc.desc)
+					t.Logf("%s postTestcase service validation done!", tc.desc)
 				})
 			}
 		})
+		t.Logf("PASS: %s successfully completed!", tc.desc)
 	}
 	t.Logf("Cleanup of test data.")
 	if setupService.CertCleanup(t, dirPath) != nil {
-		t.Fatalf("could not run cert cleanup command.")
+		t.Fatalf("could not run testdata cleanup command.")
 	}
 }
