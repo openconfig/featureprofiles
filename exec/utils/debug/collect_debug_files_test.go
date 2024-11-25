@@ -153,10 +153,13 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	commands := []string{}
-
 	if *coreCheck {
 		commands = append(commands,
 			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
+		)
+		// handle new corefile path /misc/disk1/coredumps
+		commands = append(commands,
+			"run find /misc/disk1/coredumps -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
 		)
 	}
 
@@ -174,6 +177,7 @@ func TestCollectDebugFiles(t *testing.T) {
 		}(dutID, target)
 	}
 	wg.Wait()
+
 	t.Log("Completed TestCollectDebugFiles")
 }
 
@@ -539,13 +543,22 @@ func decodeCoreFile(t *testing.T, coreFile string) {
 
 	// Decode the core file in the background
 	decodeOutput := filepath.Join(coreDir, filepath.Base(coreFile)+".decoded.txt")
-
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s > %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+	// Check if 'buildid-db' file exists in the workspace directory
+	buildIdDbPath := filepath.Join(workspace, "buildid-db")
+	var cmd *exec.Cmd
+	if _, err := os.Stat(buildIdDbPath); err == nil {
+		// Use command with -l option if 'buildid-db' exists
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode -l %s 2>&1 %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+		t.Logf("Using command with -l option")
+	} else {
+		// Use command without -l option if 'buildid-db' does not exist
+		cmd = exec.Command("sh", "-c", fmt.Sprintf("/auto/mcp-project1/xr-decoder/xr-decode %s 2>&1 %s && rm %s &", coreFile, decodeOutput, inProgressFile))
+		t.Logf("Using command without -l option")
+	}
 
 	if err := cmd.Start(); err != nil {
 		t.Logf("Error starting decode command: %v\n", err)
 		return
 	}
 	t.Logf("Started background decoding for core file %s\n", coreFile)
-
 }
