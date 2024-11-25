@@ -443,7 +443,7 @@ def _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds):
     reserved_testbed = None
     while not reserved_testbed:
         for t in testbeds:
-            if os.path.exists(testbed_logs_dir, f'testbed_{t}_disabled.lock'):
+            if os.path.exists(os.path.join(testbed_logs_dir, f'testbed_{t}_disabled.lock')):
                 testbeds.remove(t)
                 break
             reserved_testbed = _trylock_testbed(ws, internal_fp_repo_dir, t, testbed_logs_dir)
