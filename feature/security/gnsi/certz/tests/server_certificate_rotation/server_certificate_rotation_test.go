@@ -40,13 +40,11 @@ var (
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
-	servers         []string
 	expected_result bool
 	timeNow         = time.Now().String()
 )
 
 // createUser function to add an user in admin role.
-
 func createUser(t *testing.T, dut *ondatra.DUTDevice, user, pswd string) bool {
 	ocUser := &oc.System_Aaa_Authentication_User{
 		Username: ygot.String(user),
@@ -68,7 +66,6 @@ func TestMain(m *testing.M) {
 // TestServerCertRotation tests a server certificate can be rotated by using the gNSI certz Rotate() rpc,
 // if the certificate is requested without the device generated CSR.
 func TestServerCertRotation(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
 	if !createUser(t, dut, username, password) {
@@ -78,14 +75,12 @@ func TestServerCertRotation(t *testing.T) {
 	if !setupService.PreInitCheck(context.Background(), t, dut) {
 		t.Fatalf("%s: Failed in the preInit checks.", timeNow)
 	}
-
 	ctx := context.Background()
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(ctx)
 	if err != nil {
 		t.Fatalf("%s: Failed to create gNSI Connection %v", timeNow, err)
 	}
 	t.Logf("%s Precheck:gNSI connection is successful %v", timeNow, gnsiC)
-
 	t.Logf("%s:Creation of test data.", timeNow)
 	if setupService.CertGeneration(t, dirPath) != nil {
 		t.Fatalf("%s:Failed to generate the testdata certificates.", timeNow)
@@ -101,57 +96,55 @@ func TestServerCertRotation(t *testing.T) {
 	t.Logf("%s AddProfileResponse: %v", timeNow, addProfileResponse)
 	t.Logf("%s: Getting the ssl profile list after new ssl profile addition.", timeNow)
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
-
 	cases := []struct {
-		desc        string
-		serverCert  string
-		serverKey   string
-		trustBundle string
-		clientCert  string
-		clientKey   string
-		mismatch    bool
-		loop        uint16
+		desc           string
+		serverCert     string
+		serverKey      string
+		trustBundle    string
+		p7btrustBundle string
+		clientCert     string
+		clientKey      string
+		mismatch       bool
 	}{
 		{
-			desc:        "Certz3.1:Rotate server-rsa-a certificate/key/trustbundle from ca-01",
-			serverCert:  dirPath + "ca-01/server-rsa-a-cert.pem",
-			serverKey:   dirPath + "ca-01/server-rsa-a-key.pem",
-			trustBundle: dirPath + "ca-01/trust_bundle_01_rsa.pem",
-			clientCert:  dirPath + "ca-01/client-rsa-a-cert.pem",
-			clientKey:   dirPath + "ca-01/client-rsa-a-key.pem",
-			loop:        1,
+			desc:           "Certz3.1:Rotate server-rsa-a certificate/key/trustbundle from ca-01",
+			serverCert:     dirPath + "ca-01/server-rsa-a-cert.pem",
+			serverKey:      dirPath + "ca-01/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-01/trust_bundle_01_rsa.pem",
+			p7btrustBundle: dirPath + "ca-01/trust_bundle_01_rsa.p7b",
+			clientCert:     dirPath + "ca-01/client-rsa-a-cert.pem",
+			clientKey:      dirPath + "ca-01/client-rsa-a-key.pem",
 		},
 		{
-			desc:        "Certz3.1:Rotate server-rsa-b key and certificate/key/trustbundle from ca-01",
-			serverCert:  dirPath + "ca-01/server-rsa-b-cert.pem",
-			serverKey:   dirPath + "ca-01/server-rsa-b-key.pem",
-			trustBundle: dirPath + "ca-01/trust_bundle_01_rsa.pem",
-			clientCert:  dirPath + "ca-01/client-rsa-b-cert.pem",
-			clientKey:   dirPath + "ca-01/client-rsa-b-key.pem",
-			loop:        2,
+			desc:           "Certz3.1:Rotate server-rsa-b key and certificate/key/trustbundle from ca-01",
+			serverCert:     dirPath + "ca-01/server-rsa-b-cert.pem",
+			serverKey:      dirPath + "ca-01/server-rsa-b-key.pem",
+			trustBundle:    dirPath + "ca-01/trust_bundle_01_rsa.pem",
+			p7btrustBundle: dirPath + "ca-01/trust_bundle_01_rsa.p7b",
+			clientCert:     dirPath + "ca-01/client-rsa-b-cert.pem",
+			clientKey:      dirPath + "ca-01/client-rsa-b-key.pem",
 		},
 		{
-			desc:        "Certz3.1:Rotate server-ecdsa-a key and certificate/key/trustbundle from ca-01",
-			serverCert:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
-			serverKey:   dirPath + "ca-01/server-ecdsa-a-key.pem",
-			trustBundle: dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
-			clientCert:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
-			clientKey:   dirPath + "ca-01/client-ecdsa-a-key.pem",
-			loop:        3,
+			desc:           "Certz3.1:Rotate server-ecdsa-a key and certificate/key/trustbundle from ca-01",
+			serverCert:     dirPath + "ca-01/server-ecdsa-a-cert.pem",
+			serverKey:      dirPath + "ca-01/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
+			p7btrustBundle: dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
+			clientCert:     dirPath + "ca-01/client-ecdsa-a-cert.pem",
+			clientKey:      dirPath + "ca-01/client-ecdsa-a-key.pem",
 		},
 		{
-			desc:        "Certz3.1:Rotate server-ecdsa-b key and certificate/key/trustbundle from ca-01",
-			serverCert:  dirPath + "ca-01/server-ecdsa-b-cert.pem",
-			serverKey:   dirPath + "ca-01/server-ecdsa-b-key.pem",
-			trustBundle: dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
-			clientCert:  dirPath + "ca-01/client-ecdsa-b-cert.pem",
-			clientKey:   dirPath + "ca-01/client-ecdsa-b-key.pem",
-			loop:        4,
+			desc:           "Certz3.1:Rotate server-ecdsa-b key and certificate/key/trustbundle from ca-01",
+			serverCert:     dirPath + "ca-01/server-ecdsa-b-cert.pem",
+			serverKey:      dirPath + "ca-01/server-ecdsa-b-key.pem",
+			trustBundle:    dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
+			p7btrustBundle: dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
+			clientCert:     dirPath + "ca-01/client-ecdsa-b-cert.pem",
+			clientKey:      dirPath + "ca-01/client-ecdsa-b-key.pem",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("in loop %v", tc.loop)
 			san := setupService.ReadDecodeServerCertificate(t, tc.serverCert)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
@@ -174,34 +167,24 @@ func TestServerCertRotation(t *testing.T) {
 				t.Fatalf("%s Failed to parse %v", timeNow, tc.trustBundle)
 			}
 			certzClient := gnsiC.Certz()
-			success := setupService.CertzRotate(t, cacert, certzClient, cert, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+		    success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			expected_result = true
 			if !success {
-				t.Fatalf("%s %s:Certz rotation failed.", timeNow, tc.desc)
+				t.Fatalf("%s %s:Server certificate rotation failed.", timeNow, tc.desc)
 			}
-			t.Logf("%s %s:Certz rotation completed!", timeNow, tc.desc)
-
-			// Replace config with newly added ssl profile after successful rotate.
-			servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
-			batch := gnmi.SetBatch{}
-			for _, server := range servers {
-				gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), testProfile)
-			}
-			batch.Set(t, dut)
-			t.Logf("%s %s:replaced gNMI config with new ssl profile successfully.", timeNow, tc.desc)
-			time.Sleep(5 * time.Second) //waiting 5s for gnmi config propagation
+			t.Logf("%s %s:Server certificate rotation completed!", timeNow, tc.desc)
 			t.Run("Verification of new connection after successful server certificate rotation", func(t *testing.T) {
 				result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
 				if !result {
 					t.Fatalf("%s postTestcase service validation failed after successful rotate -got %v, want %v .", tc.desc, result, expected_result)
 				}
 				t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
-				t.Logf("PASS: %s successfully completed!", tc.desc)
 			})
 		})
+        t.Logf("PASS: %s successfully completed!", tc.desc)
 	}
 	t.Logf("Cleanup of test data.")
 	if setupService.CertCleanup(t, dirPath) != nil {
-		t.Fatalf("could not run cert cleanup command.")
+		t.Fatalf("could not run testdata cleanup command.")
 	}
 }

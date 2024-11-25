@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ var (
 	password = "certzpasswd"
 	sn       = "role001.pop55.net.example.com"
 	servers  []string
+	retries  int
 )
 
 type rpcCredentials struct {
@@ -202,88 +203,32 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	//a valid check for trust not empty
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
-	} else {
-		var prevCert *certzpb.CertificateChain
-		var bundleToReturn *certzpb.CertificateChain
-		for i := len(trust) - 1; i >= 0; i-- {
-			if i == len(trust)-1 {
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: nil}
-				prevCert = bundleToReturn
-			} else {
-				prevCert = bundleToReturn
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: prevCert}
-			}
-		}
-		return bundleToReturn
 	}
+	var prevCert *certzpb.CertificateChain
+	var bundleToReturn *certzpb.CertificateChain
+	for i := len(trust) - 1; i >= 0; i-- {
+		if i == len(trust)-1 {
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: nil}
+			prevCert = bundleToReturn
+		} else {
+			prevCert = bundleToReturn
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: prevCert}
+		}
+	}
+	return bundleToReturn
+
 }
 
-// CertzRotate function to request the client certificate rotation and returns true on successful rotation.
-func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if len(entities) == 0 {
-		t.Logf("At least one entity required for Rotate request.")
-		return false
-	}
-	uploadRequest := &certzpb.UploadRequest{Entities: entities}
-	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
-	rotateCertRequest := &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false,
-		SslProfileId:   profileID,
-		RotateRequest:  rotateRequest}
-	//rotateRequestClient, err := certzClient.Rotate(context.Background())
-	rotateRequestClient, err := certzClient.Rotate(ctx)
-	defer rotateRequestClient.CloseSend()
-	if err != nil {
-		t.Fatalf("Error creating rotate request client: %v", err)
-	}
-	err = rotateRequestClient.Send(rotateCertRequest)
-	if err != nil {
-		t.Fatalf("Error sending rotate request: %v", err)
-	}
-	rotateResponse := &certzpb.RotateCertificateResponse{}
-	for i := 0; i < 20; i++ {
-		rotateResponse, err = rotateRequestClient.Recv()
-		if err == nil {
-			break
-		}
-		t.Logf("Did not receive response ~ %vs after sending rotate request. Sleeping 10s to retry...", i*10)
-		time.Sleep(10 * time.Second)
-	}
-	if err != nil {
-		t.Logf("Error fetching rotate certificate response: %v", err)
-		return false
-	}
-	t.Logf("Received Rotate certificate response: %v", rotateResponse)
-
-	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
-	rotateCertRequest = &certzpb.RotateCertificateRequest{
-		ForceOverwrite: false,
-		SslProfileId:   profileID,
-		RotateRequest:  finalizeRequest}
-
-	err = rotateRequestClient.Send(rotateCertRequest)
-	if err != nil {
-		t.Fatalf("Error sending rotate finalize request: %v", err)
-	}
-	err = rotateRequestClient.CloseSend()
-	if err != nil {
-		t.Fatalf("Error sending rotate close send request: %v", err)
-	}
-	return true
-}
-
-// ServerCertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, ctx context.Context, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+// CertzRotate function to request the server certificate rotation and returns true on successful rotation.
+func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, ctx context.Context, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
 		return false
@@ -304,7 +249,8 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 		t.Fatalf("Error sending rotate request: %v", err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	for i := 0; i < 6; i++ {
+	retries = 6
+	for i := 0; i < retries; i++ {
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
 			break
@@ -322,13 +268,15 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	batch := gnmi.SetBatch{}
 	for _, server := range servers {
+		t.Logf("Server:%s", server)
 		gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID)
 	}
 	batch.Set(t, dut)
-	t.Logf("gNMI config is replaced with new ssl profile successfully.")
+	t.Logf("gNMI config is replaced with new ssl profile %s successfully.", profileID)
+	time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation
 	success := false
 	//Trying for 60s for the connection to succeed.
-	for i := 0; i < 6; i++ {
+	for i := 0; i < retries; i++ {
 		success = VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
 		if success {
 			break
@@ -355,7 +303,7 @@ func ServerCertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.
 		}
 		return true
 	} else {
-		t.Logf("gNSI service RPC  did not succeed ~60s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent")
+		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 		return false
 	}
 }
@@ -382,7 +330,7 @@ func CertGeneration(t *testing.T, dirPath string) error {
 	return err
 }
 
-// CertCleanup function to  clean out the CA content under test_data.
+// CertCleanup function to  clean out the certificate content under test_data.
 func CertCleanup(t *testing.T, dirPath string) error {
 	cmd := exec.Cmd{
 		Path:   "./cleanup.sh",
@@ -404,7 +352,7 @@ func CertCleanup(t *testing.T, dirPath string) error {
 	return err
 }
 
-// ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName.
+// ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName and validate.
 func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san string) {
 	sc, err := os.ReadFile(serverCertzFile)
 	if err != nil {
@@ -517,7 +465,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		t.Logf("gNMI Capability request failed with err: %v", err)
 		return false
 	}
-	t.Logf("VerifyGnmi:gNMI response: %s", response)
+	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	conn.Close()
 	return true
 }
@@ -624,22 +572,19 @@ func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expected_result bo
 	t.Logf("%s:Verifying New gNOI connection.", time.Now().String())
 	result = VerifyGnoi(t, caCert, san, serverAddr, username, password, cert)
 	if expected_result != result {
-		t.Fatalf("Failed with new gNOI Connection: got %v, want %v", result, expected_result)
+		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expected_result)
 	}
 	t.Logf("%s:Verifying New gRIBI connection.", time.Now().String())
-	result = VerifyGribi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gRIBI Connection: got %v, want %v.", result, expected_result)
+	if expected_result != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expected_result)
 	}
 	t.Logf("%s:Verifying New P4rt connection.", time.Now().String())
-	result = VerifyP4rt(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new P4rt Connection: got %v, want %v.", result, expected_result)
+	if expected_result != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expected_result)
 	}
 	t.Logf("%s:Verifying New gNMI connection.", time.Now().String())
-	result = VerifyGnmi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gNMI Connection: got %v, want %v.", result, expected_result)
+	if expected_result != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expected_result)
 	}
 	return true
 }
