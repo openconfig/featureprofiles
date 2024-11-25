@@ -1328,3 +1328,20 @@ func SupervisorSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Found lastSwitchoverReason.GetTrigger().String(): %v", lastSwitchoverReason.GetTrigger().String())
 	}
 }
+
+// Helper function to run a command on the DUT and return the output
+func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	sshClient := dut.RawAPIs().CLI(t)
+
+	if result, err := sshClient.RunCommand(ctx, cmd); err == nil {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(result.Output())
+		return result.Output()
+	} else {
+		t.Logf("%s> %s", dut.ID(), cmd)
+		t.Log(err.Error())
+		return ""
+	}
+}
