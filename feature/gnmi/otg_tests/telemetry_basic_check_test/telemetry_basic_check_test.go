@@ -770,9 +770,9 @@ func TestP4rtNodeID(t *testing.T) {
 
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
 	t.Helper()
-	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 60*time.Second)
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 30*time.Second)
 	defer inPktStream.Close()
-	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 60*time.Second)
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 30*time.Second)
 	defer outPktStream.Close()
 
 	var wg sync.WaitGroup
@@ -849,6 +849,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 	v4.Priority().Dscp().Phb().SetValue(56)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
 
 	t.Log("Running traffic on DUT interfaces: ", dp1, dp2)
 	dutInPktsBeforeTraffic, dutOutPktsBeforeTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
