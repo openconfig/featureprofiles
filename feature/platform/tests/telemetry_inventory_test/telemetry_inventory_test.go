@@ -1069,12 +1069,13 @@ func TestDefaultPowerAdminState(t *testing.T) {
 			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
 		}
 	}
-
-	if len(supervisors) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
-		t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
-		if pas == oc.Platform_ComponentPowerType_UNSET {
-			t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+	if !deviations.SkipControllerCardPowerAdmin(dut) {
+		if len(supervisors) != 0 {
+			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+			t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
+			if pas == oc.Platform_ComponentPowerType_UNSET {
+				t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())
+			}
 		}
 	}
 }
