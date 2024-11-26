@@ -41,7 +41,7 @@ var (
 	username        = "certzuser"
 	password        = "certzpasswd"
 	expected_result bool
-	timeNow         = time.Now().String()
+	timeNow         string
 )
 
 // createUser function to add an user in admin role.
@@ -68,6 +68,7 @@ func TestMain(m *testing.M) {
 func TestServerCertRotation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
+	timeNow = time.Now().String()
 	if !createUser(t, dut, username, password) {
 		t.Fatalf("%s: Failed to create certz user.", timeNow)
 	}
@@ -145,13 +146,12 @@ func TestServerCertRotation(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-            san := setupService.ReadDecodeServerCertificate(t, tc.serverCert)
+			san := setupService.ReadDecodeServerCertificate(t, tc.serverCert)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCert,
 				ServerKeyFile:  tc.serverKey})
 			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, "servercert")
-
 			trustCertChain := setupService.CreateCertChainFromTrustBundle(tc.trustBundle)
 			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, trustCertChain, "cabundle")
 			cert, err := tls.LoadX509KeyPair(tc.clientCert, tc.clientKey)
@@ -167,7 +167,7 @@ func TestServerCertRotation(t *testing.T) {
 				t.Fatalf("%s Failed to parse %s", timeNow, tc.trustBundle)
 			}
 			certzClient := gnsiC.Certz()
-		    success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s %s:Server certificate rotation failed.", timeNow, tc.desc)
 			}
@@ -181,7 +181,7 @@ func TestServerCertRotation(t *testing.T) {
 				t.Logf("%s postTestcase service validation done after server certificate rotation!", tc.desc)
 			})
 		})
-        t.Logf("PASS: %s successfully completed!", tc.desc)
+		t.Logf("PASS: %s successfully completed!", tc.desc)
 	}
 	t.Logf("Cleanup of test data.")
 	if setupService.CertCleanup(t, dirPath) != nil {
