@@ -253,11 +253,6 @@ openconfig-network-instance:
 * Generate traffic from ATE port 1
 * Validate ATE port 2 receives the innermost IPv4 traffic with correct VLAN and inner_decap_ipv6
 
-### TE-18.1.5 - Policy forwarding to encap and forward for BGP packets
-
-TODO: Specify a solution for ensuring BGP packets are matched, encapsulated
-and forwarding to a specified  destination using OC policy-forwarding terms.
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
