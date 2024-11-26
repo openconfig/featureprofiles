@@ -13,7 +13,6 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     interface_counters_from_container: true
-    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {
@@ -25,7 +24,6 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     interface_counters_from_container: true
     os_component_parent_is_supervisor_or_linecard: true
-    interface_counters_update_delayed: true
   }
 }
 platform_exceptions: {

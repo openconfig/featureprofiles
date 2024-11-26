@@ -18,6 +18,7 @@ import (
 	"math"
 	"regexp"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -768,41 +769,36 @@ func TestP4rtNodeID(t *testing.T) {
 }
 
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
-	if deviations.InterfaceCountersFromContainer(dut) {
-		inPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().State()).InUnicastPkts
-		outPkts := *gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().State()).OutUnicastPkts
-		return inPkts, outPkts
-	}
-
-	inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State())
-	outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State())
-	return inPkts, outPkts
-}
-
-func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
 	t.Helper()
 	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 40*time.Second)
 	defer inPktStream.Close()
 	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 40*time.Second)
 	defer outPktStream.Close()
 
+	var wg sync.WaitGroup
 	var inPktsV, outPktsV uint64
-	if v := inPktStream.Next(); v != nil {
-		if val, ok := v.Val(); ok {
-			inPktsV = val
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if v := inPktStream.Next(); v != nil {
+			if val, ok := v.Val(); ok {
+				inPktsV = val
+			}
 		}
-	}
+	}()
 	if v := outPktStream.Next(); v != nil {
 		if val, ok := v.Val(); ok {
 			outPktsV = val
 		}
 	}
+	wg.Wait()
 
 	if inPktsV == 0 {
-		t.Fatalf("InPkts counter did not update in time")
+		t.Fatalf("Did not receive a value for in packet counter")
 	}
 	if outPktsV == 0 {
-		t.Fatalf("OutPkts counter did not update in time")
+		t.Fatalf("Did not receive a value for out packet counter")
 	}
 
 	return inPktsV, outPktsV
@@ -889,11 +885,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
 	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
-	if deviations.InterfaceCountersUpdateDelayed(dut) {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2)
-	} else {
-		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
-	}
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
