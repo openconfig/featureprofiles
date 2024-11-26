@@ -45,26 +45,6 @@ const (
 	activateOnStandbyFixed = "activate operation on a fixed chassis"
 )
 
-// var (
-// 	activateNegativeTestCases = []struct {
-// 		version       bool
-// 		noReboot      bool
-// 		standby       bool
-// 		expectFail    bool
-// 		expectedError string
-// 	}{
-// 		//version,noReboot,standby,expectFail,expectedError
-// 		// version : flase = wrong version, true = correct version
-// 		{false, true, true, true, activateOnStandbyNotSupported},
-// 		{false, true, false, true, activateNoRebootNotSupported},
-// 		{false, false, true, true, activateOnStandbyNotSupported},
-// 		{false, false, false, true, activateImageNotAvailableError},
-// 		{true, true, true, true, activateOnStandbyNotSupported},
-// 		{true, true, false, true, activateNoRebootNotSupported},
-// 		{true, false, true, true, activateOnStandbyNotSupported},
-// 	}
-// )
-
 func testOSForceTransferDiskFull(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
@@ -269,9 +249,9 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
-		expectedError := activateTC.expectedError
+		expectedError := activateTC.modularExpectedError
 		if !tc.dualSup {
-			expectedError = activateOnStandbyFixed
+			expectedError = activateTC.fixedExpectedError
 		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
@@ -313,9 +293,9 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 			if activateTC.version == true {
 				version = tc.osVersion
 			}
-			expectedError := activateTC.expectedError
+			expectedError := activateTC.modularExpectedError
 			if !tc.dualSup {
-				expectedError = activateOnStandbyFixed
+				expectedError = activateTC.fixedExpectedError
 			}
 			t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
 				tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
@@ -376,9 +356,9 @@ func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
-		expectedError := activateTC.expectedError
+		expectedError := activateTC.modularExpectedError
 		if !tc.dualSup {
-			expectedError = activateOnStandbyFixed
+			expectedError = activateTC.fixedExpectedError
 		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
@@ -438,9 +418,9 @@ func testOSNormalInstallNotSupportedToSupportedImage(t *testing.T, tc testCase) 
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
-		expectedError := activateTC.expectedError
+		expectedError := activateTC.modularExpectedError
 		if !tc.dualSup {
-			expectedError = activateOnStandbyFixed
+			expectedError = activateTC.fixedExpectedError
 		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)

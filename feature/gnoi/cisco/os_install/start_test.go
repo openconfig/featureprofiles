@@ -101,13 +101,13 @@ func TestOSInstall(t *testing.T) {
 		tc1.negActivateTestCases = []activateNegativeTestCases{
 			//version,noReboot,standby,expectFail,expectedError
 			// version : flase = wrong version, true = correct version
-			{false, true, true, true, activateOnStandbyNotSupported},
-			{false, true, false, true, activateNoRebootNotSupported},
-			{false, false, true, true, activateOnStandbyNotSupported},
-			{false, false, false, true, activateImageNotAvailableError},
-			{true, true, true, true, activateOnStandbyNotSupported},
-			{true, true, false, true, activateNoRebootNotSupported},
-			{true, false, true, true, activateOnStandbyNotSupported},
+			{false, true, true, true, activateOnStandbyNotSupported, activateOnStandbyNotSupported},
+			{false, true, false, true, activateNoRebootNotSupported, activateNoRebootNotSupported},
+			{false, false, true, true, activateOnStandbyNotSupported, activateOnStandbyNotSupported},
+			{false, false, false, true, activateImageNotAvailableError, activateImageNotAvailableError},
+			{true, true, true, true, activateOnStandbyNotSupported, activateOnStandbyNotSupported},
+			{true, true, false, true, activateNoRebootNotSupported, activateNoRebootNotSupported},
+			{true, false, true, true, activateOnStandbyNotSupported, activateOnStandbyNotSupported},
 		}
 		tc1.fetchStandbySupervisorStatus(t)
 		tc1.fetchOsFileDetails(t, *osFileForceDownloadSupported)

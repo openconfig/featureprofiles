@@ -27,11 +27,12 @@ import (
 )
 
 type activateNegativeTestCases struct {
-	version       bool
-	noReboot      bool
-	standby       bool
-	expectFail    bool
-	expectedError string
+	version              bool
+	noReboot             bool
+	standby              bool
+	expectFail           bool
+	fixedExpectedError   string
+	modularExpectedError string
 }
 type testCase struct {
 	dut *ondatra.DUTDevice
