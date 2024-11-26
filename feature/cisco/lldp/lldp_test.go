@@ -1,31 +1,33 @@
 package basetest
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestLldpCfgs(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	path := gnmi.OC().Lldp().Enabled()
 
-	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
-		path := gnmi.OC().Lldp().Enabled()
+	t.Run(fmt.Sprintf("%v:Update//%v", dut.Name(), path.Config()), func(t *testing.T) {
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), true)
 
 	})
-	t.Run("Replace//lldp/config/enabled", func(t *testing.T) {
-		path := gnmi.OC().Lldp().Enabled()
+	t.Run(fmt.Sprintf("%v:Replace//%v", dut.Name(), path.Config()), func(t *testing.T) {
 		defer observer.RecordYgot(t, "REPLACE", path)
 		gnmi.Replace(t, dut, path.Config(), true)
 
 	})
-	t.Run("Delete//lldp/config/enabled", func(t *testing.T) {
-		path := gnmi.OC().Lldp().Enabled()
+	t.Run(fmt.Sprintf("%v:Delete//%v", dut.Name(), path.Config()), func(t *testing.T) {
 		defer observer.RecordYgot(t, "DELETE", path)
 		gnmi.Delete(t, dut, path.Config())
 
@@ -44,21 +46,64 @@ func TestLldpState(t *testing.T) {
 	}
 	iut := inputObj.Device(dut).GetInterface("$ports.port1")
 	peerintf := inputObj.Device(peer).GetInterface("$ports.port1")
-	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//lldp/config/enabled", peer.Name()), func(t *testing.T) {
 		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, peer, path.Config(), true)
 
 	})
 
-	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//lldp/config/enabled", dut.Name()), func(t *testing.T) {
 		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), true)
 
 	})
+
+	majVer, _, _, _, err := util.GetVersion(t, dut)
+	if err != nil {
+		t.Fatal("wrong version format")
+	}
+	majorVersion, err := strconv.Atoi(majVer)
+	if err != nil {
+		t.Error("major version is not a number")
+		majorVersion = 25
+	}
+	// From 25.1.1 lldp behaviour changed, TZ link for reference
+	// https://techzone.cisco.com/t5/IOS-XR-LLDP-PI-Eng/interface-level-lldp-is-enabled-even-when-lldp-is-disabled/td-p/13879301#M1775
+	if majorVersion >= 25 {
+		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+			path := gnmi.OC().Lldp().Interface(iut.Name())
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), &oc.Lldp_Interface{
+				Name:    ygot.String(iut.Name()),
+				Enabled: ygot.Bool(true),
+			})
+		})
+		t.Run(fmt.Sprintf("%v:Update//lldp/interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
+			path := gnmi.OC().Lldp().Interface(peerintf.Name())
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, peer, path.Config(), &oc.Lldp_Interface{
+				Name:    ygot.String(peerintf.Name()),
+				Enabled: ygot.Bool(true),
+			})
+		})
+		t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", dut.Name()), func(t *testing.T) {
+			path := gnmi.OC().Interface(iut.Name()).Enabled()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), true)
+
+		})
+		t.Run(fmt.Sprintf("%v:Update//interfaces/interface/config/enable", peer.Name()), func(t *testing.T) {
+			path := gnmi.OC().Interface(peerintf.Name()).Enabled()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, peer, path.Config(), true)
+
+		})
+	}
+
 	time.Sleep(30 * time.Second)
-	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/config/enabled", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -68,14 +113,14 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//lldp/config/enabled", dut.Name()), func(t *testing.T) {
 		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), false)
 
 	})
 	time.Sleep(30 * time.Second)
-	t.Run("Subscribe//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/config/enabled", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Enabled()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -85,7 +130,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Update//lldp/config/enabled", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Update//lldp/config/enabled", dut.Name()), func(t *testing.T) {
 		path := gnmi.OC().Lldp().Enabled()
 		defer observer.RecordYgot(t, "UPDATE", path)
 		gnmi.Update(t, dut, path.Config(), true)
@@ -95,7 +140,7 @@ func TestLldpState(t *testing.T) {
 	peerid := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State()) + "#" + peerintf.Name()
 	peername := gnmi.Get(t, peer, gnmi.OC().System().Hostname().State())
 	time.Sleep(30 * time.Second)
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-name", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-name", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemName()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -105,7 +150,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id-type", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -115,7 +160,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).PortId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -125,7 +170,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id-type", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/port-id-type", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).PortIdType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -135,7 +180,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-description", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/system-description", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).SystemDescription()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
@@ -145,7 +190,7 @@ func TestLldpState(t *testing.T) {
 		}
 
 	})
-	t.Run("Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id", func(t *testing.T) {
+	t.Run(fmt.Sprintf("%v:Subscribe//lldp/interfaces/interface/neighbors/neighbor/state/chassis-id", dut.Name()), func(t *testing.T) {
 		state := gnmi.OC().Lldp().Interface(iut.Name()).Neighbor(peerid).ChassisId()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())

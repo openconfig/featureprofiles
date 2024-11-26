@@ -89,7 +89,7 @@ duts {
   
   ports {
     id: "port1"
-    name: "FourHundredGigE/0/0/0/0"  # Change this to the actual port name.
+    name: "FourHundredGigE0/0/0/0"  # Change this to the actual port name.
     pmd: PMD_400GBASE_ZR
     speed: S_400GB  
   }

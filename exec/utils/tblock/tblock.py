@@ -12,18 +12,24 @@ import time
 import errno
 import os
 
-
 def _find_owner(filename):
+    with open(filename, 'r') as fp:
+        tokens = fp.read().split(',')
+        if(len(tokens) == 2): # remove check once old locks are released
+            return tokens[0]
     return getpwuid(os.stat(filename).st_uid).pw_name
 
 def _get_reason(filename):
     with open(filename, 'r') as fp:
-        return fp.read()
+        tokens = fp.read().split(',')
+        if(len(tokens) == 2): # remove check once old locks are released
+            return tokens[1]
+        return tokens[0]
 
-def _lockfile(filename, reason=""):
+def _lockfile(filename, user, reason=""):
     try:
         fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        if reason: os.write(fp, str.encode(reason))
+        os.write(fp, str.encode(f"{user},{reason}"))
         os.close(fp)
     except OSError as e:
         if e.errno == errno.EEXIST:
@@ -91,18 +97,18 @@ def _get_testbed(id, json_output=False):
     else: print(f"Testbed '{id}' not found.")
     exit(1)
 
-def _trylock_helper(tb, reason=""):
+def _trylock_helper(tb, user, reason=""):
     if tb.get('sim', False):
         return True
-    if not os.getlogin() in allowed_users:
+    if not getpass.getuser() in allowed_users:
         return False
     lock_file = os.path.join(ldir, tb['hw'])
-    if _lockfile(lock_file, reason):
+    if _lockfile(lock_file, user, reason):
         return True
     return False
 
 def _release_helper(tb):
-    if not tb.get('sim', False) and os.getlogin() in allowed_users:
+    if not tb.get('sim', False) and getpass.getuser() in allowed_users:
         lock_file = os.path.join(ldir, tb['hw'])
         if os.path.exists(lock_file):
             os.remove(lock_file)
@@ -112,11 +118,11 @@ def _release_all(tbs):
         _release_helper(tb)
     logger.info(f"Testbeds {[tb['hw'] for tb in tbs]} released by user {getpass.getuser()}")
 
-def _trylock(testbeds, wait=False, reason=""):
+def _trylock(testbeds, user, wait=False, reason=""):
     while True:
         locked = []
         for tb in testbeds:        
-            if _trylock_helper(tb, reason):
+            if _trylock_helper(tb, user, reason):
                 locked.append(tb)
             else:
                 for tb in locked:
@@ -176,6 +182,7 @@ if __name__ == "__main__":
     lock_parser.add_argument('id', help='testbed id')
     lock_parser.add_argument('-w', '--wait',  default=False, action='store_true', help='wait until testbed is available')
     lock_parser.add_argument('-r', '--reason',  default="", help='reason for locking')
+    lock_parser.add_argument('-u', '--user',  default=getpass.getuser(), help='requestor username')
 
     release_parser = command_subparser.add_parser('release', help='release a testbed')
     release_parser.add_argument('id', help='testbed id')
@@ -218,7 +225,7 @@ if args.command == 'show':
     _show(available_only=args.available, json_output=args.json)
 elif args.command == 'lock':
     tbs = _get_actual_testbeds(args.id, json_output=args.json)
-    if _trylock(tbs, args.wait, args.reason):
+    if _trylock(tbs, args.user, args.wait, args.reason):
         if args.json:
             print(json.dumps({'status': 'ok', 'testbeds': _get_testbeds(args.id)}))
         else:
