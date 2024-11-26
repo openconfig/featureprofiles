@@ -884,15 +884,14 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
+	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
-	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
-		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateInPkts)
+	if got, want := dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts; got < want {
+		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", got, want)
 	}
-	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
-		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
+	if got, want := dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateInPkts; got < want {
+		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", got, want)
 	}
 }
 
