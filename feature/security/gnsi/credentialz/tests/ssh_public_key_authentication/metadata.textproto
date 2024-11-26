@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "3e6294aa-8f9d-4c8d-9041-4a2f4cd84c36"
+plan_id: "Credentialz-4"
+description: "SSH Public Key Authentication"
+testbed: TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    ssh_server_counters_unsupported: true
+  }
+}
