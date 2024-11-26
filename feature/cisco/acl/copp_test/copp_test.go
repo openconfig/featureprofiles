@@ -2,11 +2,11 @@ package copp_test
 
 import (
 	"context"
-	"encoding/json"
 	"reflect"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
@@ -18,11 +18,6 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func prettyPrint(i interface{}) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
 }
 
 func prettyPrintObj(obj interface{}) string {
@@ -216,7 +211,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -224,7 +219,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -248,7 +243,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -261,7 +256,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
-					t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -269,7 +264,7 @@ func TestDefinedSetsIpv4PrefixSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).Config(), tt.object)
-				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv4PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -353,7 +348,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -361,7 +356,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -386,7 +381,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					// "time"
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -399,7 +394,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
-					t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -407,7 +402,7 @@ func TestDefinedSetsIpv6PrefixSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).Config(), tt.object)
-				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().Ipv6PrefixSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -486,7 +481,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -494,7 +489,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -518,7 +513,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -531,7 +526,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
-					t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -539,7 +534,7 @@ func TestDefinedSetsPortSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).Config(), tt.object)
-				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().DefinedSets().PortSet(tt.key).State())
 					t.Logf("Get Response: %s", spew.Sdump(resp))
@@ -627,7 +622,7 @@ func TestAclSetIpv4(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -635,7 +630,7 @@ func TestAclSetIpv4(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -663,7 +658,7 @@ func TestAclSetIpv4(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -677,7 +672,7 @@ func TestAclSetIpv4(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -685,7 +680,7 @@ func TestAclSetIpv4(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -778,7 +773,7 @@ func TestAclSetIpv6(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -786,7 +781,7 @@ func TestAclSetIpv6(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.object.GetName(), tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -813,7 +808,7 @@ func TestAclSetIpv6(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -827,7 +822,7 @@ func TestAclSetIpv6(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -835,7 +830,7 @@ func TestAclSetIpv6(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -921,7 +916,7 @@ func TestAclSetTransport(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -929,7 +924,7 @@ func TestAclSetTransport(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -956,7 +951,7 @@ func TestAclSetTransport(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -970,7 +965,7 @@ func TestAclSetTransport(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -978,7 +973,7 @@ func TestAclSetTransport(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					resp := gnmi.Get(t, dut, gnmi.OC().Acl().AclSet(tt.key, tt.object.GetType()).State())
 					for id := range resp.AclEntry {
@@ -1097,7 +1092,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -1105,7 +1100,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Replace(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Replace Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Replace Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					want := tt.object
 					for seqId := range aclSetIpv4.AclEntry {
@@ -1142,7 +1137,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 					})
 					t.Logf("Get response: %v", rawResponse.GetNotification()[0].GetUpdate()[0].GetVal())
 					if err != nil {
-						t.Errorf("Compatibility get request failed: %s", err)
+						t.Fatalf("Compatibility get request failed: %s", err)
 					}
 				})
 			}
@@ -1158,7 +1153,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 			if !tt.expectedPass {
 				if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 					res := gnmi.Update(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-					t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+					t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				}); errMsg != nil {
 					t.Logf("Received error %s", *errMsg)
 				} else {
@@ -1166,7 +1161,7 @@ func TestControlPlaneTrafficIngressACLSets(t *testing.T) {
 				}
 			} else {
 				res := gnmi.Update(t, dut, gnmi.OC().System().ControlPlaneTraffic().Ingress().AclSet(tt.key, tt.object.GetType()).Config(), tt.object)
-				t.Logf("Update Result: %s", prettyPrint(res.RawResponse))
+				t.Logf("Update Result: %s", util.PrettyPrintJson(res.RawResponse))
 				t.Run("Get", func(t *testing.T) {
 					want := tt.object
 					for seqId := range aclSetIpv4.AclEntry {
