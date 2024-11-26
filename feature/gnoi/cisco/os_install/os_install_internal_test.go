@@ -12,12 +12,9 @@ import (
 )
 
 var (
-	// osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
-	// osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
-	// osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
-	osFile                          = flag.String("osFile", "/auto/b4ws/xr/builds/nightly/XR-DEV_NIGHTLY_24_11_15C/img-8000/8000-x64.iso", "Path to the OS image under test for the install operation")
-	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "/auto/b4ws/xr/builds/nightly/XR-DEV_NIGHTLY_24_11_13C/img-8000/8000-x64.iso", "Path to the OS image (Force Download Supported) for the install operation")
-	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "/auto/b4ws/xr/builds/nightly/XR-DEV_NIGHTLY_24_11_10C/img-8000/8000-x64.iso", "Path to the OS image ((Force Download not Supported)) for the install operation")
+	osFile                          = flag.String("osFile", "", "Path to the OS image under test for the install operation")
+	osFileForceDownloadSupported    = flag.String("osFileForceDownloadSupported", "", "Path to the OS image (Force Download Supported) for the install operation")
+	osFileForceDownloadNotSupported = flag.String("osFileForceDownloadNotSupported", "", "Path to the OS image ((Force Download not Supported)) for the install operation")
 	timeout                         = flag.Duration("timeout", time.Minute*30, "Time to wait for reboot to complete")
 )
 
@@ -43,6 +40,9 @@ const (
 
 	// activate_error:{type:NOT_SUPPORTED_ON_BACKUP detail:"activate operation on standby supervisor is not supported"
 	activateOnStandbyNotSupported = "activate operation on standby supervisor is not supported"
+
+	// UNSPECIFIED: activate operation on a fixed chassis
+	activateOnStandbyFixed = "activate operation on a fixed chassis"
 )
 
 // var (
@@ -269,8 +269,12 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
+		expectedError := activateTC.expectedError
+		if !tc.dualSup {
+			expectedError = activateOnStandbyFixed
+		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, activateTC.expectedError)
+			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
 		})
 	}
 	// verifyGnoiStats(t, tc)
@@ -309,8 +313,12 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 			if activateTC.version == true {
 				version = tc.osVersion
 			}
+			expectedError := activateTC.expectedError
+			if !tc.dualSup {
+				expectedError = activateOnStandbyFixed
+			}
 			t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-				tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, activateTC.expectedError)
+				tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
 			})
 		}
 	}
@@ -368,8 +376,12 @@ func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
+		expectedError := activateTC.expectedError
+		if !tc.dualSup {
+			expectedError = activateOnStandbyFixed
+		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, activateTC.expectedError)
+			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
 		})
 	}
 
@@ -426,8 +438,12 @@ func testOSNormalInstallNotSupportedToSupportedImage(t *testing.T, tc testCase) 
 		if activateTC.version == true {
 			version = tc.osVersion
 		}
+		expectedError := activateTC.expectedError
+		if !tc.dualSup {
+			expectedError = activateOnStandbyFixed
+		}
 		t.Run(fmt.Sprintf("TestActivate Negative case Version=%s NoReboot=%t Standby=%t", version, activateTC.noReboot, activateTC.standby), func(t *testing.T) {
-			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, activateTC.expectedError)
+			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
 		})
 	}
 	t.Run("Activating using correct version - expected success", func(t *testing.T) {

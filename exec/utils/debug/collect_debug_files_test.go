@@ -177,47 +177,6 @@ func TestCollectDebugFiles(t *testing.T) {
 	t.Log("Completed TestCollectDebugFiles")
 }
 
-// TestCollectDebugFiles collects debug files from the targets
-func CollectDebugFiles(t *testing.T, outDir, timestamp string, coreCheck, collectTech, runCmds, splitPerDut bool, showTechs, cmds string) {
-	t.Log("Starting TestCollectDebugFiles")
-	targets := NewTargets(t)
-	if outDir == "" {
-		t.Fatalf("outDir was not set")
-	}
-
-	if showTechs != "" {
-		showTechList = strings.Split(showTechs, ",")
-	}
-
-	if cmds != "" {
-		pipedCmdList = append(pipedCmdList, strings.Split(cmds, ",")...)
-	}
-
-	commands := []string{}
-
-	if coreCheck {
-		commands = append(commands,
-			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
-		)
-	}
-
-	var wg sync.WaitGroup
-	for dutID, target := range targets.targetInfo {
-		fileNamePrefix := ""
-		if !splitPerDut && len(targets.targetInfo) > 1 {
-			fileNamePrefix = dutID + "_"
-		}
-		wg.Add(1)
-		go func(dutID string, target targetInfo) {
-			defer wg.Done()
-			t.Logf("Executing commands for DUT: %s", dutID)
-			executeCommandsForDUT(t, dutID, target, fileNamePrefix, commands)
-		}(dutID, target)
-	}
-	wg.Wait()
-	t.Log("Completed TestCollectDebugFiles")
-}
-
 // executeCommandsForDUT executes commands for a specific DUT
 func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNamePrefix string, commands []string) {
 	t.Logf("Starting executeCommandsForDUT for DUT: %s", dutID)
