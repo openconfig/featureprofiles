@@ -770,9 +770,9 @@ func TestP4rtNodeID(t *testing.T) {
 
 func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
 	t.Helper()
-	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 40*time.Second)
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 60*time.Second)
 	defer inPktStream.Close()
-	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 40*time.Second)
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 60*time.Second)
 	defer outPktStream.Close()
 
 	var wg sync.WaitGroup
