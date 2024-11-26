@@ -3,6 +3,7 @@ package basetest
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -176,20 +177,25 @@ func testSysGrpcConfig(t *testing.T) {
 
 	})
 
-	// set non-default name for grpc server
-	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "UPDATE", path)
-		gnmi.Update(t, dut, path.Config(), "TEST")
-	})
-	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("TEST").Name()
-		defer observer.RecordYgot(t, "REPLACE", path)
-		gnmi.Replace(t, dut, path.Config(), "TEST")
-	})
 }
 
+// func testSysNonDefaultGrpcConfig(t *testing.T) {
+// 	dut := ondatra.DUT(t, "dut")
+// 	// set non-default name for grpc server
+// 	t.Run("Update //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "UPDATE", path)
+// 		gnmi.Update(t, dut, path.Config(), "TEST")
+// 	})
+// 	t.Run("Replace //system/grpc-servers/grpc-server/config/name", func(t *testing.T) {
+// 		path := gnmi.OC().System().GrpcServer("TEST").Name()
+// 		defer observer.RecordYgot(t, "REPLACE", path)
+// 		gnmi.Replace(t, dut, path.Config(), "TEST")
+// 	})
+// }
+
 func testGrpcListenAddress(t *testing.T) {
+	activeRp := 0
 	re := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	bindingFile := flag.Lookup("binding").Value.String()
 	in, err := os.ReadFile(bindingFile)
@@ -210,7 +216,14 @@ func testGrpcListenAddress(t *testing.T) {
 	} else if val != "" {
 		listenAdd = strings.TrimSuffix(val, "/16")
 	} else {
-		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, "sh ip int brief mgmtEth 0/RP0/CPU0/0")
+
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
+		t.Logf(resp)
+
+		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
+			activeRp = 1
+		}
+		mgmtIP := config.CMDViaGNMI(context.Background(), t, dut, fmt.Sprintf("sh ip int brief mgmtEth 0/RP%v/CPU0/0", activeRp))
 		listenAdd = re.FindString(mgmtIP)
 	}
 
@@ -257,11 +270,16 @@ func testGrpcListenAddress(t *testing.T) {
 			}
 		})
 		t.Run("Subscribe listen address on System State container level", func(t *testing.T) {
-			t.Skip() // FIXME: why is key TEST instead of DEFAULT?
 			path := gnmi.OC().System()
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			systemGet := gnmi.Get(t, dut, path.State())
-			got := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()[0] // TODO - ETA May 2024
+
+			listenAddresses := systemGet.GrpcServer["DEFAULT"].GetListenAddresses()
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -289,7 +307,13 @@ func testGrpcListenAddress(t *testing.T) {
 			path := gnmi.OC().System().GrpcServer("DEFAULT")
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
 			systemGet := gnmi.Get(t, dut, path.State())
-			got := systemGet.GetListenAddresses()[0]
+
+			listenAddresses := systemGet.GetListenAddresses()
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -326,7 +350,11 @@ func testGrpcListenAddress(t *testing.T) {
 		t.Run("Subscribe listen address on listen-address state leaf level", func(t *testing.T) {
 			path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
 			defer observer.RecordYgot(t, "SUBSCRIBE", path)
-			got := gnmi.Get(t, dut, path.State())[0]
+			listenAddresses := gnmi.Get(t, dut, path.State())
+			if len(listenAddresses) == 0 {
+				t.Fatalf("No listen addresses found for DEFAULT GrpcServer")
+			}
+			got := listenAddresses[0]
 			if got != serveranyobj.ListenAddresses[0] {
 				t.Logf("Listen Address not returned as expected got : %v , want %v", got, tc.want)
 			}
@@ -382,6 +410,19 @@ func testGrpcListenAddress(t *testing.T) {
 		}
 		//Reload router
 		gnoiReboot(t, dut)
+		resp := config.CMDViaGNMI(context.Background(), t, dut, "show redundancy")
+		t.Logf(resp)
+		activeRpAfterReboot := 0
+		if strings.Contains(resp, "Redundancy information for node 0/RP1/CPU0") {
+			activeRpAfterReboot = 1
+		}
+		t.Logf("RP %v came up as Active after reboot", activeRpAfterReboot)
+		if activeRp != activeRpAfterReboot {
+			// this is required if RP mgmt address is used, ( instead of virtual ip )
+			t.Logf("switch RP to make RP %v as Active after reboot", activeRp)
+			resp := config.CMDViaGNMI(context.Background(), t, dut, "redundancy switchover force")
+			t.Logf(resp)
+		}
 		gotafter := gnmi.Get(t, dut, path.State())[0]
 		if gotafter != []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}[0] {
 			t.Logf("Listen Address not returned as expected got : %v , want %v", gotafter, listenAdd)
