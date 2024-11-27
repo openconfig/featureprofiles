@@ -838,13 +838,10 @@ def CloneRepo(self, repo_url, repo_branch, target_dir, repo_rev=None, repo_pr=No
         if not os.path.exists(target_dir):
             logger.print(f'Cloning repo {repo_url} to {target_dir} branch {repo_branch}...')
             repo = git.Repo.clone_from(url=repo_url,
-                                    to_path=target_dir,
-                                    branch=repo_branch)
-            if repo_rev or repo_pr:
-              _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)  
+                                    to_path=target_dir)
         else:
             repo = git.Repo(target_dir)
-            _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
+        _git_checkout_repo(repo, repo_branch, repo_rev, repo_pr)
 
     except git.GitCommandError as e:
         err = e.stderr or ''
