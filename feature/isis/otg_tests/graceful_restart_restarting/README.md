@@ -252,8 +252,8 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
   gnoi:
-    gNOI.system.SwitchControlProcessor:
-    gNOI.system.KillProcess:
+    system.SwitchControlProcessor:
+    system.KillProcess:
 ```
 
 ## Required DUT platform
