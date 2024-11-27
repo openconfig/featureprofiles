@@ -245,6 +245,7 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 paths:
   ## Config Paths ##
   /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/helper-only:
   /network-instances/network-instance/protocols/protocol/isis/global/graceful-restart/config/restart-time:
   
 rpcs:
@@ -252,8 +253,7 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
   gnoi:
-    system.SwitchControlProcessor:
-    system.KillProcess:
+    gNOI.system:
 ```
 
 ## Required DUT platform
