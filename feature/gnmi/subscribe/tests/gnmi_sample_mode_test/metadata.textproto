@@ -4,7 +4,7 @@
 uuid: "abcc6890-c3e1-4b0e-984e-749c85b54e5a"
 plan_id: "gNMI-1.27"
 description: "gNMI Sample Mode Test"
-testbed: TESTBED_DUT
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
@@ -16,5 +16,13 @@ platform_exceptions: {
 	default_network_instance: "default"
     isis_instance_enabled_required: true
     isis_interface_afi_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
   }
 }

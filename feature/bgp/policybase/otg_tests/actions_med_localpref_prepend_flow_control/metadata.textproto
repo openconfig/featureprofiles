@@ -5,7 +5,7 @@ uuid:  "b4b2249f-9226-4555-9946-dc22cf6adae2"
 plan_id:  "RT-1.32"
 description:  "BGP policy actions - MED, LocPref, prepend, flow-control"
 testbed:  TESTBED_DUT_ATE_2LINKS
-tags: [TAGS_AGGREGATION, TAGS_DATACENTER_EDGE]
+tags: [TAGS_DATACENTER_EDGE]
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -13,6 +13,9 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     prepolicy_received_routes: true
+    default_route_policy_unsupported: true
+    skip_checking_attribute_index: true
+    skip_setting_statement_for_policy: true
   }
 }
 platform_exceptions: {

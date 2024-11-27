@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+/// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package community_test
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -30,11 +32,13 @@ import (
 )
 
 const (
-	prefixV4Len  = 30
-	prefixV6Len  = 126
-	trafficPps   = 100
-	totalPackets = 1200
-	bgpName      = "BGP"
+	prefixV4Len          = 30
+	prefixV6Len          = 126
+	trafficPps           = 100
+	totalPackets         = 1200
+	bgpName              = "BGP"
+	RPLPermitAll         = "PERMIT-ALL"
+	comunitySetNameRegex = "any_my_regex_comms"
 )
 
 var prefixesV4 = [][]string{
@@ -65,24 +69,47 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 	}
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
-
-	cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-	for _, commMatch := range communityMatch {
-		if commMatch != "" {
-			cs = append(cs, oc.UnionString(commMatch))
+	if !(deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex) {
+		communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
+		cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
+		for _, commMatch := range communityMatch {
+			if commMatch != "" {
+				cs = append(cs, oc.UnionString(commMatch))
+			}
 		}
+		communitySet.SetCommunityMember(cs)
+		communitySet.SetMatchSetOptions(matchSetOptions)
 	}
-	communitySet.SetCommunityMember(cs)
-	communitySet.SetMatchSetOptions(matchSetOptions)
+	var communitySetCLIConfig string
+	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1'\n end-set", communitySetName)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
 
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		communitySet := stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		communitySet.SetCommunitySet(communitySetName)
+		communitySet.SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchSetOptions))
 	}
 
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == comunitySetNameRegex {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	} else {
+		pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
+		st, err := pdAllow.AppendNewStatement("id-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		st.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	}
 
 	dni := deviations.DefaultNetworkInstance(dut)
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
@@ -198,32 +225,7 @@ type testCase struct {
 }
 
 func TestCommunitySet(t *testing.T) {
-	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
-	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
-
-	var communityMembers = [][][]int{
-		{
-			{100, 1}, {200, 2}, {300, 3},
-		},
-		{
-			{100, 1}, {101, 1}, {200, 2},
-		},
-		{
-			{107, 1}, {108, 1}, {109, 1},
-		},
-		{
-			{400, 1}, {500, 1}, {600, 1},
-		},
-	}
-
-	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
-	bs.PushAndStart(t)
-
-	t.Log("Verify DUT BGP sessions up")
-	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
-	t.Log("Verify OTG BGP sessions up")
-	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
+	bs := testSetup(t)
 	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
 	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
 
@@ -251,7 +253,7 @@ func TestCommunitySet(t *testing.T) {
 		},
 		{
 			desc:             "Testing with any_my_regex_comms",
-			communitySetName: "any_my_regex_comms",
+			communitySetName: comunitySetNameRegex,
 			communityMatch:   [3]string{"10[0-9]:1"},
 			matchSetOptions:  oc.BgpPolicy_MatchSetOptionsType_ANY,
 			testResults:      [4]bool{true, true, true, false},
@@ -259,6 +261,10 @@ func TestCommunitySet(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+
+			if tc.desc == "Testing with no_3_comms" && deviations.CommunityInvertAnyUnsupported(bs.DUT) {
+				t.Skip("Skipping community match invert testcase")
+			}
 
 			configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
 			sleepTime := time.Duration(totalPackets/trafficPps) + 2
@@ -269,6 +275,9 @@ func TestCommunitySet(t *testing.T) {
 				configureFlow(t, bs, prefixesV6[index], "ipv6", index)
 			}
 			bs.PushAndStartATE(t)
+
+			// Verify BGP session after its reset with OTG push config & start
+			cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
 
 			t.Logf("Starting traffic for IPv4 and v6")
 			bs.ATE.OTG().StartTraffic(t)
@@ -283,5 +292,81 @@ func TestCommunitySet(t *testing.T) {
 				verifyTraffic(t, bs.ATE, "ipv6", tc.testResults[index], index)
 			}
 		})
+	}
+}
+
+func testSetup(t *testing.T) *cfgplugins.BGPSession {
+	t.Helper()
+
+	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount2, nil)
+	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST, oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port2"}, true, true)
+
+	var communityMembers = [][][]int{
+		{
+			{100, 1}, {200, 2}, {300, 3},
+		},
+		{
+			{100, 1}, {101, 1}, {200, 2},
+		},
+		{
+			{107, 1}, {108, 1}, {109, 1},
+		},
+		{
+			{400, 1}, {500, 1}, {600, 1},
+		},
+	}
+
+	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
+	bs.PushAndStart(t)
+
+	t.Log("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+	t.Log("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
+
+	return bs
+}
+
+func TestCommunitySetUpdate(t *testing.T) {
+	bs := testSetup(t)
+	ipv4 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv4Addresses().Items()[0].Address()
+	ipv6 := bs.ATETop.Devices().Items()[1].Ethernets().Items()[0].Ipv6Addresses().Items()[0].Address()
+
+	commMatch := [3]string{"100:1"}
+	configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, "update_comm_set", commMatch, oc.BgpPolicy_MatchSetOptionsType_INVERT)
+	validateCommunitySetUpdateTraffic(t, bs)
+
+	// change community match set
+	commMatch = [3]string{"200:2"}
+	configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, "update_comm_set", commMatch, oc.BgpPolicy_MatchSetOptionsType_INVERT)
+	validateCommunitySetUpdateTraffic(t, bs)
+}
+
+func validateCommunitySetUpdateTraffic(t *testing.T, bs *cfgplugins.BGPSession) {
+	t.Helper()
+
+	sleepTime := time.Duration(totalPackets/trafficPps) + 2
+	bs.ATETop.Flows().Clear()
+	for index, prefixPairV4 := range prefixesV4 {
+		configureFlow(t, bs, prefixPairV4, "ipv4", index)
+		configureFlow(t, bs, prefixesV6[index], "ipv6", index)
+	}
+	bs.PushAndStartATE(t)
+
+	// Verify BGP session after its reset with OTG push config & start
+	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
+
+	t.Logf("Starting traffic for IPv4 and v6")
+	bs.ATE.OTG().StartTraffic(t)
+	time.Sleep(sleepTime * time.Second)
+	bs.ATE.OTG().StopTraffic(t)
+	otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
+
+	testResults := [4]bool{false, false, true, true}
+	for index, prefixPairV4 := range prefixesV4 {
+		t.Logf("Validating traffic test for IPv4 prefixes: [%s, %s]. Expected Result: [%t]", prefixPairV4[0], prefixPairV4[1], testResults[index])
+		verifyTraffic(t, bs.ATE, "ipv4", testResults[index], index)
+		t.Logf("Validating traffic test for IPv6 prefixes: [%s, %s]. Expected Result: [%t]", prefixesV6[index][0], prefixesV6[index][1], testResults[index])
+		verifyTraffic(t, bs.ATE, "ipv6", testResults[index], index)
 	}
 }
