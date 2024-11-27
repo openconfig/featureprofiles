@@ -251,6 +251,7 @@ func TestBGPLinkBandwidth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Logf("Description: %s", tc.name)
 			tc.applyPolicy(t, dut, tc.policyName)
+			time.Sleep(20 * time.Second)
 			tc.validate(t, dut, tc.policyName)
 			tc.validateRouteCommunityV4(t, td, tc.routeCommunity)
 			tc.validateRouteCommunityV6(t, td, tc.routeCommunity)
@@ -408,21 +409,25 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v4Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
+				for _, ec := range bgpPrefix.ExtendedCommunity {
+					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+				}
 				switch community {
 				case "none":
 					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("community and ext communituy are not empty it should be none")
+						t.Errorf("ERROR: community and ext communituy are not empty it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
-							t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+							t.Errorf("ERROR: community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						}
 					}
 				default:
 					if len(bgpPrefix.ExtendedCommunity) == 0 {
-						t.Errorf("ERROR extended community is empty, expected %v", community)
+						t.Errorf("ERROR: extended community is empty, expected %v", community)
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
@@ -430,15 +435,15 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+							t.Errorf("ERROR: AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
-							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
@@ -477,21 +482,25 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v6Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
+				for _, ec := range bgpPrefix.ExtendedCommunity {
+					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
+					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+				}
 				switch community {
 				case "none":
 					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("community and ext community are not empty it should be none")
+						t.Errorf("ERROR: community and ext community are not empty it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
-							t.Errorf("community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
+							t.Errorf("ERROR: community is not 100:100 got AS number:%d AS value:%d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						}
 					}
 				default:
 					if len(bgpPrefix.ExtendedCommunity) == 0 {
-						t.Errorf("ERROR extended community is empty, expected %v", community)
+						t.Errorf("ERROR: extended community is empty, expected %v", community)
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
@@ -499,15 +508,15 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
-							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
+							t.Errorf("ERROR: AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
 						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
-							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
-							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+							t.Errorf("ERROR: lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV6(t, td, v6Prefix)
@@ -883,6 +892,7 @@ func createFlowV6(t *testing.T, td testData, fc flowConfig) {
 	td.ate.OTG().PushConfig(t, td.top)
 	td.ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, td.ate.OTG(), td.top, "IPv6")
+	time.Sleep(3 * time.Second)
 }
 
 func checkTraffic(t *testing.T, td testData, flowName string) {
@@ -917,11 +927,20 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	pg4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	pg4.SetPeerGroupName(cfgplugins.BGPPeerGroup1)
+	pg6 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1)
+	pg6.SetPeerGroupName(cfgplugins.BGPPeerGroup1)
+
 	nV41 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
 	nV41.SetPeerAs(ateAS)
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(dutAS)
+	nV41.SetPeerGroup(cfgplugins.BGPPeerGroup1)
+	nV42.SetPeerGroup(cfgplugins.BGPPeerGroup1)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
 		nV42.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
@@ -931,6 +950,8 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(dutAS)
+	nV61.SetPeerGroup(cfgplugins.BGPPeerGroup1)
+	nV62.SetPeerGroup(cfgplugins.BGPPeerGroup1)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
 		nV62.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
@@ -1063,6 +1084,7 @@ func baseSetupConfigAndVerification(t *testing.T, td testData) {
 	td.verifyDUTBGPEstablished(t)
 	td.verifyOTGBGPEstablished(t)
 	configureImportRoutingPolicyAllowAll(t, td.dut)
+	time.Sleep(5 * time.Second)
 	validateImportRoutingPolicyAllowAll(t, td.dut, td.ate)
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev1", dstIP: v41TrafficStart})
 	createFlow(t, td, flowConfig{src: atePort2, dstNw: "v4-bgpNet-dev2", dstIP: v42TrafficStart})
