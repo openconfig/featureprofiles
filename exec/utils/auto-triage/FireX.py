@@ -11,6 +11,17 @@ techzone = TechZone()
 github = Github()
 
 class FireX:
+    def get_group(self, file):
+        tree = ET.parse(file)
+        root = tree.getroot()
+
+        testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
+        run_file = testsuite_root + "/run.json"
+
+        with open(run_file) as metadata:
+            meta = json.load(metadata)
+            return meta["group"]
+
     def get_run_information(self, file, version, workspace):
         tree = ET.parse(file)
         root = tree.getroot()

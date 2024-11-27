@@ -21,14 +21,16 @@ vectorstore = Vectorstore()
 ddts = DDTS()
 
 def main():
+    group = firex.get_group(args.xunit_file)
+
+    # Only Consider Subscribed Groups
+    if production.is_subscribed(group) == False:
+        print(f"{run_info['group']} is not a subscribed group. Please subscribe via the CIT Dashboard")
+        return
+
     # Get Metdata from run.json
     run_info = firex.get_run_information(args.xunit_file, args.version, args.workspace)
 
-    # Only Consider Subscribed Groups
-    if production.is_subscribed(run_info["group"]) == False:
-        print(f"{run_info['group']} is not a subscribed group. Please subscribe via the CIT Dashboard")
-        return
-    
     # Add FireX Metadata
     if args.dev == "false":
         production.insert_metadata(run_info)
