@@ -12,7 +12,7 @@
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
-/feature/aft/          @sudhinj
+/feature/aft/          @sudhinj @yunjie-lu
 /feature/bgp/          @dplore
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
