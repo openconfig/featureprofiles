@@ -1,4 +1,4 @@
-# RT-2.xx: IS-IS Graceful Restart Restarting
+# RT-2.17: IS-IS Graceful Restart Restarting
 
 ## Summary
 
@@ -221,7 +221,7 @@
         }
         ```
 
-### RT-2.xx.1 CONTROLLER-CARD switchover [TODO: ]
+### RT-2.17.1 CONTROLLER-CARD switchover [TODO: ]
 #### 
 
 *   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
@@ -230,7 +230,7 @@
 *   Verify traffic is recived on ATE port-2 during restart time ( no losses )
 *   Wait 60 sec.
 
-### RT-2.xx.1 DUT ISIS restart [TODO: ]
+### RT-2.17.2 DUT ISIS restart [TODO: ]
 *   Generate traffic form ATE port-1 to "target IPv4" and "target IPv6" networks (ATE port-2)
 *   Verify traffic is recived on ATE port-2
 *   Using gNOI KillProcess w/ SIGNAL_KILL call restart process serving ISIS (implementation dependednt). This try to simulate ISIS crash due to unexpected error.
