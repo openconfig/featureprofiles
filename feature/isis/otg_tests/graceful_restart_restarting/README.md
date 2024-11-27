@@ -253,7 +253,7 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
   gnoi:
-    gNOI.system:
+    system:
 ```
 
 ## Required DUT platform
