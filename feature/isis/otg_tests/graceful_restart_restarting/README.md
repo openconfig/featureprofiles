@@ -254,7 +254,7 @@ rpcs:
     gNMI.Set:
   gnoi:
     system.System.SwitchControlProcessor:
-    aystem.System.KillProcess:
+    system.System.KillProcess:
 ```
 
 ## Required DUT platform
