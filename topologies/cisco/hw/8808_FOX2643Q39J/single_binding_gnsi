@@ -53,7 +53,7 @@
 
 options {
   username: "cisco"
-  password: "cisco"
+  password: "cisco123"
   insecure: false 
   skip_verify: false
   trust_bundle_file: "$TRUST_BUNDLE_FILE"
@@ -79,8 +79,8 @@ duts {
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
-    insecure: true 
-    skip_verify: true
+    insecure: false 
+    skip_verify: false
     mutual_tls: true
     username: "cisco"
     password: "cisco123"
