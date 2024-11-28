@@ -91,7 +91,12 @@ func main() {
 	if err := os.MkdirAll(config.DownloadPath, 0750); err != nil {
 		fmt.Println(fmt.Errorf("cannot create download path directory: %v", config.DownloadPath))
 	}
-	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, "v"+profile.Ocpaths.GetVersion())
+
+	ocReleaseTag := ""
+	if profile.Ocpaths.GetVersion() != "" {
+		ocReleaseTag = "v" + profile.Ocpaths.GetVersion()
+	}
+	publicPath, err := ocpaths.ClonePublicRepo(config.DownloadPath, ocReleaseTag)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

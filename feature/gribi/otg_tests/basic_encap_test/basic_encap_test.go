@@ -578,8 +578,6 @@ func getPbrRules(dut *ondatra.DUTDevice, clusterFacing bool) []pbrRule {
 		pbrRules = append(pbrRules, encapRules...)
 	}
 
-	pbrRules = append(pbrRules, splitDefaultClassRules...)
-
 	if deviations.PfRequireMatchDefaultRule(dut) {
 		pbrRules = append(pbrRules, splitDefaultClassRules...)
 	} else {
@@ -803,6 +801,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// configure base PBF policies and network-instances
 	configureBaseconfig(t, dut)
 
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p5.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 	// apply PBF to src interface.
 	applyForwardingPolicy(t, dut, p1.Name())
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {

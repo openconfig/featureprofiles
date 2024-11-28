@@ -114,16 +114,16 @@ var (
 	extCommunitySet = map[string]string{
 		"linkbw_1M":  "link-bandwidth:23456:1M",
 		"linkbw_2G":  "link-bandwidth:23456:2G",
-		"linkbw_any": "^link-bandwidth:.*:.$",
+		"linkbw_any": "^link-bandwidth:.*:.*$",
 	}
 
 	extCommunitySetCisco = map[string]string{
 		"linkbw_1M":  "23456:1000000",
 		"linkbw_2G":  "23456:2000000000",
-		"linkbw_any": "^.*:.$",
+		"linkbw_any": "^.*:.*$",
 	}
 
-	CommunitySet = map[string]string{
+	communitySet = map[string]string{
 		"regex_match_comm100": "^100:.*$",
 	}
 )
@@ -182,35 +182,65 @@ func TestBGPLinkBandwidth(t *testing.T) {
 	}
 	baseSetupConfigAndVerification(t, td)
 	configureExtCommunityRoutingPolicy(t, dut)
-	if deviations.BgpExplicitExtendedCommunityEnable(dut) {
-		enableExtCommunityCLIConfig(t, dut)
-	}
+	enableExtCommunityCLIConfig(t, dut)
+
 	testCases := []testCase{
 		{
-			name:                     "Policy set not_match_100_set_linkbw_1M",
+			name:                     "ImportPolicy set not_match_100_set_linkbw_1M",
 			policyName:               "not_match_100_set_linkbw_1M",
-			applyPolicy:              applyPolicyDut,
-			validate:                 validatPolicyDut,
-			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "100:100", prefixSet3Comm: "link-bandwidth:23456:0"},
+			applyPolicy:              applyImportPolicyDut,
+			validate:                 validateImportPolicyDut,
+			routeCommunity:           extCommunity{prefixSet1Comm: "link-bandwidth:23456:1000000", prefixSet2Comm: "100:100", prefixSet3Comm: "link-bandwidth:23456:1000000"},
 			localPerf:                false,
 			validateRouteCommunityV4: validateRouteCommunityV4,
 			validateRouteCommunityV6: validateRouteCommunityV6,
 		},
 		{
-			name:                     "Policy set match_100_set_linkbw_2G",
+			name:                     "ExportPolicy set not_match_100_set_linkbw_1M",
+			policyName:               "not_match_100_set_linkbw_1M",
+			applyPolicy:              applyExportPolicyDut,
+			validate:                 validateExportPolicyDut,
+			routeCommunity:           extCommunity{prefixSet1Comm: "link-bandwidth:23456:1000000", prefixSet2Comm: "100:100", prefixSet3Comm: "link-bandwidth:23456:1000000"},
+			localPerf:                false,
+			validateRouteCommunityV4: validateRouteCommunityV4,
+			validateRouteCommunityV6: validateRouteCommunityV6,
+		},
+		{
+			name:                     "ImportPolicy set match_100_set_linkbw_2G",
 			policyName:               "match_100_set_linkbw_2G",
-			applyPolicy:              applyPolicyDut,
-			validate:                 validatPolicyDut,
-			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "link-bandwidth:23456:2000000000", prefixSet3Comm: "link-bandwidth:23456:0"},
+			applyPolicy:              applyImportPolicyDut,
+			validate:                 validateImportPolicyDut,
+			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "link-bandwidth:23456:2000000000", prefixSet3Comm: "link-bandwidth:23456:1000"},
+			localPerf:                false,
+			validateRouteCommunityV4: validateRouteCommunityV4,
+			validateRouteCommunityV6: validateRouteCommunityV6,
+		},
+
+		{
+			name:                     "ExportPolicy set match_100_set_linkbw_2G",
+			policyName:               "match_100_set_linkbw_2G",
+			applyPolicy:              applyExportPolicyDut,
+			validate:                 validateExportPolicyDut,
+			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "link-bandwidth:23456:2000000000", prefixSet3Comm: "link-bandwidth:23456:1000"},
 			localPerf:                false,
 			validateRouteCommunityV4: validateRouteCommunityV4,
 			validateRouteCommunityV6: validateRouteCommunityV6,
 		},
 		{
-			name:                     "Policy set del_linkbw",
+			name:                     "ImportPolicy set del_linkbw",
 			policyName:               "del_linkbw",
-			applyPolicy:              applyPolicyDut,
-			validate:                 validatPolicyDut,
+			applyPolicy:              applyImportPolicyDut,
+			validate:                 validateImportPolicyDut,
+			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "100:100", prefixSet3Comm: "none"},
+			localPerf:                false,
+			validateRouteCommunityV4: validateRouteCommunityV4,
+			validateRouteCommunityV6: validateRouteCommunityV6,
+		},
+		{
+			name:                     "ExportPolicy set del_linkbw",
+			policyName:               "del_linkbw",
+			applyPolicy:              applyExportPolicyDut,
+			validate:                 validateExportPolicyDut,
 			routeCommunity:           extCommunity{prefixSet1Comm: "none", prefixSet2Comm: "100:100", prefixSet3Comm: "none"},
 			localPerf:                false,
 			validateRouteCommunityV4: validateRouteCommunityV4,
@@ -229,25 +259,41 @@ func TestBGPLinkBandwidth(t *testing.T) {
 }
 
 func enableExtCommunityCLIConfig(t *testing.T, dut *ondatra.DUTDevice) {
-	var extCommunityEnableCLIConfig string
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, cfgplugins.BGPPeerGroup1)
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'BgpExplicitExtendedCommunityEnable'", dut.Vendor())
+	if deviations.BgpExplicitExtendedCommunityEnable(dut) {
+		var extCommunityEnableCLIConfig string
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, cfgplugins.BGPPeerGroup1)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'BgpExplicitExtendedCommunityEnable'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
 	}
-	helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
 }
 
-func applyPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
-	// Apply ipv4 policy to bgp neighbour.
+func removeImportAndExportPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	dni := deviations.DefaultNetworkInstance(dut)
+
+	bd := &gnmi.SetBatch{}
+	path1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path2 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path3 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	path4 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	gnmi.BatchDelete(bd, path1.Config())
+	gnmi.BatchDelete(bd, path2.Config())
+	gnmi.BatchDelete(bd, path3.Config())
+	gnmi.BatchDelete(bd, path4.Config())
+	bd.Set(t, dut)
+}
+
+func applyImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).
-		Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	removeImportAndExportPolicy(t, dut)
 
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).
-		GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	// Apply ipv4 policy to bgp neighbour.
+	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort1.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetImportPolicy([]string{policyName})
 	gnmi.Replace(t, dut, path.Config(), policy)
 
@@ -269,13 +315,70 @@ func applyPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
 }
 
-func validatPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	root := &oc.Root{}
+	dni := deviations.DefaultNetworkInstance(dut)
+	removeImportAndExportPolicy(t, dut)
+
+	// Apply ipv4 policy to bgp neighbour.
+	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policy.SetExportPolicy([]string{policyName})
+	gnmi.Replace(t, dut, path.Config(), policy)
+
+	// Apply ipv6 policy to bgp neighbour.
+	path = gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
+	policy = root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateApplyPolicy()
+	policy.SetExportPolicy([]string{policyName})
+	gnmi.Replace(t, dut, path.Config(), policy)
+
+	ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	bgpNbrV4 := bgp.GetOrCreateNeighbor(atePort1.IPv4)
+	bgpNbrV4.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
+	bgpNbrV6 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
+	bgpNbrV6.PeerGroup = ygot.String(cfgplugins.BGPPeerGroup1)
+	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), niProto)
+}
+
+func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	policy := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy](t, dut, path.State())
-	importPolicies := policy.GetImportPolicy()
-	if len(importPolicies) != 1 {
-		t.Fatalf("ImportPolicy Ipv4 got= %v, want %v", importPolicies, []string{policyName})
+	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
+		value, ok := v.Val()
+		if !ok {
+			return false
+		}
+		importPolicies := value.GetImportPolicy()
+		if len(importPolicies) != 1 || importPolicies[0] != policyName {
+			return false
+		}
+		return true
+	}).Await(t)
+	if !ok {
+		t.Fatalf("invalid import policy")
+	}
+}
+
+func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName string) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
+		value, ok := v.Val()
+		if !ok {
+			return false
+		}
+		exportPolicies := value.GetExportPolicy()
+		if len(exportPolicies) != 1 || exportPolicies[0] != policyName {
+			return false
+		}
+		return true
+	}).Await(t)
+	if !ok {
+		t.Fatalf("invalid export policy")
 	}
 }
 
@@ -325,20 +428,19 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 					for _, ec := range bgpPrefix.ExtendedCommunity {
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
-						Bandwidth := listCommunity[2]
+						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
 							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
-						if Bandwidth == "0" {
-							if ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 0 {
-								t.Errorf("ERROR lb  Bandwidth want 0, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
-						} else {
-							if ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-								t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
+						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
+							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
+							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
+							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
+
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV4(t, td, v4Prefix)
 						}
@@ -361,7 +463,6 @@ func validateRouteCommunityV6(t *testing.T, td testData, ec extCommunity) {
 }
 
 func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Prefix string) {
-
 	// This function to verify received route communities on ATE ports.
 	_, ok := gnmi.WatchAll(t,
 		td.ate.OTG(),
@@ -396,19 +497,17 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 					for _, ec := range bgpPrefix.ExtendedCommunity {
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
-						Bandwidth := listCommunity[2]
+						bandwidth := listCommunity[2]
 						if lbSubType.GetGlobal_2ByteAs() != 23456 && lbSubType.GetGlobal_2ByteAs() != 32002 && lbSubType.GetGlobal_2ByteAs() != 32001 {
 							t.Errorf("ERROR AS number should be 23456 or %d got %d", ateAS, lbSubType.GetGlobal_2ByteAs())
 							return
 						}
-						if Bandwidth == "0" {
-							if ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 0 {
-								t.Errorf("ERROR lb  Bandwidth want 0, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
-						} else {
-							if ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
-								t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
-							}
+						if bandwidth == "1000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) == 0 {
+							t.Errorf("ERROR lb  Bandwidth want 1000, got:=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+						} else if bandwidth == "1000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 125000 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 1000000 {
+							t.Errorf("ERROR lb Bandwidth want :1M, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
+						} else if bandwidth == "2000000000" && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2.5e+08 && ygot.BinaryToFloat32(lbSubType.GetBandwidth()) != 2000000000 {
+							t.Errorf("ERROR lb Bandwidth want :2G, got=%v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 						}
 						if !deviations.BgpExtendedCommunityIndexUnsupported(td.dut) {
 							verifyExtCommunityIndexV6(t, td, v6Prefix)
@@ -419,6 +518,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 		}
 	}
 }
+
 func configureImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
@@ -509,26 +609,10 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	var communitySetCLIConfig string
 	var extCommunitySetCLIConfig string
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		extCommunitySet = extCommunitySetCisco
-	default:
-		t.Logf("extCommunitySet = %v", extCommunitySet)
-	}
-	if !deviations.BgpExtendedCommunitySetUnsupported(dut) {
-		for name, community := range extCommunitySet {
-			rp := root.GetOrCreateRoutingPolicy()
-			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
-			stmt, err := pdef.NewExtCommunitySet(name)
-			if err != nil {
-				t.Fatalf("NewExtCommunitySet failed: %v", err)
-			}
-			stmt.SetExtCommunityMember([]string{community})
-			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-		}
-	} else {
+	if deviations.BgpExtendedCommunitySetUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
+			extCommunitySet = extCommunitySetCisco
 			for name, community := range extCommunitySet {
 				if name == "linkbw_any" && deviations.CommunityMemberRegexUnsupported(dut) {
 					communitySetCLIConfig = fmt.Sprintf("community-set %v \n dfa-regex '%v' \n end-set", name, community)
@@ -541,10 +625,31 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Fatalf("Unsupported vendor %s for native command support for deviation 'BgpExtendedCommunitySetUnsupported'", dut.Vendor())
 		}
+	} else {
+		for name, community := range extCommunitySet {
+			rp := root.GetOrCreateRoutingPolicy()
+			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
+			stmt, err := pdef.NewExtCommunitySet(name)
+			if err != nil {
+				t.Fatalf("NewExtCommunitySet failed: %v", err)
+			}
+			stmt.SetExtCommunityMember([]string{community})
+			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+		}
 	}
 
-	if !(deviations.CommunityMemberRegexUnsupported(dut)) {
-		for name, community := range CommunitySet {
+	if deviations.CommunityMemberRegexUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			for name, community := range communitySet {
+				communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v' \n end-set", name, community)
+				helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+			}
+		default:
+			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
+		}
+	} else {
+		for name, community := range communitySet {
 			rp := root.GetOrCreateRoutingPolicy()
 			pdef := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
 			stmt, err := pdef.NewCommunitySet(name)
@@ -556,30 +661,19 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			stmt.SetCommunityMember(cs)
 			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 		}
-	} else {
-		switch dut.Vendor() {
-		case ondatra.CISCO:
-			for name, community := range CommunitySet {
-				communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v' \n end-set", name, community)
-				helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
-			}
-		default:
-			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
-		}
 	}
 
 	// Configure routing Policy not_match_100_set_linkbw_1M.
 	rpNotMatch := root.GetOrCreateRoutingPolicy()
 	pdef2 := rpNotMatch.GetOrCreatePolicyDefinition("not_match_100_set_linkbw_1M")
-	pdef2Stmt1, err := pdef2.AppendNewStatement("1-megabit-match")
+	pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_rm_lbw")
 	if err != nil {
-		t.Fatalf("AppendNewStatement 1-megabit-match failed: %v", err)
+		t.Fatalf("AppendNewStatement regex_match_comm100_rm_lbw failed: %v", err)
 	}
-
 	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		ref := pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
-		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_any"})
+		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
@@ -608,25 +702,51 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	if !deviations.SkipSettingStatementForPolicy(dut) {
 		pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
 	}
-	pdef2Stmt2, err := pdef2.AppendNewStatement("accept_all_routes")
+
+	pdef2Stmt2, err := pdef2.AppendNewStatement("regex_match_comm100_add_lbw")
+	if err != nil {
+		t.Fatalf("AppendNewStatement regex_match_comm100_add_lbw failed: %v", err)
+	}
+	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
+		ref := pdef2Stmt2.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
+		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
+		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
+	}
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions()
+			ref1.SetCommunitySet("regex_match_comm100_deviation1")
+		}
+	} else {
+		ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		ref1.SetCommunitySet("regex_match_comm100")
+		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
+	}
+	if !deviations.SkipSettingStatementForPolicy(dut) {
+		pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	}
+
+	pdef2Stmt3, err := pdef2.AppendNewStatement("accept_all_routes")
 	if err != nil {
 		t.Fatalf("AppendNewStatement accept_all_routes failed: %v", err)
 	}
-	pdef2Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	pdef2Stmt3.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
-		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpNotMatch)
-	} else {
+	if deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			var communityCLIConfig string
-			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", CommunitySet["regex_match_comm100"])
+			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", communitySet["regex_match_comm100"])
 			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community is-empty then \n pass \n elseif community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
 			helpers.GnmiCLIConfig(t, dut, communityCLIConfig)
 			helpers.GnmiCLIConfig(t, dut, policySetCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpSetExtCommunitySetRefsUnsupported'", dut.Vendor())
 		}
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpNotMatch)
 	}
 
 	// Configure routing policy match_100_set_linkbw_2G.
@@ -661,7 +781,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			ref1.SetCommunitySet("regex_match_comm100_deviation2")
 		}
 	} else {
-		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetMatchCommunitySet()
+		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 		ref1.SetCommunitySet("regex_match_comm100")
 		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 	}
@@ -673,18 +793,18 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement accept_all_routes failed: %v", err)
 	}
 	pdef3Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
-		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpMatch)
-	} else {
+	if deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match any \n end-set", "regex_match_any_comm100", CommunitySet["regex_match_comm100"])
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match any \n end-set", "regex_match_any_comm100", communitySet["regex_match_comm100"])
 			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 			communitySetCLIConfig = fmt.Sprintf("route-policy %v \n #statement-1 2-gigabit-match \n if community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n end-policy", "match_100_set_linkbw_2G", "regex_match_any_comm100", "linkbw_2G")
 			helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpSetExtCommunitySetRefsUnsupported' and 'BGPConditionsMatchCommunitySetUnsupported' and 'SkipSettingStatementForPolicy'", dut.Vendor())
 		}
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpMatch)
 	}
 
 	// Configure routing policy del_linkbw.
@@ -708,9 +828,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement accept_all_routes failed: %v", err)
 	}
 	pdef4Stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-	if !deviations.BgpDeleteLinkBandwidthUnsupported(dut) {
-		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDelLinkbw)
-	} else {
+	if deviations.BgpDeleteLinkBandwidthUnsupported(dut) {
 		var delLinkbwCLIConfig string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
@@ -719,7 +837,11 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpDeleteLinkBandwidthUnsupported'", dut.Vendor())
 		}
 		helpers.GnmiCLIConfig(t, dut, delLinkbwCLIConfig)
+	} else {
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDelLinkbw)
 	}
+
+	fptest.LogQuery(t, "", gnmi.OC().RoutingPolicy().Config(), root)
 }
 
 func createFlow(t *testing.T, td testData, fc flowConfig) {
@@ -801,7 +923,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(dutAS)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
-		nV42.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_BOTH})
+		nV42.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
@@ -810,7 +932,7 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(dutAS)
 	if !deviations.SkipBgpSendCommunityType(td.dut) {
-		nV62.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_BOTH})
+		nV62.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 	}
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
@@ -849,12 +971,12 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	netv43.Addresses().Add().SetAddress(advertisedIPv43.address).SetPrefix(advertisedIPv43.prefix)
 	extcommv4 := netv43.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype()
 	extcommv4.SetGlobal2ByteAs(23456)
-	extcommv4.SetBandwidth(0)
+	extcommv4.SetBandwidth(1000)
 	netv63 := bgp6Peer1.V6Routes().Add().SetName("v6-bgpNet-dev3")
 	netv63.Addresses().Add().SetAddress(advertisedIPv63.address).SetPrefix(advertisedIPv63.prefix)
 	extcommv6 := netv63.ExtendedCommunities().Add().NonTransitive2OctetAsType().LinkBandwidthSubtype()
 	extcommv6.SetGlobal2ByteAs(23456)
-	extcommv6.SetBandwidth(0)
+	extcommv6.SetBandwidth(1000)
 
 	// Configure iBGP on OTG port2.
 	ipv42 := td.otgP2.Ethernets().Items()[0].Ipv4Addresses().Items()[0]

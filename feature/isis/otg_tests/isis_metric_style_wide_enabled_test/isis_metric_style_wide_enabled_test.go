@@ -105,6 +105,8 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Interface level configs.
 	isisIntfLevel := intf.GetOrCreateLevel(2)
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
+	isisIntfLevel.SetEnabled(true)
+	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
 	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
@@ -191,6 +193,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
+	time.Sleep(time.Minute * 2)
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
@@ -198,6 +201,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 		intfName += ".0"
 	}
 	t.Run("ISIS telemetry", func(t *testing.T) {
+		time.Sleep(time.Minute * 2)
 
 		// Checking adjacency
 		ateSysID, err := ts.AwaitAdjacency()
