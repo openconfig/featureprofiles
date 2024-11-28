@@ -1603,10 +1603,11 @@ def TeardownIxiaController(self, test_log_directory_path, reserved_testbed):
         # sim has no access to /auto/
         if reserved_testbed.get('sim', False):
             docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
-            docker_file = docker_file_on_remote
-
-        cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file_on_remote} down'
+        else:
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
         remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
+        os.remove(docker_file)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))
