@@ -1,7 +1,9 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-description: "gRIBI static route on lemmings"
+uuid: "12335133-aed1-463d-b9cd-76dbf8ef88cc"
+plan_id: "RT"
+description: "GRIBI Static Route On Lemmings Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {

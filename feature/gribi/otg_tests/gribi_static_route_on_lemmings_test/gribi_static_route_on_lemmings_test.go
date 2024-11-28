@@ -68,6 +68,7 @@ func TestGRIBI(t *testing.T) {
 	configureOTG(t, dut)
 	configureGribiRoute(t, dut)
 
+	// TODO: Don't have a support to validate the gRIBI route in AFT for Lemmings, implementation request should be raised.
 	// gnmi.Get(t, dut, gnmi.OC().NetworkInstance(networkInstance).Afts().Ipv4Entry(ipv4OuterDst111+"/"+mask).State())
 
 	aft := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().State())
