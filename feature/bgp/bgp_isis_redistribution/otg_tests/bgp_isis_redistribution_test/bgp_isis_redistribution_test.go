@@ -771,11 +771,11 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", "routePolicyStatement", err)
 	}
-	//Create prefix-set
+	// Create prefix-set
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
 	prefixSet.GetOrCreatePrefix(prefixSetAddress, maskLenExact)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetName).Config(), prefixSet)
-	//Create community-set
+	// Create community-set
 	communitySet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(communitySetName)
 	communitySet.SetCommunityMember([]oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{oc.UnionString(fmt.Sprintf("%d:%d", commAS, commValue))})
 	communitySet.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
@@ -786,12 +786,12 @@ func configureBGPTablePolicyWithSetTag(t *testing.T, prefixSetName, prefixSetAdd
 	stmt1.GetOrCreateActions().GetOrCreateSetTag().GetOrCreateInline().SetTag([]oc.RoutingPolicy_PolicyDefinition_Statement_Actions_SetTag_Inline_Tag_Union{oc.UnionUint32(routeTagVal)})
 	stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
-	//Create tag-set with above route tag value
+	// Create tag-set with above route tag value
 	tagSet := rp.GetOrCreateDefinedSets().GetOrCreateTagSet("RouteTagForRedistribution")
 	tagSet.SetName("RouteTagForRedistribution")
 	tagSet.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(routeTagVal)})
 
-	//Route-policy to match tag and accept
+	// Route-policy to match tag and accept
 	pdef2 := rp.GetOrCreatePolicyDefinition("MatchTagRedistributionPolicy")
 	stmt2, err := pdef2.AppendNewStatement("matchTag")
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
