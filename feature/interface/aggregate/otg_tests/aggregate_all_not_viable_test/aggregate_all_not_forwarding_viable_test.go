@@ -714,8 +714,8 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 	if deviations.ISISLevelEnabled(dut) {
-                isisLevel2.Enabled = ygot.Bool(true)
-        }
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
@@ -1203,7 +1203,7 @@ func trafficRXWeights(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, f
 		if aggName == aggregateAggName {
 			inFrames = inFrames - flowInFrames
 		}
-		rxs = append(rxs, inOctets)
+		rxs = append(rxs, inFrames)
 	}
 	var total uint64
 	for _, rx := range rxs {
