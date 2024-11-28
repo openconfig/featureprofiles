@@ -4,7 +4,7 @@
 
 ## Summary
 
-This test verify that using gNMI setReqyest(Replace) we can insert statement in the middle of pre-existing policy, then remove any statement form policy, the re add this statement.
+This test verify that using a sequence of gNMI setRequest(Replace) RPC's we can insert a policy statement in the middle of pre-existing policy, then remove a statement from a policy, and then add the previously removed statement back to the policy.
 Even if statement is not first and not last one.
 
 This test verify correctness of gNMI setReques REPLACE operation for routing policy.
