@@ -1607,7 +1607,6 @@ def TeardownIxiaController(self, test_log_directory_path, reserved_testbed):
 
         cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
         remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
-        os.remove(docker_file)
 
 @register_testbed_file_generator('b4')
 @app.task(bind=True, returns=('testbed', 'tb_data', 'testbed_path'))
