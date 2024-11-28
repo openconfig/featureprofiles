@@ -1279,7 +1279,7 @@ def CollectDebugFiles(self, ws, internal_fp_repo_dir, reserved_testbed, out_dir,
         return core_files
 
 # noinspection PyPep8Naming
-@app.task(bind=True)
+@app.task(bind=True, soft_time_limit=1*10*60, time_limit=1*10*60)
 def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
     if os.path.exists(reserved_testbed['testbed_info_file']):
         return
@@ -1287,7 +1287,7 @@ def CollectTestbedInfo(self, ws, internal_fp_repo_dir, reserved_testbed):
     logger.print("Collecting testbed info...")
     testbed_info_cmd = f'{GO_BIN} test -v ' \
             f'./exec/utils/testbed ' \
-            f'-timeout 10m ' \
+            f'-timeout 5m ' \
             f'-args ' \
             f'-collect_dut_info=false ' \
             f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
