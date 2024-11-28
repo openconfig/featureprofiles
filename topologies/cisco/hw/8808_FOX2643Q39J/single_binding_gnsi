@@ -79,11 +79,11 @@ duts {
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
-    insecure: false 
-    skip_verify: false
+    insecure: true 
+    skip_verify: true
     mutual_tls: true
     username: "cisco"
-    password: "cisco"
+    password: "cisco123"
   }
 
   # Options specific to gNMI.  Remove if not needed.
