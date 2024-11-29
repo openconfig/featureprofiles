@@ -255,9 +255,17 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		time.Sleep(30 * time.Second)
+	} else {
+		time.Sleep(15 * time.Second)
+	}
 	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		time.Sleep(30 * time.Second)
+	} else {
+		time.Sleep(15 * time.Second)
+	}
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
 	otgTxPkts := flowMetrics.GetOutPkts()
