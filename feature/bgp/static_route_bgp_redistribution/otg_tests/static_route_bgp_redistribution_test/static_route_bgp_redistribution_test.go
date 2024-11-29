@@ -570,7 +570,8 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 	}
 
 	if !deviations.TableConnectionsUnsupported(dut) {
-		if true {
+		if deviations.TcSubscriptionUnsupported(dut) {
+			// wait for routes to propagate to otg
 			time.Sleep(20 * time.Second)
 			return
 		}
