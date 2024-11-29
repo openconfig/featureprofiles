@@ -1233,3 +1233,8 @@ func BgpExtendedNextHopEncodingLeafUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
 }
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}

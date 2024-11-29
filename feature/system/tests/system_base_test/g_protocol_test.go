@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
@@ -58,7 +59,14 @@ func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
-	if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}); err != nil {
+	if _, err := c.Get(context.Background(), &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
+		},
+		Type:     gpb.GetRequest_STATE,
+		Encoding: gpb.Encoding_JSON_IETF,
+	}); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
@@ -105,7 +113,20 @@ func TestP4RTClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.P4RT, 9559)
 	c := p4rtpb.NewP4RuntimeClient(conn)
-	if _, err := c.Capabilities(context.Background(), &p4rtpb.CapabilitiesRequest{}); err != nil {
-		t.Fatalf("p4rt.Capabilites failed: %v", err)
+	if deviations.P4RTCapabilitiesUnsupported(dut) {
+		if _, err := c.Read(context.Background(), &p4rtpb.ReadRequest{
+			DeviceId: 1,
+			Entities: []*p4rtpb.Entity{
+				{
+					Entity: &p4rtpb.Entity_TableEntry{},
+				},
+			},
+		}); err != nil {
+			t.Fatalf("p4rt.Read failed: %v", err)
+		}
+	} else {
+		if _, err := c.Capabilities(context.Background(), &p4rtpb.CapabilitiesRequest{}); err != nil {
+			t.Fatalf("p4rt.Capabilites failed: %v", err)
+		}
 	}
 }
