@@ -653,6 +653,14 @@ message Metadata {
     // Device does not support bgp afi safi wildcard.
     // Cisco: b/379863985 
     bool bgp_afi_safi_wildcard_not_supported = 235;
+    // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
+    bool tc_default_import_policy_unsupported = 236;
+    // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
+    bool tc_metric_propagation_unsupported = 237;
+    // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
+    bool tc_attribute_propagation_unsupported = 238;
+    // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
+    bool tc_subscription_unsupported = 239;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
