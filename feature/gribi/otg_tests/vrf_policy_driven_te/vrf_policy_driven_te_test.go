@@ -720,6 +720,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
