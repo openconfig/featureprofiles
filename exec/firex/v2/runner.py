@@ -1665,9 +1665,9 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
-@returns('test_report_text_file', 'report_text')
+@returns('test_report_text_file')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
     c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
-    test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
-    return test_report_text_file, report_text  
+    test_report_text_file = self.enqueue_child_and_get_results(c)  
+    return test_report_text_file  
