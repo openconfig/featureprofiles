@@ -15,7 +15,6 @@ platform_exceptions:  {
     pf_require_match_default_rule: true
     pf_require_sequential_order_pbr_rules: true   
     ttl_copy_unsupported:  true
-    isis_single_topology_required: true
   }
 }
 platform_exceptions:  {

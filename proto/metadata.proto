@@ -76,8 +76,6 @@ message Metadata {
     bool isis_multi_topology_unsupported = 6;
     // Disable isis level1 under interface mode on the device if value is true.
     bool isis_interface_level1_disable_required = 7;
-    // Set isis af ipv6 single topology on the device if value is true.
-    bool isis_single_topology_required = 8;
     // Don't set isis instance enable flag on the device if value is true.
     bool isis_instance_enabled_required = 10;
     // Set and validate isis interface address family enable on the device if
@@ -654,7 +652,7 @@ message Metadata {
     // Cisco: b/379863985 
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
+    reserved 84, 8, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
 
   message PlatformExceptions {
