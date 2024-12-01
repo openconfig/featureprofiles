@@ -501,9 +501,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
+                        collect_tb_info=True,
                         test_requires_tgen=False,
                         test_requires_otg=False,
-                        collect_tb_info=False,
                         install_image=True,
                         force_install=False,
                         force_reboot=False,
@@ -520,7 +520,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
-    if not isinstance(testbeds, list): testbeds = [testbeds]
+    if not isinstance(testbeds, list): testbeds = testbeds.split(',')
 
     while len(testbeds) > 0:
         reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
