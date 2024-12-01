@@ -458,6 +458,14 @@ pipeline {
                                 }
                             }
 
+                            if(params['Email CC']) {
+                                firex_cmd_parts.add("--cc ${params['Email CC']}")
+                            }
+
+                            if(params['Run Reason']) {
+                                firex_cmd_parts.add("--reason '${params['Run Reason']}'")
+                            }
+
                             firex_cmd = firex_cmd_parts.join(' ')
                             firex_cmd += ' ' + params['Extra FireX Args']
                             sh "${firex_cmd}"   
