@@ -18,7 +18,7 @@ def testsuite_filters_params = [
 
 def test_revision_params = ['Test branch', 'Test PR', 'Test commit hash']
 
-def test_override_params = ['Test repository', 'Test args'] + test_revision_params
+def test_override_params = ['Test repository', 'Test args', 'Test env'] + test_revision_params
 
 def forbidden_params_per_chain = [
     Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
@@ -67,6 +67,7 @@ pipeline {
         persistentString(name: 'Test PR', defaultValue: '', description: 'Run the test from the specified PR', trim: true)
         persistentString(name: 'Test commit hash', defaultValue: '', description: 'Run the test from the specified commit hash', trim: true)
         persistentText(name: 'Test args', defaultValue: '', description: 'List of test args, one per line')
+        persistentText(name: 'Test env', defaultValue: '', description: 'List of test env, one per line in "key: value" format')
 
         separator(sectionHeader: "Test Execution")
         persistentBoolean(name: 'Verbose Mode', defaultValue: true, description: 'Run test in verbose mode (i.e., -v 5 -alsologtostderr)')
@@ -306,6 +307,13 @@ pipeline {
                         }
                     }
 
+                    if(params['Test env']) {
+                        def env_list = getTestEnv()
+                        if(env_list.size() > 0) {
+                            testgen_cmd_parts.add("--env '${env_list.join(',')}'")
+                        }
+                    }
+
                     if(params['Interactive Mode']) {
                         testgen_cmd_parts.add("-use_short_names")
                     }
@@ -453,6 +461,13 @@ pipeline {
                                     }
                                 }
 
+                                if(params['Test env']) {
+                                    def env_list = getTestEnv()
+                                    if(env_list.size() > 0) {
+                                        firex_cmd_parts.add("--env '${env_list.join(',')}'")
+                                    }
+                                }
+
                                 if(testbeds_override) {
                                     firex_cmd_parts.add("--testbeds ${testbeds.join(',')}")
                                 }
@@ -562,6 +577,15 @@ def getTestArgs() {
         if(sp) args_list.add(sp)
     }
     return args_list
+}
+
+def getTestEnv() {
+    def env_list = []
+    for(l in params['Test env'].split('\n')) {
+        sp = l.trim().replaceAll("'", '"')
+        if(sp) env_list.add(sp)
+    }
+    return env_list
 }
 
 def getSMUs() {
