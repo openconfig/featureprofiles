@@ -1,4 +1,4 @@
-def params = []
+def global_parameters = []
 def image_path, image_version, image_lineup, image_efr
 
 pipeline {
@@ -35,7 +35,7 @@ pipeline {
                 script {
                     (image_path, image_lineup, image_efr, image_version) = getImageInfo(params['Upgrade Image'])
     
-                    params += [
+                    global_parameters += [
                         string(name: 'Image Path', value: "${params['Boot Image']}"),
                         booleanParam(name: 'Install Image', value: true)
                     ]
@@ -58,16 +58,16 @@ pipeline {
                         test_env += [ "UNSUPPORTED_IMAGE_PATH: ${params['Unsupported Image']}" ]
                     }
 
-                    build job: params['Jenkins job path'], params: [
+                    build job: params['Jenkins job path'], parameters: [
                         string(name: 'Test env', value: test_env.join('\n'))
-                    ] + params, wait: true
+                    ] + global_parameters, wait: true
                 }
             }
         }
     }
 }
 
-def getImageInfo(imagePath) {
+def getImageInfo(String imagePath) {
     def imageInfo = sh(
         script: "isoinfo -R -x /mdata/build-info.txt -i ${imagePath}",
         returnStdout: true
