@@ -113,6 +113,7 @@ In this case ATE:Port2 simulates the regular flows as stated above.
 
     * Expectations:
         * All traffic must be successful and there should be 0 packet loss. <br><br><br>
+	* Need to verify the packets sent by sender tester is equal to the packets on receiving tester port and also should be equal to the sum of packets seen in default.
 
 ### PF-1.6.2: Traffic from ATE:Port2 to ATE:Port1 Prefix 1 migrated to Non-Default VRF using the VRF selection policy
   * ATE:Port2 sends following IPv4 and IPv6 flows:
@@ -131,6 +132,8 @@ In this case ATE:Port2 simulates the regular flows as stated above.
     * To validate the prefixes advertised by ATE:Port1 are received on ATE:Port2 and vice versa. 
     * Traffic for Prefix 1 received from ATE:Port2 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE:Port1
     * Traffic sent by ATE:Port2 must be routed to ATE:Port1 via the DEFAULT VRF in the DUT.
+    * Need to verify the packets sent by sender tester is equal to the packets on receiving tester port and also should be equal to the sum of packets seen in default & non default VRF.
+    * The DSCP markings to be verified on the sent vs received packets.
     * There should be 0 packet loss. <br><br><br>
 
 **PF-1.6.3 to PF-1.6.7: Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.**
@@ -187,7 +190,7 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
   * PF-1.6.7 Prefix 1-6 Traffic from ATE:Port2 to ATE:Port1 migrated to Non-Default VRF using the VRF selection policy.
  
   * Modify the DUT generated config to change vrf selecion policy Statement6 to traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to Non-default vrf Use gnmi.Set REPLACE to push the config to the DUT
-  * 
+    
     VRF selection policy on DUT:Port2 changes as follows:
     * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to Non-default vrf
@@ -196,6 +199,9 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to Non-default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to Non-default vrf<br><br>
   * Expectations are the same for traffic routed via the Default and the Non-Default VRFs on the DUT.
+  * The sent and receive packets should match.
+  * The DSCP markings to be verified on the sent vs received packets.
+  * Need to verify the packets sent by sender tester is equal to the packets on receiving tester port and also should be equal to the sum of packets seen in default & non default VRF.
 
 
 ## OpenConfig Path and RPC Coverage
@@ -203,7 +209,26 @@ Follow the steps in PF-1.6.2 above to gradually move different traffic flows fro
 ```yaml
 rpcs:
   gnmi:
-    gNMI.Set: /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy
-    gNMI.Get: /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy
+    gNMI.Set:
+    /network-instances/network-instance/name
+    /network-instances/network-instance/config
+    /network-instances/network-instance/config/name
+    /network-instances/network-instance/config/type
+    /network-instances/network-instance/config/description
+    /network-instances/network-instance/config/router-id
+    /network-instances/network-instance/config/route-distinguisher
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/config
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy
+
+    
+    gNMI.Get:
+
+    /network-instances/network-instance/state
+    /network-instances/network-instance/policy-forwarding/interfaces/interface/state/apply-vrf-selection-policy
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set
+    /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set
     gNMI.Subscribe:
 ```
