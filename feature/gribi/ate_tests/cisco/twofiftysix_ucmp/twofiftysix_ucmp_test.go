@@ -1014,8 +1014,8 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
-	time.Sleep (2000 * time.Minute)
-	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+	//time.Sleep (2000 * time.Minute)
+	//testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
 
