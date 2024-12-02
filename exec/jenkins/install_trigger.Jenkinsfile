@@ -1,4 +1,4 @@
-def parameters = []
+def params = []
 def image_path, image_version, image_lineup, image_efr
 
 pipeline {
@@ -35,7 +35,7 @@ pipeline {
                 script {
                     (image_path, image_lineup, image_efr, image_version) = getImageInfo(params['Upgrade Image'])
     
-                    parameters += [
+                    params += [
                         string(name: 'Image Path', value: "${params['Boot Image']}"),
                         booleanParam(name: 'Install Image', value: true)
                     ]
@@ -58,9 +58,9 @@ pipeline {
                         test_env += [ "UNSUPPORTED_IMAGE_PATH: ${params['Unsupported Image']}" ]
                     }
 
-                    build job: params['Jenkins job path'], parameters: [
+                    build job: params['Jenkins job path'], params: [
                         string(name: 'Test env', value: test_env.join('\n'))
-                    ] + parameters, wait: true
+                    ] + params, wait: true
                 }
             }
         }
