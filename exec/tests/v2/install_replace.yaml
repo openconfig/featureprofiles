@@ -1,0 +1,11 @@
+name: install_replace
+owners: 
+  - kjahed
+testbeds:
+  - 8808-1DUT
+tests:
+- name: install_replace
+  path: exec/utils/software_upgrade
+  mustpass: true
+  internal: true
+  branch: master

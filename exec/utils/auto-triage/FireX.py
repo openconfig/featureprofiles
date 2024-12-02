@@ -4,11 +4,24 @@ import glob
 
 from DDTS import DDTS
 from TechZone import TechZone
+from Github import Github
 
 ddts = DDTS()
 techzone = TechZone()
+github = Github()
 
 class FireX:
+    def get_group(self, file):
+        tree = ET.parse(file)
+        root = tree.getroot()
+
+        testsuite_root = root.find(".//properties/property[@name='testsuite_root']").get("value")
+        run_file = testsuite_root + "/run.json"
+
+        with open(run_file) as metadata:
+            meta = json.load(metadata)
+            return meta["group"]
+
     def get_run_information(self, file, version, workspace):
         tree = ET.parse(file)
         root = tree.getroot()
@@ -17,7 +30,7 @@ class FireX:
         run_file = testsuite_root + "/run.json"
 
         if version == "" and workspace == "":
-            show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut/show_version")[0]
+            show_version = glob.glob(testsuite_root + "/tests_logs/*/debug_files/dut*/show_version")[0]
             with open(show_version) as show_version_contents:
                 lines = show_version_contents.readlines()
                 header = lines[0]
@@ -75,6 +88,7 @@ class FireX:
                 if inherit and history.get("status") == "aborted":
                     testcase_data["triage_status"] = history.get("triage_status", "Resolved")
                     testcase_data["label"] = history["label"]
+                    testcase_data["bugs"] = history.get("bugs", [])
                 else:
                     testcase_data["triage_status"] = "New"
                     testcase_data["label"] = ""
@@ -95,6 +109,8 @@ class FireX:
                 if inherit and history.get("status") == "failed":
                     testcase_data["triage_status"] = history.get("triage_status", "Resolved")
                     testcase_data["label"] = history["label"]
+                    testcase_data["status"] = "failed"
+                    testcase_data["bugs"] = history.get("bugs", [])
                 else:
                     testcase_data["status"] = "failed"
                     testcase_data["triage_status"] = "New"
@@ -183,6 +199,8 @@ class FireX:
                             data["bugs"].append(ddts.inherit(name))
                     elif bug["type"] == "TechZone":
                         data["bugs"].append(techzone.inherit(name))
+                    elif bug["type"] == "Github":
+                        data["bugs"].append(github.inherit(name))
                 historial_testsuite = database.get_historical_testsuite(data["group"], data["plan_id"])
                 data["testcases"] = self._create_testsuites(vectorstore, testcases, data["errors"], historial_testsuite, inherit = True)
             else:
