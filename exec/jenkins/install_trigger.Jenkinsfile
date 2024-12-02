@@ -67,7 +67,7 @@ pipeline {
     }
 }
 
-def getImageInfo(String imagePath) {
+def getImageInfo(imagePath) {
     def imageInfo = sh(
         script: "isoinfo -R -x /mdata/build-info.txt -i ${imagePath}",
         returnStdout: true
