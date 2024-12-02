@@ -2,14 +2,16 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 import glob
 
 class Embeddings:
-    def get_model(self):
-        directory = "./models/all-MiniLM-L6-v2"
-        models = glob.glob(directory)
+    def __init__(self):
+        self.name = "sentence-transformers/all-MiniLM-L6-v2"
+        self.directory = "/auto/slapigo/firex/helpers/reporting/firex2mongo/models/all-MiniLM-L6-v2"
 
+    def get_model(self):
+        return HuggingFaceEmbeddings(model_name=self.directory)
+    
+    # not called anywhere atm
+    def download(self):
+        models = glob.glob(self.directory)
         if len(models) == 0:
-            name = "sentence-transformers/all-MiniLM-L6-v2"
-            model = HuggingFaceEmbeddings(model_name=name)
-            model.client.save_pretrained(directory)
-            return model
-        
-        return HuggingFaceEmbeddings(model_name=directory)
+            model = HuggingFaceEmbeddings(model_name=self.name)
+            model.client.save_pretrained(self.directory)

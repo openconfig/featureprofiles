@@ -10,6 +10,7 @@ from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.firex_base import returns, flame, InjectArgs, FireX
 from services.cflow.code_coverage_tasks import CollectCoverageData
 from microservices.runners.runner_base import FireXRunnerBase
+from microservices.reporting_tasks import AggregateXunitReports
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
@@ -22,6 +23,7 @@ import random
 import string
 import tempfile
 import hashlib
+import glob
 import uuid
 import time
 import json
@@ -331,7 +333,7 @@ def _add_extra_properties_to_xml(ts, test_name, reserved_testbed, core_files=[])
             'message': 'Failed'
         }).text = 'Found core files:\n' + '\n'.join(core_files)
 
-def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
+def _generate_dummy_suite(test_name, fail=False, abort=False):
     ts = ET.Element('testsuite', attrib={
         'name': test_name,
         'tests': '1',
@@ -354,23 +356,26 @@ def _generate_dummy_suite(test_name, reserved_testbed, fail=False, abort=False):
     else:
         ET.SubElement(tc, 'system-out')
     
-    return ts
-
-def _write_xml_suite(ts, xml_file):
-    root = ET.Element("testsuites")
+    root = ET.Element("testsuites", attrib={
+        'tests': '1',
+        'failures': str(int(fail)),
+        'errors': str(int(abort)),
+        'skipped': '0'
+    })
     root.append(ts)
+    return root
 
+def _write_xml_tree(root, xml_file):
     tree = ET.ElementTree(root)
     with open(xml_file, 'wb') as fp:
         tree.write(fp)
 
-def _get_testsuite_from_xml(file_name):
+def _get_testsuites_from_xml(file_name):
     try:
         tree = ET.parse(file_name)
-        for suite in tree.findall("testsuite"):
-            return suite
-        return None
-    except:
+        return tree.getroot()
+    except Exception as e:
+        logger.print(f"Could not parse testsuite xml file {file_name}: {e}")
         return None
 
 def _extract_env_var_from_arg(arg):
@@ -463,6 +468,32 @@ def _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbe
         logger.warn(f'Cannot release testbed {id}')
         return False
 
+def _get_all_ondatra_log_files(ws, test_ws, test_path):
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+
+    output = check_output(f"go list {test_path}", env=env, cwd=test_ws)
+    packages = output.splitlines()
+
+    module_name = check_output("go list -m", env=env, cwd=test_ws)
+    module_name = module_name.strip()
+    packages = [pkg[len(module_name) + 1:] for pkg in packages if pkg.startswith(module_name)]
+    
+    prefix = packages[0]
+    for p in packages[1:]:
+        while not p.startswith(prefix) and prefix:
+            prefix = prefix[:-1]
+        if prefix:
+            prefix = prefix[:prefix.rfind(os.sep) + 1]
+        else:
+            return []
+    
+    logger.print(f'Searching {prefix} for log files')
+    pattern = os.path.join(test_ws, prefix, '**', "ondatra_logs.xml")
+    log_files = [str(file) for file in glob.glob(pattern, recursive=True)]
+    logger.print(f'Found log files: {log_files}')
+    return log_files
+
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
@@ -470,9 +501,9 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         internal_fp_repo_url=INTERNAL_FP_REPO_URL,
                         internal_fp_repo_branch='master',
                         internal_fp_repo_rev=None,
+                        collect_tb_info=True,
                         test_requires_tgen=False,
                         test_requires_otg=False,
-                        collect_tb_info=False,
                         install_image=True,
                         force_install=False,
                         force_reboot=False,
@@ -489,7 +520,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         c |= CreatePythonVirtEnv.s(ws=ws, internal_fp_repo_dir=internal_fp_repo_dir)
         self.enqueue_child_and_get_results(c)
 
-    if not isinstance(testbeds, list): testbeds = [testbeds]
+    if not isinstance(testbeds, list): testbeds = testbeds.split(',')
 
     while len(testbeds) > 0:
         reserved_testbed = _reserve_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, testbeds)
@@ -701,7 +732,7 @@ def b4_chain_provider(ws, testsuite_id,
 @flame('log_file', lambda p: get_link(p, 'Test Output'))
 @flame('test_log_directory_path', lambda p: get_link(p, 'All Logs'))
 @returns('cflow_dat_dir', 'xunit_results', 'log_file', "start_time", "stop_time")
-def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
+def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed, 
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, 
         collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
@@ -749,7 +780,7 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
     test_args = f'{test_args} ' \
         f'-log_dir {test_logs_dir_in_ws}'
 
-    test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "{xml_results_file}" '
+    test_args += f' -binding {reserved_testbed["binding_file"]} -testbed {reserved_testbed["testbed_file"]} -xml "ondatra_logs.xml" '
     if test_verbose:
         test_args += f'-v 5 ' \
             f'-alsologtostderr'
@@ -793,18 +824,33 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
                             cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
-        suite = _get_testsuite_from_xml(xml_results_file)
-        test_did_pass = suite and suite.attrib['failures'] == '0'
-        if not suite: 
-            if test_ignore_aborted or test_skip:
-                suite = _generate_dummy_suite(test_name, reserved_testbed, fail=test_skip and test_fail_skipped)
-            else:
-                suite = _generate_dummy_suite(test_name, reserved_testbed, abort=True)
+        log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
+        if log_files:
+            self.enqueue_child_and_get_results(AggregateXunitReports.s(
+                xunit_result_files=log_files,
+                uid=uid,
+                aggregated_results_file=str(xml_results_file),
+            ))
 
         if test_enable_grpc_logs:
             grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
             if os.path.exists(grpc_bin_log_file):
                 shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
+
+        xml_root = _get_testsuites_from_xml(xml_results_file)
+
+        if xml_root is None: 
+            if test_ignore_aborted or test_skip:
+                xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
+            else:
+                xml_root = _generate_dummy_suite(test_name, abort=True)
+
+        suites = xml_root.findall("testsuite")
+        logger.print(f"suites: {suites}")
+
+        test_did_pass = True
+        for suite in suites:
+            test_did_pass = test_did_pass and suite.attrib['failures'] == '0'
 
         core_check_only = test_did_pass or (not test_did_pass and not collect_debug_files)
         core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
@@ -818,9 +864,10 @@ def RunGoTest(self: FireXTask, ws, skuid, testsuite_id, test_log_directory_path,
             run_cmds=True,
             split_files_per_dut=True
         )).get('core_files', [])
-        
-        _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
-        _write_xml_suite(suite, xunit_results_filepath)
+
+        for suite in suites:
+            _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+        _write_xml_tree(xml_root, xunit_results_filepath)
 
         shutil.move(test_logs_dir_in_ws, os.path.join(test_log_directory_path, "test_logs"))
         logger.info(f"xunit_results_filepath {xunit_results_filepath}")
@@ -1665,9 +1712,9 @@ def PushResultsToInflux(self, uid, xunit_results, lineup=None, efr=None):
 
 # noinspection PyPep8Naming
 @app.task(base=FireX, bind=True)
-@returns('test_report_text_file', 'report_text')
+@returns('test_report_text_file')
 def ConvertXunit2Text(self):
     logger.print(f"In ConvertXunit2Text override")
     c = InjectArgs(**self.abog) | PushResultsToInflux.s() | self.orig.s()
-    test_report_text_file, report_text = self.enqueue_child_and_get_results(c)  
-    return test_report_text_file, report_text  
+    test_report_text_file = self.enqueue_child_and_get_results(c)  
+    return test_report_text_file  

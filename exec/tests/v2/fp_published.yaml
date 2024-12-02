@@ -828,7 +828,6 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 2887  
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
     priority: 65
@@ -838,7 +837,6 @@ tests:
       - arvbaska
     timeout: 3600  
     mustpass: true
-    pr: 2887  
     testbeds_exclude:
       - 8201-32FH_FLM254206E7    
   - name: TE-16.2 (DCGate - encap FRR test)
@@ -880,7 +878,13 @@ tests:
     owners:
       - arvbaska
     mustpass: true
-    pr: 3041
+  - name: RT-1.27 (Static route to BGP redistribution)
+    path: feature/bgp/static_route_bgp_redistribution/otg_tests/static_route_bgp_redistribution_test
+    priority: 2
+    owners:
+      - sprem
+    mustpass: true
+    pr: 3613
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
     priority: 2
