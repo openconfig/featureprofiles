@@ -35,8 +35,8 @@ func TestInvalidGetRpc(t *testing.T) {
 		}
 		getResp, err := gnoiClient.Healthz().Get(context.Background(), req)
 		t.Logf("Get response: %v", getResp)
-		if err != nil {
-			t.Errorf("Error on Get(%q): %v", componentName, err)
+		if err == nil {
+			t.Errorf("Expected non-zero error after Invalid Get")
 		}
 	}
 }
@@ -57,8 +57,8 @@ func TestInvalidListRpc(t *testing.T) {
 		}
 		listResp, err := gnoiClient.Healthz().List(context.Background(), listReq)
 		t.Logf("List response: %v", listResp)
-		if err != nil {
-			t.Errorf("Error on List(%q): %v", componentName, err)
+		if err == nil {
+			t.Errorf("Expected non-zero error after Invalid List")
 		}
 	}
 }
