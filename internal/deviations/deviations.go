@@ -1208,18 +1208,7 @@ func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
 }
 
-// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
-func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
-}
-
-// CiscoPreFECBERInactiveValue returns true if a non-zero pre-fec-ber value is to be used for Cisco
-func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
-}
-
 // Admin Enable Table Connections in SRL native
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
-

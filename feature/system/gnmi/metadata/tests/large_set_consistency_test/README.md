@@ -40,13 +40,3 @@ dut.testbed
 
 ## Minimum DUT platform
 FFF
-
-## OpenConfig Path and RPC Coverage
-
-```yaml
-rpcs:
-  gnmi:
-    gNMI.Get:
-    gNMI.Subscribe:
-
-```

@@ -810,13 +810,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-4.11"
-  description: " Scale AFTs Route Summary"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_summary/otg_tests/scale_aft_summary/README.md"
-  exec: " "
-}
-
-test: {
   id: "RT-5.1"
   description: "Singleton Interface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/otg_tests/singleton_test/README.md"
@@ -1231,8 +1224,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "TE-9.1"
-  description: "Push MPLS Labels to MPLS payload"
+  id: "TE-9.1: Push MPLS Labels to MPLS payload"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
 }
 test: {
@@ -1804,17 +1796,5 @@ test: {
   id: "CNTR-2.4"
   description: "Connect to another container on a local node"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/networking/tests/container_connectivity/README.md"
-  exec: " "
-}
-test: {
-  id: "AFT-1.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_base/README.md"
-  exec: " "
-}
-test: {
-  id: "AFT-2.1"
-  description: "AFT Streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/aft/aft_base/otg_tests/aft_prefixcounters/README.md"
   exec: " "
 }
