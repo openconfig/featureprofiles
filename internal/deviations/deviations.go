@@ -1217,3 +1217,24 @@ func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
+
+// BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
+// Cisco supports the extended nexthop encoding set to true by default that is excercised in the Script where the extended-nexthop-encoding
+// a bool value is set to true.
+func BgpExtendedNextHopEncodingLeafUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedNextHopEncodingLeafUnsupported()
+}
+
+// BgpAfiSafiWildcardNotSupported return true if bgp afi/safi wildcard query is not supported.
+// For example, this yang path query includes the wildcard key `afi-safi-name=`:
+// `/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=192.0.2.2]/afi-safis/afi-safi[afi-safi-name=]`.
+// Use of this deviation is permitted if a query using an explicit key is supported (such as
+// `oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST`).
+func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
+}
+
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
