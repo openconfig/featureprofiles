@@ -1234,6 +1234,11 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
 }
 
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
+
 // BGPDistanceOcPathUnsupported returns true if BGP Distance OC telemetry path is not supported.
 func BgpDistanceOcPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDistanceOcPathUnsupported()

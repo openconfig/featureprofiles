@@ -653,8 +653,10 @@ message Metadata {
     // Device does not support bgp afi safi wildcard.
     // Cisco: b/379863985 
     bool bgp_afi_safi_wildcard_not_supported = 235;
+    // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
+    bool enable_table_connections = 236;
     // Device does not support BGP OC distance
-    bool bgp_distance_oc_path_unsupported = 236;
+    bool bgp_distance_oc_path_unsupported = 237;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
