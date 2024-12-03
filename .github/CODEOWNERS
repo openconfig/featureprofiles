@@ -16,6 +16,7 @@
 /feature/bgp/          @dplore
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
+/feature/gribi         @nachikethas @nflath @xiaowa
 /feature/interface/    @ram-mac
 /feature/isis/         @rohit-rp
 /feature/lldp/         @alokmtri-g
