@@ -470,6 +470,14 @@ tests:
     priority: 49
     skip: false
     groups: [ancx]
+  - name: RT-2.13 (Weighted-ECMP for IS-IS)
+    path: feature/isis/otg_tests/weighted_ecmp_test
+    owners:
+      - arvbaska
+    mustpass: false
+    priority: 49
+    pr: 3006
+    skip: false
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
     owners:
