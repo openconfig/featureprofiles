@@ -241,8 +241,10 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+			if !deviations.ISISDisSystemIdUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
@@ -295,8 +297,10 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+			if !deviations.ISISDatabaseOverloadsPathUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)

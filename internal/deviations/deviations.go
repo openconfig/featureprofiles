@@ -1238,3 +1238,13 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
+
+// ISISDisSystemIdUnsupported returns true if isis dis-system-id leaf is not supported.
+func ISISDisSystemIdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDisSystemIdUnsupported()
+}
+
+// ISISDatabaseOverloadsPathUnsupported returns true if isis database overload leaf is not supported.
+func ISISDatabaseOverloadsPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsPathUnsupported()
+}
