@@ -476,7 +476,7 @@ tests:
       - arvbaska
     mustpass: false
     priority: 49
-    pr: 3006
+    pr: 3328
     skip: false
   - name: RT-6.1 (Core LLDP TLV Population)
     path: feature/lldp/ate_tests/core_lldp_tlv_population_test
