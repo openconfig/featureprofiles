@@ -54,6 +54,5 @@ platform_exceptions: {
   interface_enabled: true
   skip_prefix_set_mode: true
   enable_table_connections: true
-  bgp_community_member_is_a_string: true
-   }
+  }
 }
