@@ -500,16 +500,33 @@ def _aggregate_ondatra_log_files(log_files, out_file):
     testsuite = root.find("testsuite")
     if testsuite == None: return
 
-    for f in log_files[1:]:
-        try:
-            tree = ET.parse(f)
-            for ts in tree.getroot().findall("testsuite"):
-                for tc in ts.findall("testcase"):
-                    testsuite.append(tc)
-        except Exception as e:
-            logger.print(f"Could not parse testsuite xml file {f}: {e}")
-            return
-        
+    if len(log_files) > 1:
+        tests_attr = int(testsuite.attrib.get('tests', 0))
+        failures_attr = int(testsuite.attrib.get('failures', 0))
+        errors_attr = int(testsuite.attrib.get('errors', 0))
+        skipped_attr = int(testsuite.attrib.get('skipped', 0))
+        time_attr = float(testsuite.attrib.get('time', 0))
+
+        for f in log_files[1:]:
+            try:
+                tree = ET.parse(f)
+                for ts in tree.getroot().findall("testsuite"):
+                    tests_attr += int(ts.attrib.get('tests', 0))
+                    failures_attr += int(ts.attrib.get('failures', 0))
+                    errors_attr += int(ts.attrib.get('errors', 0))
+                    skipped_attr += int(ts.attrib.get('skipped', 0))
+                    time_attr += float(ts.attrib.get('time', 0))
+                    for tc in ts.findall("testcase"):
+                        testsuite.append(tc)
+            except Exception as e:
+                logger.print(f"Could not parse testsuite xml file {f}: {e}")
+                return
+
+        testsuite.attrib['tests'] = str(tests_attr)
+        testsuite.attrib['failures'] = str(failures_attr)
+        testsuite.attrib['errors'] = str(errors_attr)
+        testsuite.attrib['skipped'] = str(skipped_attr)
+        testsuite.attrib['time'] = "{:.3f}".format(time_attr)
     _write_xml_tree(root, out_file)
 
 
