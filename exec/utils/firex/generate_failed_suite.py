@@ -26,17 +26,20 @@ def write_failed_tests_suite(firex_id, out_file=None):
             root = ET.parse(fp)
 
         suite_index = 0
+        testsuite_names = []
         for suite in root.findall('testsuite'):
             failures = int(suite.get('failures', 0))
             errors = int(suite.get('errors', 0))
             if failures + errors > 0:
                 test_dir = None
+
                 properties = suite.find('properties')
                 if properties is not None:
                     for prop in properties.findall('property'):
                         if prop.get('name') == 'test_log_directory':
                             test_dir = prop.get('value')
-                            break
+                        if prop.get('name') == 'testsuite_name':
+                            testsuite_names.append(prop.get('value'))
 
                 if test_dir:
                     suite_file_path = f"{log_dir}/{test_dir}/testsuite_registration.yaml"
@@ -55,6 +58,7 @@ def write_failed_tests_suite(firex_id, out_file=None):
         out_file = out_file if out_file else f"{firex_id}_failed_suites.yaml"
         with open(out_file, "w") as file:
             file.write(new_suite)
+        print(f"{','.join(testsuite_names)}")
     else:
         raise Exception(f"No failed suites found in run {firex_id}")
 
