@@ -695,6 +695,12 @@ def findInFirexStore(String testsuite) {
     return ""
 }
 
+def generateFailedSuite(String firex_id) {
+    def out_file = "${env.WORKSPACE}/${firex_id}_failed_suites.yaml"
+    sh "python3 exec/utils/firex/generate_failed_suite.py ${firex_id} ${out_file}"
+    return out_file
+}
+
 def parseTestsuites(String testsuites_list) {
     def suites = []
     for(s in testsuites_list.split(',')) {
@@ -707,7 +713,9 @@ def parseTestsuites(String testsuites_list) {
     def ts_firex = []
 
     for(f in suites){
-        if(f.startsWith("/") && fileExists(f)) {
+        if(f.startsWith("FireX-")) {
+            ts_absolute.add(generateFailedSuite(f))
+        } else if(f.startsWith("/") && fileExists(f)) {
             ts_absolute.add(f)
         } else if(fileExists(f)) {
             ts_internal.add(f)
