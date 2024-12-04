@@ -1,0 +1,23 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "12335133-aed1-463d-b9cd-76dbf8ef88cc"
+plan_id: "RT"
+description: "GRIBI Static Route On Lemmings Test"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    route_policy_under_afi_unsupported: true
+    static_protocol_name: "STATIC"
+    aggregate_atomic_update: true
+    missing_value_for_defaults: true
+    max_ecmp_paths: true
+    explicit_interface_in_default_vrf: false
+  }
+}
+tags: TAGS_DATACENTER_EDGE
