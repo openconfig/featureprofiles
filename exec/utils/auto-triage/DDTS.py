@@ -30,5 +30,6 @@ class DDTS:
             "name": name,
             "type": "DDTS",
             "username": "Cisco InstaTriage",
-            "updated": datetime.now()
+            "updated": datetime.now(),
+            "resolved": not self.is_open(name)
         }
