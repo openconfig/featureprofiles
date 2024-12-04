@@ -1,4 +1,4 @@
-package osinstall_test
+package os_install_test
 
 import (
 	"context"
@@ -272,9 +272,9 @@ func (tc *testCase) transferOS(ctx context.Context, t *testing.T, standby bool, 
 
 	if ErrorString != "" {
 		if !strings.Contains(Message, ErrorString) {
-			t.Fatalf("want error: %v , and got: %v", ErrorString, Message)
+			t.Fatalf("want error: %v , got: %v", ErrorString, Message)
 		} else {
-			t.Logf("want error: %v , and got: %v", ErrorString, Message)
+			t.Logf("want error: %v , got: %v", ErrorString, Message)
 			return
 		}
 	}
@@ -308,7 +308,7 @@ func (tc *testCase) verifyInstall(ctx context.Context, t *testing.T) {
 		switch status.Code(err) {
 		case codes.OK:
 		case codes.Unavailable:
-			t.Log("Reboot in progress.")
+			t.Logf("Time: %v, Verify Respone: %v, VerifyError message: %v \nReboot in progress.", time.Now(), r.GetActivationFailMessage(), err.Error())
 			time.Sleep(rebootWait)
 			continue
 		default:

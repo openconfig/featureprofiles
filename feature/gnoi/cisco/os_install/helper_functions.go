@@ -1,4 +1,4 @@
-package osinstall_test
+package os_install_test
 
 import (
 	"bytes"
@@ -44,7 +44,7 @@ func cleanupDiskSpace(ctx context.Context, sshClient binding.CLIClient) error {
 
 func retrieveAndFillDiskSpace(ctx context.Context, sshClient binding.CLIClient, thresholdGB float64) (bool, error) {
 	// Retrieve available disk space
-	spaceCmd := "run df -h /dev/mapper/main--xr--vg-install--data--disk1 | awk 'NR==2 {print $4}'"
+	spaceCmd := "run df -h /harddisk:/ | awk 'NR==2 {print $4}'"
 	spaceResult, err := sshClient.RunCommand(ctx, spaceCmd)
 	if err != nil {
 		return false, fmt.Errorf("failed to get available space: %w", err)
@@ -181,4 +181,29 @@ func listISOFile(t *testing.T, dut *ondatra.DUTDevice, version string) (int64, e
 	}
 
 	return creationTime, nil
+}
+
+// CheckAndHandleVXRPlatform checks if the DUT is on the VXR platform and handles the PXE boot logic if needed.
+func CheckAndHandleVXRPlatform(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) {
+	ctx := context.Background()
+
+	if util.IsPlatformVXR(ctx, t, dut) {
+		majorVersionSame, err := util.IsMajorVersionSame(t, dut, expectedVersion)
+		if err != nil {
+			t.Fatalf("Failed to compare major versions: %v", err)
+		}
+
+		minorVersionSame, err := util.IsMinorVersionSame(t, dut, expectedVersion)
+		if err != nil {
+			t.Fatalf("Failed to compare minor versions: %v", err)
+		}
+
+		// Logic for internal PXE boot for VXR platform
+		// If either the major or minor version differs, then PXE boot is required
+		if !majorVersionSame || !minorVersionSame {
+			util.EnableVxrInternalPxeBoot(ctx, t, dut)
+		}
+	} else {
+		t.Log("Platform is HW")
+	}
 }

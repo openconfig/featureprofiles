@@ -1,11 +1,10 @@
-package osinstall_test
+package os_install_test
 
 import (
+	"flag"
 	"fmt"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -47,9 +46,10 @@ const (
 
 func testOSForceTransferDiskFull(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-	// New test case: Simulate disk full scenario
+	// Simulate disk full scenario
 	t.Run("disk full scenario", func(t *testing.T) {
+		// For HW ensure no previous image
+		removeISOFile(t, tc.dut, tc.osVersion)
 		sshClient := tc.dut.RawAPIs().CLI(t)
 
 		// Retrieve and fill disk space
@@ -70,14 +70,11 @@ func testOSForceTransferDiskFull(t *testing.T, tc testCase) {
 		// Attempt to transfer the OS and verify failure
 		tc.transferOS(tc.ctx, t, false, "", installDiskFullError)
 	})
-	// verifyGnoiStats(t, tc)
 }
 
 func testOSNormalTransferDiskFull(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-	// defer // verifyGnoiStats(t, tc)
-	// New test case: Simulate disk full scenario
+	// Simulate disk full scenario
 	t.Run("disk full scenario", func(t *testing.T) {
 		sshClient := tc.dut.RawAPIs().CLI(t)
 
@@ -99,23 +96,9 @@ func testOSNormalTransferDiskFull(t *testing.T, tc testCase) {
 		// Attempt to transfer the OS and verify failure
 		tc.transferOS(tc.ctx, t, false, tc.osVersion, installDiskFullError)
 	})
-	// verifyGnoiStats(t, tc)
 }
 
-// func verifyGnoiStats(t *testing.T, tc testCase) {
-// 	t.Run("verify gnoi stats", func(t *testing.T) {
-// 		data := cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-// 		if tc.oss == data {
-// 			t.Logf("want:%v, got %v", tc.oss, data)
-// 		} else {
-// 			t.Fatalf("want:%v, got %v", tc.oss, data)
-// 		}
-// 	})
-// }
-
 func testOSForceTransferStandby(t *testing.T, tc testCase) {
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-	// defer // verifyGnoiStats(t, tc)
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 	// Attempt to transfer the OS with standby flag and verify failure
 	t.Run("testOSForceTransferStandby", func(t *testing.T) {
@@ -126,11 +109,9 @@ func testOSForceTransferStandby(t *testing.T, tc testCase) {
 			tc.transferOS(tc.ctx, t, true, "", installStandbyNotPresentError)
 		}
 	})
-	// verifyGnoiStats(t, tc)
 }
 
 func testOSNormalTransferStandby(t *testing.T, tc testCase) {
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 	t.Run("testOSNormalTransferStandby", func(t *testing.T) {
 		// Attempt to transfer the OS with standby flag and verify failure
@@ -141,11 +122,9 @@ func testOSNormalTransferStandby(t *testing.T, tc testCase) {
 			tc.transferOS(tc.ctx, t, true, "", installStandbyNotPresentError)
 		}
 	})
-	// verifyGnoiStats(t, tc)
 }
 
 func testOSForceTransferNoExistingImageEmptyVersion(t *testing.T, tc testCase) {
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 
 	// Force Install
@@ -158,12 +137,10 @@ func testOSForceTransferNoExistingImageEmptyVersion(t *testing.T, tc testCase) {
 			t.Fatal("image not force updated")
 		}
 	})
-	// verifyGnoiStats(t, tc)
 }
 
 func testOSForceTransferNoExistingImageWrongVersion(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
 
 	// Force Install
 	t.Run("Force install No ExistingImage using Wrong version", func(t *testing.T) {
@@ -175,14 +152,11 @@ func testOSForceTransferNoExistingImageWrongVersion(t *testing.T, tc testCase) {
 			t.Fatal("image not force updated")
 		}
 	})
-	// verifyGnoiStats(t, tc)
 
 }
 
 func testOSNormalTransferNoExistingImage(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-
 	t.Run("Normal install NO ExistingImage", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
 		tc.transferOS(tc.ctx, t, false, tc.osVersion, "")
@@ -191,14 +165,11 @@ func testOSNormalTransferNoExistingImage(t *testing.T, tc testCase) {
 			t.Fatal("image not force updated")
 		}
 	})
-	// verifyGnoiStats(t, tc)
 
 }
 
 func testOSNormalTransferExistingImage(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-
 	// Force Install
 	t.Run("Normal install ExistingImage", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
@@ -208,14 +179,11 @@ func testOSNormalTransferExistingImage(t *testing.T, tc testCase) {
 			t.Fatal("image changed")
 		}
 	})
-	// verifyGnoiStats(t, tc)
 
 }
 
 func testOSForceTransferExistingImageEmptyVersion(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-
 	// Force Install
 	t.Run("Force install ExistingImage using Empty version", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
@@ -225,25 +193,20 @@ func testOSForceTransferExistingImageEmptyVersion(t *testing.T, tc testCase) {
 			t.Fatal("image not force updated")
 		}
 	})
-	// verifyGnoiStats(t, tc)
 
 }
 
 func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
-
+	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
 	t.Run("Force install ExistingImage using Wrong version", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
-		// tc.transferOS(ctx, t, false, tc.osVersion, "")
 		tc.transferOS(tc.ctx, t, false, "WRONG_VERSION", "")
 		t2, _ := listISOFile(t, tc.dut, tc.osVersion)
 		if t1 == 0 || isGreater(t1, t2) {
 			t.Fatal("image not force updated")
 		}
 	})
-	// verifyGnoiStats(t, tc)
-	// tc.oss = cliparser.ParseShowGnoiStats(t, tc.dut).OSProto
 	for _, activateTC := range tc.negActivateTestCases {
 		version := "1.2.3.4I-wrong"
 		if activateTC.version == true {
@@ -257,7 +220,6 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 			tc.activateOS(tc.ctx, t, activateTC.standby, activateTC.noReboot, version, activateTC.expectFail, expectedError)
 		})
 	}
-	// verifyGnoiStats(t, tc)
 
 	t.Run("test Supervisor Switchover", func(t *testing.T) {
 		util.SupervisorSwitchover(t, tc.dut)
@@ -277,7 +239,6 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 
 		t.Run("Force install Image using empty version", func(t *testing.T) {
 			t1, _ := listISOFile(t, tc.dut, tc.osVersion)
-			// tc.transferOS(ctx, t, false, tc.osVersion, "")
 			tc.transferOS(tc.ctx, t, false, "", "")
 			if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
 				tc.transferOS(tc.ctx, t, true, "", "")
@@ -312,7 +273,6 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 	})
 
 	t.Run("Activating using correct version - expected failure already activated", func(t *testing.T) {
-		// time.Sleep(5 * time.Second)
 		tc.activateOS(tc.ctx, t, false, tc.noReboot, tc.osVersion, true, activateInProgressError)
 
 		if deviations.InstallOSForStandbyRP(tc.dut) && tc.dualSup {
@@ -327,24 +287,23 @@ func testOSForceInstallSupportedToSupportedImage(t *testing.T, tc testCase) {
 		tc.verifyInstall(tc.ctx, t)
 	})
 
-	// t.Run("Test interface and BGP config after install", func(t *testing.T) {
-	// 	testPushAndVerifyInterfaceConfig(t, tc.dut)
-	// 	testPushAndVerifyBGPConfig(t, tc.dut)
-	// })
+	t.Run("Test interface and BGP config after install", func(t *testing.T) {
+		testPushAndVerifyInterfaceConfig(t, tc.dut)
+		testPushAndVerifyBGPConfig(t, tc.dut)
+	})
 }
 
 func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
-	// if tc.osFile == *osFileForceDownloadNotSupported {
-	// 	t.Skip()
-	// }
-	// tc.fetchOsFileDetails(t, *osFile)
 	tc.fetchOsFileDetails(t, *osFileForceDownloadNotSupported)
+	// For HW ensure no previous image
+	removeISOFile(t, tc.dut, tc.osVersion)
 	noReboot := deviations.OSActivateNoReboot(tc.dut)
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 
+	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
+
 	t.Run("Force install old image using Wrong version", func(t *testing.T) {
 		t1, _ := listISOFile(t, tc.dut, tc.osVersion)
-		// tc.transferOS(ctx, t, false, tc.osVersion, "")
 		tc.transferOS(tc.ctx, t, false, "WRONG_VERSION", "")
 		t2, _ := listISOFile(t, tc.dut, tc.osVersion)
 		if t1 != 0 || isGreater(t1, t2) {
@@ -390,17 +349,17 @@ func testOSForceInstallSupportedToNotSupportedImage(t *testing.T, tc testCase) {
 		tc.verifyInstall(tc.ctx, t)
 	})
 
-	// t.Run("Test interface and BGP config after install", func(t *testing.T) {
-	// 	testPushAndVerifyInterfaceConfig(t, tc.dut)
-	// 	testPushAndVerifyBGPConfig(t, tc.dut)
-	// })
+	t.Run("Test interface and BGP config after install", func(t *testing.T) {
+		testPushAndVerifyInterfaceConfig(t, tc.dut)
+		testPushAndVerifyBGPConfig(t, tc.dut)
+	})
 }
 
 func testOSNormalInstallNotSupportedToSupportedImage(t *testing.T, tc testCase) {
-	// if tc.osFile == *osFileForceDownloadSupported {
-	// 	t.Skip()
-	// }
 	tc.fetchOsFileDetails(t, *osFile)
+	// For HW ensure no image in harddisk
+	removeISOFile(t, tc.dut, tc.osVersion)
+	CheckAndHandleVXRPlatform(t, tc.dut, tc.osVersion)
 
 	t.Logf("Testing GNOI OS Install to version %s from file %q", tc.osVersion, tc.osFile)
 

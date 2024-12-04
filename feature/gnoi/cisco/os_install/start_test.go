@@ -1,4 +1,4 @@
-package osinstall_test
+package os_install_test
 
 import (
 	"context"

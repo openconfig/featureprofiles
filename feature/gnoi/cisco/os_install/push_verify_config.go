@@ -1,12 +1,10 @@
-package osinstall_test
+package os_install_test
 
 import (
 	"fmt"
 	"log"
 	"reflect"
 	"testing"
-
-	// dbg "github.com/openconfig/featureprofiles/exec/utils/debug"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -66,8 +64,6 @@ var (
 )
 
 func testPushAndVerifyInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice) {
-
-	// dut := ondatra.DUT(t, "dut")
 	t.Logf("Create and push interface config to the DUT")
 	dutPort := dut.Port(t, "port1")
 	dutPortName := dutPort.Name()
@@ -115,17 +111,7 @@ func configInterface(name, desc, ipv4 string, prefixlen uint8, dut *ondatra.DUTD
 }
 
 func testPushAndVerifyBGPConfig(t *testing.T, dut *ondatra.DUTDevice) {
-	// peer := ondatra.DUT(t, "peer")
-	// fptest.ConfigureDefaultNetworkInstance(t, peer)
-
-	// t.Logf("Create and push BGP config to the DUT")
-	// peerConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(peer)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	// peerConf := bgpCreateNbr(peer)
-	// gnmi.Replace(t, peer, peerConfPath.Config(), peerConf)
-
-	// dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	t.Logf("Create and push BGP config to the DUT")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutConf := bgpCreateNbr(dut)

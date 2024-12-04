@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -1185,10 +1186,13 @@ func GetActiveGrpcStreams(t *testing.T, dut *ondatra.DUTDevice, expectedStreams 
 
 // GetVersion fetches the software version from the device and splits it into components.
 func GetVersion(t *testing.T, dut *ondatra.DUTDevice) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
-	// Simulate fetching the version string from the device.
+	// fetching the version string from the device.
 	path := gnmi.OC().System().SoftwareVersion()
 	versionString := gnmi.Get(t, dut, path.State())
+	return splitVersionString(t, versionString)
+}
 
+func splitVersionString(t *testing.T, versionString string) (majorVersion, minorVersion, runningVersion, labelVersion string, err error) {
 	// Split the version string by '.' to get the parts.
 	parts := strings.Split(versionString, ".")
 	t.Logf("Debug: Split version string into parts: %v\n", parts)
@@ -1343,5 +1347,77 @@ func SshRunCommand(t *testing.T, dut *ondatra.DUTDevice, cmd string) string {
 		t.Logf("%s> %s", dut.ID(), cmd)
 		t.Log(err.Error())
 		return ""
+	}
+}
+
+func IsPlatformVXR(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) bool {
+	resp := config.CMDViaGNMI(ctx, t, dut, "show version")
+	t.Logf("Response: %s", resp)
+
+	if strings.Contains(resp, "VXR") {
+		t.Logf("Platform is VXR")
+		return true
+	}
+	return false
+}
+
+// IsMajorVersionSame checks if the major version of the DUT is the same as the expected version.
+func IsMajorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	majorVersionDut, _, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	majorVersionExpected, _, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if majorVersionDut == majorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// IsMinorVersionSame checks if the minor version of the DUT is the same as the expected version.
+func IsMinorVersionSame(t *testing.T, dut *ondatra.DUTDevice, expectedVersion string) (b bool, e error) {
+	_, minorVersionDut, _, _, err := GetVersion(t, dut)
+	if err != nil {
+		return false, err
+	}
+	_, minorVersionExpected, _, _, err := splitVersionString(t, expectedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if minorVersionDut == minorVersionExpected {
+		return true, nil
+	}
+	return
+}
+
+// EnableVxrInternalPxeBoot executes the command to initiate PXE boot on the device.
+// only applicable for VXR platform
+// reference: http://pyvxr.cisco.com/pyvxr/README.html#internal-pxe
+func EnableVxrInternalPxeBoot(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) {
+	if IsPlatformVXR(ctx, t, dut) {
+		t.Log("Platform is VXR and version differs, initiating PXE boot.")
+		sshClient := dut.RawAPIs().CLI(t)
+		removeBootDirCmd := "run rm -r /boot/efi/EFI"
+		removeBootDirCmdResult, err := sshClient.RunCommand(ctx, removeBootDirCmd)
+		if err != nil {
+			t.Error("failed to enable vxr internal PXE boot")
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), removeBootDirCmd, removeBootDirCmdResult.Output())
+
+		treeBootDirCmd := "run tree /boot/efi/EFI"
+		treeBootDirCmdResult, err := sshClient.RunCommand(ctx, treeBootDirCmd)
+		if err != nil {
+			if strings.Contains(treeBootDirCmdResult.Output(), "BOOT") {
+				t.Fatal("failed to remove /boot/efi/EFI")
+			}
+		}
+		t.Logf("%s> %s\n%v", dut.Name(), treeBootDirCmd, treeBootDirCmdResult.Output())
+	} else {
+		t.Fatal("Error Not a VXR platform")
 	}
 }
