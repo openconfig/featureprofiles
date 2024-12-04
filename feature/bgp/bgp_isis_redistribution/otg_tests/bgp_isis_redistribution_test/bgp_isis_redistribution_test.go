@@ -15,8 +15,6 @@
 package bgp_isis_redistribution_test
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -30,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -734,8 +731,7 @@ func bgpISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, operation strin
 	dni := deviations.DefaultNetworkInstance(dut)
 	root := &oc.Root{}
 	if deviations.EnableTableConnections(dut) {
-		state := "enable"
-		configEnableTbNative(t, dut, state)
+		fptest.ConfigEnableTbNative(t, dut)
 	}
 	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
 	if operation == "set" {
@@ -756,8 +752,7 @@ func bgpISISRedistributionV6(t *testing.T, dut *ondatra.DUTDevice, operation str
 	dni := deviations.DefaultNetworkInstance(dut)
 	root := &oc.Root{}
 	if deviations.EnableTableConnections(dut) {
-		state := "enable"
-		configEnableTbNative(t, dut, state)
+		fptest.ConfigEnableTbNative(t, dut)
 	}
 	tableConn := root.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6)
 	if operation == "set" {
@@ -927,45 +922,4 @@ func containsValue[T comparable](slice []T, val T) bool {
 		}
 	}
 	return found
-}
-
-func configEnableTbNative(t testing.TB, d *ondatra.DUTDevice, state string) {
-	t.Helper()
-	switch d.Vendor() {
-	case ondatra.NOKIA:
-		//value := state
-		adminEnable, err := json.Marshal(state)
-		if err != nil {
-			t.Fatalf("Error with json Marshal: %v", err)
-		}
-
-		gpbSetRequest := &gpb.SetRequest{
-			Prefix: &gpb.Path{
-				Origin: "native",
-			},
-			Update: []*gpb.Update{
-				{
-					Path: &gpb.Path{
-						Elem: []*gpb.PathElem{
-							{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-							{Name: "table-connections"},
-							{Name: "admin-state"},
-						},
-					},
-					Val: &gpb.TypedValue{
-						Value: &gpb.TypedValue_JsonIetfVal{
-							JsonIetfVal: adminEnable,
-						},
-					},
-				},
-			},
-		}
-
-		gnmiClient := d.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-			t.Fatalf("Unexpected error updating SRL static-route tag-set: %v", err)
-		}
-	default:
-		t.Fatalf("Unsupported vendor %s for deviation 'EnableTableConnections'", d.Vendor())
-	}
 }
