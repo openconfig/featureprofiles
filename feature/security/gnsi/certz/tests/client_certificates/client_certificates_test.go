@@ -35,11 +35,11 @@ const (
 )
 
 var (
-	testProfile     = "newprofile"
-	serverAddr      string
-	username        = "certzuser"
-	password        = "certzpasswd"
-	expectedResult  bool
+	testProfile    = "newprofile"
+	serverAddr     string
+	username            = "certzuser"
+	password            = "certzpasswd"
+	expectedResult bool = false
 )
 
 // createUser function to add an user in admin role.
@@ -227,7 +227,6 @@ func TestClientCert(t *testing.T) {
 
 			switch tc.mismatch {
 			case true:
-				expectedResult = false
 				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if success {
 					t.Fatalf("%s:Certz rotation failed.", tc.desc)
