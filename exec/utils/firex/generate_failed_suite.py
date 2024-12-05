@@ -3,6 +3,7 @@ import re
 import sys
 import subprocess
 import xml.etree.ElementTree as ET
+import argparse
 
 def get_run_log_dir(firex_id):
     try:
@@ -17,7 +18,7 @@ def get_run_log_dir(firex_id):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Error executing shell command: {e}")
 
-def write_failed_tests_suite(firex_id, out_file=None):
+def write_failed_tests_suite(firex_id, out_file=None, failed_only=True):
     new_suite = ""
     log_dir = get_run_log_dir(firex_id)
 
@@ -30,7 +31,7 @@ def write_failed_tests_suite(firex_id, out_file=None):
         for suite in root.findall('testsuite'):
             failures = int(suite.get('failures', 0))
             errors = int(suite.get('errors', 0))
-            if failures + errors > 0:
+            if not failed_only or (failures + errors > 0):
                 test_dir = None
 
                 properties = suite.find('properties')
@@ -55,14 +56,20 @@ def write_failed_tests_suite(firex_id, out_file=None):
         raise Exception(f"Error parsing JUnit XML file: {str(e)}")
 
     if new_suite.strip():
-        out_file = out_file if out_file else f"{firex_id}_failed_suites.yaml"
-        with open(out_file, "w") as file:
-            file.write(new_suite)
-        print(f"{','.join(testsuite_skuids)}")
+        if out_file:
+            with open(out_file, "w") as file:
+                file.write(new_suite)
+        else:
+            print(f"{','.join(testsuite_skuids)}")
     else:
-        raise Exception(f"No failed suites found in run {firex_id}")
+        raise Exception(f"No suites found in run {firex_id}")
 
-# Example of how to call the function
 if __name__ == "__main__":
-    out_file = None if len(sys.argv) < 3 else sys.argv[2]
-    write_failed_tests_suite(sys.argv[1], out_file)
+    parser = argparse.ArgumentParser(description='Generate test suite YAML from FireX run.')
+    parser.add_argument('firex_id', type=str, help='FireX run ID')
+    parser.add_argument('out_file', type=str, nargs='?', help='Output file for the test suite YAML')
+    parser.add_argument('--failed_only', action='store_true', help='Only consider failed test suites')
+    args = parser.parse_args()
+
+    write_failed_tests_suite(args.firex_id, args.out_file, args.failed_only)
+    
