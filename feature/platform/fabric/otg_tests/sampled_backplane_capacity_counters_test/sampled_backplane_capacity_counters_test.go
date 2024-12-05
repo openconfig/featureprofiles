@@ -116,6 +116,15 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 	t.Logf("IntegratedCircuit components count: %d", len(ics))
 
 	fabrics := components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC)
+	t.Logf("fabrics are %v", fabrics)
+	removable_fabrics := make([]string, 0)
+	for _, f := range fabrics {
+		if gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+			removable_fabrics = append(removable_fabrics, f)
+		}
+	}
+	t.Logf("removable_fabrics are %v", removable_fabrics)
+	fabrics = removable_fabrics
 	if len(fabrics) == 0 {
 		t.Skipf("Get Fabric card list for %q: got 0, want > 0", dut.Model())
 	}
