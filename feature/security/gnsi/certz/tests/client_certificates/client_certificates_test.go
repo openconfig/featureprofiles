@@ -39,7 +39,7 @@ var (
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
-	expectedresult  bool
+	expectedResult  bool
 )
 
 // createUser function to add an user in admin role.
@@ -227,21 +227,21 @@ func TestClientCert(t *testing.T) {
 
 			switch tc.mismatch {
 			case true:
-				expectedresult = false
+				expectedResult = false
 				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if success {
 					t.Fatalf("%s:Certz rotation failed.", tc.desc)
 				}
 				t.Logf("%s:Mismatch certz rotation failed as expected before finalize!", tc.desc)
 				t.Run("Verification of new connection with mismatch rotate of trustbundle.", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expectedresult, san, serverAddr, username, password, cert)
+					result := setupService.PostValidationCheck(t, cacert, expectedResult, san, serverAddr, username, password, cert)
 					if !result {
 						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, false)
 					}
 					t.Logf("%s postTestcase service validation done!", tc.desc)
 				})
 			case false:
-				expectedresult = true
+				expectedResult = true
 				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if !success {
 					t.Fatalf("%s:Certz rotation failed.", tc.desc)
@@ -249,7 +249,7 @@ func TestClientCert(t *testing.T) {
 				t.Logf("%s:successfully completed certz rotation!", tc.desc)
 				// Verification check of the new connection post rotation.
 				t.Run("Verification of new connection after rotate ", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expectedresult, san, serverAddr, username, password, cert)
+					result := setupService.PostValidationCheck(t, cacert, expectedResult, san, serverAddr, username, password, cert)
 					if !result {
 						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, true)
 					}
