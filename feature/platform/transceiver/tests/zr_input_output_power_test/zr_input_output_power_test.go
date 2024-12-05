@@ -121,7 +121,7 @@ func TestOpticalPower(t *testing.T) {
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			//Close the connections:
-			for portName, _ := range ochs {
+			for portName := range ochs {
 				ochStreams[portName].Close()
 				trStreams[portName].Close()
 				interfaceStreams[portName].Close()
