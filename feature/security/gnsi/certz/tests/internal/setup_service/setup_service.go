@@ -277,8 +277,7 @@ func CreateCertChainFromp7bTrustBundle(fileName string) *certzpb.CertificateChai
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
 func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
-		t.Logf("At least one entity required for Rotate request.")
-		return false
+		t.Fatalf("At least one entity required for Rotate request.")
 	}
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
@@ -306,11 +305,10 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		time.Sleep(10 * time.Second)
 	}
 	if err != nil {
-		t.Logf("Error fetching rotate certificate response: %v", err)
-		return false
+		t.Fatalf("Error fetching rotate certificate response: %v", err)
 	}
 	t.Logf("Received Rotate certificate response: %v", rotateResponse)
-    // Replace config with newly added ssl profile after successful rotate.
+	// Replace config with newly added ssl profile after successful rotate.
 	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	batch := gnmi.SetBatch{}
 	for _, server := range servers {
@@ -330,8 +328,7 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		time.Sleep(10 * time.Second)
 	}
 	if !success {
-		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
-		return false
+		t.Fatalf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 	}
 	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
@@ -360,13 +357,11 @@ func CertGeneration(t *testing.T, dirPath string) error {
 	t.Logf("Executing cert generation command %v.", cmd)
 	err := cmd.Start()
 	if err != nil {
-		t.Logf("Cert generation command failed with error:%v.", err)
-		return err
+		t.Fatalf("Cert generation command failed with error:%v.", err)
 	}
 	err = cmd.Wait()
 	if err != nil {
-		t.Logf("Failed to run cert generation command during wait with error:%v.", err)
-		return err
+		t.Fatalf("Failed to run cert generation command during wait with error:%v.", err)
 	}
 	return err
 }
@@ -382,13 +377,11 @@ func CertCleanup(t *testing.T, dirPath string) error {
 	t.Logf("Executing cleanup command")
 	err := cmd.Start()
 	if err != nil {
-		t.Logf("Testdata cleanup command failed with error:%v.", err)
-		return err
+		t.Fatalf("Testdata cleanup command failed with error:%v.", err)
 	}
 	err = cmd.Wait()
 	if err != nil {
-		t.Logf("Testdata cleanup command failed during wait with the error:%v.", err)
-		return err
+		t.Fatalf("Testdata cleanup command failed during wait with the error:%v.", err)
 	}
 	return err
 }
@@ -442,8 +435,7 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request with err:%v.", err)
 		} else {
-			t.Logf("Unexpected error during authz Get Request with err:%v.", err)
-			return false
+			t.Fatalf("Unexpected error during authz Get Request with err:%v.", err)
 		}
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
@@ -473,8 +465,7 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	sysClient := spb.NewSystemClient(conn)
 	_, err = sysClient.Ping(ctx, &spb.PingRequest{})
 	if err != nil {
-		t.Logf("Unable to connect gnoiClient %v", err)
-		return false
+		t.Fatalf("Unable to connect gnoiClient %v", err)
 	}
 	conn.Close()
 	return true
@@ -503,8 +494,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	t.Logf("%s:Sending gNMI Capability request.", time.Now().String())
 	response, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
-		t.Logf("gNMI Capability request failed with err: %v", err)
-		return false
+		t.Fatalf("gNMI Capability request failed with err: %v", err)
 	}
 	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	conn.Close()
@@ -533,8 +523,7 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 	gRibiClient := gribipb.NewGRIBIClient(conn)
 	_, err = gRibiClient.Get(ctx, &gribipb.GetRequest{})
 	if err != nil {
-		t.Logf("Failed to connect GribiClient with error:%v.", err)
-		return false
+		t.Fatalf("Failed to connect GribiClient with error:%v.", err)
 	}
 	conn.Close()
 	return true
@@ -561,8 +550,7 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	p4RtClient := p4rtpb.NewP4RuntimeClient(conn)
 	_, err = p4RtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
 	if err != nil {
-		t.Logf("Failed to connect P4rtClient with error %v.", err)
-		return false
+		t.Fatalf("Failed to connect P4rtClient with error %v.", err)
 	}
 	conn.Close()
 	return true
