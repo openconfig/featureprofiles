@@ -226,7 +226,7 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	return bundleToReturn
 }
 
-// CreateCertChainFrom p7b TrustBundle function to create the certificate chain from trust bundle.
+// CreateCertChainFromp7bTrustBundle function to create the trust bundle encoded in pkcs7.
 func CreateCertChainFromp7bTrustBundle(fileName string) *certzpb.CertificateChain {
 	pemData, err := os.ReadFile(fileName)
 	if err != nil {
@@ -310,8 +310,7 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		return false
 	}
 	t.Logf("Received Rotate certificate response: %v", rotateResponse)
-
-	// Replace config with newly added ssl profile after successful rotate.
+    // Replace config with newly added ssl profile after successful rotate.
 	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
 	batch := gnmi.SetBatch{}
 	for _, server := range servers {
@@ -328,9 +327,6 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		if success {
 			break
 		}
-		if i != 10 {
-			t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
-		}
 		time.Sleep(10 * time.Second)
 	}
 	if !success {
@@ -342,7 +338,6 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  finalizeRequest}
-
 	err = rotateRequestClient.Send(rotateCertRequest)
 	if err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
@@ -609,28 +604,28 @@ func GetSslProfilelist(ctx context.Context, t *testing.T, certzClient certzpb.Ce
 }
 
 // PostValidationCheck function to do a validation of all services after certz rotation.
-func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expected_result bool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate) bool {
 	t.Logf("%s:Verifying New gNSI connection.", time.Now().String())
 	result := VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expected_result)
+	if expectedResult != result {
+		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New gNOI connection.", time.Now().String())
 	result = VerifyGnoi(t, caCert, san, serverAddr, username, password, cert)
-	if expected_result != result {
-		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expected_result)
+	if expectedResult != result {
+		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expectedResult)
 	}
 	t.Logf("%s:Verifying New gRIBI connection.", time.Now().String())
-	if expected_result != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expectedResult)
 	}
 	t.Logf("%s:Verifying New P4rt connection.", time.Now().String())
-	if expected_result != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expectedResult)
 	}
 	t.Logf("%s:Verifying New gNMI connection.", time.Now().String())
-	if expected_result != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expected_result)
+	if expectedResult != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
+		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expectedResult)
 	}
 	return true
 }
