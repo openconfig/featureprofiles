@@ -39,8 +39,7 @@ var (
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
-	expectedresult bool
-	//pkcs7flag       bool
+	expectedresult  bool
 )
 
 // createUser function to add an user in admin role.
