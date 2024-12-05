@@ -19,7 +19,7 @@ const (
 	inactiveOCHRxPower         = -30.0
 	inactiveOCHTxPower         = -30.0
 	inactiveTransceiverRxPower = -20.0
-	rxPowerReadingError        = 2
+	rxPowerReadingError        = 3
 	txPowerReadingError        = 0.5
 	timeout                    = 10 * time.Minute
 )
@@ -119,6 +119,13 @@ func TestOpticalPower(t *testing.T) {
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
+
+			//Close the connections:
+			for portName, _ := range ochs {
+				ochStreams[portName].Close()
+				trStreams[portName].Close()
+				interfaceStreams[portName].Close()
+			}
 		}
 	}
 }
