@@ -55,7 +55,7 @@ type rpcCredentials struct {
 	*creds.UserPass
 }
 
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (r *rpcCredentials) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": r.UserPass.Username,
 		"password": r.UserPass.Password,
@@ -203,32 +203,79 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 	//a valid check for trust not empty
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
-	} else {
-		var prevCert *certzpb.CertificateChain
-		var bundleToReturn *certzpb.CertificateChain
-		for i := len(trust) - 1; i >= 0; i-- {
-			if i == len(trust)-1 {
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: nil}
-				prevCert = bundleToReturn
-			} else {
-				prevCert = bundleToReturn
-				bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-					Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-					Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-					Certificate: trust[i],
-				}, Parent: prevCert}
-			}
-		}
-		return bundleToReturn
 	}
+	var prevCert *certzpb.CertificateChain
+	var bundleToReturn *certzpb.CertificateChain
+	for i := len(trust) - 1; i >= 0; i-- {
+		if i == len(trust)-1 {
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: nil}
+			prevCert = bundleToReturn
+		} else {
+			prevCert = bundleToReturn
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: prevCert}
+		}
+	}
+	return bundleToReturn
+}
+
+// CreateCertChainFrom p7b TrustBundle function to create the certificate chain from trust bundle.
+func CreateCertChainFromp7bTrustBundle(fileName string) *certzpb.CertificateChain {
+	pemData, err := os.ReadFile(fileName)
+	if err != nil {
+		return &certzpb.CertificateChain{}
+	}
+	var trust [][]byte
+	for {
+		var block *pem.Block
+		block, pemData = pem.Decode(pemData)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		p := pem.EncodeToMemory(block)
+		if p == nil {
+			return &certzpb.CertificateChain{}
+		}
+		trust = append(trust, p)
+	}
+	//a valid check for trust not empty
+	if len(trust) == 0 {
+		return &certzpb.CertificateChain{}
+	}
+	var prevCert *certzpb.CertificateChain
+	var bundleToReturn *certzpb.CertificateChain
+	for i := len(trust) - 1; i >= 0; i-- {
+		if i == len(trust)-1 {
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: nil}
+			prevCert = bundleToReturn
+		} else {
+			prevCert = bundleToReturn
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: prevCert}
+		}
+	}
+	return bundleToReturn
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, ctx context.Context, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Logf("At least one entity required for Rotate request.")
 		return false
@@ -286,26 +333,25 @@ func CertzRotate(t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzC
 		}
 		time.Sleep(10 * time.Second)
 	}
-	if success {
-		finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
-		rotateCertRequest = &certzpb.RotateCertificateRequest{
-			ForceOverwrite: false,
-			SslProfileId:   profileID,
-			RotateRequest:  finalizeRequest}
-
-		err = rotateRequestClient.Send(rotateCertRequest)
-		if err != nil {
-			t.Fatalf("Error sending rotate finalize request: %v", err)
-		}
-		err = rotateRequestClient.CloseSend()
-		if err != nil {
-			t.Fatalf("Error sending rotate close send request: %v", err)
-		}
-		return true
-	} else {
+	if !success {
 		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 		return false
 	}
+	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
+	rotateCertRequest = &certzpb.RotateCertificateRequest{
+		ForceOverwrite: false,
+		SslProfileId:   profileID,
+		RotateRequest:  finalizeRequest}
+
+	err = rotateRequestClient.Send(rotateCertRequest)
+	if err != nil {
+		t.Fatalf("Error sending rotate finalize request: %v", err)
+	}
+	err = rotateRequestClient.CloseSend()
+	if err != nil {
+		t.Fatalf("Error sending rotate close send request: %v", err)
+	}
+	return true
 }
 
 // CertGeneration function to create test data for use in TLS tests.

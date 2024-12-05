@@ -39,7 +39,8 @@ var (
 	serverAddr      string
 	username        = "certzuser"
 	password        = "certzpasswd"
-	expected_result bool
+	expectedresult bool
+	//pkcs7flag       bool
 )
 
 // createUser function to add an user in admin role.
@@ -112,7 +113,7 @@ func TestClientCert(t *testing.T) {
 			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-01/ca-01/trust_bundle_01_rsa.p7b",
+			p7btrustBundle:  dirPath + "ca-01/trust_bundle_01_rsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
 		},
@@ -208,6 +209,8 @@ func TestClientCert(t *testing.T) {
 				ServerCertFile: tc.serverCertFile,
 				ServerKeyFile:  tc.serverKeyFile})
 			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, "cert1")
+			//Enable pkcs7 to true for new certz proto and
+			//trustCertChain := setupService.CreateCertChainFromp7bTrustBundle(tc.p7btrustBundle)
 			trustCertChain := setupService.CreateCertChainFromTrustBundle(tc.trustBundleFile)
 			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, trustCertChain, "bundle1")
 			cert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
@@ -225,29 +228,29 @@ func TestClientCert(t *testing.T) {
 
 			switch tc.mismatch {
 			case true:
-				expected_result = false
-				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				expectedresult = false
+				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if success {
 					t.Fatalf("%s:Certz rotation failed.", tc.desc)
 				}
 				t.Logf("%s:Mismatch certz rotation failed as expected before finalize!", tc.desc)
 				t.Run("Verification of new connection with mismatch rotate of trustbundle.", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
+					result := setupService.PostValidationCheck(t, cacert, expectedresult, san, serverAddr, username, password, cert)
 					if !result {
 						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, false)
 					}
 					t.Logf("%s postTestcase service validation done!", tc.desc)
 				})
 			case false:
-				expected_result = true
-				success := setupService.CertzRotate(t, cacert, certzClient, cert, ctx, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
+				expectedresult = true
+				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
 				if !success {
 					t.Fatalf("%s:Certz rotation failed.", tc.desc)
 				}
 				t.Logf("%s:successfully completed certz rotation!", tc.desc)
 				// Verification check of the new connection post rotation.
 				t.Run("Verification of new connection after rotate ", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
+					result := setupService.PostValidationCheck(t, cacert, expectedresult, san, serverAddr, username, password, cert)
 					if !result {
 						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, true)
 					}
