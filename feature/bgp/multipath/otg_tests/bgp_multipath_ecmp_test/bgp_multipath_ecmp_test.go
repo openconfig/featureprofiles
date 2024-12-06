@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -228,16 +229,37 @@ func TestBGPSetup(t *testing.T) {
 
 			aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
-			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
-			hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+
 			if deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 				tc.expectedPaths = 3
 			} else {
-				if got, want := len(hopGroup.NextHop), tc.expectedPaths; got != want {
-					t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+				val, ok := gnmi.Watch(t, bs.DUT, aftsPath.Ipv4Entry(prefix).State(), time.Minute,
+					func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+						ipv4Entry, present := val.Val()
+						if !present {
+							return false
+						}
+
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						return got == want
+					}).Await(t)
+
+				if !ok {
+					ipv4Entry, present := val.Val()
+					if !present {
+						t.Errorf("prefix: %s, found no aft entry", ipv4Entry.GetPrefix())
+					} else {
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						if got != want {
+							t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+						}
+					}
 				}
 			}
-
 			sleepTime := time.Duration(totalPackets/trafficPps) + 5
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
