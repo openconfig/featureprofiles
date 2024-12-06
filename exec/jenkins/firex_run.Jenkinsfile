@@ -34,6 +34,9 @@ def required_params_per_chain = [
     RunTests: []
 ]
 
+@Field
+def firex_store_cache = [:]
+
 pipeline {
     agent {
         node {
@@ -51,7 +54,7 @@ pipeline {
         persistentString(name: 'Execution node label', defaultValue: 'ads', description: 'Label for Jenkins execution node. Defaults to "ads".', trim: true)
         persistentChoice(name: 'FireX Chain', choices: ['RunTests', 'Nightly', 'CulpritFinder', 'B4FeatureCoverageRunTests'], description: 'This should almost always be set to RunTests. Nightly should only be used with testsuites stored in the FireX testsuite store and never with private images. The result of Nightly runs will be exported to CosmosX.')
         persistentString(name: 'Testbeds', defaultValue: '', description: 'List of testbed IDs to use as defined in ./exec/testbeds.yaml. The testbeds specified here overrides the one specified in the YAML files for all testsuites.', trim: true)
-        persistentString(name: 'Testsuites', defaultValue: 'exec/tests/v2/fp_published.yaml', description: 'List of testsuites. You can specify an internal YAML relative to the repo root, a FireX suite stored in the FireX testsuite store, or a full path to a private YAML file. Note that the testbed specified above will only be used for execution if using an internal YAML. Similarly, the testsuite filters below will only work with an internal YAML.', trim: true)
+        persistentString(name: 'Testsuites', defaultValue: 'exec/tests/v2/fp_published.yaml', description: 'List of testsuites. You can specify an internal YAML relative to the repo root, a FireX suite stored in the FireX testsuite store, or a full path to a private YAML file. Alternatively, you can provide a FireX run ID from which to extract the testsuite (prefix the run id with failed@ to extract only failed test). Note, the testsuite filters below will only work with an internal YAML.', trim: true)
         
         separator(sectionHeader: "Testsuite filters")
         persistentBoolean(name: 'Must pass only', defaultValue: false, description: 'Only include tests marked as must pass.')
@@ -133,8 +136,15 @@ pipeline {
                     }
 
                     testbeds = parseTestbeds(params['Testbeds'])
-
-                    (ts_internal, ts_absolute, ts_firex) = parseTestsuites(params['Testsuites'])
+                    
+                    testsuite_param = params['Testsuites']
+                    if(!testsuite_param && isRebuild()) {
+                        def upstream_firex_id = getUpstreamFireXID()
+                        if (upstream_firex_id) {
+                            testsuite_param = "failed@${upstream_firex_id}"
+                        } 
+                    }
+                    (ts_internal, ts_absolute, ts_firex) = parseTestsuites(testsuite_param)
                     ts_to_run = [] + ts_absolute + ts_firex
 
                     // no testsuites to run
@@ -683,16 +693,29 @@ def getFirexStore() {
 }
 
 def findInFirexStore(String testsuite) {
+    if (firex_store_cache.containsKey(testsuite)) {
+        return firex_store_cache[testsuite]
+    }
+
     def files = sh(
         script: "grep -Ril '${testsuite}' ${getFirexStore()}",
         returnStdout: true
     ).trim().split('\n')
 
-    if(files.size() > 0) {
-        return files[0]
-    }
+    def result = files.size() > 0 ? files[0] : ""
+    firex_store_cache[testsuite] = result
+    return result
+}
 
-    return ""
+def generateSuiteFromRun(String firex_id, boolean failed_only = false) {
+    def out_file = "${env.WORKSPACE}/${firex_id}.yaml"
+    def failed_only_arg = failed_only ? "--failed_only" : ""
+    try {
+        sh "python3 exec/utils/firex/generate_failed_suite.py ${firex_id} ${out_file} ${failed_only_arg}"
+        return out_file
+    } catch (Exception e) {
+        return null
+    }
 }
 
 def parseTestsuites(String testsuites_list) {
@@ -707,7 +730,16 @@ def parseTestsuites(String testsuites_list) {
     def ts_firex = []
 
     for(f in suites){
-        if(f.startsWith("/") && fileExists(f)) {
+        if(f ==~ /(failed@)?FireX-\w+-\d{6}-\d{6}-\d{5}/) {
+            def failed_only = f.startsWith("failed@")
+            f = f.replace("failed@", "")
+            def suite = generateSuiteFromRun(f, failed_only) 
+            if(suite) { 
+                ts_absolute.add(suite)
+            } else {
+                error "Failed to generate testsuite suite from ${f}"
+            }
+        } else if(f.startsWith("/") && fileExists(f)) {
             ts_absolute.add(f)
         } else if(fileExists(f)) {
             ts_internal.add(f)
@@ -794,4 +826,21 @@ def extractTestbedsFromSuites(List testsuites) {
     }
 
     return testbeds.unique()
+}
+
+def getUpstreamFireXID() {
+    for(b in currentBuild.getUpstreamBuilds()) {
+        def desc = b.getDescription()
+        def matcher = desc =~ /FireX-\w+-\d{6}-\d{6}-\d{5}/
+        if (matcher) {
+            return matcher[0]
+        }
+        break
+    }
+    return null
+}
+
+def isRebuild() {
+    def causes = currentBuild.getBuildCauses()
+    return causes.any { it._class == 'com.sonyericsson.rebuild.RebuildCause' }
 }

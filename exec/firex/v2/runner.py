@@ -10,7 +10,6 @@ from microservices.testbed_tasks import register_testbed_file_generator
 from microservices.firex_base import returns, flame, InjectArgs, FireX
 from services.cflow.code_coverage_tasks import CollectCoverageData
 from microservices.runners.runner_base import FireXRunnerBase
-from microservices.reporting_tasks import AggregateXunitReports
 from test_framework import register_test_framework_provider
 from ci_plugins.vxsim import GenerateGoB4TestbedFile
 from html_helper import get_link 
@@ -494,6 +493,43 @@ def _get_all_ondatra_log_files(ws, test_ws, test_path):
     logger.print(f'Found log files: {log_files}')
     return log_files
 
+def _aggregate_ondatra_log_files(log_files, out_file):
+    root = _get_testsuites_from_xml(log_files[0])
+    if root == None: return
+
+    testsuite = root.find("testsuite")
+    if testsuite == None: return
+
+    if len(log_files) > 1:
+        tests_attr = int(testsuite.attrib.get('tests', 0))
+        failures_attr = int(testsuite.attrib.get('failures', 0))
+        errors_attr = int(testsuite.attrib.get('errors', 0))
+        skipped_attr = int(testsuite.attrib.get('skipped', 0))
+        time_attr = float(testsuite.attrib.get('time', 0))
+
+        for f in log_files[1:]:
+            try:
+                tree = ET.parse(f)
+                for ts in tree.getroot().findall("testsuite"):
+                    tests_attr += int(ts.attrib.get('tests', 0))
+                    failures_attr += int(ts.attrib.get('failures', 0))
+                    errors_attr += int(ts.attrib.get('errors', 0))
+                    skipped_attr += int(ts.attrib.get('skipped', 0))
+                    time_attr += float(ts.attrib.get('time', 0))
+                    for tc in ts.findall("testcase"):
+                        testsuite.append(tc)
+            except Exception as e:
+                logger.print(f"Could not parse testsuite xml file {f}: {e}")
+                return
+
+        testsuite.attrib['tests'] = str(tests_attr)
+        testsuite.attrib['failures'] = str(failures_attr)
+        testsuite.attrib['errors'] = str(errors_attr)
+        testsuite.attrib['skipped'] = str(skipped_attr)
+        testsuite.attrib['time'] = "{:.3f}".format(time_attr)
+    _write_xml_tree(root, out_file)
+
+
 @app.task(base=FireX, bind=True, soft_time_limit=12*60*60, time_limit=12*60*60)
 @returns('internal_fp_repo_url', 'internal_fp_repo_dir', 'reserved_testbed', 
         'slurm_cluster_head', 'sim_working_dir', 'slurm_jobid', 'topo_path', 'testbed')
@@ -824,21 +860,16 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                             cwd=test_ws)
         stop_time = self.get_current_time()
     finally:
-        log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
-        if log_files:
-            self.enqueue_child_and_get_results(AggregateXunitReports.s(
-                xunit_result_files=log_files,
-                uid=uid,
-                aggregated_results_file=str(xml_results_file),
-            ))
-
         if test_enable_grpc_logs:
             grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
             if os.path.exists(grpc_bin_log_file):
                 shutil.move(grpc_bin_log_file, test_logs_dir_in_ws)
 
-        xml_root = _get_testsuites_from_xml(xml_results_file)
+        log_files = _get_all_ondatra_log_files(ws, test_ws, f"./{test_path}")
+        if log_files:
+            _aggregate_ondatra_log_files(log_files, str(xml_results_file))
 
+        xml_root = _get_testsuites_from_xml(xml_results_file)
         if xml_root is None: 
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
@@ -846,7 +877,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                 xml_root = _generate_dummy_suite(test_name, abort=True)
 
         suites = xml_root.findall("testsuite")
-        logger.print(f"suites: {suites}")
 
         test_did_pass = True
         for suite in suites:
