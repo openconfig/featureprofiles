@@ -35,7 +35,6 @@ type GoTest struct {
 	Timeout         int
 	Skip            bool
 	MustPass        bool
-	HasDeviations   bool
 	Internal        bool
 	PreTests        []GoTest `yaml:"pre_tests"`
 	PostTests       []GoTest `yaml:"post_tests"`
@@ -110,6 +109,10 @@ var (
 		"default_test_repo_rev", "", "fp repo rev to use for test execution by default",
 	)
 
+	testArgsFlag = flag.String(
+		"test_args", "", "comma separated list of test args",
+	)
+
 	testNamePrefixFlag = flag.String(
 		"test_name_prefix", "", "prefix to pre-append to test name",
 	)
@@ -138,10 +141,6 @@ var (
 		"use_short_names", false, "output short test names",
 	)
 
-	ignoreDeviationsFlag = flag.Bool(
-		"ignore_deviations", false, "ignore all deviation flags",
-	)
-
 	files              []string
 	testNames          []string
 	groupNames         []string
@@ -149,6 +148,7 @@ var (
 	excludeGroupNames  []string
 	extraPlugins       []string
 	testbeds           []string
+	testArgs           []string
 	env                map[string]string
 	outDir             string
 	testRepoRev        string
@@ -161,7 +161,6 @@ var (
 	randomize          bool
 	sorted             bool
 	useShortName       bool
-	ignoreDeviations   bool
 )
 
 var (
@@ -206,7 +205,7 @@ var (
         {{- if $.UseShortTestNames}}
         - {{ $.TestNamePrefix }}{{ $.Test.ShortName }}:
         {{- else }}
-        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Branch }} ({{ if $.Test.Internal }}I-{{ end }}BR#{{ $.Test.Branch }}){{ end }}{{ if $.Test.PrNum }} ({{ if $.Test.Internal }}I-{{ end }}PR#{{ $.Test.PrNum }}){{ end }}{{ if $.Test.HasDeviations }} (Deviation){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
+        - ({{ $.Test.ID }}) {{ $.Test.Name }}{{ if $.Test.Branch }} ({{ if $.Test.Internal }}I-{{ end }}BR#{{ $.Test.Branch }}){{ end }}{{ if $.Test.PrNum }} ({{ if $.Test.Internal }}I-{{ end }}PR#{{ $.Test.PrNum }}){{ end }}{{ if $.Test.MustPass }} (MP){{ end }}:
         {{- end }}
             test_name: {{ $.Test.ShortName }}
             test_path: {{ $.Test.Path }}
@@ -274,6 +273,10 @@ func init() {
 		extraPlugins = strings.Split(*pluginsFlag, ",")
 	}
 
+	if len(*testArgsFlag) > 0 {
+		testArgs = strings.Split(*testArgsFlag, ",")
+	}
+
 	if len(*envFlag) > 0 {
 		env = make(map[string]string)
 		for _, e := range strings.Split(*envFlag, ",") {
@@ -314,7 +317,6 @@ func init() {
 	randomize = *randomizeFlag
 	sorted = *sortFlag
 	useShortName = *useShortNameFlag
-	ignoreDeviations = *ignoreDeviationsFlag
 }
 
 func main() {
@@ -569,20 +571,6 @@ func main() {
 		}
 	}
 
-	if ignoreDeviations {
-		for i := range suite {
-			for j := range suite[i].Tests {
-				keptsArgs := []string{}
-				for k := range suite[i].Tests[j].Args {
-					if !strings.HasPrefix(suite[i].Tests[j].Args[k], "-deviation") {
-						keptsArgs = append(keptsArgs, suite[i].Tests[j].Args[k])
-					}
-				}
-				suite[i].Tests[j].Args = keptsArgs
-			}
-		}
-	}
-
 	var testSuiteCode strings.Builder
 	tbFound := map[string]bool{}
 
@@ -666,6 +654,10 @@ func main() {
 
 			for _, tb := range suite[i].Tests[j].Testbeds {
 				tbFound[tb] = true
+			}
+
+			if len(testArgs) > 0 {
+				suite[i].Tests[j].Args = testArgs
 			}
 
 			firexSuiteTemplate.Execute(&testSuiteCode, struct {

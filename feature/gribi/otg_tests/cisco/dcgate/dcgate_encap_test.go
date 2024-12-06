@@ -54,7 +54,7 @@ func TestBasicEncap(t *testing.T) {
 	}{
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -62,7 +62,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test1 IPv4 Traffic WCMP Encap dscp %d", dscpEncapB1),
-			pattr:              packetAttr{dscp: dscpEncapB1, protocol: ipipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapB1, protocol: ipipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4b1", dscpEncapB1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -70,7 +70,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapA1, protocol: ipv6ipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa6.getFlow("ipv6", "ip6a1", dscpEncapA1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -78,7 +78,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("Test2 IPv6 Traffic WCMP Encap dscp %d", dscpEncapB1),
-			pattr:              packetAttr{dscp: dscpEncapB1, protocol: ipv6ipProtocol},
+			pattr:              packetAttr{dscp: dscpEncapB1, protocol: ipv6ipProtocol, ttl: 99},
 			flows:              []gosnappi.Flow{fa6.getFlow("ipv6", "ip6b1", dscpEncapB1)},
 			weights:            wantWeights,
 			capturePorts:       otgDstPorts,
@@ -86,7 +86,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:  fmt.Sprintf("Test3 IPinIP Traffic WCMP Encap dscp %d", dscpEncapA1),
-			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol},
+			pattr: packetAttr{dscp: dscpEncapA1, protocol: ipipProtocol, ttl: 99},
 			flows: []gosnappi.Flow{faIPinIP.getFlow("ipv4in4", "ip4in4a1", dscpEncapA1),
 				faIPinIP.getFlow("ipv6in4", "ip6in4a1", dscpEncapA1),
 			},
@@ -96,7 +96,7 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("No Match Dscp %d Traffic", dscpEncapNoMatch),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapNoMatch, ttl: 99},
 			flows:              []gosnappi.Flow{fa4.getFlow("ipv4", "ip4nm", dscpEncapNoMatch)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
@@ -104,16 +104,15 @@ func TestBasicEncap(t *testing.T) {
 		},
 		{
 			name:               fmt.Sprintf("IPv4 No Prefix In Encap Vrf %d Traffic", dscpEncapA1),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapA1},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapA1, ttl: 99},
 			flows:              []gosnappi.Flow{fa4NoPrefix.getFlow("ipv4", "ip4NoPrefixEncapVrf", dscpEncapA1)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
 			validateEncapRatio: false,
-			skip:               true,
 		},
 		{
 			name:               fmt.Sprintf("IPv6 No Prefix In Encap Vrf %d Traffic", dscpEncapA1),
-			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapA1},
+			pattr:              packetAttr{protocol: udpProtocol, dscp: dscpEncapA1, ttl: 99},
 			flows:              []gosnappi.Flow{fa6NoPrefix.getFlow("ipv6", "ip6NoPrefixEncapVrf", dscpEncapA1)},
 			weights:            noMatchWeight,
 			capturePorts:       otgDstPorts[:1],
