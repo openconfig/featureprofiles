@@ -35,7 +35,7 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
-    bgp_rib_oc_path_unsupported:  true
+    bgp_distance_oc_path_unsupported:  true
   }
 }
 platform_exceptions:  {
