@@ -655,6 +655,9 @@ message Metadata {
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
     bool enable_table_connections = 236;
+    // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
+    // Cisco:
+    bool verify_expected_breakout_supported_config = 237;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
