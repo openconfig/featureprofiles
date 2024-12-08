@@ -1238,3 +1238,8 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
+
+// NoZeroSuppression returns true if device wants to remove zero suppression
+func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoZeroSuppression()
+}
