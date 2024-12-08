@@ -16,7 +16,6 @@ package qos_basic_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -1790,7 +1789,7 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 }
 
 func disableZeroSuppression() string {
-	return fmt.Sprintf(`
+	return (`
 	services {
 		analytics {
 			zero-suppression {
