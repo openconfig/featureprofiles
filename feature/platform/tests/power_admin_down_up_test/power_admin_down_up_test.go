@@ -28,13 +28,13 @@ func TestFabricPowerAdmin(t *testing.T) {
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
 
-			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
-				t.Skipf("Skip the test on non-removable fabric.")
-			}
-
 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 			if ok && empty {
 				t.Skipf("Fabric Component %s is empty, hence skipping", f)
+			}
+
+			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+				t.Skipf("Skip the test on non-removable fabric.")
 			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
