@@ -651,7 +651,7 @@ message Metadata {
     // Cisco: b/377433951
     bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
     // Device does not support bgp afi safi wildcard.
-    // Cisco: b/379863985 
+    // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
     bool enable_table_connections = 236;
@@ -687,3 +687,4 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
+
