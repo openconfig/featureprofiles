@@ -63,19 +63,21 @@ type InterfaceProperties struct {
 }
 
 // ConfigureOtgNetworkInterface configures the network interface.
-func ConfigureOtgNetworkInterface(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
+func ConfigureOtgNetworkInterface(top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
 	if a.Islag {
-		ConfigureOtgLag(t, top, ate, a)
+		ConfigureOtgLag(top, ate, a)
 	} else {
 		top.Ports().Add().SetName(a.Name)
 	}
 	for _, intf := range a.Interfaces {
-		ConfigureOtgInterface(t, top, intf, a)
+		ConfigureOtgInterface(top, intf, a)
 	}
 }
 
 // ConfigureOtgLag configures the aggregate port.
 func ConfigureOtgLag(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, a *Port) {
+	t.Helper()
+
 	agg := top.Lags().Add().SetName(a.Name)
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(a.AggMAC)
 	for index, portName := range a.MemberPorts {
@@ -93,7 +95,7 @@ func ConfigureOtgLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index i
 }
 
 // ConfigureOtgInterface configures the Ethernet for the LAG or subinterface.
-func ConfigureOtgInterface(t *testing.T, top gosnappi.Config, intf *InterfaceProperties, a *Port) {
+func ConfigureOtgInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port) {
 	dev := top.Devices().Add().SetName(intf.Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(intf.Name + ".Eth").SetMac(intf.Mac)
 	if a.Islag {
