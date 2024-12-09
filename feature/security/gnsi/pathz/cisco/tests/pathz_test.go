@@ -740,6 +740,8 @@ func TestPathz_1(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		time.Sleep(5 * time.Second)
+
 		// Perform GET operations for active policy instance.
 		getReq := &pathzpb.GetRequest{
 			PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
@@ -2743,6 +2745,9 @@ func TestPathz_1(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
 
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
 
@@ -2879,8 +2884,9 @@ func TestPathz_1(t *testing.T) {
 				t.Fatalf("Pathz Get unexpected diff: %s", d)
 			}
 
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+			time.Sleep(5 * time.Second)
+
+			// Configure ISIS using gNMI.Update
 			gnmi.Update(t, dut, config.Config(), true)
 			gnmi.Delete(t, dut, config.Config())
 			gnmi.Replace(t, dut, config.Config(), true)
@@ -5471,6 +5477,8 @@ func TestPathz_1(t *testing.T) {
 			perf.RestartProcess(t, dut, "emsd")
 			t.Logf("Restart emsd finished at %s", time.Now())
 
+			time.Sleep(5 * time.Second)
+
 			batchSet, leavesCnt := pathz.GenerateSubInterfaceConfig(t, dut)
 			t.Logf("configuration %v :", batchSet)
 			t.Logf("Leaves count %v :", leavesCnt)
@@ -5534,7 +5542,7 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			// Sample memory usage after the operation
 			verifier.SampleAfter(t, dut)
