@@ -154,6 +154,8 @@ func TestAdminDistance(t *testing.T) {
 				otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
 				otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
 
+				// b/374639328 #3 30 sec delay added for bgp and isis to come up
+				time.Sleep(30 * time.Second)
 				ts.ATE.OTG().StartTraffic(t)
 				// added 30 seconds for sleep for traffic flow
 				time.Sleep(30 * time.Second)
