@@ -2745,9 +2745,6 @@ func TestPathz_1(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
 
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
 
@@ -2884,9 +2881,14 @@ func TestPathz_1(t *testing.T) {
 				t.Fatalf("Pathz Get unexpected diff: %s", d)
 			}
 
-			time.Sleep(5 * time.Second)
+			// Configure Network Instance using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
-			// Configure ISIS using gNMI.Update
+			// Configure Protcol ISIS using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
 			gnmi.Update(t, dut, config.Config(), true)
 			gnmi.Delete(t, dut, config.Config())
 			gnmi.Replace(t, dut, config.Config(), true)
