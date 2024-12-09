@@ -1,7 +1,7 @@
-# PF-1.6: Policy forwarding based GUE tunnel decap to default and non-default network-instance
+# PF-1.6: Policy forwarding of GUE tunnel traffic to default and non-default network-instance
 
 ## Summary
-This test ensures NOS is able to host multiple VRFs, perform GUE tunnel DECAP in the default VRF and also allows for gradual traffic migration from Default to Non-Default VRF using VRF selection policy.
+This test ensures NOS is able to host multiple VRFs, perform GUE tunnel traffic in the default VRF and also allows for gradual traffic migration from Default to Non-Default VRF using VRF selection policy.
 
 
 ## Test environment setup
@@ -28,15 +28,16 @@ A2 <-- EBGP(ASN100:ASN200) --> B2;
 * Configure ISIS[Level2] and IBGP[ASN100] as described in topology between ATE:Port1 and DUT:Port1
 * Configure EBGP[ASN200] between ATE:Port2 and DUT: Port2
 * Configure route leaking from the default VRF and non-default VRF and vice versa.
-* Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic frmom Default VRF to non default VRF and vice vers based on teh destination IP/IPV6 address.
-* DUT has the following VRF selection policy
-    * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to Non-default vrf
+* Configure a policy based traffic steering from default to Non Default VRF, this policy should be able to steer the traffic from Default VRF to non default VRF and vice versa based on the destination IP/IPV6 address.
+* DUT has the following VRF selection policy initially
+    * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to default vrf
     * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to default vrf
     * Statement3: traffic matching IPv4Prefix3/24 & IPv6Prefix3/64, Punt to default vrf
     * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to default vrf
     * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to default vrf
     * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf
     * DUT must also leak all the routes from the Default VRF to the non-default VRF
+    * DUT's IP sub-interfaces belong to Default VRF
 
 #### ATE Configuration
 * Configure ISIS[Level2]  & IBGP[ASN100] on ATE:Port1
@@ -127,7 +128,15 @@ In this case ATE:Port2 simulates the regular flows as stated above.
     * IPv6Prefix8/64 to IPv6Prefix3/64 
     * IPv6Prefix9/64 to IPv6Prefix4/64 
     * IPv6Prefix10/64 to IPv6Prefix5/64
-  * 
+   
+  VRF selection policy on DUT:Port2 changes as follows: 
+    * Statement1: traffic matching IPv4Prefix1/24 & IPv6Prefix1/64, Punt to non-default vrf
+    * Statement2: traffic matching IPv4Prefix2/24 & IPv6Prefix2/64, Punt to default vrf
+    * Statement3: traffic matching IPv4Prefix3/24 & IPv6Prefix3/64, Punt to default vrf
+    * Statement4: traffic matching IPv4Prefix4/24 & IPv6Prefix4/64, Punt to default vrf
+    * Statement5: traffic matching IPv4Prefix5/24 & IPv6Prefix5/64, Punt to default vrf
+    * Statement6: traffic matching IPv4Prefix6/24 & IPv6Prefix6/64, Punt to default vrf
+
   * Expectations:
     * To validate the prefixes advertised by ATE:Port1 are received on ATE:Port2 and vice versa. 
     * Traffic for Prefix 1 received from ATE:Port2 once punted to non-defailt VRF by the VRF selection policy, must be received by ATE:Port1
