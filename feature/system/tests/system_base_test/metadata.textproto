@@ -19,5 +19,6 @@ platform_exceptions: {
   }
   deviations: {
     p4rt_capabilities_unsupported: true
+    gnmi_get_on_root_unsupported: true
   }
 }

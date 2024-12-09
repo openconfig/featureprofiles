@@ -1246,5 +1246,5 @@ func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 
 // GNMIGetOnRootUnsupported returns true if the device does not support gNMI get on root.
 func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGNMIGetOnRootUnsupported()
+	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
 }

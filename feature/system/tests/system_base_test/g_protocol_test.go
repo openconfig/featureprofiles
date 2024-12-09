@@ -59,14 +59,22 @@ func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
-	if _, err := c.Get(context.Background(), &gpb.GetRequest{
-		Path: []*gpb.Path{{
-			Elem: []*gpb.PathElem{
-				{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
-		},
-		Type:     gpb.GetRequest_STATE,
-		Encoding: gpb.Encoding_JSON_IETF,
-	}); err != nil {
+
+	var req *gpb.GetRequest
+	if deviations.GNMIGetOnRootUnsupported(dut) {
+		req = &gpb.GetRequest{
+			Path: []*gpb.Path{{
+				Elem: []*gpb.PathElem{
+					{Name: "system"}, {Name: "state"}, {Name: "hostname"}}},
+			},
+			Type:     gpb.GetRequest_STATE,
+			Encoding: gpb.Encoding_JSON_IETF,
+		}
+	} else {
+		req = &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}
+	}
+
+	if _, err := c.Get(context.Background(), req); err != nil {
 		t.Fatalf("gnmi.Get failed: %v", err)
 	}
 }
