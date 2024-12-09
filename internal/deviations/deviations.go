@@ -49,6 +49,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
+
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/ondatra"
 )
@@ -56,12 +57,12 @@ import (
 func lookupDeviations(dvc *ondatra.Device) (*mpb.Metadata_PlatformExceptions, error) {
 	var matchedPlatformException *mpb.Metadata_PlatformExceptions
 
-	for _, platformExceptions := range metadata.Get().PlatformExceptions {
-		if platformExceptions.GetPlatform().Vendor.String() == "" {
+	for _, platformExceptions := range metadata.Get().GetPlatformExceptions() {
+		if platformExceptions.GetPlatform().GetVendor().String() == "" {
 			return nil, fmt.Errorf("vendor should be specified in textproto %v", platformExceptions)
 		}
 
-		if dvc.Vendor().String() != platformExceptions.GetPlatform().Vendor.String() {
+		if dvc.Vendor().String() != platformExceptions.GetPlatform().GetVendor().String() {
 			continue
 		}
 
@@ -1170,4 +1171,70 @@ func EthChannelIngressParametersUnsupported(dut *ondatra.DUTDevice) bool {
 // EthChannelAssignmentCiscoNumbering returns true if eth channel assignment index starts from 1 instead of 0
 func EthChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEthChannelAssignmentCiscoNumbering()
+}
+
+// ChassisGetRPCUnsupported returns true if a Healthz Get RPC against the Chassis component is unsupported
+func ChassisGetRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChassisGetRpcUnsupported()
+}
+
+// PowerDisableEnableLeafRefValidation returns true if definition of leaf-ref is not supported.
+func PowerDisableEnableLeafRefValidation(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPowerDisableEnableLeafRefValidation()
+}
+
+// SSHServerCountersUnsupported is to skip checking ssh server counters.
+func SSHServerCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerCountersUnsupported()
+}
+
+// OperationalModeUnsupported returns true if operational-mode leaf is unsupported
+func OperationalModeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOperationalModeUnsupported()
+}
+
+// BgpSessionStateIdleInPassiveMode returns true if BGP session state idle is not supported instead of active in passive mode.
+func BgpSessionStateIdleInPassiveMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSessionStateIdleInPassiveMode()
+}
+
+// EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path.
+func EnableMultipathUnderAfiSafi(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMultipathUnderAfiSafi()
+}
+
+// BgpAllowownasDiffDefaultValue permits a device to have a different default value for allow own as.
+func BgpAllowownasDiffDefaultValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAllowownasDiffDefaultValue()
+}
+
+// OTNChannelAssignmentCiscoNumbering returns true if OTN channel assignment index starts from 1 instead of 0
+func OTNChannelAssignmentCiscoNumbering(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOtnChannelAssignmentCiscoNumbering()
+}
+
+// CiscoPreFECBERInactiveValue returns true if a non-zero pre-fec-ber value is to be used for Cisco
+func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
+}
+
+// BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
+// Cisco supports the extended nexthop encoding set to true by default that is excercised in the Script where the extended-nexthop-encoding
+// a bool value is set to true.
+func BgpExtendedNextHopEncodingLeafUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpExtendedNextHopEncodingLeafUnsupported()
+}
+
+// BgpAfiSafiWildcardNotSupported return true if bgp afi/safi wildcard query is not supported.
+// For example, this yang path query includes the wildcard key `afi-safi-name=`:
+// `/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=BGP][name=BGP]/bgp/neighbors/neighbor[neighbor-address=192.0.2.2]/afi-safis/afi-safi[afi-safi-name=]`.
+// Use of this deviation is permitted if a query using an explicit key is supported (such as
+// `oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST`).
+func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
+}
+
+// Admin Enable Table Connections in SRL native
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }

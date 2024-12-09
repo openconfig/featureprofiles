@@ -15,13 +15,11 @@
 package bgp_multipath_ecmp_test
 
 import (
-	"slices"
+	"math/rand"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -31,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -40,9 +39,8 @@ const (
 	prefixesCount    = 4
 	pathID           = 1
 	maxPaths         = 2
-	trafficPps       = 100000
-	kneTrafficPps    = 1000
-	totalPackets     = 12000000
+	trafficPps       = 1000
+	totalPackets     = 120000
 	lossTolerancePct = 0
 	lbToleranceFms   = 20
 )
@@ -51,16 +49,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-var (
-	kneDeviceModelList = []string{"ncptx"}
-)
-
 func configureOTG(t *testing.T, bs *cfgplugins.BGPSession) {
 	devices := bs.ATETop.Devices().Items()
 	byName := func(i, j int) bool { return devices[i].Name() < devices[j].Name() }
 	sort.Slice(devices, byName)
 	for i, otgPort := range bs.ATEPorts {
-		if i == 0 {
+		if i < 2 {
 			continue
 		}
 
@@ -98,7 +92,7 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	bs.ATETop.Flows().Clear()
 
 	var rxNames []string
-	for i := 1; i < len(bs.ATEPorts); i++ {
+	for i := 2; i < len(bs.ATEPorts); i++ {
 		rxNames = append(rxNames, bs.ATEPorts[i].Name+".BGP4.peer.rr4")
 	}
 	flow := bs.ATETop.Flows().Add().SetName("flow")
@@ -109,10 +103,6 @@ func configureFlow(t *testing.T, bs *cfgplugins.BGPSession) {
 	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Size().SetFixed(1500)
 	flow.Rate().SetPps(trafficPps)
-
-	if slices.Contains(kneDeviceModelList, bs.DUT.Model()) {
-		flow.Rate().SetPps(kneTrafficPps)
-	}
 
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(bs.ATEPorts[0].MAC)
@@ -135,7 +125,7 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 	max := expectedPerLinkFms + (expectedPerLinkFms * lbToleranceFms / 100)
 
 	got := 0
-	for i := 2; i <= pc; i++ {
+	for i := 3; i <= pc; i++ {
 		framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port"+strconv.Itoa(i)).ID()).Counters().InFrames().State())
 		if framesRx <= lbToleranceFms {
 			t.Logf("Skip: Traffic through port%d interface is %d", i, framesRx)
@@ -203,7 +193,7 @@ func TestBGPSetup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount4, nil)
-			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port2", "port3", "port4"}, true, !tc.enableMultiAS)
+			bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST}, []string{"port3", "port4"}, true, !tc.enableMultiAS)
 			dni := deviations.DefaultNetworkInstance(bs.DUT)
 			bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 			gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
@@ -212,7 +202,11 @@ func TestBGPSetup(t *testing.T) {
 				t.Logf("Enable Multipath")
 				pgUseMulitplePaths.Enabled = ygot.Bool(true)
 				t.Logf("Enable Maximum Paths")
-				gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+				if deviations.EnableMultipathUnderAfiSafi(bs.DUT) {
+					gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+				}
 			}
 			if tc.enableMultiAS && !deviations.SkipSettingAllowMultipleAS(bs.DUT) && deviations.SkipAfiSafiPathForBgpMultipleAs(bs.DUT) {
 				t.Logf("Enable MultiAS ")
@@ -235,16 +229,37 @@ func TestBGPSetup(t *testing.T) {
 
 			aftsPath := gnmi.OC().NetworkInstance(dni).Afts()
 			prefix := prefixesStart + "/" + strconv.Itoa(prefixP4Len)
-			ipv4Entry := gnmi.Get[*oc.NetworkInstance_Afts_Ipv4Entry](t, bs.DUT, aftsPath.Ipv4Entry(prefix).State())
-			hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+
 			if deviations.BgpMaxMultipathPathsUnsupported(bs.DUT) {
 				tc.expectedPaths = 3
 			} else {
-				if got, want := len(hopGroup.NextHop), tc.expectedPaths; got != want {
-					t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+				val, ok := gnmi.Watch(t, bs.DUT, aftsPath.Ipv4Entry(prefix).State(), time.Minute,
+					func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+						ipv4Entry, present := val.Val()
+						if !present {
+							return false
+						}
+
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						return got == want
+					}).Await(t)
+
+				if !ok {
+					ipv4Entry, present := val.Val()
+					if !present {
+						t.Errorf("prefix: %s, found no aft entry", ipv4Entry.GetPrefix())
+					} else {
+						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						got := len(hopGroup.NextHop)
+						want := tc.expectedPaths
+						if got != want {
+							t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+						}
+					}
 				}
 			}
-
 			sleepTime := time.Duration(totalPackets/trafficPps) + 5
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
