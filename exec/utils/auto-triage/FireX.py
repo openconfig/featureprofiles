@@ -93,7 +93,7 @@ class FireX:
                     testcase_data["label"] = ""
             # Failed Testcase
             elif (error_el != None and error_el.get("message")) or failure_el != None:
-                text = error_el.text if error_el else failure_el.text
+                text = error_el.text if error_el != None else failure_el.text
 
                 testcase_data["message"] = "Failed"
                 testcase_data["logs"] = str(text).strip()
