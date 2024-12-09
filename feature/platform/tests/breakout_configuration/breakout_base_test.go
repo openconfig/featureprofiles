@@ -143,7 +143,7 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 	// Compile the pattern into a regular expression.
 	re := regexp.MustCompile(breakoutPattern)
 
-	// Loop through all interfaces and collect those that match the breakout pattern.
+	// Loop through all interfaces and collect those that match the breakout pattern
 	newPortNames := []string{}
 	for intfName := range intfs {
 		if re.MatchString(intfName) {
