@@ -1238,3 +1238,8 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
+
+// Devices needs route policy reference to stream prefix set info.
+func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
+}
