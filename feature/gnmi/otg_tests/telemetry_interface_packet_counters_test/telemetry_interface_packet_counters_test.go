@@ -311,7 +311,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		SetTxNames([]string{intf1.Name() + ".IPv4"}).
 		SetRxNames([]string{intf2.Name() + ".IPv4"})
 	flowipv4.Size().SetFixed(100)
-	flowipv4.Rate().SetPps(15)
+	flowipv4.Rate().SetPps(50)
 	e1 := flowipv4.Packet().Add().Ethernet()
 	e1.Src().SetValue(eth1.Mac())
 	v4 := flowipv4.Packet().Add().Ipv4()
@@ -324,7 +324,7 @@ func TestIntfCounterUpdate(t *testing.T) {
 		SetTxNames([]string{intf1.Name() + ".IPv6"}).
 		SetRxNames([]string{intf2.Name() + ".IPv6"})
 	flowipv6.Size().SetFixed(100)
-	flowipv6.Rate().SetPps(15)
+	flowipv6.Rate().SetPps(50)
 	e2 := flowipv6.Packet().Add().Ethernet()
 	e2.Src().SetValue(eth1.Mac())
 	v6 := flowipv6.Packet().Add().Ipv6()
