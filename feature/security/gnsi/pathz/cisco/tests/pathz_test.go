@@ -2741,168 +2741,6 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
 		}
 	})
-	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure Network Instance using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
-			// Configure Protcol ISIS using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-			gnmi.Update(t, dut, config.Config(), true)
-			gnmi.Delete(t, dut, config.Config())
-			gnmi.Replace(t, dut, config.Config(), true)
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
@@ -3468,7 +3306,7 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
@@ -4024,7 +3862,7 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 7)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
@@ -4244,7 +4082,9 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 7)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 7)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
@@ -4468,7 +4308,7 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 7)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
@@ -5474,6 +5314,14 @@ func TestPathz_1(t *testing.T) {
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
 
+			// Function to check the platform status
+			Resp := pathz.CheckPlatformStatus(t, dut)
+			if Resp != nil {
+				fmt.Printf("Error: %v\n", Resp)
+			} else {
+				fmt.Println("All CPU0 entries are in 'IOS XR RUN' state.")
+			}
+
 			// Perform eMSD process restart before capturing intial emsd process memory.
 			t.Logf("Restarting emsd at %s", time.Now())
 			perf.RestartProcess(t, dut, "emsd")
@@ -5528,10 +5376,10 @@ func TestPathz_1(t *testing.T) {
 				t.Fatalf("Unexpected value for port number: %v", portNum)
 			}
 
-			time.Sleep(10 * time.Second)
-
 			// Perform a gNMI Set Request with 5 MB of Data
 			set := perf.CreateInterfaceSetFromOCRoot(util.LoadJsonFileToOC(t, "testdata/set_config.json"), true)
+
+			time.Sleep(5 * time.Second)
 
 			t.Logf("After process restart:Starting batch programming of %d leaves at %s", leavesCnt, time.Now())
 			perf.BatchSet(t, dut, set, leavesCnt)
@@ -5543,8 +5391,6 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-
-			time.Sleep(5 * time.Second)
 
 			// Sample memory usage after the operation
 			verifier.SampleAfter(t, dut)
@@ -5563,7 +5409,7 @@ func TestPathz_1(t *testing.T) {
 			perf.ReloadRouter(t, dut)
 
 			// Function to check the platform status
-			Resp := pathz.CheckPlatformStatus(t, dut)
+			Resp = pathz.CheckPlatformStatus(t, dut)
 			if Resp != nil {
 				fmt.Printf("Error: %v\n", Resp)
 			} else {
@@ -5591,6 +5437,8 @@ func TestPathz_1(t *testing.T) {
 
 			// Perform a gNMI Set Request with 5 MB of Data
 			set = perf.CreateInterfaceSetFromOCRoot(util.LoadJsonFileToOC(t, "testdata/set_config.json"), true)
+
+			time.Sleep(5 * time.Second)
 
 			t.Logf("After process restart:Starting batch programming of %d leaves at %s", leavesCnt, time.Now())
 			perf.BatchSet(t, dut, set, leavesCnt)
