@@ -1,4 +1,3 @@
-// Package otgconfighelpers provides helper functions to create different flows on traffic generator.
 package otgconfighelpers
 
 import (
