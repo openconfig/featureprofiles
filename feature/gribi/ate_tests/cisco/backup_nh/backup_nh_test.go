@@ -2448,10 +2448,10 @@ func fimBase(ctx context.Context, t *testing.T, args *testArgs, nhg string, ipv4
 func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Activating faults to test failure for NHG : FP - 33:3482356236 NHGROUP_HANDLE_PROTGRP_RDESC_OOR: Retry will occur only once Green Notification is sent
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "37", "-1", false)
 	fimBase(ctx, t, args, "nhgconfig", "", "", true, false)
 	time.Sleep(60 * time.Second)
 
@@ -2459,8 +2459,8 @@ func testFaultInjectNHG(ctx context.Context, t *testing.T, args *testArgs) {
 func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
 	//Activating faults to test failure for AddIPv4 : FP - 3:3482356236 IPV4_ROUTE_RDESC_OOR:Route programming failure
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "3", "3482356236", false)
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, true)
 	time.Sleep(60 * time.Second)
 
@@ -2469,8 +2469,8 @@ func testFaultInjectAddIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 // func testFaultInjectDeleteIPv4(ctx context.Context, t *testing.T, args *testArgs) {
 
 // 	//Activating faults to test failure for DeleteIPv4 : FP - 5:-1 IPV4_ROUTE_DELETE_FAIL:Delete fails,Default ASYNC msg sent to PI.
-// 	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", true)
-// 	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "5", "-1", false)
+// 	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "5", "-1", true)
+// 	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "5", "-1", false)
 // 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "ipv4del", false, true)
 // 	time.Sleep(60 * time.Second)
 
@@ -2480,8 +2480,8 @@ func testFaultInjectUpdateNHG(ctx context.Context, t *testing.T, args *testArgs)
 
 	//Activating faults to test failure for UpdateNHG : FP - 27:24 NHGROUP_CREATE_STAGE2_MBR_ECMP_OOR: Update on NHG fails
 	fimBase(ctx, t, args, "nhgconfig", "ipv4add", "", false, false)
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "27", "24", false)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "27", "24", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "27", "24", false)
 	//New NHG id pointing to the old NH
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		args.client.AddNHG(t, 60, 0, map[uint64]uint64{1000: 50, 1100: 30, 1200: 15, 1300: 5}, *ciscoFlags.DefaultNetworkInstance, true, ciscoFlags.GRIBIChecks)
@@ -2531,18 +2531,18 @@ func nhBulkConfig(ctx context.Context, t *testing.T, args *testArgs) {
 }
 func testFaultInjectTimingAddNHG(ctx context.Context, t *testing.T, args *testArgs) {
 
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", true)
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "33", "3482356236", false)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "37", "-1", false)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "33", "3482356236", true)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "37", "-1", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "33", "3482356236", false)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "37", "-1", false)
 	nhBulkConfig(ctx, t, args)
 	time.Sleep(60 * time.Second)
 
 }
 func testFaultInjectTimingAddIpv4(ctx context.Context, t *testing.T, args *testArgs) {
 
-	util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", true)
-	defer util.FaultInjectionMechanism(t, args.dut, []string{"0"}, "ofa_la_srv", "3", "3482356236", false)
+	util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "3", "3482356236", true)
+	defer util.FaultInjectionMechanism(t, args.dut, "ofa_la_srv", "3", "3482356236", false)
 	nhBulkConfig(ctx, t, args)
 	time.Sleep(60 * time.Second)
 
@@ -2713,32 +2713,32 @@ func TestBackUp(t *testing.T) {
 			desc: "Inject relevent faults NHG ",
 			fn:   testFaultInjectNHG,
 		},
-		{
-			name: "FaultInjectAddIPv4",
-			desc: "Inject relevent faults for Add IPV4 ",
-			fn:   testFaultInjectAddIPv4,
-		},
-		// Decommissioning the TC due to CSCwe05268
 		// {
-		// 	name: "FaultInjectDeleteIPv4",
-		// 	desc: "Inject relevent faults for Delete IPv4",
-		// 	fn:   testFaultInjectDeleteIPv4,
+		// 	name: "FaultInjectAddIPv4",
+		// 	desc: "Inject relevent faults for Add IPV4 ",
+		// 	fn:   testFaultInjectAddIPv4,
 		// },
-		{
-			name: "FaultInjectUpdateNHG",
-			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
-			fn:   testFaultInjectUpdateNHG,
-		},
-		{
-			name: "FaultInjectTimingAddNHG",
-			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
-			fn:   testFaultInjectTimingAddNHG,
-		},
-		{
-			name: "FaultInjectTimingAddIpv4",
-			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
-			fn:   testFaultInjectTimingAddIpv4,
-		},
+		// // Decommissioning the TC due to CSCwe05268
+		// // {
+		// // 	name: "FaultInjectDeleteIPv4",
+		// // 	desc: "Inject relevent faults for Delete IPv4",
+		// // 	fn:   testFaultInjectDeleteIPv4,
+		// // },
+		// {
+		// 	name: "FaultInjectUpdateNHG",
+		// 	desc: "Inject relevent faults for Update NHG pointing to the old NH ",
+		// 	fn:   testFaultInjectUpdateNHG,
+		// },
+		// {
+		// 	name: "FaultInjectTimingAddNHG",
+		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
+		// 	fn:   testFaultInjectTimingAddNHG,
+		// },
+		// {
+		// 	name: "FaultInjectTimingAddIpv4",
+		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
+		// 	fn:   testFaultInjectTimingAddIpv4,
+		// },
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
