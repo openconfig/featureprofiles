@@ -1476,12 +1476,14 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
 	t.Run("testTrafficaftr frr", func(t *testing.T) {
+		args.interfaceaction(t, "port7", false)
 		testTrafficmin(t, args.ate, args.top, 100, false, true, true)
 	})
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
+		args.interfaceaction(t, "port7", true)
 
 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
@@ -2216,6 +2218,7 @@ func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
 		//testTrafficWeight(t, args.ate, args.top, 65000, false, 8)
 	})
 	t.Run("testTrafficaftr frr", func(t *testing.T) {
+		args.interfaceaction(t, "port7", false)
 		testTrafficmin(t, args.ate, args.top, 100, false, false, true)
 	})
 
@@ -2223,6 +2226,7 @@ func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
+		args.interfaceaction(t, "port7", true)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 	})
 	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
@@ -2412,12 +2416,14 @@ func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
 
 		testTrafficmin(t, args.ate, args.top, 100, false, true, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 8)
+		args.interfaceaction(t, "port7", false)
 		testTrafficmin(t, args.ate, args.top, 100, false, false, true)
 	})
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
+		args.interfaceaction(t, "port7", true)
 
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 	})
