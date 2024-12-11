@@ -120,7 +120,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
-		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(oc.BgpPolicy_MatchSetOptionsType_ANY))
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(commMatchSetOptions))
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {
