@@ -37,6 +37,7 @@ import (
 )
 
 const (
+ 	apple             = "apple"
 	ipv4PrefixLen     = 30
 	ipv6PrefixLen     = 126
 	v41Route          = "203.0.113.0"
