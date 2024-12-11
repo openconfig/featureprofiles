@@ -1477,6 +1477,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
             if l == 'grpc':
                 new_conf.append('aaa accounting commands default start-stop local')
                 new_conf.append(f'aaa map-to username {gnmi_username} spiffe-id any')
+                new_conf.append('aaa authorization exec default local')
                 new_conf.append(l)
                 new_conf.append('  tls-mutual')
                 new_conf.append('  certificate-authentication')
