@@ -2713,32 +2713,32 @@ func TestBackUp(t *testing.T) {
 			desc: "Inject relevent faults NHG ",
 			fn:   testFaultInjectNHG,
 		},
+		{
+			name: "FaultInjectAddIPv4",
+			desc: "Inject relevent faults for Add IPV4 ",
+			fn:   testFaultInjectAddIPv4,
+		},
+		// Decommissioning the TC due to CSCwe05268
 		// {
-		// 	name: "FaultInjectAddIPv4",
-		// 	desc: "Inject relevent faults for Add IPV4 ",
-		// 	fn:   testFaultInjectAddIPv4,
+		// 	name: "FaultInjectDeleteIPv4",
+		// 	desc: "Inject relevent faults for Delete IPv4",
+		// 	fn:   testFaultInjectDeleteIPv4,
 		// },
-		// // Decommissioning the TC due to CSCwe05268
-		// // {
-		// // 	name: "FaultInjectDeleteIPv4",
-		// // 	desc: "Inject relevent faults for Delete IPv4",
-		// // 	fn:   testFaultInjectDeleteIPv4,
-		// // },
-		// {
-		// 	name: "FaultInjectUpdateNHG",
-		// 	desc: "Inject relevent faults for Update NHG pointing to the old NH ",
-		// 	fn:   testFaultInjectUpdateNHG,
-		// },
-		// {
-		// 	name: "FaultInjectTimingAddNHG",
-		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
-		// 	fn:   testFaultInjectTimingAddNHG,
-		// },
-		// {
-		// 	name: "FaultInjectTimingAddIpv4",
-		// 	desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
-		// 	fn:   testFaultInjectTimingAddIpv4,
-		// },
+		{
+			name: "FaultInjectUpdateNHG",
+			desc: "Inject relevent faults for Update NHG pointing to the old NH ",
+			fn:   testFaultInjectUpdateNHG,
+		},
+		{
+			name: "FaultInjectTimingAddNHG",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD fails in FIB ",
+			fn:   testFaultInjectTimingAddNHG,
+		},
+		{
+			name: "FaultInjectTimingAddIpv4",
+			desc: "Timing Client sends both Route ADD, and NHG ADD AFT NHG ADD suceeds  in FIB but IP entry ADD fails",
+			fn:   testFaultInjectTimingAddIpv4,
+		},
 	}
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
