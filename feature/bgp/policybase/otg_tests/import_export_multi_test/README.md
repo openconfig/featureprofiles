@@ -90,7 +90,7 @@ functions.
       * conditions/bgp-conditions/match-community-set/config/
         * community-set: "regex-community"
         * match-set-options: "ANY"
-      * actions/config/policy-result = "NEXT_STATEMENT"
+      * actions/config/policy-result = "ACCEPT_ROUTE"
 
 * Create policy-definitions/policy-definition/config/name = "multi_policy"
   * statements/statement/config/name = "reject_route_community"
