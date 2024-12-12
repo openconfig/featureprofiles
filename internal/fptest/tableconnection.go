@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
+// ConfigEnableTbNative enables admin-state of table-connections in native mode.
 func ConfigEnableTbNative(t testing.TB, d *ondatra.DUTDevice) {
 	t.Helper()
 	state := "enable"
