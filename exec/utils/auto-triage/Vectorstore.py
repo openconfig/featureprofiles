@@ -1,10 +1,12 @@
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+from Embeddings import Embeddings
+
+embedding = Embeddings()
 
 class Vectorstore:
     def __init__(self):
-        self._embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        self._embedding_model = embedding.get_model()
         self._vector_store = None
 
     def create_index(self, documents = []):

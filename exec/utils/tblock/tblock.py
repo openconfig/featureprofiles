@@ -145,12 +145,10 @@ def _get_actual_testbeds(ids, json_output=False):
     testbeds = {}
     for id in ids.split(","):
         tb = _get_testbed(id, json_output)
-        hw = tb.get('hw', '')
-        if type(hw) == str or len(hw) <= 1:
-            testbeds[id] = tb
-        else:
-            for h in hw:
-                testbeds[id] = _get_testbed(h, json_output)
+        hw = tb.get('hw', id)
+        if type(hw) != list: hw = [hw]
+        for h in hw:
+            testbeds[h] = _get_testbed(h, json_output)
     return testbeds.values()
 
 def _get_testbeds(ids, json_output=False):

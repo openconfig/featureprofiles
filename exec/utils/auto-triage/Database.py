@@ -1,8 +1,10 @@
 from pymongo import MongoClient
-import datetime
 from bson import ObjectId
+import datetime
 
-class Database:
+from IDatabase import IDatabase
+
+class Database(IDatabase):
     def __init__(self, environment):
         self._client = MongoClient("mongodb://xr-sf-npi-lnx.cisco.com:27017/")
         self._database = self._client[environment]
@@ -66,14 +68,16 @@ class Database:
             return True
         return False
 
-    def get_historical_testsuite(self, group, plan):
+    def get_historical_testsuite(self, lineup, group, plan):
         filter = {
             "group": group,
-            "plan_id": plan
+            "plan_id": plan,
+            "lineup": lineup
         }
 
         projection = {
-            "testcases": 1
+            "testcases": 1,
+            "bugs": 1
         }
         
         sort = [["timestamp", -1]]
@@ -82,38 +86,3 @@ class Database:
         print(f"Called Database.get_historical_testsuite() on {group}/{plan} and recieved: {document}")
 
         return document
-
-
-    def inherit_bugs(self, group, plan):
-        day = datetime.datetime.now() - datetime.timedelta(days = 2)
-        id = ObjectId.from_datetime(day)
-
-        bugs = list(self._data.aggregate([
-            {
-                '$match': {
-                    "_id": {
-                        "$gt": id
-                    },
-                    'group': group, 
-                    'plan_id': plan, 
-                    'bugs.0': {
-                        '$exists': True,
-                    }
-                }
-            },
-            {
-                "$sort": {
-                    "_id": -1
-                }
-            },
-            {
-                '$project': {
-                    'bugs': 1
-                }
-            }
-        ]))     
-
-        print(f"Called Database.inherit_bugs() on {group}/{plan} and recieved: {bugs}")
-
-        return bugs, len(bugs) > 0
-
