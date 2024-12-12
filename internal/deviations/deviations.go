@@ -1218,10 +1218,6 @@ func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
 
-// BgpAspathsetUnsupported returns true if as-path-set for bgp-defined-sets is unsupported
-func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()
-
 // BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
 // Cisco supports the extended nexthop encoding set to true by default that is excercised in the Script where the extended-nexthop-encoding
 // a bool value is set to true.
@@ -1246,4 +1242,9 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 // NoZeroSuppression returns true if device wants to remove zero suppression
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
+}
+
+// BgpAspathsetUnsupported returns true if as-path-set for bgp-defined-sets is unsupported
+func BgpAspathsetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAspathsetUnsupported()
 }
