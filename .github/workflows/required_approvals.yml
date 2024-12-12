@@ -1,0 +1,27 @@
+# This workflow is to make sure we have 1 LGTM for business logic and 1 LGTM for code style
+name: PR Approval Workflow
+on:
+  pull_request:
+    branches:
+    - main
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  check-approvals:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+    steps:
+    - name: Check for required approvals
+      id: check-approvals
+      uses: skymoore/required-approvals@main
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        read_org_scoped_token: ${{ secrets.READ_ORG_SCOPED_TOKEN }}
+        org_name: openconfig
+        min_approvals: 2
+        approval_mode: ALL
+
