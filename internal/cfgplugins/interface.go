@@ -53,8 +53,7 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	if deviations.RequireZrOperMode(dut) {
 		ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
 		t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
-		var operMode uint16
-		operMode = 83
+		var operMode uint16 = 83
 		gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).Config(), &oc.Component{
 			Name: ygot.String(ocComponent),
 			OpticalChannel: &oc.Component_OpticalChannel{
