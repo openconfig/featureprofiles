@@ -242,7 +242,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
 	stmt.GetOrCreateActions().PolicyResult = pr
-	// stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 }

@@ -19,6 +19,7 @@ platform_exceptions: {
   }
   deviations: {
     ecn_profile_required_definition: true
+    no_zero_suppression: true
   }
 }
 platform_exceptions: {

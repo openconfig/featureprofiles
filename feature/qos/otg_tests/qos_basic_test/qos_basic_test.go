@@ -15,6 +15,7 @@
 package qos_basic_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -112,6 +113,10 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 		ConfigureJuniperQos(t, dut)
 	default:
 		ConfigureQoS(t, dut)
+	}
+
+	if deviations.NoZeroSuppression(dut) {
+		configureNoZeroSuppression(t, dut)
 	}
 
 	// Configure ATE interfaces.
@@ -1743,4 +1748,53 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnm
 		ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE),
 		ygnmi.WithSampleInterval(interval),
 	)
+}
+func configureNoZeroSuppression(t *testing.T, dut *ondatra.DUTDevice) {
+	// Disable Zero suppression
+	t.Logf("Disable zero suppression:\n%s", dut.Vendor())
+	var config string
+	switch dut.Vendor() {
+	case ondatra.JUNIPER:
+		config = disableZeroSuppression()
+		t.Logf("Push the CLI config:\n%s", config)
+
+	default:
+		t.Errorf("Invalid configuration")
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	gpbSetRequest := buildCliConfigRequest(config)
+
+	t.Log("gnmiClient Set CLI config")
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+	}
+}
+
+func buildCliConfigRequest(config string) *gpb.SetRequest {
+	// Build config with Origin set to cli and Ascii encoded config.
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	return gpbSetRequest
+}
+
+func disableZeroSuppression() string {
+	return (`
+	services {
+		analytics {
+			zero-suppression {
+				no-zero-suppression;
+			}
+		}
+	}`)
 }
