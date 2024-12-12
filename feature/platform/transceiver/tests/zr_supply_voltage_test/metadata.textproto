@@ -15,3 +15,13 @@ platform_exceptions: {
     missing_port_to_optical_channel_component_mapping: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    require_zr_oper_mode: true
+    explicit_dco_config: true
+  }
+}
