@@ -41,13 +41,37 @@ func InterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, dp *ondatra.Port) {
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp.Name()).Config(), i)
-	ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
-	t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
-	gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
-	gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
-		TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
-		Frequency:         ygot.Uint64(targetFrequencyMHz),
-	})
+	if deviations.ExplicitDcoConfig(dut) {
+		transceiverName := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+		gnmi.Replace(t, dut, gnmi.OC().Component(transceiverName).Config(), &oc.Component{
+			Name: ygot.String(transceiverName),
+			Transceiver: &oc.Component_Transceiver{
+				ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
+			},
+		})
+	}
+	if deviations.RequireZrOperMode(dut) {
+		ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
+		t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+		var operMode uint16
+		operMode = 83
+		gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).Config(), &oc.Component{
+			Name: ygot.String(ocComponent),
+			OpticalChannel: &oc.Component_OpticalChannel{
+				TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
+				Frequency:         ygot.Uint64(targetFrequencyMHz),
+				OperationalMode:   ygot.Uint16(operMode),
+			},
+		})
+	} else {
+		ocComponent := components.OpticalChannelComponentFromPort(t, dut, dp)
+		t.Logf("Got opticalChannelComponent from port: %s", ocComponent)
+		gnmi.Update(t, dut, gnmi.OC().Component(ocComponent).Name().Config(), ocComponent)
+		gnmi.Replace(t, dut, gnmi.OC().Component(ocComponent).OpticalChannel().Config(), &oc.Component_OpticalChannel{
+			TargetOutputPower: ygot.Float64(targetOutputPowerdBm),
+			Frequency:         ygot.Uint64(targetFrequencyMHz),
+		})
+	}
 }
 
 // ValidateInterfaceConfig validates the output power and frequency for the given port.
