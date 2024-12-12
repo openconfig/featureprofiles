@@ -228,66 +228,70 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 
 func TestStaticRouteAddRemove(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	configureDUT(t, dut)
+	if deviations.StaticRouteAddRemoveUnsupported(dut) {
+		t.Skip("StaticRouteAddRemove is unsupported")
+	} else {
+		configureDUT(t, dut)
 
-	ate := ondatra.ATE(t, "ate")
-	top := gosnappi.NewConfig()
-	configureOTG(t, ate, top)
+		ate := ondatra.ATE(t, "ate")
+		top := gosnappi.NewConfig()
+		configureOTG(t, ate, top)
 
-	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
-	defer ate.OTG().StopProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		ate.OTG().PushConfig(t, top)
+		ate.OTG().StartProtocols(t)
+		defer ate.OTG().StopProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
-	prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
-	b := &gnmi.SetBatch{}
-	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
-		},
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	b.Set(t, dut)
-	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+		prefix := ipAddr{address: v4Route, prefix: v4RoutePrefix}
+		b := &gnmi.SetBatch{}
+		sV4 := &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort2.IPv4),
+				"1": oc.UnionString(atePort3.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
-	// add 2 new nextHops, one at 0 index and another at 3 index
-	b = &gnmi.SetBatch{}
-	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort1.IPv4),
-			"1": oc.UnionString(atePort2.IPv4),
-			"2": oc.UnionString(atePort3.IPv4),
-			"3": oc.UnionString(atePort4.IPv4),
-		},
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	b.Set(t, dut)
-	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
+		// add 2 new nextHops, one at 0 index and another at 3 index
+		b = &gnmi.SetBatch{}
+		sV4 = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort1.IPv4),
+				"1": oc.UnionString(atePort2.IPv4),
+				"2": oc.UnionString(atePort3.IPv4),
+				"3": oc.UnionString(atePort4.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 
-	// remove previously added indexes
-	b = &gnmi.SetBatch{}
-	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          prefix.cidr(t),
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
-		},
+		// remove previously added indexes
+		b = &gnmi.SetBatch{}
+		sV4 = &cfgplugins.StaticRouteCfg{
+			NetworkInstance: deviations.DefaultNetworkInstance(dut),
+			Prefix:          prefix.cidr(t),
+			NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+				"0": oc.UnionString(atePort2.IPv4),
+				"1": oc.UnionString(atePort3.IPv4),
+			},
+		}
+		if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+			t.Fatalf("Failed to configure IPv4 static route: %v", err)
+		}
+		b.Set(t, dut)
+		validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
-	}
-	b.Set(t, dut)
-	validateStaticRoute(t, dut, prefix.cidr(t), sV4)
 }
 
 func validateStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, sV4 *cfgplugins.StaticRouteCfg) {

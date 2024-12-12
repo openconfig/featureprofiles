@@ -1243,3 +1243,8 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
+
+// StaticRouteAddRemoveUnsupported returns true if adding/removing static route (static route ECMP feature) is not supported
+func StaticRouteAddRemoveUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteAddRemoveUnsupported()
+}
