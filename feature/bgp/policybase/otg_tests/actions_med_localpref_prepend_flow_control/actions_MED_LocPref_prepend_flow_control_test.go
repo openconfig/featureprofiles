@@ -269,7 +269,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
 		if strings.Contains(policyValue, "+") {
-			if deviations.BgpSetmedUnionTypeUnsupported(dut) {
+			if deviations.BgpSetMedUnionTypeUnsupported(dut) {
 				metric, _ := strconv.Atoi(policyValue)
 				gnmiClient := dut.RawAPIs().GNMI(t)
 				config := metricAdd(dut, setMEDPolicy, metric)
