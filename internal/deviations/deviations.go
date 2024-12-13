@@ -1248,5 +1248,4 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 // NoZeroSuppression returns true if device wants to remove zero suppression
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
-
 }
