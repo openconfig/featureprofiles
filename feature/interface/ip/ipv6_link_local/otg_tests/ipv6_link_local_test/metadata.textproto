@@ -20,7 +20,6 @@ platform_exceptions: {
   }
   deviations: {
     link_local_mask_len: true
-    interface_counters_update_delayed: true
   }
 } # CISCOXR
 platform_exceptions: {
