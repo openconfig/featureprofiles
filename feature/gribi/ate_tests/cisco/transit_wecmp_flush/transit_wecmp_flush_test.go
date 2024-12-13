@@ -1999,16 +1999,16 @@ func testCD2StaticDynamicMacNHOP(t *testing.T, args *testArgs) {
 	args.topology.StopProtocols(t)
 
 	t.Log("going to clear dynamic arp entry ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache bundle-Ether 121 location 0/RP0/CPU0")
+	args.dut.RawAPIs().CLI(t).RunCommand(args.ctx, "clear arp-cache bundle-Ether 121 location all")
 
 	time.Sleep(10 * time.Second)
 
 	t.Log("going to configure static arp entry to make sure traffic is not failing after static arp is configured   ")
-	config.TextWithGNMI(args.ctx, t, args.dut, "arp 100.121.1.2  0000.0012.0011 arpa ")
+	util.GNMIWithText(args.ctx, t, args.dut, "arp 100.121.1.2  0000.0012.0011 arpa ")
 
 	time.Sleep(10 * time.Second)
 
-	defer config.TextWithGNMI(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
+	defer util.GNMIWithText(args.ctx, t, args.dut, "no arp 100.121.1.2  0000.0012.0011 arpa")
 
 	statsb := gnmi.GetAll(t, args.ate, gnmi.OC().FlowAny().State())
 	lossStreamb := util.CheckTrafficPassViaRate(statsb)
@@ -2068,7 +2068,7 @@ func testClearingARP(t *testing.T, args *testArgs) {
 	args.c1.AddIPv4Batch(t, prefixes, 1, *ciscoFlags.NonDefaultNetworkInstance, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	// Clear ARP
-	config.TextWithGNMI(args.ctx, t, args.dut, "do clear arp-cache location all")
+	args.dut.RawAPIs().CLI(t).RunCommand(args.ctx, "clear arp-cache location all")
 	time.Sleep(10 * time.Second)
 	t.Log("Cleared ARP")
 	time.Sleep(1 * time.Second)
