@@ -24,4 +24,4 @@ jobs:
         org_name: openconfig
         min_approvals: 2
         approval_mode: ALL
-
+        pr_number: ${{ github.event.number }}
