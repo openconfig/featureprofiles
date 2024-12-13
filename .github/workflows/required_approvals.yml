@@ -1,7 +1,7 @@
 # This workflow is to make sure we have 1 LGTM for business logic and 1 LGTM for code style
 name: PR Approval Workflow
 on:
-  pull_request:
+  pull_request_target:
     branches:
     - main
   pull_request_review:
