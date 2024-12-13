@@ -931,7 +931,7 @@ type Metadata_Deviations struct {
 	CiscoPreFecBerInactiveValue bool `protobuf:"varint,233,opt,name=cisco_pre_fec_ber_inactive_value,json=ciscoPreFecBerInactiveValue,proto3" json:"cisco_pre_fec_ber_inactive_value,omitempty"`
 	// Juniper: b/358534837
 	// Devices that do not support setting med value using union type in OC.
-	BgpSetmedUnionTypeUnsupported bool `protobuf:"varint,234,opt,name=bgp_setmed_union_type_unsupported,json=bgpSetmedUnionTypeUnsupported,proto3" json:"bgp_setmed_union_type_unsupported,omitempty"`
+	BgpSetMedUnionTypeUnsupported bool `protobuf:"varint,234,opt,name=bgp_setmed_union_type_unsupported,json=BgpSetMedUnionTypeUnsupported,proto3" json:"bgp_setmed_union_type_unsupported,omitempty"`
 	// Device does not support bgp extended next hop encoding leaf.
 	// Cisco: b/377433951
 	BgpExtendedNextHopEncodingLeafUnsupported bool `protobuf:"varint,234,opt,name=bgp_extended_next_hop_encoding_leaf_unsupported,json=bgpExtendedNextHopEncodingLeafUnsupported,proto3" json:"bgp_extended_next_hop_encoding_leaf_unsupported,omitempty"`
@@ -2461,9 +2461,9 @@ func (x *Metadata_Deviations) GetCiscoPreFecBerInactiveValue() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpSetmedUnionTypeUnsupported() bool {
+func (x *Metadata_Deviations) GetBgpSetMedUnionTypeUnsupported() bool {
 	if x != nil {
-		return x.BgpSetmedUnionTypeUnsupported
+		return x.BgpSetMedUnionTypeUnsupported
 	}
 	return false
 }
