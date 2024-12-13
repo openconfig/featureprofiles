@@ -647,9 +647,20 @@ message Metadata {
     bool otn_channel_assignment_cisco_numbering = 232;
     // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
     bool cisco_pre_fec_ber_inactive_value = 233;
+    // Device does not support bgp extended next hop encoding leaf.
+    // Cisco: b/377433951
+    bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
+    // Device does not support bgp afi safi wildcard.
+    // Cisco: b/379863985
+    bool bgp_afi_safi_wildcard_not_supported = 235;
+    // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
+    bool enable_table_connections = 236;
+    // Device has default zero suppression.
+    // Juniper : b/378646018
+    bool no_zero_suppression = 237;
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
-    bool bgp_setmed_union_type_unsupported = 234;
+    bool bgp_setmed_union_type_unsupported = 238;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
