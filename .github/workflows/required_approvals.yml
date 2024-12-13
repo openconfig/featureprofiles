@@ -4,9 +4,6 @@ on:
   pull_request_target:
     branches:
     - main
-  pull_request_review:
-    types: [submitted]
-
 jobs:
   check-approvals:
     runs-on: ubuntu-latest
