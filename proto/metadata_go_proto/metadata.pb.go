@@ -2464,7 +2464,7 @@ func (x *Metadata_Deviations) GetCiscoPreFecBerInactiveValue() bool {
 func (x *Metadata_Deviations) GetBgpSetmedUnionTypeUnsupported() bool {
 	if x != nil {
 		return x.BgpSetmedUnionTypeUnsupported
-   }
+        }
 	return false
 }
 
