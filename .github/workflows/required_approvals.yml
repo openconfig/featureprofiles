@@ -14,7 +14,7 @@ jobs:
     steps:
     - name: Check for required approvals
       id: check-approvals
-      uses: skymoore/required-approvals@v4
+      uses: skymoore/required-approvals@57612e00c501132dfb35ddaff54615b363f8e076
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         read_org_scoped_token: ${{ secrets.READ_ORG_SCOPED_TOKEN }}
