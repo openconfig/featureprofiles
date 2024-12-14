@@ -12,6 +12,7 @@ platform_exceptions:  {
   deviations:  {
     ipv4_missing_enabled:  true
     connect_retry:  true
+    bgp_session_state_idle_in_passive_mode: true
   }
 }
 platform_exceptions:  {
