@@ -25,6 +25,8 @@ import (
 	aftUtil "github.com/openconfig/featureprofiles/feature/aft/cisco/aftUtils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +37,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -587,7 +588,8 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 
 // Creates ATE Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports.
 // trafficflowAttr for setting the Inner IP DA/SA & Egress tracking offset & width
-func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, innerProtocolType, outerIPDst, outerIPSrc string, dscp uint8, dstPorts []string) *ondatra.Flow {
+func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, innerProtocolType,
+	outerIPDst, outerIPSrc string, dscp uint8, dstPorts []string) (*ondatra.Flow, aftUtil.FlowDetails) {
 	topo := ate.Topology().New()
 	flow := ate.Traffic().NewFlow(flowName)
 	p1 := ate.Port(t, "port1")
@@ -604,6 +606,7 @@ func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevic
 	udpHeader := ondatra.NewUDPHeader()
 	udpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
 	udpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+
 	if innerProtocolType == "IPv4" {
 		innerV4Header := ondatra.NewIPv4Header()
 		innerV4Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
@@ -626,24 +629,84 @@ func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevic
 		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, udpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
 	}
 	flow.EgressTracking().WithOffset(fa.egressTrackingOffset).WithWidth(fa.egressTrackingWidth)
-	return flow
+
+	details := aftUtil.FlowDetails{
+		Protocol:    innerProtocolType,
+		OuterSrc:    outerIPSrc,
+		OuterDst:    outerIPDst,
+		DSCP:        dscp,
+		DestPorts:   dstPorts,
+		PacketCount: 0, // Will be updated after traffic runs
+	}
+
+	return flow, details
 }
 
-// validateAftTelmetry verifies aft telemetry entries.
-func (a *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) {
+func (args *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) *aftUtil.PrefixStatsMapping {
 	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix)
-	aftPfxVal, found := gnmi.Watch(t, a.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+	aftPfxVal, found := gnmi.Watch(t, args.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 		value, present := val.Val()
 		return present && value.GetNextHopGroup() != 0
 	}).Await(t)
+
 	if !found {
 		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix)
 	}
-	aftPfx, _ := aftPfxVal.Val()
 
-	aftNHG := gnmi.Get(t, a.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(a.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
+	aftPfx, _ := aftPfxVal.Val()
+	aftNHG := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
+
 	if got := len(aftNHG.NextHop); got != nhEntryGot {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want 1", prefix, nhEntryGot)
+		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", prefix, got, nhEntryGot)
+	}
+
+	// Create stats mapping for this prefix
+	statsID := fmt.Sprintf("stsaftnh,%d", aftPfx.GetNextHopGroup())
+	cli := args.dut.RawAPIs().CLI(t)
+
+	redisCmd := fmt.Sprintf("redis-cli KEYS \"aftv4route,%s,*\"", vrfName)
+	output, err := cli.RunCommand(context.Background(), redisCmd)
+	if err != nil {
+		t.Logf("Error getting Redis keys: %v", err)
+		return &aftUtil.PrefixStatsMapping{
+			StatsID:     statsID,
+			Prefixes:    []string{prefix},
+			PrefixCount: 1,
+			FlowInfo:    make(map[string]uint64), // Changed to uint64
+		}
+	}
+
+	sharingPrefixes := []string{prefix}
+	lines := strings.Split(output.Output(), "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		prefixStatsCmd := fmt.Sprintf("redis-cli GET \"%s\"", line)
+		statsOutput, err := cli.RunCommand(context.Background(), prefixStatsCmd)
+		if err != nil {
+			continue
+		}
+
+		if strings.Contains(statsOutput.Output(), statsID) {
+			parts := strings.Split(line, ",")
+			if len(parts) >= 3 {
+				foundPrefix := parts[2]
+				if foundPrefix != prefix {
+					sharingPrefixes = append(sharingPrefixes, foundPrefix)
+				}
+			}
+		}
+	}
+
+	t.Logf("Found %d prefixes sharing stats object %s: %v", len(sharingPrefixes), statsID, sharingPrefixes)
+
+	return &aftUtil.PrefixStatsMapping{
+		StatsID:     statsID,
+		Prefixes:    sharingPrefixes,
+		PrefixCount: len(sharingPrefixes),
+		FlowInfo:    make(map[string]uint64), // Changed to uint64
 	}
 }
 
@@ -677,7 +740,9 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow, aftValidationType string) {
+func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow,
+	flowDetails map[string]aftUtil.FlowDetails, aftValidationType string, statsMappings []*aftUtil.PrefixStatsMapping) {
+
 	dut := ondatra.DUT(t, "dut")
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	baselineCounters, numAftPathObj := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
@@ -688,10 +753,11 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow,
 	t.Logf("*** Stop traffic ...")
 	ate.Traffic().Stop(t)
 
-	// Take the updated counter reading after traffic
+	// Allow time for counters to settle
+	time.Sleep(35 * time.Second)
+
 	updatedCounters, _ := aftUtil.GetPacketForwardedCounts(t, gnmiClient)
 
-	// Sum up the packet counts
 	var baselinePacketsForwarded uint64
 	var updatedPacketsForwarded uint64
 
@@ -702,24 +768,39 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, allFlows []*ondatra.Flow,
 		updatedPacketsForwarded += count
 	}
 
-	// Compare the baseline and updated counters
+	t.Logf("Baseline packets forwarded: %d", baselinePacketsForwarded)
+	t.Logf("Updated packets forwarded: %d", updatedPacketsForwarded)
+
 	counterDiffs := aftUtil.GetTrafficCounterDiff([]uint64{baselinePacketsForwarded},
 		[]uint64{updatedPacketsForwarded})
 
-	// Aggregate packet counts across all flows
-	var totalOutPkts, totalInPkts uint64
+	var totalOutPkts uint64
 	for _, flow := range allFlows {
 		flowPath := gnmi.OC().Flow(flow.Name())
-		inPkts := gnmi.Get(t, ate, flowPath.Counters().InPkts().State())
 		outPkts := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
-
 		totalOutPkts += outPkts
-		totalInPkts += inPkts
+		if details, ok := flowDetails[flow.Name()]; ok {
+			details.PacketCount = outPkts
+			flowDetails[flow.Name()] = details
+		}
 	}
 
-	// Print the detailed stats in a table format
-	aftUtil.BuildAftAteStatsTable(t, ate, allFlows, totalOutPkts, totalInPkts, baselinePacketsForwarded,
-		updatedPacketsForwarded, counterDiffs[0], 1.0, aftValidationType, numAftPathObj)
+	// Update flow information in stats mappings
+	for _, mapping := range statsMappings {
+		if mapping == nil {
+			continue
+		}
+		if mapping.FlowInfo == nil {
+			mapping.FlowInfo = make(map[string]uint64)
+		}
+		for flowName, details := range flowDetails {
+			mapping.FlowInfo[flowName] = details.PacketCount // Store just the packet count
+		}
+	}
+
+	aftUtil.BuildAftAteStatsTable(t, ate, allFlows, flowDetails, totalOutPkts,
+		baselinePacketsForwarded, updatedPacketsForwarded, counterDiffs[0],
+		1.0, aftValidationType, numAftPathObj, statsMappings)
 }
 
 // configureDUT configures port1 and port8 on the DUT
