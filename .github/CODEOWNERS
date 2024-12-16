@@ -24,7 +24,7 @@
 /feature/mtu/          @swetha-haridasula
 /feature/networkinstance/    @swetha-haridasula
 /feature/platform/           @amrindrr
-/feature/platform/transceiver  @jianchen-g @ebreverman @ahsaanyousaf @ejbrever
+/feature/platform/transceiver  @jianchen-g @yiwenhu-g @ahsaanyousaf @ejbrever 
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @sudhinj
