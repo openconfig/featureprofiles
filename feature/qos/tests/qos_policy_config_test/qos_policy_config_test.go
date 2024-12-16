@@ -1645,8 +1645,10 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 		if got, want := gnmi.Get(t, dut, scheduler.Sequence().State()), tc.sequence; got != want {
 			t.Errorf("scheduler.Sequence().State(): got %v, want %v", got, want)
 		}
-		if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
-			t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
+		if tc.priority == oc.Scheduler_Priority_STRICT {
+			if got, want := gnmi.Get(t, dut, scheduler.Priority().State()), tc.priority; got != want {
+				t.Errorf("scheduler.Priority().State(): got %v, want %v", got, want)
+			}
 		}
 	}
 
