@@ -174,8 +174,3 @@ devices, as well as the desired protocol dial options. Then test it by running:
 ```
 go test ./feature/example/tests/topology_test -binding $PWD/topologies/otgdut_4.binding
 ```
-
-# Path validation
-
-The `make validate_paths` target will clone the public OpenConfig definitions
-and report Feature Profiles that have invalid OpenConfig paths.
