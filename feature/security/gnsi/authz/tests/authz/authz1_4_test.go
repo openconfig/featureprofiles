@@ -207,7 +207,8 @@ func TestAuthz1(t *testing.T) {
 		statusmsg, policyBefore := authz.Get(t, dut)
 		if statusmsg == nil {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
-		} else {
+		}
+		if statusmsg != nil {
 			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 		}
@@ -293,7 +294,8 @@ func TestAuthz1(t *testing.T) {
 		//t.Logf("Message for first authz get %s", msg)
 		if statusmsg == nil {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
-		} else {
+		}
+		if statusmsg != nil {
 			t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
 			defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
 		}

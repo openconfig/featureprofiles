@@ -474,9 +474,8 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 		case err != nil :
 			if strings.Contains(err.Error(), "invalid policy") || status.Code(err) == codes.InvalidArgument || strings.Contains(err.Error(), "InvalidArgument") {
 				return nil
-			} else {
-				return err
 			}
+		        return err
 		case err == io.EOF :
 			return err
 	        }
