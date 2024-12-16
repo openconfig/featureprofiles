@@ -658,6 +658,8 @@ message Metadata {
     // Device has default zero suppression.
     // Juniper : b/378646018
     bool no_zero_suppression = 237;
+    // Check is transceiver subcomponent should look for the temperature sensor
+    bool temperature_sensor_check = 238;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
