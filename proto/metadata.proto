@@ -651,14 +651,17 @@ message Metadata {
     // Cisco: b/377433951
     bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
     // Device does not support bgp afi safi wildcard.
-    // Cisco: b/379863985 
+    // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
     bool enable_table_connections = 236;
+    // Device has default zero suppression.
+    // Juniper : b/378646018
+    bool no_zero_suppression = 237;
     // Device does not support P4RT Capabilities rpc.
-    bool p4rt_capabilities_unsupported = 237;
+    bool p4rt_capabilities_unsupported = 238;
     // Device does not support gNMI GET on root.
-    bool gnmi_get_on_root_unsupported = 238;
+    bool gnmi_get_on_root_unsupported = 239;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }

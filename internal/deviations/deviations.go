@@ -1239,6 +1239,11 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
 
+// NoZeroSuppression returns true if device wants to remove zero suppression
+func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoZeroSuppression()
+}
+
 // P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
 func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
