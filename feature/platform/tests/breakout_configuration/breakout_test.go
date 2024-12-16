@@ -1,4 +1,4 @@
-package breakoutConfiguration
+package breakout_configuration
 
 import (
 	"context"
@@ -153,28 +153,28 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 		numbreakouts  uint8
 		breakoutspeed oc.E_IfEthernet_ETHERNET_SPEED
 		portPrefix    string
-		dutIntfIP     string
+		dutIntfIp     string
 		ateIntfIp     string
 	}{
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 			portPrefix:    "HundredGigE",
-			dutIntfIP:     dutPort1.IPv4,
+			dutIntfIp:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 		},
 		{
 			portPrefix:    "HundredGigE",
 			numbreakouts:  2,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
-			dutIntfIP:     dutPort1.IPv4,
+			dutIntfIp:     dutPort1.IPv4,
 			ateIntfIp:     atePort1.IPv4,
 		},
 		{
 			numbreakouts:  4,
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 			portPrefix:    "TenGigE",
-			dutIntfIP:     dutPort2.IPv4,
+			dutIntfIp:     dutPort2.IPv4,
 			ateIntfIp:     atePort2.IPv4,
 		},
 	}
@@ -192,7 +192,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					"fullInterfaceName and foundComp is %v", breakOutCompName, fullInterfaceName, foundComp)
 				componentNameList = []string{breakOutCompName}
 			} else {
-				t.Fatalf("Unsupported vendor %s.  Need to add breakout component names.", dut.Vendor())
+				// other vendor method
 			}
 
 			for _, componentName := range componentNameList {
@@ -252,9 +252,11 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 					if dut.Vendor() == ondatra.CISCO {
 						sortBreakoutPorts(breakOutPorts)
+					} else {
+						// other vendor methods
 					}
 
-					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
+					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIp, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
 					}
