@@ -36,6 +36,7 @@ platform_exceptions: {
     unsupported_static_route_next_hop_recurse: true
     static_route_with_explicit_metric: true
     interface_ref_config_unsupported: true
+    static_route_add_remove_unsupported: true
   }
 }
 platform_exceptions: {

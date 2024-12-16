@@ -658,6 +658,8 @@ message Metadata {
     // Device has default zero suppression.
     // Juniper : b/378646018
     bool no_zero_suppression = 237;
+    // Static route add & remove not supported
+    bool static_route_add_remove_unsupported = 238;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
