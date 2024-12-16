@@ -1239,6 +1239,7 @@ func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
 
+<<<<<<< HEAD
 // IsisInterfaceLevelPassiveUnsupported returns true for devices that do not support passive leaf
 func IsisInterfaceLevelPassiveUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceLevelPassiveUnsupported()
@@ -1291,4 +1292,9 @@ func DefaultBgpInstanceName(dut *ondatra.DUTDevice) string {
 		return dbin
 	}
 	return "DEFAULT"
+}
+
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
 }
