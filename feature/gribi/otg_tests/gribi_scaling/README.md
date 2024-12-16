@@ -20,9 +20,10 @@ Validate gRIBI scaling requirements.
         * A) Install 400 NextHops, egressing out different interfaces.
         * B) Install 200 NextHopGroups.  Each points at 8 NextHops from the first 200 entries of A) with equal weight.
         * C) Install 200 IPv4 Entries, each pointing at a unique NHG (1:1) from B.
-        * D) Install 200 NextHops.  Each will redirect to an IP from C).
-        * E) Install 100 NextHopGroups.  Each will contain 2 NextHops from D) with weights 1:31. The backup next_hop_group will be to redirect to VRF3.
-        * F) Install 100 NextHopGroups.  Each will contain 2 NextHops from D) with weights 1:31. The backup next_hop_group will be to decap and redirect to DEFAULT vrf.
+        * D.1) Install 100 NextHops.  Each will redirect to an IP from C).
+        * D.2) Install 100 NextHops.  Each will redirect to an IP from C).
+        * E) Install 100 NextHopGroups.  Each will contain 1 NextHops from D.1 with weights 1 and 1 NextHop from D.1 with weight 31. The backup next_hop_group will be to redirect to VRF3.
+        * F) Install 100 NextHopGroups.  Each will contain 2 NextHops from D.1 with weights 1 abd 1 NextHop from D.2 with weight 31. The backup next_hop_group will be to decap and redirect to DEFAULT vrf.
         * G) Install 700 NextHops.  Each will decaps + reencap to an IP in VRF2.
         * H) Install 700 NextHopGroups.  Each will point to a NextHop from G) and have a backup next_hop_group to decap and redirect to DEFAULT vrf.
     *   <VRF1>
