@@ -1239,6 +1239,7 @@ func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
 
+<<<<<<< HEAD
 // IsisInterfaceLevelPassiveUnsupported returns true for devices that do not support passive leaf
 func IsisInterfaceLevelPassiveUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceLevelPassiveUnsupported()
@@ -1263,4 +1264,9 @@ func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 // EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
+}
+
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
 }
