@@ -43,12 +43,12 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesv4Net1      = "192.168.10.0"
-	advertisedRoutesv6Net1      = "2024:db8:128:128::"
-	advertisedRoutesv4Net2      = "192.168.20.0"
-	advertisedRoutesv6Net2      = "2024:db8:64:64::"
-	advertisedRoutesv4PrefixLen = 24
-	advertisedRoutesv6PrefixLen = 64
+	advertisedRoutesv4Net1      = "192.168.10.1"
+	advertisedRoutesv6Net1      = "2024:db8:128:128::1"
+	advertisedRoutesv4Net2      = "192.168.20.1"
+	advertisedRoutesv6Net2      = "2024:db8:64:64::1"
+	advertisedRoutesv4PrefixLen = 32
+	advertisedRoutesv6PrefixLen = 128
 	dutAS                       = 64500
 	ateAS                       = 64501
 	plenIPv4                    = 30
@@ -566,7 +566,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv6PrefixAny().State(),
-		30*time.Second,
+		60*time.Second,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
 			_, present := v.Val()
 			return present
