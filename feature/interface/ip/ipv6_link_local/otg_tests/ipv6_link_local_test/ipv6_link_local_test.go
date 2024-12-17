@@ -128,9 +128,7 @@ func TestIPv6LinkLocal(t *testing.T) {
 	t.Run("Disable and Enable Port1", func(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
-		// gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
-		t.Logf("Sleeping for 30 seconds")
-		time.Sleep(30 * time.Second)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		t.Run("Interface Telemetry", func(t *testing.T) {
