@@ -658,6 +658,10 @@ message Metadata {
     // Device has default zero suppression.
     // Juniper : b/378646018
     bool no_zero_suppression = 237;
+     // RequireZrOperMode returns true if a user-configured value is required in operational-mode for the optical-channel
+    bool require_zr_oper_mode = 238;
+    // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
+    bool explicit_dco_config = 239;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
