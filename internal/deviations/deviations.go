@@ -1239,7 +1239,6 @@ func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
 
-<<<<<<< HEAD
 // IsisInterfaceLevelPassiveUnsupported returns true for devices that do not support passive leaf
 func IsisInterfaceLevelPassiveUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisInterfaceLevelPassiveUnsupported()
