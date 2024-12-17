@@ -45,6 +45,10 @@ pipeline {
         }
     }
 
+    tools {
+        go 'go1.21.3'
+    }
+    
     options {
         disableConcurrentBuilds()
     }
