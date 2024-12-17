@@ -1243,3 +1243,18 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
+
+// IsisInterfaceLevelPassiveUnsupported returns true for devices that do not support passive leaf
+func IsisInterfaceLevelPassiveUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceLevelPassiveUnsupported()
+}
+
+// IsisDisSysidUnsupported returns true for devices that do not support dis-system-id leaf
+func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDisSysidUnsupported()
+}
+
+// IsisDatabaseOverloadsUnsupported returns true for devices that do not support database-overloads leaf
+func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
+}
