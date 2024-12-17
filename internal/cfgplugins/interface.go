@@ -173,7 +173,7 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 			Assignment:         assignment,
 		}
 	} else {
-		channel := &oc.TerminalDevice_Channel{
+		channel = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("ETH Logical Channel"),
 			Index:              ygot.Uint32(ethIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_ETHERNET,
