@@ -666,7 +666,7 @@ message Metadata {
     bool isis_database_overloads_unsupported = 240;
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
-    bool bgp_set_med_union_type_unsupported = 241
+    bool bgp_set_med_union_type_unsupported = 241;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
