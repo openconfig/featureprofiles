@@ -1239,12 +1239,22 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
 
-// ISISDisSystemIdUnsupported returns true if isis dis-system-id leaf is not supported.
-func ISISDisSystemIdUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisDisSystemIdUnsupported()
+// NoZeroSuppression returns true if device wants to remove zero suppression
+func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
 
-// ISISDatabaseOverloadsPathUnsupported returns true if isis database overload leaf is not supported.
-func ISISDatabaseOverloadsPathUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsPathUnsupported()
+// IsisInterfaceLevelPassiveUnsupported returns true for devices that do not support passive leaf
+func IsisInterfaceLevelPassiveUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisInterfaceLevelPassiveUnsupported()
+}
+
+// IsisDisSysidUnsupported returns true for devices that do not support dis-system-id leaf
+func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDisSysidUnsupported()
+}
+
+// IsisDatabaseOverloadsUnsupported returns true for devices that do not support database-overloads leaf
+func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
