@@ -27,7 +27,7 @@
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @sudhinj
-/feature/security            @mihirpitale-googler
+/feature/security            @mihirpitale-googler @morrowc
 /feature/staticroute/        @swetha-haridasula
 /feature/stp/                @alokmtri-g
 /feature/system              @swetha-haridasula
