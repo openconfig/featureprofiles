@@ -1243,8 +1243,3 @@ func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
 }
-
-// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
-func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
-}
