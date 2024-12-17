@@ -658,6 +658,10 @@ message Metadata {
     // Device has default zero suppression.
     // Juniper : b/378646018
     bool no_zero_suppression = 237;
+    // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
+    // Juniper: b/330173167
+    bool bgp_aspathset_unsupported = 238;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
