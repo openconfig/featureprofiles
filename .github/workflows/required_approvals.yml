@@ -4,9 +4,6 @@ on:
   pull_request_target:
     branches:
     - main
-  pull_request_review:
-    types: [submitted]
-
 jobs:
   check-approvals:
     runs-on: ubuntu-latest
@@ -24,4 +21,4 @@ jobs:
         org_name: openconfig
         min_approvals: 2
         approval_mode: ALL
-
+        pr_number: ${{ github.event.number }}
