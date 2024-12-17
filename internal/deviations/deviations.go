@@ -1258,4 +1258,3 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
-
