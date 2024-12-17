@@ -241,7 +241,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if !deviations.ISISDisSystemIdUnsupported(ts.DUT) {
+			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
 					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
 				}
@@ -297,7 +297,7 @@ func TestISISWideMetricEnabled(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if !deviations.ISISDatabaseOverloadsPathUnsupported(ts.DUT) {
+			if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
 				}
