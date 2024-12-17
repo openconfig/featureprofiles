@@ -1,0 +1,40 @@
+uuid:  "36cc79b5-3766-4cb4-b83b-1baea1464de8"
+plan_id: "DP-1.9"
+description: "WRR traffic test"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    scheduler_input_weight_limit: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    qos_queue_requires_id: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+  }
+}
+
