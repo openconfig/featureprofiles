@@ -1,5 +1,4 @@
-// Package otgflowhelpers provides helper functions to create different flows on traffic generator.
-package otgflowhelpers
+package otgconfighelpers
 
 import (
 	"github.com/open-traffic-generator/snappi/gosnappi"

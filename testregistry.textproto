@@ -168,6 +168,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ssecurity/gnsi/certz/trust_bundle_rotation/README.md"
 }
 test: {
+  id: "CPT-1.1"
+  description: "Ingress Interface ARP Policer"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "Credentialz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/credentialz/tests/README.md"
 }
@@ -230,8 +236,8 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-1.17"
-  description: "ARP Policer"
+  id: "DP-1.18"
+  description: "Flow matching using ACL and to Port Mirror/Redirect"
   readme: ""
   exec: " "
 }
@@ -276,8 +282,12 @@ test: {
   exec: " "
 }
 test: {
-  id: "DP-2.4"
+  id: "DP-2.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_nhg/README.md"
+}
+test: {
+  id: "DP-2.4"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/ingress_police_default/README.md"
 }
 test: {
   id: "FP-1.1"
@@ -685,6 +695,12 @@ test: {
   id: "RT-1.62"
   description: "ECMP hash testing for [E|I]BGP learnt IPv6 NLRI (including ULA/64 address space) with IPv4 Next-hop."
   readme: " "
+  exec: " "
+}
+test: {
+  id: "RT-1.63"
+  description: "BGP Multihop"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multihop/README.md"
   exec: " "
 }
 test: {
@@ -1216,8 +1232,13 @@ test: {
 }
 test: {
   id: "TE-9.1"
-  description: "Base gRIBI MPLS Compliance"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/static_lsp/README.md"
+  description: "Push MPLS Labels to MPLS payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+}
+test: {
+  id: "TE-9.3"
+  description: "gRIBI FIB Failure due to hardware resource exhaust"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test/README.md"
 }
 test: {
   id: "TE-9.2"
@@ -1445,6 +1466,11 @@ test: {
   description: "Interface based GUE encapsulation with IPv6 outer header"
   readme: ""
   exec: " "
+}
+test: {
+  id: "SEC-3.1"
+  description: "TLS Authentication over gRPC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/aaa/kne_tests/tls_authentication_over_grpc_test/README.md"
 }
 test: {
   id: "bootz-1.1"
