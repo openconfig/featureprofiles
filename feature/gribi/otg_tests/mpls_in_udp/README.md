@@ -264,121 +264,79 @@ entries.  See [OC AFT Encap PR in progress](https://github.com/openconfig/public
 for the new OC AFT model nodes needed for this.  
 
 ```proto
-network_instances: {
-  network_instance: {
-    afts {
-      #
-      # entries used for "group_A"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_A"   # this is an IPv6 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
+#
+# aft entries used for network instance "NI_A"
+IPv6Entry {2001:DB8:2::2/128 (NI_A)} -> NHG#100 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_A)} -> NHG#100 (DEFAULT VRF) -> {
+  {NH#101, DEFAULT VRF}
+}
+
+# this nexthop specifies a MPLS in UDP encapsulation
+NH#101 -> {
+  encap_-_headers {
+    encap_header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [101,]
       }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_A"   # this is an IPv4 entry for the origin/inner packet.
-          next_hop_group: 100
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 100
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 100
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 100
-          network_instance: "group_A"
-          encap-headers {
-            encap-header {
-              index: 1
-              pushed_mpls_label_stack: [100,]
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              src_ip: "outer_ipv6_src"
-              dst_ip: "outer_ipv6_dst_A"
-              dst_udp_port: "outer_dst_udp_port"
-              ip_ttl: "outer_ip-ttl"
-              inner_ip_ttl_min: 1
-              dscp: "outer_dscp"
-            }
-          }
-        }
-      }
-      #
-      # entries used for "group_B"
-      ipv6_unicast {
-        ipv6_entry {
-          prefix: "inner_ipv6_dst_B"
-          next_hop_group: 200
-        }
-      }
-      ipv4_unicast {
-        ipv4_entry {
-          prefix: "ipv4_inner_dst_B"
-          next_hop_group: 200
-        }
-      }
-      next_hop_groups {
-        next_hop_group {
-          id: 200
-          next_hops {            # reference to a next-hop
-            next_hop: {
-              index: 200
-            }
-          }
-        }
-      }
-      next_hops {
-        next_hop {
-          index: 200
-          network_instance: "group_B"
-          encap-headers {
-            encap-header {
-              index: 1
-              type : OPENCONFIG_AFT_TYPES:MPLS
-              mpls {
-                pushed_mpls_label_stack: [200,]
-              }
-            }
-          }
-          encap-headers {
-            encap-header {
-              index: 2
-              type: OPENCONFIG_AFT_TYPES:UDP
-              udp {
-                src_ip: "outer_ipv6_src"
-                dst_ip: "outer_ipv6_dst_B"
-                dst_udp_port: "outer_dst_udp_port"
-                ip_ttl: "outer_ip-ttl"
-                inner_ip_ttl_min: 1
-                dscp: "outer_dscp"
-              }
-            }
-          }
-        }
+    }
+    encap_header {
+      index: 2
+      udp_v6 {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_A"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+# TODO: This field does not exist in the OC AFT model (yet) and is also not yet present in gRIBI proto
+        inner_ip_ttl_min: 1 
+        dscp: "outer_dscp"
       }
     }
   }
+  next_hop_group_id: "nhg_A"  # new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/
+  network_instance: "DEFAULT"
+}
+
+#
+# entries used for network-instance "NI_B"
+IPv6Entry {2001:DB8:2::2/128 (NI_B)} -> NHG#200 (DEFAULT VRF)
+IPv4Entry {203.0.113.2/32 (NI_B)} -> NHG#200 (DEFAULT VRF) -> {
+  {NH#201, DEFAULT VRF}
+}
+
+NH#201 -> {
+  encap_headers {
+    encap_header {
+      index: 1
+      mpls {
+        pushed_mpls_label_stack: [201,]
+      }
+    }
+    encap_header {
+      index: 2
+      udp_v6 {
+        src_ip: "outer_ipv6_src"
+        dst_ip: "outer_ipv6_dst_B"
+        dst_udp_port: "outer_dst_udp_port"
+        ip_ttl: "outer_ip-ttl"
+# TODO: This field does not exist in the OC AFT model (yet) and is also not yet present in gRIBI proto
+        inner_ip_ttl_min: 1
+        dscp: "outer_dscp"
+      }
+    }
+  }
+  next_hop_group_id: "nhg_B"  
+  # network_instance: "DEFAULT"  TODO: requires new OC path /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance
 }
 ```
 
 #### Procedure - A
 * Send traffic from ATE port 1 to DUT port 1 with inner packet TTL as 1.
-* Validate afts next hop counters
 * Using OTG, validate ATE port 2 receives MPLS-IN-UDP packets
   * Validate destination IPs are outer_ipv6_dst_A and outer_ipv6_dst_B
   * Validate MPLS label is set
   * Validate inner packet ttl as 1.
+  * Validate outer packet ttl to be "outer_ip-ttl"
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
