@@ -1,0 +1,42 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e4ec3769-86eb-41c8-8600-f8835cdcf0a6"
+plan_id: "TE-11.31"
+description: "Backup NHG: Actions with PBF"
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
+    pf_require_match_default_rule: true
+    pf_require_sequential_order_pbr_rules: true    
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_port_speed: true
+    explicit_interface_in_default_vrf: true
+    static_protocol_name: "static"
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    static_protocol_name: "STATIC"
+    interface_config_vrf_before_address: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+tags: TAGS_DATACENTER_EDGE

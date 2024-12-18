@@ -16,8 +16,8 @@
 
 #### Initial Setup:
 
-*   Connect DUT port-1, port-2 and port-3 to ATE port-1, port-2 and port-3
-    respectively
+*   Connect DUT port-1, port-2, port-3 and port-4 to ATE port-1, port-2, port-3
+    and port-4 respectively
 *   Configure IPv4/IPv6 addresses on DUT and ATE the interfaces
 *   Configure one IPv4 destination i.e. `ipv4-network = 203.0.113.0/24`
     connected to ATE port 1 and 2
@@ -57,7 +57,7 @@
 
 #### Test to validate static route metric
 
-*   Configure metric of ipv4-route-b and ipv6-route-b to 1000
+*   Configure metric of ipv4-route-b and ipv6-route-b to 100
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
 *   Validate that the metric is set correctly
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric
@@ -69,7 +69,7 @@
 
 #### Test to validate static route preference
 
-*   Configure preference of ipv4-route-a and ipv6-route-a to 200
+*   Configure preference of ipv4-route-a and ipv6-route-a to 50
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
 *   Validate that the preference is set correctly
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/preference
@@ -90,9 +90,9 @@
 
 #### Test to validate IPv6 static route with IPv4 next-hop
 
-*   Remove metric of 1000 from ipv4-route-b and ipv6-route-b
+*   Remove metric of 100 from ipv4-route-b and ipv6-route-b
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
-*   Remove preference of 200 from ipv4-route-a and ipv6-route-a
+*   Remove preference of 50 from ipv4-route-a and ipv6-route-a
     *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
 *   Change the IPv6 next-hop of the ipv6-route-a with the next hop set to the
     IPv4 address of ATE port-1
@@ -177,32 +177,51 @@
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 *   Validate that traffic is NOT received from DUT
 
-## Config parameter coverage
+### RT-1.26.9
 
-*   /interfaces/interface/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled
-*   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/recurse
+#### Test to validate add and remove to next-hops in a static route
 
-## Telemetry parameter coverage
+*   Configure one IPv4 static route i.e. ipv4-route with the next hop set to the
+    IPv4 address of ATE port-2(0 index) and port-3(1 index).
+*   Validate next-hops of `ipv4-route` static route and indexes.
+*   Update IPv4 static route i.e. ipv4-route with the next hop set to the IPv4
+    address of ATE port-1(0 index), port-2(1 index), port-3(2 index) and
+    port-4(3 index).
+*   Validate next-hops of `ipv4-route` static route and indexes.
+*   Remove two next hops at index 0 and 3 added in previous step.
+*   Validate next-hops of `ipv4-route` static route and indexes.
 
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/preference
-*   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/recurse
+## OpenConfig Path and RPC Coverage
 
-## Protocol/RPC Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-*   gNMI
-    *   Get
-    *   Set
+```yaml
+paths:
+  ## Config Paths ##
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/recurse:
+
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/state/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/preference:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/recurse:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 
