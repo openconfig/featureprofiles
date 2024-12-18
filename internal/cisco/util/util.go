@@ -410,9 +410,18 @@ func AddIpv6Address(ipv6 string, prefixlen uint8, index uint32) *oc.Interface_Su
 // faultPointNumber speicifes the fault point eg : 3 indicates IPV4_ROUTE_RDESC_OOR
 // returnValue specifies perticluar error to simulate eg : 3482356236 indicates Route programming failure
 // to activate fault point use true and to deactivate use false
-func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, lcNumber []string, componentName string, faultPointNumber string, returnValue string, activate bool) {
+func FaultInjectionMechanism(t *testing.T, dut *ondatra.DUTDevice, componentName string, faultPointNumber string, returnValue string, activate bool) {
 	cliHandle := dut.RawAPIs().CLI(t)
-	for _, lineCard := range lcNumber {
+	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+	for _, lc := range lcs {
+		parts := strings.Split(lc, "/")
+		var lineCard string
+		for i, part := range parts {
+			if part == "CPU0" && i > 0 {
+				lineCard = parts[i-1]
+				break
+			}
+		}
 		var fimActivate string
 		var fimDeactivate string
 		if activate {
