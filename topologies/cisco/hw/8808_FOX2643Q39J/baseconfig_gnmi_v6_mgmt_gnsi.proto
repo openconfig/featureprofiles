@@ -31,6 +31,7 @@ replace: {
 "username cafyauto\n"
 " group root-lr\n"
 "!\n"
+"aaa authorization exec default local\n"
 "aaa accounting exec default start-stop group google-tacacs group tacacs+\n"
 "aaa accounting system default start-stop group google-tacacs group tacacs+ none\n"
 "aaa accounting commands default start-stop group google-tacacs group tacacs+\n"
