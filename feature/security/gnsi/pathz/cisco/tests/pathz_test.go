@@ -1338,7 +1338,6 @@ func TestPathz_1(t *testing.T) {
 		}
 	})
 	t.Run("Test Conflict Between Definite keys over wildcards keys With Triggers", func(t *testing.T) {
-
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
 
@@ -2004,509 +2003,6 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
-	t.Run("Test Pathz Policy Longest Prefix Match Among Users", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-			gnmi.Update(t, dut, config.Config(), true)
-			gnmi.Delete(t, dut, config.Config())
-			gnmi.Replace(t, dut, config.Config(), true)
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-			gnmi.Update(t, dut, config.Config(), true)
-			gnmi.Delete(t, dut, config.Config())
-			gnmi.Replace(t, dut, config.Config(), true)
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Pathz Policy Longest Prefix Among Groups", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}, {
-									Name: "admin",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}, {
-						Name: "admin",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Update(t, dut, config.Config(), true)
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed")
-			}
-
-			// Delete ISIS overload bit using gNMI.Delete
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Delete(t, dut, config.Config())
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed")
-			}
-
-			// Configure ISIS overload bit using gNMI.Replace
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Replace(t, dut, config.Config(), true)
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed")
-			}
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
 	t.Run("Test Conflict Group Over User - Invalid username in Group", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
@@ -2796,445 +2292,14 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "2", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule3",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule4",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule3",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule4",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure ISIS using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Conflict Group Over User - Wildcard Keys", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule3",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule4",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule3",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule4",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Configure ISIS using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Deny/Permit", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			dut := ondatra.DUT(t, "dut")
 			createdtime := uint64(time.Now().UnixMicro())
 
 			// Declare probeBeforeFinalize
@@ -3437,16 +2502,12 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 3)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Conflict Between Users", func(t *testing.T) {
@@ -3703,16 +2764,1633 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 4)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule3",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule4",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule3",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule4",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Configure ISIS using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 4)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule3",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "identifier"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule4",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule5",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "config"},
+												{Name: "identifier"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule6",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule7",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "isis"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule8",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule9",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule10",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+												{Name: "identifier"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule11",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule12",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+												{Name: "config"},
+												{Name: "identifier"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule13",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule14",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+												{Name: "isis"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule3",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "identifier"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule4",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule5",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "config"},
+									{Name: "identifier"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule6",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule7",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "isis"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule8",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule9",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule10",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+									{Name: "identifier"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule11",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule12",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+									{Name: "config"},
+									{Name: "identifier"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule13",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule14",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
+									{Name: "isis"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Configure Network Instance using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+
+			// Configure Protcol ISIS using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
+
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+			gnmi.Update(t, dut, config.Config(), true)
+			gnmi.Delete(t, dut, config.Config())
+			gnmi.Replace(t, dut, config.Config(), true)
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Conflict Group Over User - Wildcard Keys", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule3",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "config"},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule4",
+										Path: &gpb.Path{
+											Origin: "openconfig-legacy",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "*"}},
+												{Name: "name"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule3",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "config"},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule4",
+							Path: &gpb.Path{
+								Origin: "openconfig-legacy",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "*"}},
+									{Name: "name"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Configure ISIS using gNMI.Update
+			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "network-instances/network-instance[name=*]/name", false, false, 0, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Rules: []*pathzpb.AuthorizationRule{{
+									Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_DENY,
+								}},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Rules: []*pathzpb.AuthorizationRule{{
+						Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_DENY,
+					}},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform gNMI operations
+			isPermissionDeniedError(t, dut, "AfterFinalize")
+
+			path := gnmi.OC().Lldp().Enabled()
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Update(t, dut, path.Config(), true)
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed ")
+			}
+
+			gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+			gnmiwithcli(t, dut, deletePath, "no hostname")
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
+
+			// Perform eMSD process restart
+			t.Logf("Restarting emsd at %s", time.Now())
+			perf.RestartProcess(t, dut, "emsd")
+			t.Logf("Restart emsd finished at %s", time.Now())
+
+			// Perform GET operations for sandbox policy instance after process restart.
+			sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Perform GET operations for active policy instance after process restart.
+			actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Verify gNMI Operations after process restart.
+			isPermissionDeniedError(t, dut, "AfterProcessRestart")
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got_after_reload := gnmi.Update(t, dut, path.Config(), true)
+				t.Logf("gNMI Update : %v", got_after_reload)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed after process restart ")
+			}
+
+			gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
+			gnmiwithcli(t, dut, deletePath, "no hostname")
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters after process restart.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Pathz Policy Longest Prefix Match Among Users", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "isis"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "isis"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+			gnmi.Update(t, dut, config.Config(), true)
+			gnmi.Delete(t, dut, config.Config())
+			gnmi.Replace(t, dut, config.Config(), true)
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "isis"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "isis"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+			gnmi.Update(t, dut, config.Config(), true)
+			gnmi.Delete(t, dut, config.Config())
+			gnmi.Replace(t, dut, config.Config(), true)
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 6)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+		}
+	})
+	t.Run("Test Pathz Policy Longest Prefix Among Groups", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			// Perform Rotate request
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Groups: []*pathzpb.Group{{
+									Name: "pathz",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}, {
+									Name: "admin",
+									Users: []*pathzpb.User{
+										{
+											Name: d.sshUser,
+										},
+									},
+								}},
+								Rules: []*pathzpb.AuthorizationRule{
+									{
+										Id: "Rule1",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+												{Name: "isis"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_DENY,
+									},
+									{
+										Id: "Rule2",
+										Path: &gpb.Path{
+											Origin: "openconfig",
+											Elem: []*gpb.PathElem{
+												{Name: "network-instances"},
+												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+												{Name: "protocols"},
+											},
+										},
+										Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+										Mode:      pathzpb.Mode_MODE_WRITE,
+										Action:    pathzpb.Action_ACTION_PERMIT,
+									},
+								},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Groups: []*pathzpb.Group{{
+						Name: "pathz",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}, {
+						Name: "admin",
+						Users: []*pathzpb.User{
+							{
+								Name: d.sshUser,
+							},
+						},
+					}},
+					Rules: []*pathzpb.AuthorizationRule{
+						{
+							Id: "Rule1",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
+									{Name: "isis"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "pathz"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_DENY,
+						},
+						{
+							Id: "Rule2",
+							Path: &gpb.Path{
+								Origin: "openconfig",
+								Elem: []*gpb.PathElem{
+									{Name: "network-instances"},
+									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
+									{Name: "protocols"},
+								},
+							},
+							Principal: &pathzpb.AuthorizationRule_Group{Group: "admin"},
+							Mode:      pathzpb.Mode_MODE_WRITE,
+							Action:    pathzpb.Action_ACTION_PERMIT,
+						},
+					},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff: %s", d)
+			}
+
+			// Configure ISIS overload bit using gNMI.Update
+			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Update(t, dut, config.Config(), true)
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed")
+			}
+
+			// Delete ISIS overload bit using gNMI.Delete
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Delete(t, dut, config.Config())
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed")
+			}
+
+			// Configure ISIS overload bit using gNMI.Replace
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Replace(t, dut, config.Config(), true)
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed")
+			}
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("RPSO: Test Pathz Policy with gNMI.SET Operation using XR Model", func(t *testing.T) {
@@ -3814,18 +4492,12 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 4, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 6)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, true, 3, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 4)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 6, 6)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/name", false, false, 0, 0)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -4490,7 +5162,7 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 1)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
@@ -4502,714 +5174,6 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Groups: []*pathzpb.Group{{
-									Name: "pathz",
-									Users: []*pathzpb.User{
-										{
-											Name: d.sshUser,
-										},
-									},
-								}},
-								Rules: []*pathzpb.AuthorizationRule{
-									{
-										Id: "Rule1",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule2",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule3",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "identifier"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule4",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule5",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "config"},
-												{Name: "identifier"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule6",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule7",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_PERMIT,
-									},
-									{
-										Id: "Rule8",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule9",
-										Path: &gpb.Path{
-											Origin: "openconfig-legacy",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule10",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-												{Name: "identifier"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule11",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule12",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-												{Name: "config"},
-												{Name: "identifier"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule13",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-												{Name: "config"},
-												{Name: "name"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-									{
-										Id: "Rule14",
-										Path: &gpb.Path{
-											Origin: "openconfig",
-											Elem: []*gpb.PathElem{
-												{Name: "network-instances"},
-												{Name: "network-instance", Key: map[string]string{"name": "*"}},
-												{Name: "protocols"},
-												{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-												{Name: "isis"},
-											},
-										},
-										Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-										Mode:      pathzpb.Mode_MODE_WRITE,
-										Action:    pathzpb.Action_ACTION_DENY,
-									},
-								},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Groups: []*pathzpb.Group{{
-						Name: "pathz",
-						Users: []*pathzpb.User{
-							{
-								Name: d.sshUser,
-							},
-						},
-					}},
-					Rules: []*pathzpb.AuthorizationRule{
-						{
-							Id: "Rule1",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule2",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule3",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "identifier"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule4",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule5",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "config"},
-									{Name: "identifier"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule6",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule7",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "DEFAULT"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "B4"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_PERMIT,
-						},
-						{
-							Id: "Rule8",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule9",
-							Path: &gpb.Path{
-								Origin: "openconfig-legacy",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule10",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-									{Name: "identifier"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule11",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule12",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-									{Name: "config"},
-									{Name: "identifier"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule13",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-									{Name: "config"},
-									{Name: "name"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-						{
-							Id: "Rule14",
-							Path: &gpb.Path{
-								Origin: "openconfig",
-								Elem: []*gpb.PathElem{
-									{Name: "network-instances"},
-									{Name: "network-instance", Key: map[string]string{"name": "*"}},
-									{Name: "protocols"},
-									{Name: "protocol", Key: map[string]string{"identifier": "ISIS", "name": "*"}},
-									{Name: "isis"},
-								},
-							},
-							Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-							Mode:      pathzpb.Mode_MODE_WRITE,
-							Action:    pathzpb.Action_ACTION_DENY,
-						},
-					},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Configure Network Instance using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
-
-			// Configure Protcol ISIS using gNMI.Update
-			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Config(), &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, Name: ygot.String("B4")})
-
-			// Configure ISIS overload bit using gNMI.Update
-			config := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "B4").Isis().Global().LspBit().OverloadBit().SetBit()
-			gnmi.Update(t, dut, config.Config(), true)
-			gnmi.Delete(t, dut, config.Config())
-			gnmi.Replace(t, dut, config.Config(), true)
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
-		}
-	})
-	t.Run("Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			// Perform Rotate request
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Rules: []*pathzpb.AuthorizationRule{{
-									Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-									Mode:      pathzpb.Mode_MODE_WRITE,
-									Action:    pathzpb.Action_ACTION_DENY,
-								}},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Rules: []*pathzpb.AuthorizationRule{{
-						Path:      &gpb.Path{Origin: "", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-						Mode:      pathzpb.Mode_MODE_WRITE,
-						Action:    pathzpb.Action_ACTION_DENY,
-					}},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff: %s", d)
-			}
-
-			// Perform gNMI operations
-			isPermissionDeniedError(t, dut, "AfterFinalize")
-
-			path := gnmi.OC().Lldp().Enabled()
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Update(t, dut, path.Config(), true)
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed ")
-			}
-
-			gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
-			gnmiwithcli(t, dut, deletePath, "no hostname")
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 4)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
-
-			// Perform eMSD process restart
-			t.Logf("Restarting emsd at %s", time.Now())
-			perf.RestartProcess(t, dut, "emsd")
-			t.Logf("Restart emsd finished at %s", time.Now())
-
-			// Perform GET operations for sandbox policy instance after process restart.
-			sand_res_after_process_restart, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res_after_process_restart, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Perform GET operations for active policy instance after process restart.
-			actv_res_after_process_restart, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res_after_process_restart, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Verify gNMI Operations after process restart.
-			isPermissionDeniedError(t, dut, "AfterProcessRestart")
-
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got_after_reload := gnmi.Update(t, dut, path.Config(), true)
-				t.Logf("gNMI Update : %v", got_after_reload)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed after process restart ")
-			}
-
-			gnmiwithcli(t, dut, updatePath, "hostname Origin-CLI-SF")
-			gnmiwithcli(t, dut, deletePath, "no hostname")
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters after process restart.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Corrupt Pathz Policy File Behaviour - Reload", func(t *testing.T) {
@@ -5283,8 +5247,20 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 6, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, true, 3, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 
 			pathzRulesPath := "testdata/invalid_policy.txt"
 			copyPathzRules := "/mnt/rdsfs/ems/gnsi"
@@ -5328,8 +5304,20 @@ func TestPathz_1(t *testing.T) {
 			// Verify the policy counters after corrupting policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 9, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, true, 6, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/config/name", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/identifier", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, true, 0, 2)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=openconfig-policy-types:ISIS][name=B4]/name", false, false, 0, 0)
 
 			// Reload router
 			perf.ReloadRouter(t, dut)
