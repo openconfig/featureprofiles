@@ -44,7 +44,7 @@ pipeline {
             customWorkspace "${auto_job_dir}"
         }
     }
-
+    
     options {
         disableConcurrentBuilds()
     }
@@ -255,7 +255,7 @@ pipeline {
             steps {
                 script {
                     testgen_cmd_parts = [
-                        "go run exec/firex/v2/testsuite_generator.go",
+                        "/auto/firex/bin/go run exec/firex/v2/testsuite_generator.go",
                         "-files ${ts_internal.join(',')}",
                         "-internal_repo_rev '${env.GIT_COMMIT}'"
                     ]
