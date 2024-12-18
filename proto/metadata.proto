@@ -38,6 +38,7 @@ message Metadata {
     TESTBED_DUT_DUT_ATE_2LINKS = 6;
     TESTBED_DUT_ATE_8LINKS = 7;
     TESTBED_DUT_400ZR = 8;
+    TESTBED_DUT_400ZR_PLUS = 9;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -667,7 +668,8 @@ message Metadata {
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
     bool bgp_set_med_v7_unsupported = 241;
-
+    // Arista does not support ETHChannel rate-class
+    bool channel_assignment_rate_class_parameters_unsupported = 242;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
