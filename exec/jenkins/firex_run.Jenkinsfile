@@ -631,7 +631,7 @@ def parseTestbeds(String testbeds_list) {
 }
 
 def lockTestbeds(List testbeds) {
-    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.JOB_BASE_NAME}' '${testbeds.join(',')}'"
+    sh "/auto/tftpboot-ottawa/b4/bin/tblock lock -w -r '${env.BUILD_URL}' '${testbeds.join(',')}'"
 }
 
 def releaseTestbeds(List testbeds) {
