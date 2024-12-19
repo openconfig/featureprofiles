@@ -15,6 +15,7 @@
 package isis_interface_level_passive_test
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -23,8 +24,10 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -99,8 +102,8 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Interface level configs.
 	isisIntfLevel2 := intf.GetOrCreateLevel(2)
 	isisIntfLevel2.LevelNumber = ygot.Uint8(2)
+	isisIntfLevel2.SetEnabled(true)
 	isisIntfLevel2.Enabled = ygot.Bool(true)
-	isisIntfLevel2.Passive = ygot.Bool(true)
 
 	isisIntfLevel2.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel2.GetHelloAuthentication().AuthPassword = ygot.String(password)
@@ -170,7 +173,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 func TestISISLevelPassive(t *testing.T) {
 	ts := isissession.MustNew(t).WithISIS()
 	configureISIS(t, ts)
-
+	dut := ts.DUT
 	configureOTG(t, ts)
 	otg := ts.ATE.OTG()
 
@@ -178,6 +181,7 @@ func TestISISLevelPassive(t *testing.T) {
 	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
 
 	ts.PushAndStart(t)
+	time.Sleep(time.Minute * 2)
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
@@ -185,11 +189,27 @@ func TestISISLevelPassive(t *testing.T) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
+		time.Sleep(time.Minute * 1)
+		var isispassiveconfig string
 		t.Run("Passive checks", func(t *testing.T) {
-			// Passive should be true.
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != true {
-				t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
+			if deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
+				switch dut.Vendor() {
+				case ondatra.CISCO:
+					isispassiveconfig = fmt.Sprintf("router isis DEFAULT\n interface %s\n passive\n", intfName)
+				default:
+					t.Fatalf("Unsupported vendor %s for deviation 'IsisInterfaceLevelPassiveUnsupported'", dut.Vendor())
+				}
+				helpers.GnmiCLIConfig(t, dut, isispassiveconfig)
+			} else {
+				gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), true)
 			}
+			if !deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
+				// Passive should be true.
+				if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != true {
+					t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
+				}
+			}
+			t.Logf("Adjacency state after passive update is %s", statePath.Interface(intfName).Level(2).AdjacencyAny().AdjacencyState().State())
 			// Adjacency should be down.
 			for _, val := range gnmi.LookupAll(t, ts.DUT, statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State()) {
 				if v, _ := val.Val(); v == oc.Isis_IsisInterfaceAdjState_UP {
@@ -197,12 +217,23 @@ func TestISISLevelPassive(t *testing.T) {
 				}
 			}
 			// Updating passive config to false on dut.
-			gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), false)
-			time.Sleep(time.Second * 5)
-
-			if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != false {
-				t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
+			if deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
+				switch dut.Vendor() {
+				case ondatra.CISCO:
+					isispassiveconfig = fmt.Sprintf("router isis DEFAULT\n interface %s\n no passive\n", intfName)
+				default:
+					t.Fatalf("Unsupported vendor %s for deviation 'IsisInterfaceLevelPassiveUnsupported'", dut.Vendor())
+				}
+				helpers.GnmiCLIConfig(t, dut, isispassiveconfig)
+			} else {
+				gnmi.Update(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().Config(), false)
 			}
+			if !deviations.IsisInterfaceLevelPassiveUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Interface(intfName).Level(2).Passive().State()); got != false {
+					t.Errorf("FAIL- Expected level 2 passive state not found, got %t, want %t", got, true)
+				}
+			}
+			t.Logf("Adjacency state after passive update is %s", statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State())
 			// Level 2 adjacency should be up.
 			_, err := ts.AwaitAdjacency()
 			if err != nil {
@@ -244,8 +275,10 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
@@ -298,8 +331,10 @@ func TestISISLevelPassive(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+			if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
