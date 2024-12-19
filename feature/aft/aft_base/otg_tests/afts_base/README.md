@@ -26,6 +26,7 @@ Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2 and another 
 *   Validate total number of entries of AFT for IPv4 and IPv6.
 *   Each prefix must have 2 next hops pointing to ATE port1,port2.
 *   Advertise 100 ipv4,ipv6 from ATE port3 observe received prefixes at DUT.
+*   Each prefix must have 1 next hop pointing to BGP neighbour ip.
 
 ### Procedure
 
@@ -35,7 +36,6 @@ Establish eBGP sessions between ATE:port1,port2 and DUT:port1,port2 and another 
 ### Verifications
 
 *   BGP route advertised from ATE:port1,port2 must have 2 nexthops.
-*   IS-IS route advertised from ATE:port3 must have one next hop.
 *   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   Use gnmi Subscribe with ON_CHANGE option to /network-instances/network-instance/afts.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
@@ -54,7 +54,7 @@ Bring down the link between ATE:port2 and DUT:port2 using OTG api.
 ### Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have 1 nexthop.
-*   IS-IS routes advertised from ATE:port3 must have one next hop.
+*   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
@@ -70,7 +70,7 @@ Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 ### Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must be removed from RIB,FIB of the DUT, query results nil.
-*   IS-IS routes advertised from ATE:port3 must have one next hop.
+*   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
@@ -86,7 +86,7 @@ Bring up link between ATE:port1 and DUT:port1 using OTG api.
 ### Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have one next hop.
-*   IS-IS routes advertised from ATE:port3 must have one next hop.
+*   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   Verify afts prefix advertised by BGP,ISIS.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
@@ -102,7 +102,7 @@ Bring up both link between ATE:port1,port2 and DUT:port1,port2 using OTG api.
 ### Verifications
 
 *   BGP routes advertised from ATE:port1,port2 must have 2 next hops.
-*   IS-IS routes advertised from ATE:port3 must have one next hop.
+*   IS-IS routes advertised from ATE:port1 must have one next hop.
 *   BGP route advertised from ATE:port3 must have next hop pointing towards BGP neigbour ip.
 *   For verifying prefix, nexthop groups, next hop use the leaves mentioed in the path section.
 *   Verify afts prefix advertised by BGP,ISIS.
