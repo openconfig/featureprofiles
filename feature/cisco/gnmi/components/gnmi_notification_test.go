@@ -317,10 +317,10 @@ func TestNotificationRPFO(t *testing.T) {
 			}
 		}
 	}()
-	
+
 	utils.Dorpfo(context.Background(), t, false)
 
-	passed := <- activeChan && <- standbyChan
+	passed := <-activeChan && <-standbyChan
 
 	if !passed {
 		t.Fatal("did not receive correct value before timeout")
