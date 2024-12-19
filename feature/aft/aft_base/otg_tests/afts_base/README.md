@@ -163,8 +163,6 @@ rpcs:
 
 BGP
 IS-IS
-RSVP
-MPLS
 
 ## Minimum DUT Platform Requirement
 
