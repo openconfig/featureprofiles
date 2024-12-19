@@ -30,7 +30,7 @@ import (
 // configuration including any deviations for the device.
 // If sfglobal is nil, default values are provided.
 // The SFlow configuration is returned to give the caller an option to override default values.
-func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondatra.DUTDevice, ni, intfName string) *oc.Sampling_Sflow {
+func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow, d *ondatra.DUTDevice, ni, intfName string, srcAddrV4 string, srcAddrV6 string) *oc.Sampling_Sflow {
 	c := new(oc.Sampling_Sflow)
 
 	if newcfg == nil {
@@ -41,7 +41,7 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 		c.Dscp = ygot.Uint8(8)
 		c.GetOrCreateInterface(d.Port(t, "port1").Name()).Enabled = ygot.Bool(true)
 		c.GetOrCreateInterface(d.Port(t, "port2").Name()).Enabled = ygot.Bool(true)
-		coll := NewSFlowCollector(t, batch, nil, d, ni, intfName)
+		coll := NewSFlowCollector(t, batch, nil, d, ni, intfName, srcAddrV4, srcAddrV6)
 		for _, col := range coll {
 			c.AppendCollector(col)
 		}
@@ -56,8 +56,8 @@ func NewSFlowGlobalCfg(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 
 // NewSFlowCollector creates a collector to be appended to SFlowConfig.
 // If sfc is nil, default values are provided.
-func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice, ni, intfName string) []*oc.Sampling_Sflow_Collector {
-	coll := []*oc.Sampling_Sflow_Collector{}
+func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_Sflow_Collector, d *ondatra.DUTDevice, ni, intfName string, srcAddrV4 string, srcAddrV6 string) []*oc.Sampling_Sflow_Collector {
+	var coll []*oc.Sampling_Sflow_Collector
 
 	if newcfg == nil {
 		intf := gnmi.Get[*oc.Interface](t, d, gnmi.OC().Interface(intfName).State())
@@ -76,11 +76,7 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 				helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
 			}
 		} else {
-			addresses := []string{}
-			for _, addr := range intf.GetSubinterface(0).GetIpv4().Address {
-				addresses = append(addresses, addr.GetIp())
-			}
-			cV4.SetSourceAddress(addresses[0])
+			cV4.SetSourceAddress(srcAddrV4)
 		}
 		cV4.SetNetworkInstance(ni)
 		coll = append(coll, cV4)
@@ -98,11 +94,7 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 				helpers.GnmiCLIConfig(t, d, sFlowSourceAddressCli)
 			}
 		} else {
-			addresses := []string{}
-			for _, addr := range intf.GetSubinterface(0).GetIpv6().Address {
-				addresses = append(addresses, addr.GetIp())
-			}
-			cV6.SetSourceAddress(addresses[0])
+			cV6.SetSourceAddress(srcAddrV6)
 		}
 		cV6.SetNetworkInstance(ni)
 		coll = append(coll, cV6)

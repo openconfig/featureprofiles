@@ -22,3 +22,12 @@ platform_exceptions: {
     ipv6_router_advertisement_interval_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+  }
+}
