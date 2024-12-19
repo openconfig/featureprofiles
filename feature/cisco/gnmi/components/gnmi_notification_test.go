@@ -45,7 +45,6 @@ func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 }
 
 func shutDownLinecard(t *testing.T, lc string) {
-	const linecardBoottime = 5 * time.Minute
 	dut := ondatra.DUT(t, "dut")
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -123,10 +122,7 @@ func TestNotificationProcessRestart(t *testing.T) {
 		gnmi.OC().Component(lc).State(), time.Minute*10, func(v *ygnmi.Value[*oc.Component]) bool {
 			val, _ := v.Val()
 			t.Logf("received notification: \n %s\n", util.PrettyPrintJson(v))
-			if val != nil {
-				return true
-			}
-			return false
+			return val != nil
 		})
 
 	err := performance.RestartProcess(t, dut, "invmgr")
@@ -155,10 +151,7 @@ func TestNotificationLCReload(t *testing.T) {
 			val, _ := v.Val()
 			t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
 			t.Logf("received notification OperStatus: %s for %s\n", val.OperStatus, lc)
-			if val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE {
-				return true
-			}
-			return false
+			return val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_INACTIVE
 		})
 
 	t.Logf("Restarting LC %s", lc)
@@ -186,10 +179,7 @@ func TestNotificationLCShutUnshut(t *testing.T) {
 				val, _ := v.Val()
 				t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
 				t.Logf("received notification OperStatus: %s for %s\n", val.OperStatus, lc)
-				if val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED {
-					return true
-				}
-				return false
+				return val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
 			})
 		t.Logf("awaiting notification for /components/component[name=%s]", lc)
 		_, ok := watcher.Await(t)
@@ -206,10 +196,7 @@ func TestNotificationLCShutUnshut(t *testing.T) {
 				val, _ := v.Val()
 				t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
 				t.Logf("received notification OperStatus: %s for %s\n", val.OperStatus, lc)
-				if val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE {
-					return true
-				}
-				return false
+				return val.OperStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 			})
 		t.Logf("awaiting notification for /components/component[name=%s]", lc)
 		_, ok := watcher.Await(t)
@@ -264,10 +251,7 @@ func TestNotificationDeletePort(t *testing.T) {
 			gnmi.OC().Component(port).State(), time.Minute*10, func(v *ygnmi.Value[*oc.Component]) bool {
 				val, ok := v.Val()
 				t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
-				if ok {
-					return true
-				}
-				return false
+				return ok
 			})
 		t.Logf("awaiting notification for /components/component[name=%s]", port)
 		_, ok := watcher.Await(t)
@@ -302,10 +286,7 @@ func TestNotificationRPFO(t *testing.T) {
 						val, _ := v.Val()
 						t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
 						t.Logf("received notification RedundantRole: %s for %s, want: SECONDARY", val.RedundantRole, rpActive)
-						if val.RedundantRole == oc.Platform_ComponentRedundantRole_SECONDARY {
-							return true
-						}
-						return false
+						return val.RedundantRole == oc.Platform_ComponentRedundantRole_SECONDARY
 					}).Await(t)
 				activeChan <- ok
 			}); errMsg != nil {
@@ -327,10 +308,7 @@ func TestNotificationRPFO(t *testing.T) {
 						val, _ := v.Val()
 						t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
 						t.Logf("received notification RedundantRole: %s for %s, want: PRIMARY", val.RedundantRole, rpStandby)
-						if val.RedundantRole == oc.Platform_ComponentRedundantRole_PRIMARY {
-							return true
-						}
-						return false
+						return val.RedundantRole == oc.Platform_ComponentRedundantRole_PRIMARY
 					}).Await(t)
 				standbyChan <- ok
 			}); errMsg != nil {
