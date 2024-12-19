@@ -13,6 +13,7 @@ import (
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/ondatra"
@@ -68,6 +69,7 @@ func shutDownLinecard(t *testing.T, lc string) {
 }
 
 func powerUpLineCard(t *testing.T, lc string) {
+	t.Helper()
 	const linecardBoottime = 5 * time.Minute
 	dut := ondatra.DUT(t, "dut")
 
@@ -282,46 +284,65 @@ func TestNotificationDeletePort(t *testing.T) {
 }
 
 func TestNotificationRPFO(t *testing.T) {
-	t.Skip()
 	dut := ondatra.DUT(t, "dut")
 	rps := findComponentsByTypeNoLogs(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	rpStandby, rpActive := components.FindStandbyRP(t, dut, rps)
 	t.Logf("RPs: %v", rps)
 
-	watcher := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(
-			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE),
-		),
-		gnmi.OC().Component(rpActive).State(), time.Minute*60, func(v *ygnmi.Value[*oc.Component]) bool {
-			val, _ := v.Val()
-			t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
-			t.Logf("received notification RedundantRole: %s for %s, want: SECONDARY", val.RedundantRole, rpActive)
-			if val.RedundantRole == oc.Platform_ComponentRedundantRole_SECONDARY {
-				return true
+	activeChan := make(chan bool)
+	standbyChan := make(chan bool)
+
+	go func() {
+		defer close(activeChan)
+		for {
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				_, ok := gnmi.Watch(t,
+					dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+					gnmi.OC().Component(rpActive).State(), time.Minute*10, func(v *ygnmi.Value[*oc.Component]) bool {
+						val, _ := v.Val()
+						t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
+						t.Logf("received notification RedundantRole: %s for %s, want: SECONDARY", val.RedundantRole, rpActive)
+						if val.RedundantRole == oc.Platform_ComponentRedundantRole_SECONDARY {
+							return true
+						}
+						return false
+					}).Await(t)
+				activeChan <- ok
+			}); errMsg != nil {
+				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+				time.Sleep(time.Second * 5)
+			} else {
+				break
 			}
-			return false
-		})
+		}
+	}()
 
-	go utils.Dorpfo(context.Background(), t, false)
-
-	watcher2 := gnmi.Watch(t,
-		dut.GNMIOpts().WithYGNMIOpts(
-			ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE),
-		),
-		gnmi.OC().Component(rpStandby).State(), time.Minute*60, func(v *ygnmi.Value[*oc.Component]) bool {
-			val, _ := v.Val()
-			t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
-			t.Logf("received notification RedundantRole: %s for %s, want: PRIMARY", val.RedundantRole, rpStandby)
-			if val.RedundantRole == oc.Platform_ComponentRedundantRole_PRIMARY {
-				return true
+	go func() {
+		defer close(standbyChan)
+		for {
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				_, ok := gnmi.Watch(t,
+					dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+					gnmi.OC().Component(rpStandby).State(), time.Minute*10, func(v *ygnmi.Value[*oc.Component]) bool {
+						val, _ := v.Val()
+						t.Logf("received update: \n %s\n", util.PrettyPrintJson(val))
+						t.Logf("received notification RedundantRole: %s for %s, want: PRIMARY", val.RedundantRole, rpStandby)
+						if val.RedundantRole == oc.Platform_ComponentRedundantRole_PRIMARY {
+							return true
+						}
+						return false
+					}).Await(t)
+				standbyChan <- ok
+			}); errMsg != nil {
+				t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+				time.Sleep(time.Second * 5)
 			}
-			return false
-		})
+		}
+	}()
+	
+	utils.Dorpfo(context.Background(), t, false)
 
-	_, ok := watcher.Await(t)
-	_, ok2 := watcher2.Await(t)
-
-	passed := ok && ok2
+	passed := <- activeChan && <- standbyChan
 
 	if !passed {
 		t.Fatal("did not receive correct value before timeout")
