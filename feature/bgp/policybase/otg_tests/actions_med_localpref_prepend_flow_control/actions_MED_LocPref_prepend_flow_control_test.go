@@ -228,10 +228,13 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
 		if strings.Contains(policyValue, "+") {
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
+			metric, _ := strconv.Atoi(policyValue)
+			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
 		} else {
 			metric, _ := strconv.Atoi(policyValue)
 			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+			actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 		}
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
@@ -246,6 +249,7 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		}
 		metric, _ := strconv.Atoi(policyValue)
 		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
+		actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 
 		stmt2, err := pdef.AppendNewStatement(matchStatement2)
 		if err != nil {
@@ -289,6 +293,9 @@ func configureBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, 
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ImportPolicy().Config(), []string{policyDef})
 	gnmi.BatchReplace(batchConfig, nbrPolPathv6.ExportPolicy().Config(), []string{policyDef})
 	batchConfig.Set(t, dut)
+
+	// Sleep for 10 second to ensure that OTG has recived the update packet
+	time.Sleep(10 * time.Second)
 }
 
 // deleteBGPImportExportPolicy configures import/export policies
@@ -466,7 +473,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
@@ -475,12 +482,12 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					validateImportRoutingPolicy(t, dut, ipAddr, metric)
+					t.Log("Skipping local-preference validation on eBGP based on RFC-4271, Section-5.1.5")
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
 					} else {
-						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
 					}
 				case setNxtPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
@@ -491,7 +498,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != asnRepeatN+1 {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
 					} else {
-						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), asnRepeatN+1)
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
 					}
 				default:
 					t.Errorf("Incorrect BGP Path Attribute. Expected MED, Local Pref or AS Path Prepend!!!!")
@@ -523,7 +530,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case setMEDPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
@@ -532,12 +539,12 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 						t.Logf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), metric)
 					}
 				case setLocalPrefPolicy:
-					validateImportRoutingPolicyV6(t, dut, ipAddr, metric)
+					t.Log("Skipping local-preference validation on eBGP based on RFC-4271, Section-5.1.5")
 				case setPrependPolicy:
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != int(metric) {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
 					} else {
-						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), int(metric))
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), int(metric))
 					}
 				case setNxtPolicy:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric {
@@ -548,7 +555,7 @@ func validateOTGBgpPrefixV6AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 					if len(bgpPrefix.AsPath[0].GetAsNumbers()) != asnRepeatN+1 {
 						t.Errorf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
 					} else {
-						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath), asnRepeatN+1)
+						t.Logf("For Prefix %v, got AS Path Prepend %d want AS Path Prepend %d", bgpPrefix.GetAddress(), len(bgpPrefix.AsPath[0].GetAsNumbers()), asnRepeatN+1)
 					}
 				default:
 					t.Errorf("Incorrect Routing Policy. Expected MED, Local Pref or AS Path Prepend!!!!")
@@ -705,8 +712,8 @@ func TestBGPPolicy(t *testing.T) {
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
-		deleteNbrv4:     atePort1.IPv4,
-		deleteNbrv6:     atePort1.IPv6,
+		deleteNbrv4:     atePort2.IPv4,
+		deleteNbrv6:     atePort2.IPv6,
 		asn:             dutAS,
 	}, {
 		desc:            "Configure eBGP  prepend 10 x ASN Import Export Policy",

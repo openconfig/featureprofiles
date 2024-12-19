@@ -1694,6 +1694,8 @@ github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e h1:6N4jXpZa
 github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e/go.mod h1:w38G/kObu95PbtwMYVp6SKhkHCegJFwL8B58Ns84g4s=
 github.com/openconfig/ondatra v0.6.1 h1:/N3mm4iJX3G8HcASu+qAKcJc/lJqKEaD8MFd6aRVWqc=
 github.com/openconfig/ondatra v0.6.1/go.mod h1:ol5PMSLtZJEYPrTwTFpRCyQvAFeA5vQUTAEYFiAlXz0=
+github.com/openconfig/ondatra v0.7.0 h1:0nkWzq/YZeDDV9li1Lm9PKHqj/I/z6LMxbsfG2i79vo=
+github.com/openconfig/ondatra v0.7.0/go.mod h1:ol5PMSLtZJEYPrTwTFpRCyQvAFeA5vQUTAEYFiAlXz0=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
