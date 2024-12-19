@@ -115,8 +115,12 @@ class FireX:
 
                     if len(labels) > 0:
                         testcase_data["generated_labels"] = labels
-                        testcase_data["generated"] = True
                         testcase_data["label"] = testcase_data["generated_labels"][0]["label"]
+                        if testcase_data["generated_labels"][0]["score"] > 0.9:
+                            testcase_data["generated"] = False
+                            testcase_data["triage_status"] = "Resolved"
+                        else:
+                            testcase_data["generated"] = True
                     else:
                         testcase_data["label"] = ""
             # Passed Testcase
