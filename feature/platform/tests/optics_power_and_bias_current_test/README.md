@@ -77,28 +77,38 @@ to Automatic Test Equipment (ATE).
     *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
-*   /interfaces/interface/config/enabled
-*   /components/component/transceiver/state/enabled (transceiver 3.3V power supply on/off)
+```yaml
+paths:
+  ## Config paths
+  /interfaces/interface/config/enabled:
+  /components/component/transceiver/state/enabled (transceiver 3.3V power supply on/off):
 
-## Telemetry Parameter coverage
+  ## State paths
+  /components/component/transceiver/physical-channels/channel/state/input-power/instant:
+  /components/component/transceiver/physical-channels/channel/state/output-power/instant:
+  /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
+  /components/component/state/temperature/instant:
+  /components/component/state/mfg-name:
+  /components/component/transceiver/state/form-factor:
+  /components/component/state/serial-no:
+  /components/component/state/part-no:
+  /components/component/state/firmware-version:
+  /components/component/transceiver/thresholds/threshold/state/output-power-lower:
+  /components/component/transceiver/thresholds/threshold/state/output-power-upper:
+  /components/component/transceiver/thresholds/threshold/state/input-power-lower:
+  /components/component/transceiver/thresholds/threshold/state/input-power-upper:
+  /components/component/transceiver/thresholds/threshold/state/module-temperature-lower:
+  /components/component/transceiver/thresholds/threshold/state/module-temperature-upper:
+  /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower:
+  /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper:
+  /components/component/transceiver/thresholds/threshold/state/severity:
 
-*   /components/component/transceiver/physical-channels/channel/state/input-power/instant
-*   /components/component/transceiver/physical-channels/channel/state/output-power/instant
-*   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant
-*   /components/component/state/temperature/instant
-*   /components/component/state/mfg-name
-*   /components/component/transceiver/state/form-factor
-*   /components/component/state/serial-no
-*   /components/component/state/part-no
-*   /components/component/state/firmware-version
-*   /components/component/transceiver/thresholds/threshold/state/output-power-lower
-*   /components/component/transceiver/thresholds/threshold/state/output-power-upper
-*   /components/component/transceiver/thresholds/threshold/state/input-power-lower
-*   /components/component/transceiver/thresholds/threshold/state/input-power-upper
-*   /components/component/transceiver/thresholds/threshold/state/module-temperature-lower
-*   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper
-*   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower
-*   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper
-*   /components/component/transceiver/thresholds/threshold/state/severity
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
