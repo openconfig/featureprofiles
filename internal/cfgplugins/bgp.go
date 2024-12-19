@@ -227,14 +227,14 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 				ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 				bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP4.peer")
 				bgp4Peer.SetPeerAddress(ipv4.Gateway())
-				bgp4Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp4Peer.SetAsNumber(asNumbers[i])
 				bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 				bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 			case oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST:
 				ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 				bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(devices[i].Name() + ".BGP6.peer")
 				bgp6Peer.SetPeerAddress(ipv6.Gateway())
-				bgp6Peer.SetAsNumber(uint32(asNumbers[i]))
+				bgp6Peer.SetAsNumber(asNumbers[i])
 				bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 				bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 			}
@@ -395,7 +395,7 @@ func (bs *BGPSession) buildNeigborConfig(isSamePG, isSameAS bool, bgpPorts []str
 	}
 	ncAll := []*NeighborConfig{nc1, nc2, nc3, nc4}
 
-	validNC := []*NeighborConfig{}
+	var validNC []*NeighborConfig
 	for _, nc := range ncAll[:len(bs.DUTPorts)] {
 		if containsValue(bgpPorts, nc.Name) {
 			validNC = append(validNC, nc)
@@ -533,12 +533,12 @@ func VerifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, nbrs []*BgpNeig
 			oc.BgpTypes_BGP_CAPABILITY_ASN32:         false,
 			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
 		}
-		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
-			capabilities[cap] = true
+		for _, c := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[c] = true
 		}
-		for cap, present := range capabilities {
+		for c, present := range capabilities {
 			if !present {
-				t.Errorf("Capability not reported: %v", cap)
+				t.Errorf("Capability not reported: %v", c)
 			}
 		}
 	}

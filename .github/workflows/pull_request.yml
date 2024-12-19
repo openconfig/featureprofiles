@@ -5,14 +5,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: Setup Perl
-      uses: perl-actions/install-with-cpanm@v1
+      uses: perl-actions/install-with-cpanm@10d60f00b4073f484fc29d45bfbe2f776397ab3d
       with:
         install: |
           Net::IP
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: IP Addresses Assignment
       run: |
         git diff --name-only main | while read l; do
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: Allowed File Types
       run: ./tools/allowed_file_types.sh
     - name: Block hyphenated directory names
@@ -65,9 +65,9 @@ jobs:
     name: OTG Changes Required
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: Check if OTG changes required
-      uses: actions/github-script@v6
+      uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
       with:
         script: |
           const script = require('./.github/workflows/required_otg_changes_check.js')
