@@ -262,6 +262,18 @@ testbeds:
       gnmi_port: 50063
       rest_port: 30063
   
+  8201-32FH-FLM254506DQ:
+    hw: 8201-32FH-FLM254506DQ
+    owner: wdolaast
+    testbed: topologies/cisco/hw/8201-32FH-FLM254506DQ/testbed
+    binding: topologies/cisco/hw/8201-32FH-FLM254506DQ/binding
+    baseconf: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+    otg:
+      host: kne2-lnx
+      controller_port: 40066
+      gnmi_port: 50066
+      rest_port: 30066
+  
   2DUT-TB3:
     hw:
       - 8808_FOX2730P191
@@ -377,12 +389,12 @@ testbeds:
     hw:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
-    owner: arvbaska
+    owner: wdolaast
     testbed: topologies/cisco/hw/2DUT-TB4/testbed
     binding: topologies/cisco/hw/2DUT-TB4/binding
     baseconf:
       dut: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
-      dut2: topologies/cisco/hw/8201-32FH-8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
+      dut2: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
     otg:
       host: kne2-lnx
       controller_port: 40062
