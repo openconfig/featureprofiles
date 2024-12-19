@@ -36,7 +36,7 @@ import (
 // When CheckInterfacesInBinding is set to true, all interfaces that are not defined in binding file are excluded.
 func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterfacesInBinding bool) []string {
 	t.Helper()
-	intfsOperStatusUP := []string{}
+	var intfsOperStatusUP []string
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	bindedIntf := make(map[string]bool)
 	for _, port := range dut.Ports() {
