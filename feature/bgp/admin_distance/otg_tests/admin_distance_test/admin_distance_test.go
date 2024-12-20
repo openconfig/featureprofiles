@@ -29,25 +29,21 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	prefixV4Len    = uint32(24)
-	prefixV6Len    = uint32(64)
-	v4Network      = "192.168.10.0"
-	v6Network      = "2024:db8:64:64::"
-	pathID         = 1
-	prefixesCount  = 1
-	bgpName        = "BGP"
-	dutAS          = uint32(64656)
-	ateAS          = uint32(64657)
-	peerGrpNamev4  = "BGP-PEER-GROUP-V4"
-	peerGrpNamev6  = "BGP-PEER-GROUP-V6"
-	ateSysID       = "640000000001"
-	ateAreaAddress = "49.0002"
-	lossTolerance  = 1
+	prefixV4Len   = uint32(24)
+	prefixV6Len   = uint32(64)
+	v4Network     = "192.168.10.0"
+	v6Network     = "2024:db8:64:64::"
+	prefixesCount = 1
+	bgpName       = "BGP"
+	dutAS         = uint32(64656)
+	ateAS         = uint32(64657)
+	peerGrpNameV4 = "BGP-PEER-GROUP-V4"
+	peerGrpNameV6 = "BGP-PEER-GROUP-V6"
+	lossTolerance = 1
 )
 
 var (
@@ -69,8 +65,8 @@ var (
 		IPv6Len: 126,
 	}
 
-	advertisedIPv4 ipAddr = ipAddr{address: v4Network, prefix: prefixV4Len}
-	advertisedIPv6 ipAddr = ipAddr{address: v6Network, prefix: prefixV6Len}
+	advertisedIPv4 = ipAddr{address: v4Network, prefix: prefixV4Len}
+	advertisedIPv6 = ipAddr{address: v6Network, prefix: prefixV6Len}
 )
 
 type ipAddr struct {
@@ -86,7 +82,7 @@ func TestMain(m *testing.M) {
 func TestAdminDistance(t *testing.T) {
 	ts := isissession.MustNew(t).WithISIS()
 	configurePort3(t, ts)
-	advertisePrefixFromISISPort(t, ts)
+	advertisePrefixFromISISPort(ts)
 	t.Run("ISIS Setup", func(t *testing.T) {
 		ts.PushAndStart(t)
 		ts.MustAdjacency(t)
@@ -147,8 +143,8 @@ func TestAdminDistance(t *testing.T) {
 				}
 
 				ts.ATETop.Flows().Clear()
-				createFlow(t, ts.ATETop, ts.ATE.OTG(), false)
-				createFlow(t, ts.ATETop, ts.ATE.OTG(), true)
+				createFlow(t, ts.ATETop, false)
+				createFlow(t, ts.ATETop, true)
 				ts.ATE.OTG().PushConfig(t, ts.ATETop)
 				ts.ATE.OTG().StartProtocols(t)
 				otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
@@ -217,7 +213,7 @@ func configurePort3(t *testing.T, ts *isissession.TestSession) {
 	atePort3.AddToOTG(ts.ATETop, ap3, dutPort3)
 }
 
-func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, isV6 bool) {
+func createFlow(t *testing.T, config gosnappi.Config, isV6 bool) {
 	t.Helper()
 
 	flowName := "flowV4"
@@ -270,21 +266,21 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
+	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNameV4)
 	pgv4.PeerAs = ygot.Uint32(dutAS)
-	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
-	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNamev6)
+	pgv4.PeerGroupName = ygot.String(peerGrpNameV4)
+	pgv6 := bgp.GetOrCreatePeerGroup(peerGrpNameV6)
 	pgv6.PeerAs = ygot.Uint32(dutAS)
-	pgv6.PeerGroupName = ygot.String(peerGrpNamev6)
+	pgv6.PeerGroupName = ygot.String(peerGrpNameV6)
 
 	nV4 := bgp.GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv4)
 	nV4.SetPeerAs(ateAS)
 	nV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	nV4.PeerGroup = ygot.String(peerGrpNamev4)
+	nV4.PeerGroup = ygot.String(peerGrpNameV4)
 	nV6 := bgp.GetOrCreateNeighbor(isissession.ATETrafficAttrs.IPv6)
 	nV6.SetPeerAs(ateAS)
 	nV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	nV6.PeerGroup = ygot.String(peerGrpNamev6)
+	nV6.PeerGroup = ygot.String(peerGrpNameV6)
 
 	// Configure Import Allow-All policy
 	configureRoutePolicy(t, ts.DUT, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
@@ -313,11 +309,11 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	bgp6Peer.SetPeerAddress(isissession.DUTTrafficAttrs.IPv6).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
 	// configure emulated IPv4 and IPv6 networks
-	netv4 := bgp4Peer.V4Routes().Add().SetName("v4-bgpNet-dev")
-	netv4.Addresses().Add().SetAddress(advertisedIPv4.address).SetPrefix(advertisedIPv4.prefix).SetCount(uint32(prefixesCount))
+	netV4 := bgp4Peer.V4Routes().Add().SetName("v4-bgpNet-dev")
+	netV4.Addresses().Add().SetAddress(advertisedIPv4.address).SetPrefix(advertisedIPv4.prefix).SetCount(uint32(prefixesCount))
 
-	netv6 := bgp6Peer.V6Routes().Add().SetName("v6-bgpNet-dev")
-	netv6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix).SetCount(uint32(prefixesCount))
+	netV6 := bgp6Peer.V6Routes().Add().SetName("v6-bgpNet-dev")
+	netV6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix).SetCount(uint32(prefixesCount))
 
 	ts.ATE.OTG().PushConfig(t, ts.ATETop)
 	ts.ATE.OTG().StartProtocols(t)
@@ -325,10 +321,10 @@ func setupEBGPAndAdvertise(t *testing.T, ts *isissession.TestSession) {
 	otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
 }
 
-func advertisePrefixFromISISPort(t *testing.T, ts *isissession.TestSession) {
-	netv4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10).SetOriginType(gosnappi.IsisV4RouteRangeOriginType.EXTERNAL)
-	netv4.Addresses().Add().SetAddress(advertisedIPv4.address).SetPrefix(advertisedIPv4.prefix).SetCount(uint32(prefixesCount))
+func advertisePrefixFromISISPort(ts *isissession.TestSession) {
+	netV4 := ts.ATEIntf1.Isis().V4Routes().Add().SetName("netv4").SetLinkMetric(10).SetOriginType(gosnappi.IsisV4RouteRangeOriginType.EXTERNAL)
+	netV4.Addresses().Add().SetAddress(advertisedIPv4.address).SetPrefix(advertisedIPv4.prefix).SetCount(uint32(prefixesCount))
 
-	netv6 := ts.ATEIntf1.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10).SetOriginType(gosnappi.IsisV6RouteRangeOriginType.EXTERNAL)
-	netv6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix).SetCount(uint32(prefixesCount))
+	netV6 := ts.ATEIntf1.Isis().V6Routes().Add().SetName("netv6").SetLinkMetric(10).SetOriginType(gosnappi.IsisV6RouteRangeOriginType.EXTERNAL)
+	netV6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix).SetCount(uint32(prefixesCount))
 }
