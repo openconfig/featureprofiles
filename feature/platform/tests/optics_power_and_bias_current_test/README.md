@@ -86,26 +86,45 @@ paths:
   ## Config paths
   /interfaces/interface/config/enabled:
   /components/component/transceiver/state/enabled (transceiver 3.3V power supply on/off):
+     platform_type: ["TRANSCEIVER"]
 
   ## State paths
   /components/component/transceiver/physical-channels/channel/state/input-power/instant:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/output-power/instant:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/physical-channels/channel/state/laser-bias-current/instant:
+     platform_type: ["TRANSCEIVER"]
   /components/component/state/temperature/instant:
+     platform_type: ["TRANSCEIVER"]
   /components/component/state/mfg-name:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/state/form-factor:
+     platform_type: ["TRANSCEIVER"]
   /components/component/state/serial-no:
+     platform_type: ["TRANSCEIVER"]
   /components/component/state/part-no:
+     platform_type: ["TRANSCEIVER"]
   /components/component/state/firmware-version:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/output-power-lower:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/output-power-upper:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-lower:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-upper:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/module-temperature-lower:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/module-temperature-upper:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-lower:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/laser-bias-current-upper:
+     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/severity:
+     platform_type: ["TRANSCEIVER"]
 
 rpcs:
   gnmi:
