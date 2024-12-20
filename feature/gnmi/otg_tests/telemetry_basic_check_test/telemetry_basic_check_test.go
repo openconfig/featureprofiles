@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -398,8 +399,9 @@ func verifyChassisIsAncestor(t *testing.T, dut *ondatra.DUTDevice, comp string) 
 			t.Errorf("Chassis component NOT found as an ancestor of component %s", comp)
 			break
 		}
-		got := gnmi.Get(t, dut, gnmi.OC().Component(val).Type().State())
-		if got == chassisType {
+		gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Type().State())
+		got, present := gotV.Val()
+		if present && got == chassisType {
 			t.Logf("Found chassis component as an ancestor of component %s", comp)
 			break
 		}
@@ -777,6 +779,35 @@ func fetchInAndOutPkts(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.P
 	return inPkts, outPkts
 }
 
+func waitForCountersUpdate(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port) (uint64, uint64) {
+	t.Helper()
+	inPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().InUnicastPkts().State(), 40*time.Second)
+	defer inPktStream.Close()
+	outPktStream := samplestream.New(t, dut, gnmi.OC().Interface(dp2.Name()).Counters().OutUnicastPkts().State(), 40*time.Second)
+	defer outPktStream.Close()
+
+	var inPktsV, outPktsV uint64
+	if v := inPktStream.Next(); v != nil {
+		if val, ok := v.Val(); ok {
+			inPktsV = val
+		}
+	}
+	if v := outPktStream.Next(); v != nil {
+		if val, ok := v.Val(); ok {
+			outPktsV = val
+		}
+	}
+
+	if inPktsV == 0 {
+		t.Fatalf("InPkts counter did not update in time")
+	}
+	if outPktsV == 0 {
+		t.Fatalf("OutPkts counter did not update in time")
+	}
+
+	return inPktsV, outPktsV
+}
+
 func TestIntfCounterUpdate(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
@@ -857,11 +888,16 @@ func TestIntfCounterUpdate(t *testing.T) {
 	if lossPct >= 0.1 {
 		t.Errorf("Get(traffic loss for flow %q: got %v, want < 0.1", flowName, lossPct)
 	}
-	dutInPktsAfterTraffic, dutOutPktsAfterTraffic := fetchInAndOutPkts(t, dut, dp1, dp2)
+	var dutInPktsAfterTraffic, dutOutPktsAfterTraffic uint64
+	if deviations.InterfaceCountersUpdateDelayed(dut) {
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = waitForCountersUpdate(t, dut, dp1, dp2)
+	} else {
+		dutInPktsAfterTraffic, dutOutPktsAfterTraffic = fetchInAndOutPkts(t, dut, dp1, dp2)
+	}
 	t.Log("inPkts and outPkts counters after traffic: ", dutInPktsAfterTraffic, dutOutPktsAfterTraffic)
 
 	if dutInPktsAfterTraffic-dutInPktsBeforeTraffic < uint64(ateInPkts) {
-		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateOutPkts)
+		t.Errorf("Get less inPkts from telemetry: got %v, want >= %v", dutInPktsAfterTraffic-dutInPktsBeforeTraffic, ateInPkts)
 	}
 	if dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic < uint64(ateOutPkts) {
 		t.Errorf("Get less outPkts from telemetry: got %v, want >= %v", dutOutPktsAfterTraffic-dutOutPktsBeforeTraffic, ateOutPkts)
