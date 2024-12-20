@@ -1146,197 +1146,6 @@ func TestPathz_1(t *testing.T) {
 			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
 		}
 	})
-	t.Run("RPSO: Test Pathz Policy Finalize", func(t *testing.T) {
-		for _, d := range parseBindingFile(t) {
-
-			// Define probe request
-			probeReq := &pathzpb.ProbeRequest{
-				Mode:           pathzpb.Mode_MODE_WRITE,
-				User:           d.sshUser,
-				Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-			createdtime := uint64(time.Now().UnixMicro())
-
-			// Define expected response
-			want := &pathzpb.ProbeResponse{
-				Version: "1",
-				Action:  pathzpb.Action_ACTION_PERMIT,
-			}
-
-			// Declare probeBeforeFinalize
-			probeBeforeFinalize := false
-
-			// Start gRPC client
-			client := start(t)
-
-			rc, err := client.Rotate(context.Background())
-			if err == nil {
-				// Define rotate request
-				req := &pathzpb.RotateRequest{
-					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
-						UploadRequest: &pathzpb.UploadRequest{
-							Version:   "1",
-							CreatedOn: createdtime,
-							Policy: &pathzpb.AuthorizationPolicy{
-								Rules: []*pathzpb.AuthorizationRule{{
-									Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-									Mode:      pathzpb.Mode_MODE_WRITE,
-									Action:    pathzpb.Action_ACTION_PERMIT,
-								}},
-							},
-						},
-					},
-				}
-				mustSendAndRecv(t, rc, req)
-				if !probeBeforeFinalize {
-					mustFinalize(t, rc)
-				}
-			}
-
-			// Perform Probe request
-			t.Logf("Probe Request : %v", probeReq)
-			got, err := client.Probe(context.Background(), probeReq)
-			t.Logf("Probe Response : %v", got)
-
-			if err != nil {
-				t.Fatalf("Probe() unexpected error: %v", err)
-			}
-
-			// Check for differences between expected and actual responses
-			if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
-				t.Fatalf("Probe() unexpected diff: %s", d)
-			}
-
-			get_res := &pathzpb.GetResponse{
-				Version:   "1",
-				CreatedOn: createdtime,
-				Policy: &pathzpb.AuthorizationPolicy{
-					Rules: []*pathzpb.AuthorizationRule{{
-						Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
-						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
-						Mode:      pathzpb.Mode_MODE_WRITE,
-						Action:    pathzpb.Action_ACTION_PERMIT,
-					}},
-				},
-			}
-
-			// Perform GET operations for sandbox policy instance
-			getReq_Sand := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
-			}
-
-			sand_res, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Perform GET operations for active policy instance
-			getReq_Actv := &pathzpb.GetRequest{
-				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
-			}
-
-			actv_res, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
-			}
-
-			// Perform gNMI operations
-			performOperations(t, dut)
-
-			path := gnmi.OC().Lldp().Enabled()
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Update(t, dut, path.Config(), true)
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed ")
-			}
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 6)
-			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-
-			// Verify the pathz policy statistics.
-			expectedStats := map[string]int{
-				"PolicyRotations":      1,
-				"PolicyFinalize":       1,
-				"PolicyUploadRequests": 1,
-				"GnmiAuthorizations":   8,
-				"GetRequests":          4,
-				"GnmiSetPathDeny":      2,
-				"GnmiPathLeaves":       2,
-				"ProbeRequests":        1,
-				"GnmiSetPathPermit":    6,
-			}
-			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
-
-			// Perform RP Switchover
-			utils.Dorpfo(context.Background(), t, true)
-
-			// Perform GET operations for sandbox policy instance after RP Switchover
-			client = start(t)
-			sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
-			if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
-				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
-			}
-
-			// Perform GET operations for active policy instance after RP Switchover.
-			actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
-			if err != nil {
-				t.Fatalf("Pathz.Get request failed on device %s", dut.Name())
-			}
-			if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
-				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
-			}
-
-			// Perform gNMI operations after RP Switchover.
-			performOperations(t, dut)
-
-			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-				got := gnmi.Update(t, dut, path.Config(), true)
-				t.Logf("gNMI Update : %v", got)
-			}); errMsg != nil {
-				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
-			} else {
-				t.Errorf("This gNMI Update should have failed ")
-			}
-
-			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
-
-			// Verify the policy counters after RP Switchover.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
-			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-
-			// Verify the pathz policy statistics after RP Switchover.
-			expectedStats = map[string]int{
-				"PolicyRotations":      0,
-				"PolicyFinalize":       0,
-				"PolicyUploadRequests": 0,
-				"GnmiAuthorizations":   4,
-				"GetRequests":          2,
-				"GnmiSetPathDeny":      1,
-				"GnmiPathLeaves":       2,
-				"ProbeRequests":        0,
-				"GnmiSetPathPermit":    3,
-			}
-			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
-
-		}
-	})
 	t.Run("Test Conflict Between Definite keys over wildcards keys With Triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
@@ -2003,6 +1812,198 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
+	t.Run("RPSO: Test Pathz Policy Finalize", func(t *testing.T) {
+		for _, d := range parseBindingFile(t) {
+
+			// Define probe request
+			probeReq := &pathzpb.ProbeRequest{
+				Mode:           pathzpb.Mode_MODE_WRITE,
+				User:           d.sshUser,
+				Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+			createdtime := uint64(time.Now().UnixMicro())
+
+			// Define expected response
+			want := &pathzpb.ProbeResponse{
+				Version: "1",
+				Action:  pathzpb.Action_ACTION_PERMIT,
+			}
+
+			// Declare probeBeforeFinalize
+			probeBeforeFinalize := false
+
+			// Start gRPC client
+			client := start(t)
+
+			rc, err := client.Rotate(context.Background())
+			if err == nil {
+				// Define rotate request
+				req := &pathzpb.RotateRequest{
+					RotateRequest: &pathzpb.RotateRequest_UploadRequest{
+						UploadRequest: &pathzpb.UploadRequest{
+							Version:   "1",
+							CreatedOn: createdtime,
+							Policy: &pathzpb.AuthorizationPolicy{
+								Rules: []*pathzpb.AuthorizationRule{{
+									Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+									Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+									Mode:      pathzpb.Mode_MODE_WRITE,
+									Action:    pathzpb.Action_ACTION_PERMIT,
+								}},
+							},
+						},
+					},
+				}
+				mustSendAndRecv(t, rc, req)
+				if !probeBeforeFinalize {
+					mustFinalize(t, rc)
+				}
+			}
+
+			// Perform Probe request
+			t.Logf("Probe Request : %v", probeReq)
+			got, err := client.Probe(context.Background(), probeReq)
+			t.Logf("Probe Response : %v", got)
+
+			if err != nil {
+				t.Fatalf("Probe() unexpected error: %v", err)
+			}
+
+			// Check for differences between expected and actual responses
+			if d := cmp.Diff(want, got, protocmp.Transform()); d != "" {
+				t.Fatalf("Probe() unexpected diff: %s", d)
+			}
+
+			get_res := &pathzpb.GetResponse{
+				Version:   "1",
+				CreatedOn: createdtime,
+				Policy: &pathzpb.AuthorizationPolicy{
+					Rules: []*pathzpb.AuthorizationRule{{
+						Path:      &gpb.Path{Origin: "openconfig", Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
+						Principal: &pathzpb.AuthorizationRule_User{User: d.sshUser},
+						Mode:      pathzpb.Mode_MODE_WRITE,
+						Action:    pathzpb.Action_ACTION_PERMIT,
+					}},
+				},
+			}
+
+			// Perform GET operations for sandbox policy instance
+			getReq_Sand := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
+			}
+
+			sand_res, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Perform GET operations for active policy instance
+			getReq_Actv := &pathzpb.GetRequest{
+				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
+			}
+
+			actv_res, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request is failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff before finalize: %s", d)
+			}
+
+			// Perform gNMI operations
+			performOperations(t, dut)
+
+			path := gnmi.OC().Lldp().Enabled()
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Update(t, dut, path.Config(), true)
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed ")
+			}
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+
+			// Verify the pathz policy statistics.
+			expectedStats := map[string]int{
+				"PolicyRotations":      1,
+				"PolicyFinalize":       1,
+				"PolicyUploadRequests": 1,
+				"GnmiAuthorizations":   9,
+				"GetRequests":          4,
+				"GnmiSetPathDeny":      6,
+				"GnmiPathLeaves":       5,
+				"ProbeRequests":        1,
+				"GnmiSetPathPermit":    3,
+			}
+			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
+
+			// Perform RP Switchover
+			utils.Dorpfo(context.Background(), t, true)
+
+			// Perform GET operations for sandbox policy instance after RP Switchover
+			client = start(t)
+			sand_res_after_RP_Switchover, _ := client.Get(context.Background(), getReq_Sand)
+			if d := cmp.Diff(get_res, sand_res_after_RP_Switchover, protocmp.Transform()); d == "" {
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+			}
+
+			// Perform GET operations for active policy instance after RP Switchover.
+			actv_res_after_RP_Switchover, err := client.Get(context.Background(), getReq_Actv)
+			if err != nil {
+				t.Fatalf("Pathz.Get request failed on device %s", dut.Name())
+			}
+			if d := cmp.Diff(get_res, actv_res_after_RP_Switchover, protocmp.Transform()); d != "" {
+				t.Fatalf("Pathz Get unexpected diff after RP Switchover: %s", d)
+			}
+
+			// Perform gNMI operations after RP Switchover.
+			performOperations(t, dut)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				got := gnmi.Update(t, dut, path.Config(), true)
+				t.Logf("gNMI Update : %v", got)
+			}); errMsg != nil {
+				t.Logf("Expected failure and got testt.CaptureFatal errMsg : %s", *errMsg)
+			} else {
+				t.Errorf("This gNMI Update should have failed ")
+			}
+
+			// Verify the policy info
+			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+
+			// Verify the policy counters after RP Switchover.
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+
+			// Verify the pathz policy statistics after RP Switchover.
+			expectedStats = map[string]int{
+				"PolicyRotations":      0,
+				"PolicyFinalize":       0,
+				"PolicyUploadRequests": 0,
+				"GnmiAuthorizations":   4,
+				"GetRequests":          2,
+				"GnmiSetPathDeny":      1,
+				"GnmiPathLeaves":       2,
+				"ProbeRequests":        0,
+				"GnmiSetPathPermit":    3,
+			}
+			pathz.ValidateGnsiPathAuthStats(t, dut, expectedStats)
+		}
+	})
 	t.Run("Test Conflict Group Over User - Invalid username in Group", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().UnixMicro())
@@ -2292,10 +2293,12 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "2", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
+			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Deny/Permit", func(t *testing.T) {
@@ -2502,12 +2505,12 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 2)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
+			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Pathz Policy Conflict Between Users", func(t *testing.T) {
@@ -2764,12 +2767,10 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 3)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
@@ -2976,12 +2977,10 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", true, true, 1, 4)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 4)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
-			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
@@ -3524,7 +3523,7 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 		}
 	})
@@ -3732,9 +3731,9 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
@@ -3834,11 +3833,11 @@ func TestPathz_1(t *testing.T) {
 			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
 
 			// Verify the policy counters.
-			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 4, 0)
 			pathz.VerifyReadPolicyCounters(t, dut, "/", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
+			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, true, 3, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/system/config/hostname", false, false, 0, 0)
-			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 3)
+			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, false, 0, 0)
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, true, 0, 1)
 			pathz.VerifyReadPolicyCounters(t, dut, "/network-instances/network-instance[name=*]/config/name", false, false, 0, 0)
