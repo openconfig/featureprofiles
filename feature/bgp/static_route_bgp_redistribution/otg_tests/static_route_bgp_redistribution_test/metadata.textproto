@@ -37,3 +37,17 @@ platform_exceptions:  {
     set_metric_as_preference: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    set_metric_as_preference: true
+    skip_bgp_send_community_type: true
+    bgp_community_set_refs_unsupported: true
+    tc_default_import_policy_unsupported: true
+    tc_metric_propagation_unsupported: true
+    tc_attribute_propagation_unsupported: true
+    tc_subscription_unsupported: true
+  }
+}

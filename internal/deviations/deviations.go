@@ -1258,3 +1258,23 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
+
+// TcDefaultImportPolicyUnsupported returns true if default import policy for table connection is unsupported
+func TcDefaultImportPolicyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcDefaultImportPolicyUnsupported()
+}
+
+// TcMetricPropagationUnsupported returns true if metric propagation for table connection is unsupported
+func TcMetricPropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcMetricPropagationUnsupported()
+}
+
+// TcAttributePropagationUnsupported returns true if attribute propagation for table connection is unsupported
+func TcAttributePropagationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcAttributePropagationUnsupported()
+}
+
+// TcSubscriptionUnsupported returns true if subscription for table connection is unsupported
+func TcSubscriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTcSubscriptionUnsupported()
+}
