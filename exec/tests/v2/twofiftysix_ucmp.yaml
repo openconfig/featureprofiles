@@ -6,7 +6,7 @@ testbeds:
 tests:
 - name: Twofiftysix_UCMP 
   path: feature/gribi/ate_tests/cisco/twofiftysix_ucmp
-  timeout: 36000
+  timeout: 108000
   mustpass: true
   internal: true
   branch: master

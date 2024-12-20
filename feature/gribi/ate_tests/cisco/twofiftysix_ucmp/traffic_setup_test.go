@@ -120,7 +120,6 @@ func addAteEBGPPeer(t *testing.T, topo *ondatra.ATETopology, atePort, peerAddres
 
 	//Add prefixes, Add network instance
 	if prefix != "" {
-
 		network.IPv4().WithAddress(prefix).WithCount(count)
 	}
 	//Create BGP instance
@@ -166,7 +165,7 @@ func filterPacketReceived(t *testing.T, flow string, ate *ondatra.ATEDevice) map
 	return inPct
 }
 
-func testTrafficmin(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap bool, case4 bool, case5 bool) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap bool, case4 bool, case5 bool) {
 
 	allIntf := top.Interfaces()
 
@@ -194,7 +193,7 @@ func testTrafficmin(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopolo
 		if count == 2 {
 			dstIP := atePort7.ip(uint8(0))
 			dstEndPoints = append(dstEndPoints, allIntf[dstIP])
-		} else {	
+		} else {
 			for i := uint32(1); i < 2; i++ {
 				dstIP := atePort3.ip(uint8(i))
 				dstEndPoints = append(dstEndPoints, allIntf[dstIP])

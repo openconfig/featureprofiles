@@ -17,18 +17,16 @@ package twofiftysix_ucmp_test
 import (
 	"context"
 	"strings"
-	//"time"
 
 	"testing"
 
 	ciscoFlags "github.com/openconfig/featureprofiles/internal/cisco/flags"
 	"github.com/openconfig/featureprofiles/internal/cisco/gribi"
-	//"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	"github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+
 	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/gribigo/fluent"
-
-	//"github.com/openconfig/featureprofiles/internal/gribi"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -59,22 +57,10 @@ const (
 	innerdstPfxCount_bgp  = 10
 	innerdstPfxMin_isis   = "201.1.0.1"
 	innerdstPfxCount_isis = 10
-	bundleEther121        = "Bundle-Ether121"
-	bundleEther122        = "Bundle-Ether122"
-	bundleEther123        = "Bundle-Ether123"
-	bundleEther124        = "Bundle-Ether124"
-	bundleEther120        = "Bundle-Ether120"
-	bundleEther125        = "Bundle-Ether125"
 	bundleEther126        = "Bundle-Ether126"
-	bundleEther127        = "Bundle-Ether127"
 	lc                    = "0/0/CPU0"
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
-	vip1                  = "192.0.2.40/32"
-	vip2                  = "192.0.2.42/32"
-	vip1ip                = "192.0.2.40"
-	vip2ip                = "192.0.2.42"
-	dip                   = "10.1.0.1/32"
 	dsip                  = "10.1.0.1"
 	vrf1                  = "TE"
 	vrf2                  = "TE2"
@@ -143,7 +129,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
 	c := &oc.Root{}
-	vrfs := []string{vrfDecap, vrfRepair, vrfRepaired, vrfEncapA, vrfEncapB, vrfDecapPostRepaired, vrf1, vrf2, vrf3}
+	vrfs := []string{vrfDecap, vrfRepair, vrfRepaired, vrfEncapA, vrfDecapPostRepaired, vrf1, vrf2, vrf3}
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
@@ -155,14 +141,14 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 func TestWithTEmin(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 
 	baseconfig(t)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+	configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
 	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 
 	// Configure the gRIBI client
@@ -264,7 +250,7 @@ func TestWithTEmin(t *testing.T) {
 
 	for _, prefix := range prefixess {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
+			WithNetworkInstance(vrf1).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(1000)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -277,47 +263,47 @@ func TestWithTEmin(t *testing.T) {
 	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 	})
-// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-// 		utils.Dorpfo(args.ctx, t, true)
-// 		client = gribi.Client{
-// 			DUT:                   args.dut,
-// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-// 			Persistence:           true,
-// 			InitialElectionIDLow:  1,
-// 			InitialElectionIDHigh: 0,
-// 		}
-// 		if err := client.Start(t); err != nil {
-// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-// 			if err = client.Start(t); err != nil {
-// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
-// 			}
-// 		}
-// 		args.client = &client
-// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+		utils.Dorpfo(args.ctx, t, true)
+		client = gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
+		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 
-// 	})
-// 	t.Run("testTrafficaftr delete", func(t *testing.T) {
+	})
+	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
-// 		args.client.DeleteIPv4Batch(t, prefixess, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-// 		for _, prefix := range prefixess {
-// 			ipv4Entry := fluent.IPv4Entry().
-// 				WithNetworkInstance("TE").
-// 				WithPrefix(prefix).
-// 				WithNextHopGroup(uint64(1000)).
-// 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-// 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-// 		}
-// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
-// 	})
+		args.client.DeleteIPv4Batch(t, prefixess, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		for _, prefix := range prefixess {
+			ipv4Entry := fluent.IPv4Entry().
+				WithNetworkInstance(vrf1).
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(1000)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+		}
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
+		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+	})
 }
 
-func TestWithEncapvrfmin(t *testing.T) {
+func TestWithEncapvrf(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
@@ -496,7 +482,7 @@ func TestWithEncapvrfmin(t *testing.T) {
 	t.Run("testTrafficaftr shut, no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
 	})
 	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
@@ -516,7 +502,7 @@ func TestWithEncapvrfmin(t *testing.T) {
 	// 		}
 	// 	}
 	// 	args.client = &client
-	// 	testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+	// 	testTraffic(t, args.ate, args.top, 100, false, false, false)
 	// 	testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
 
 	// })
@@ -531,13 +517,13 @@ func TestWithEncapvrfmin(t *testing.T) {
 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 		}
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 2)
 	})
 
 }
 
-func TestWithDecapEncapTEmin(t *testing.T) {
+func TestWithDC(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
 	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
@@ -670,7 +656,7 @@ func TestWithDecapEncapTEmin(t *testing.T) {
 	i = 1
 	for _, prefix := range prefixese {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
+			WithNetworkInstance(vrf1).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -682,7 +668,7 @@ func TestWithDecapEncapTEmin(t *testing.T) {
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -737,30 +723,30 @@ func TestWithDecapEncapTEmin(t *testing.T) {
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 	})
-// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-// 		utils.Dorpfo(args.ctx, t, true)
-// 		client = gribi.Client{
-// 			DUT:                   args.dut,
-// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-// 			Persistence:           true,
-// 			InitialElectionIDLow:  1,
-// 			InitialElectionIDHigh: 0,
-// 		}
-// 		if err := client.Start(t); err != nil {
-// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-// 			if err = client.Start(t); err != nil {
-// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
-// 			}
-// 		}
-// 		args.client = &client
-// 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+	// 		utils.Dorpfo(args.ctx, t, true)
+	// 		client = gribi.Client{
+	// 			DUT:                   args.dut,
+	// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+	// 			Persistence:           true,
+	// 			InitialElectionIDLow:  1,
+	// 			InitialElectionIDHigh: 0,
+	// 		}
+	// 		if err := client.Start(t); err != nil {
+	// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+	// 			if err = client.Start(t); err != nil {
+	// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
+	// 			}
+	// 		}
+	// 		args.client = &client
+	// 		testTraffic(t, args.ate, args.top, 100, true, false, false)
+	// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 
-// 	})
+	// 	})
 	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
 		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -772,16 +758,16 @@ func TestWithDecapEncapTEmin(t *testing.T) {
 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 		}
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 	})
 
 }
 
-func TestWithDecapEncapTEBackUpmin(t *testing.T) {
+func TestWithDCOpt(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -789,10 +775,6 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	addStaticRoute(t, dut, "197.51.0.0/16", true)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 	configbasePBR(t, dut, vrfDecap, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
-
-// 	args.top.StopProtocols(t)
-// 	time.Sleep(30 * time.Second)
-// 	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -893,7 +875,7 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithIPinIP("222.222.222.222", prefix)
-		NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIRED")
+		NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepaired)
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(uint64(nhge), uint64(256))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -941,7 +923,7 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	nhgi = 1000
 	for _, prefix := range prefixese {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("TE").
+			WithNetworkInstance(vrf1).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -954,13 +936,13 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	args.client.AddNH(t, uint64(30001), atePort5.ip(uint8(1)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, uint64(30002), atePort5.ip(uint8(2)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 31000, 30000, map[uint64]uint64{uint64(30001): 1, uint64(30002): 255}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixest, 31000, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixest, 31000, vrfRepaired, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -995,8 +977,6 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 	args.client.AddIPv6(t, "2555::2/128", uint64(3000), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	args.client.AddIPv6(t, "2556::2/128", uint64(3000), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
-
-
 	nh = 4000
 
 	args.client.AddNH(t, uint64(nh), "decap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{VrfName: vrfEncapA})
@@ -1014,15 +994,14 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
-	//time.Sleep (2000 * time.Minute)
-	//testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 100, true, true, false)
+		testTraffic(t, args.ate, args.top, 100, true, true, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 8)
 
-		testTrafficmin(t, args.ate, args.top, 100, true, false, true)
+		testTraffic(t, args.ate, args.top, 100, true, false, true)
 	})
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
@@ -1030,30 +1009,30 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
 
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 	})
-	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-	// 	utils.Dorpfo(args.ctx, t, true)
-	// 	client = gribi.Client{
-	// 		DUT:                   args.dut,
-	// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-	// 		Persistence:           true,
-	// 		InitialElectionIDLow:  1,
-	// 		InitialElectionIDHigh: 0,
-	// 	}
-	// 	if err := client.Start(t); err != nil {
-	// 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-	// 		if err = client.Start(t); err != nil {
-	// 			t.Fatalf("gRIBI Connection could not be established: %v", err)
-	// 		}
-	// 	}
-	// 	args.client = &client
-	// 	testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-	// 	testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
+		utils.Dorpfo(args.ctx, t, true)
+		client = gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
+		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 
-	// })
+	})
 	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
 		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1065,26 +1044,19 @@ func TestWithDecapEncapTEBackUpmin(t *testing.T) {
 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 		}
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 3)
 	})
 }
 
-func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
+func TestWithDCUnopt(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
-	//time.Sleep(15 * time. Minute)
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
-	//args.top.StopProtocols(t)
-// 	time.Sleep(30 * time.Second)
-// 	//args.top.StartProtocols(t)
-// 	time.Sleep(15 * time. Minute)
-	dut = ondatra.DUT(t, "dut")
-	ctx = context.Background()
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1174,7 +1146,7 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 	nhge := 20000
 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((uint64(nhge)))
 	NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(uint64(nhge))
-	NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIR")
+	NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepair)
 	args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 	nhg.AddNextHop(uint64(nhge), uint64(256))
 	args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -1234,13 +1206,13 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 	args.client.AddIPv4(t, dsip+"/32", 31000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 31000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{dsip}})
 	args.client.AddNHG(t, 32000, 30000, map[uint64]uint64{31000: 256}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixese, 32000, "REPAIR", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixese, 32000, vrfRepair, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -1294,40 +1266,40 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 	testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 	t.Run("test traffic after frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 100, true, true, false)
+		testTraffic(t, args.ate, args.top, 100, true, true, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 8)
 
-		testTrafficmin(t, args.ate, args.top, 100, true, false, true)
+		testTraffic(t, args.ate, args.top, 100, true, false, true)
 	})
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
 
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 	})
-// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-// 		utils.Dorpfo(args.ctx, t, true)
-// 		client = gribi.Client{
-// 			DUT:                   args.dut,
-// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-// 			Persistence:           true,
-// 			InitialElectionIDLow:  1,
-// 			InitialElectionIDHigh: 0,
-// 		}
-// 		if err := client.Start(t); err != nil {
-// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-// 			if err = client.Start(t); err != nil {
-// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
-// 			}
-// 		}
-// 		args.client = &client
-// 		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
-// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
+	// 		utils.Dorpfo(args.ctx, t, true)
+	// 		client = gribi.Client{
+	// 			DUT:                   args.dut,
+	// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+	// 			Persistence:           true,
+	// 			InitialElectionIDLow:  1,
+	// 			InitialElectionIDHigh: 0,
+	// 		}
+	// 		if err := client.Start(t); err != nil {
+	// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+	// 			if err = client.Start(t); err != nil {
+	// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
+	// 			}
+	// 		}
+	// 		args.client = &client
+	// 		testTraffic(t, args.ate, args.top, 100, true, false, false)
+	// 		testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 
-// 	})
+	// 	})
 	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
 		args.client.DeleteIPv4Batch(t, prefixesd, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
@@ -1339,21 +1311,21 @@ func TestWithDecapEncapTEUnoptimizedmin(t *testing.T) {
 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 		}
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 	})
 }
 
-func TestRepairedDecapmin(t *testing.T) {
+func TestRepairedDecap(t *testing.T) {
 
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 
-	configbasePBR(t, dut, "REPAIRED", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+	configbasePBR(t, dut, vrfRepaired, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
 	defer unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 
 	// Configure the gRIBI client
@@ -1467,7 +1439,7 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	for _, prefix := range prefixesr {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("REPAIRED").
+			WithNetworkInstance(vrfRepaired).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -1477,7 +1449,7 @@ func TestRepairedDecapmin(t *testing.T) {
 	testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
 	t.Run("testTrafficaftr frr", func(t *testing.T) {
 		args.interfaceaction(t, "port7", false)
-		testTrafficmin(t, args.ate, args.top, 100, false, true, true)
+		testTraffic(t, args.ate, args.top, 100, false, true, true)
 	})
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
@@ -1485,60 +1457,57 @@ func TestRepairedDecapmin(t *testing.T) {
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port7", true)
 
-		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
+		testTraffic(t, args.ate, args.top, 100, false, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
 	})
-// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	// 	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-// 		utils.Dorpfo(args.ctx, t, true)
-// 		client = gribi.Client{
-// 			DUT:                   args.dut,
-// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
-// 			Persistence:           true,
-// 			InitialElectionIDLow:  1,
-// 			InitialElectionIDHigh: 0,
-// 		}
-// 		if err := client.Start(t); err != nil {
-// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-// 			if err = client.Start(t); err != nil {
-// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
-// 			}
-// 		}
-// 		args.client = &client
-// 		testTrafficmin(t, args.ate, args.top, 100, false, false, false)
-// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
+	// 		utils.Dorpfo(args.ctx, t, true)
+	// 		client = gribi.Client{
+	// 			DUT:                   args.dut,
+	// 			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+	// 			Persistence:           true,
+	// 			InitialElectionIDLow:  1,
+	// 			InitialElectionIDHigh: 0,
+	// 		}
+	// 		if err := client.Start(t); err != nil {
+	// 			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+	// 			if err = client.Start(t); err != nil {
+	// 				t.Fatalf("gRIBI Connection could not be established: %v", err)
+	// 			}
+	// 		}
+	// 		args.client = &client
+	// 		testTraffic(t, args.ate, args.top, 100, false, false, false)
+	// 		testTrafficWeight(t, args.ate, args.top, 65000, false, 6)
 
-// 	})
+	// 	})
 	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
 		args.client.DeleteIPv4Batch(t, prefixesr, 4000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 		for _, prefix := range prefixesr {
 			ipv4Entry := fluent.IPv4Entry().
-				WithNetworkInstance("REPAIRED").
+				WithNetworkInstance(vrfRepaired).
 				WithPrefix(prefix).
 				WithNextHopGroup(uint64(4000)).
 				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 		}
-		testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+		testTraffic(t, args.ate, args.top, 100, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, true, 6)
 	})
 
 }
 
-func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
+func TestWithDCOptipv6(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
 	configbasePBR(t, dut, vrfDecap, "ipv6", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), true)
-// 	args.top.StopProtocols(t)
-// 	time.Sleep(30 * time.Second)
-// 	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1639,7 +1608,7 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithIPinIP("222.222.222.222", prefix)
-		NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIRED")
+		NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepaired)
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(uint64(nhge), uint64(256))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -1699,13 +1668,13 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 	args.client.AddNH(t, uint64(30001), atePort5.ip(uint8(1)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, uint64(30002), atePort5.ip(uint8(2)), *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 31000, 30000, map[uint64]uint64{uint64(30001): 1, uint64(30002): 255}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixest, 31000, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixest, 31000, vrfRepaired, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -1759,10 +1728,9 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 	testTrafficWeight(t, args.ate, args.top, 2, true, 3)
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 2, true, true, false)
+		testTraffic(t, args.ate, args.top, 2, true, true, false)
 		testTrafficWeight(t, args.ate, args.top, 2, true, 8)
 
-		//testTrafficmin(t, args.ate, args.top, 2, true, false, true)
 	})
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
@@ -1770,7 +1738,7 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
 
-		testTrafficmin(t, args.ate, args.top, 2, true, false, false)
+		testTraffic(t, args.ate, args.top, 2, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 2, true, 3)
 	})
 	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
@@ -1790,24 +1758,21 @@ func TestWithDecapEncapTEBackUpminipv6(t *testing.T) {
 	// 		}
 	// 	}
 	// 	args.client = &client
-	// 	testTrafficmin(t, args.ate, args.top, 2, true, false, false)
+	// 	testTraffic(t, args.ate, args.top, 2, true, false, false)
 	// 	testTrafficWeight(t, args.ate, args.top, 2, true, 3)
 
 	// })
 }
 
-func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
+func TestWithDCUnoptipv6(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
-// 	args.top.StopProtocols(t)
-// 	time.Sleep(30 * time.Second)
-// 	args.top.StartProtocols(t)
-	// Configure the gRIBI client
+
 	client := gribi.Client{
 		DUT:                   dut,
 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
@@ -1897,7 +1862,7 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	nhge := 20000
 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((uint64(nhge)))
 	NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(uint64(nhge))
-	NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIR")
+	NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepair)
 	args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 	nhg.AddNextHop(uint64(nhge), uint64(256))
 	args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -1957,13 +1922,13 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	args.client.AddIPv4(t, dsip+"/32", 31000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 31000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{dsip}})
 	args.client.AddNHG(t, 32000, 30000, map[uint64]uint64{31000: 256}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixese, 32000, "REPAIR", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixese, 32000, vrfRepair, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -2015,17 +1980,17 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	testTrafficWeight(t, args.ate, args.top, 2, true, 5)
 	t.Run("testTrafficaftr frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 2, true, true, false)
+		testTraffic(t, args.ate, args.top, 2, true, true, false)
 		testTrafficWeight(t, args.ate, args.top, 2, true, 8)
 
-		//testTrafficmin(t, args.ate, args.top, 2, true, false, true)
+		//testTraffic(t, args.ate, args.top, 2, true, false, true)
 	})
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
 
-		testTrafficmin(t, args.ate, args.top, 2, true, false, false)
+		testTraffic(t, args.ate, args.top, 2, true, false, false)
 		testTrafficWeight(t, args.ate, args.top, 2, true, 5)
 	})
 	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
@@ -2045,23 +2010,23 @@ func TestWithDecapEncapTEUnoptimizedminipv6(t *testing.T) {
 	// 		}
 	// 	}
 	// 	args.client = &client
-	// 	testTrafficmin(t, args.ate, args.top, 2, true, false, false)
+	// 	testTraffic(t, args.ate, args.top, 2, true, false, false)
 	// 	testTrafficWeight(t, args.ate, args.top, 2, true, 5)
 
 	// })
 }
 
-func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
+func TestWithOptPop(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
 	addStaticRoute(t, dut, "202.1.0.0/16", true)
 	unconfigbasePBR(t, dut, "PBR", dut.Port(t, "port1").Name())
-	configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+	configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2161,7 +2126,7 @@ func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithIPinIP("222.222.222.222", prefix)
-		NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIRED")
+		NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepaired)
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(uint64(nhge), uint64(256))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -2208,18 +2173,17 @@ func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
 
 	args.client.AddNHG(t, 31000, 30000, map[uint64]uint64{uint64(30001): 1, uint64(30002): 255}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddIPv4Batch(t, prefixest, 31000, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixest, 31000, vrfRepaired, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	//testTrafficWeight(t, args.ate, args.top, 65000, true, 1)
 
 	t.Run("testTrafficaftr frr", func(t *testing.T) {
 		args.interfaceaction(t, "port2", false)
 		args.interfaceaction(t, "port4", false)
-		//testTrafficWeight(t, args.ate, args.top, 65000, false, 8)
 	})
-	t.Run("testTrafficaftr frr", func(t *testing.T) {
+	t.Run("testTrafficaftr frr2", func(t *testing.T) {
 		args.interfaceaction(t, "port7", false)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, true)
+		testTraffic(t, args.ate, args.top, 100, false, false, true)
 	})
 
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
@@ -2265,17 +2229,14 @@ func TestWithDecapEncapTEBackUpminpop(t *testing.T) {
 
 }
 
-func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
+func TestWithPopUnopt(t *testing.T) {
 
 	// Elect client as leader and flush all the past entries
-	t.Logf("Program gribi entries with decapencap/decap, verify traffic, reprogram & delete ipv4/NHG/NH")
+	t.Logf("Program gribi entries, verify traffic distribution, frrs and triggers")
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	baseconfig(t)
-// 	args.top.StopProtocols(t)
-// 	time.Sleep(30 * time.Second)
-// 	args.top.StartProtocols(t)
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -2365,7 +2326,7 @@ func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
 	nhge := 20000
 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((uint64(nhge)))
 	NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(uint64(nhge))
-	NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIR")
+	NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepair)
 	args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 	nhg.AddNextHop(uint64(nhge), uint64(256))
 	args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -2409,15 +2370,15 @@ func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
 	args.client.AddIPv4(t, dsip+"/32", 31000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 31000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{dsip}})
 	args.client.AddNHG(t, 32000, 30000, map[uint64]uint64{31000: 256}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixese, 32000, "REPAIR", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixese, 32000, vrfRepair, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 	t.Run("test traffic after frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 100, false, true, false)
+		testTraffic(t, args.ate, args.top, 100, false, true, false)
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 8)
 		args.interfaceaction(t, "port7", false)
-		testTrafficmin(t, args.ate, args.top, 100, false, false, true)
+		testTraffic(t, args.ate, args.top, 100, false, false, true)
 	})
 	t.Run("testTrafficaftr no shut", func(t *testing.T) {
 		args.interfaceaction(t, "port2", true)
@@ -2427,37 +2388,37 @@ func TestWithDecapEncapTEUnoptimizedminpop(t *testing.T) {
 
 		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 	})
-	// t.Run("testTraffic aftr rpfo", func(t *testing.T) {
+	t.Run("testTraffic aftr rpfo", func(t *testing.T) {
 
-	// 	utils.Dorpfo(args.ctx, t, true)
-	// 	client = gribi.Client{
-	// 		DUT:                   args.dut,
-	// 		FibACK:                *ciscoFlags.GRIBIFIBCheck,
-	// 		Persistence:           true,
-	// 		InitialElectionIDLow:  1,
-	// 		InitialElectionIDHigh: 0,
-	// 	}
-	// 	if err := client.Start(t); err != nil {
-	// 		t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
-	// 		if err = client.Start(t); err != nil {
-	// 			t.Fatalf("gRIBI Connection could not be established: %v", err)
-	// 		}
-	// 	}
-	// 	args.client = &client
-	// 	testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
+		utils.Dorpfo(args.ctx, t, true)
+		client = gribi.Client{
+			DUT:                   args.dut,
+			FibACK:                *ciscoFlags.GRIBIFIBCheck,
+			Persistence:           true,
+			InitialElectionIDLow:  1,
+			InitialElectionIDHigh: 0,
+		}
+		if err := client.Start(t); err != nil {
+			t.Logf("gRIBI Connection could not be established: %v\nRetrying...", err)
+			if err = client.Start(t); err != nil {
+				t.Fatalf("gRIBI Connection could not be established: %v", err)
+			}
+		}
+		args.client = &client
+		testTrafficWeight(t, args.ate, args.top, 65000, false, 1)
 
-	// })
-	// t.Run("testTrafficaftr delete", func(t *testing.T) {
+	})
+	t.Run("testTrafficaftr delete", func(t *testing.T) {
 
-	// 	args.client.DeleteIPv4Batch(t, prefixese, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
-	// 	for _, prefix := range prefixese {
-	// 		ipv4Entry := fluent.IPv4Entry().
-	// 			WithNetworkInstance("TE").
-	// 			WithPrefix(prefix).
-	// 			WithNextHopGroup(uint64(1000)).
-	// 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
-	// 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	// 	}
-	// 	testTrafficWeight(t, args.ate, args.top, 65000, true, 1)
-	// })
+		args.client.DeleteIPv4Batch(t, prefixese, 1000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+		for _, prefix := range prefixese {
+			ipv4Entry := fluent.IPv4Entry().
+				WithNetworkInstance("TE").
+				WithPrefix(prefix).
+				WithNextHopGroup(uint64(1000)).
+				WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
+			args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
+		}
+		testTrafficWeight(t, args.ate, args.top, 65000, true, 1)
+	})
 }

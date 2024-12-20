@@ -30,7 +30,6 @@ const (
 	vrfRepair            = "REPAIR"
 	vrfRepaired          = "REPAIRED"
 	vrfEncapA            = "ENCAP_TE_VRF_A"
-	vrfEncapB            = "ENCAP_TE_VRF_B"
 	vrfDecapPostRepaired = "DECAP"
 	dscpEncapA1          = 10
 	ipv4OuterSrc111      = "198.50.100.111"
