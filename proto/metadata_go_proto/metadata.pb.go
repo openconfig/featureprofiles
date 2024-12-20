@@ -947,8 +947,10 @@ type Metadata_Deviations struct {
 	// Cisco: b/378616912
 	IsisDatabaseOverloadsUnsupported bool `protobuf:"varint,240,opt,name=isis_database_overloads_unsupported,json=isisDatabaseOverloadsUnsupported,proto3" json:"isis_database_overloads_unsupported,omitempty"`
 	// Device does not support P4RT Capabilities rpc.
+	// Cisco: b/385298158
 	P4RtCapabilitiesUnsupported bool `protobuf:"varint,241,opt,name=p4rt_capabilities_unsupported,json=p4rtCapabilitiesUnsupported,proto3" json:"p4rt_capabilities_unsupported,omitempty"`
 	// Device does not support gNMI GET on root.
+	// Cisco: b/385298159
 	GnmiGetOnRootUnsupported bool `protobuf:"varint,242,opt,name=gnmi_get_on_root_unsupported,json=gnmiGetOnRootUnsupported,proto3" json:"gnmi_get_on_root_unsupported,omitempty"`
 }
 

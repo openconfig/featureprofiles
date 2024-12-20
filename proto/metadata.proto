@@ -665,8 +665,10 @@ message Metadata {
     // Cisco: b/378616912
     bool isis_database_overloads_unsupported = 240;
     // Device does not support P4RT Capabilities rpc.
+    // Cisco: b/385298158
     bool p4rt_capabilities_unsupported = 241;
     // Device does not support gNMI GET on root.
+    // Cisco: b/385298159
     bool gnmi_get_on_root_unsupported = 242;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
