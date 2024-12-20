@@ -330,7 +330,6 @@ func deleteBGPImportExportPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv
 	batchConfig := &gnmi.SetBatch{}
 	nbrPolPathv4 := bgpPath.Neighbor(ipv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6 := bgpPath.Neighbor(ipv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	// deleteBGPImportExportPolicy on port2 needed when default policy is not supported
 	nbrPolPathv4_2 := bgpPath.Neighbor(ipv4_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	nbrPolPathv6_2 := bgpPath.Neighbor(ipv6_2).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
 	gnmi.BatchDelete(batchConfig, nbrPolPathv4_2.ImportPolicy().Config())

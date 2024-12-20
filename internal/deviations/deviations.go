@@ -1218,16 +1218,6 @@ func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
 
-<<<<<<< HEAD
-=======
-// BgpSetMedUnionTypeUnsupported returns true if a device does not support
-//  version < 8.0 of 
-//  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med 
-func BgpSetMedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedUnionTypeUnsupported()
-}
-
->>>>>>> b1bfd3a2a626e9f775e14da0ea505f93d9b9b689
 // BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
 // Cisco supports the extended nexthop encoding set to true by default that is exercised in the Script where the extended-nexthop-encoding
 // a bool value is set to true.
