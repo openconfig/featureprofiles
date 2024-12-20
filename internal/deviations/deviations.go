@@ -1258,3 +1258,13 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
+
+// P4RTCapabilitiesUnsupported returns true for devices that don't support P4RT Capabilities rpc.
+func P4RTCapabilitiesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtCapabilitiesUnsupported()
+}
+
+// GNMIGetOnRootUnsupported returns true if the device does not support gNMI get on root.
+func GNMIGetOnRootUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnmiGetOnRootUnsupported()
+}
