@@ -146,7 +146,7 @@ func addPrototoAte(t *testing.T, top *ondatra.ATETopology) {
 	top.Push(t).StartProtocols(t)
 }
 
-func testTrafficmin(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap bool, case4 bool, case5 bool) {
+func testTraffic(t *testing.T, ate *ondatra.ATEDevice, top *ondatra.ATETopology, count int, encap bool, case4 bool, case5 bool) {
 
 	allIntf := top.Interfaces()
 

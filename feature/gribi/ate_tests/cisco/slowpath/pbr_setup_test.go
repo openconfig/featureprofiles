@@ -176,12 +176,18 @@ func configDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String("Loopback22")
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Config(), ni)
 	configurePort(t, dut, "Loopback30", Loopback0, Loopback06, 32, 128)
-
+	p1ip := "192.0.9.1"
+	p2ip := "192.0.10.2"
+	p2ipv6 := "192:0:2::1D"
+	p1ipv6 := "7777::3"
+	nh4 := "192.0.10.2"
+	nh6 := "192:0:2::1E"
+	dest := "197.51.0.0/16"
 	p := dut.Port(t, "port1")
-	configurePort(t, dut, p.Name(), "192.0.9.1", "7777::3", 30, 126)
+	configurePort(t, dut, p.Name(), p1ip, p1ipv6, 30, 126)
 
 	p = dut.Port(t, "port2")
-	configurePort(t, dut, p.Name(), "192.0.10.1", "192:0:2::1D", 30, 126)
+	configurePort(t, dut, p.Name(), p2ip, p2ipv6, 30, 126)
 
 	dc := gnmi.OC()
 	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -191,12 +197,12 @@ func configDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ni = &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	staticRoute := static.GetOrCreateStatic("197.51.0.0/16")
+	staticRoute := static.GetOrCreateStatic(dest)
 	nextHop := staticRoute.GetOrCreateNextHop("0")
-	nextHop.NextHop = oc.UnionString("192.0.10.2")
+	nextHop.NextHop = oc.UnionString(nh4)
 	gnmi.Update(t, dut, niProto.Config(), static)
 	ipv6nh := static.GetOrCreateStatic(ipv6EntryPrefix + "/128").GetOrCreateNextHop("0")
-	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("192:0:2::1E")
+	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(nh6)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 
 }
@@ -242,12 +248,12 @@ func staticvrf(t *testing.T, dut *ondatra.DUTDevice, vrfName, nh1, nh2 string) {
 
 	n := &oc.NetworkInstance{Name: ygot.String(vrfName)}
 	static := n.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
-	staticRoute := static.GetOrCreateStatic("30.30.30.30/32")
+	staticRoute := static.GetOrCreateStatic(Loopback0 + "/32")
 	nextHop := staticRoute.GetOrCreateNextHop("0")
 	nextHop.NextHop = oc.UnionString(nh1)
 	gnmi.Update(t, dut, d.NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 
-	ipv6nh := static.GetOrCreateStatic("30::30/128").GetOrCreateNextHop("0")
+	ipv6nh := static.GetOrCreateStatic(Loopback06 + "/128").GetOrCreateNextHop("0")
 	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(nh2)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 }

@@ -67,15 +67,14 @@ const (
 	lc                    = "0/0/CPU0"
 	active_rp             = "0/RP0/CPU0"
 	standby_rp            = "0/RP1/CPU0"
-	vip1                  = "192.0.2.40/32"
-	vip2                  = "192.0.2.42/32"
-	vip1ip                = "192.0.2.40"
-	vip2ip                = "192.0.2.42"
-	dip                   = "10.1.0.1/32"
 	dsip                  = "10.1.0.1"
 	vrf1                  = "TE"
 	vrf2                  = "TE2"
 	vrf3                  = "TE3"
+	pref6                 = "2555::2/128"
+	prefi6                = "2556::2/128"
+	enc                   = "197.51.100.11/32"
+	encp                  = "197.51.100.11"
 )
 
 func TestMain(m *testing.M) {
@@ -112,7 +111,7 @@ func baseconfig(t *testing.T) {
 		//Configure the DUT
 		dut := ondatra.DUT(t, "dut")
 		configureDUT(t, dut)
-		configbasePBR(t, dut, "TE", "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
+		configbasePBR(t, dut, vrf1, "ipv4", 1, oc.PacketMatchTypes_IP_PROTOCOL_IP_IN_IP, []uint8{}, "PBR", dut.Port(t, "port1").Name(), false)
 		//configure route-policy
 		configRP(t, dut)
 		//configure ISIS on DUT
@@ -195,35 +194,40 @@ func TestWithDCBackUp(t *testing.T) {
 	args.client.BecomeLeader(t)
 	args.client.FlushServer(t)
 	nh := 1
+	nhip := "192.0.9.2"
+	p4ip := "206.206.206.22"
 	for i := 1; i <= 2; i++ {
-		args.client.AddNH(t, uint64(nh), "192.0.9.2", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, uint64(nh), nhip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	}
 	args.client.AddNHG(t, 101, 0, map[uint64]uint64{1: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4(t, "206.206.206.22/32", 101, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4(t, p4ip+"/32", 101, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	nh = 1000
 	for i := 1; i <= 2; i++ {
-		args.client.AddNH(t, uint64(nh), "206.206.206.22", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
+		args.client.AddNH(t, uint64(nh), p4ip, *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	}
 	args.client.AddNHG(t, 102, 0, map[uint64]uint64{1000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	ipv4Entry := fluent.IPv4Entry().
-		WithNetworkInstance("TE").
-		WithPrefix("198.51.100.11/32").
+		WithNetworkInstance(vrf1).
+		WithPrefix(enc).
 		WithNextHopGroup(uint64(102)).
 		WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
-	args.client.AddNH(t, uint64(3000), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{"198.51.100.11"}, VrfName: "TE"})
+	args.client.AddNH(t, uint64(3000), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{encp}, VrfName: vrf1})
 	args.client.AddNHG(t, 103, 0, map[uint64]uint64{3000: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	ipv4Entry = fluent.IPv4Entry().
 		WithNetworkInstance(vrfEncapA).
-		WithPrefix("197.51.100.11/32").
+		WithPrefix(enc).
 		WithNextHopGroup(uint64(103)).
 		WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 
 	args.client.AddIPv6(t, ipv6EntryPrefix+"/128", uint64(103), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+	flip := "196.51.100.2/32"
+	flip2 := "197.51.100.2/32"
 	ipv4Entry = fluent.IPv4Entry().
-		WithNetworkInstance("TE").
-		WithPrefix("196.51.100.2/32").
+		WithNetworkInstance(vrf1).
+		WithPrefix(flip).
 		WithNextHopGroup(uint64(102)).
 		WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
@@ -231,12 +235,12 @@ func TestWithDCBackUp(t *testing.T) {
 	args.client.AddNHG(t, 104, 0, map[uint64]uint64{3001: 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 	ipv4Entry = fluent.IPv4Entry().
 		WithNetworkInstance(vrfEncapA).
-		WithPrefix("197.51.100.2/32").
+		WithPrefix(flip2).
 		WithNextHopGroup(uint64(104)).
 		WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 	args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 
-	args.client.AddIPv6(t, "2556::2/128", uint64(104), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv6(t, prefi6, uint64(104), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -244,12 +248,16 @@ func TestWithDCBackUp(t *testing.T) {
 
 	baseconfig(t)
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
+	nhip1 := "192.0.9.2"
+	nhip6 := "7777::2"
+	nhip2 := "192.0.10.2"
+	nhip26 := "192:0:2::1E"
 
 	p1 := dut.Port(t, "port9")
-	configurePort(t, dut, p1.Name(), "192.0.9.2", "7777::2", 30, 126)
+	configurePort(t, dut, p1.Name(), nhip1, nhip6, 30, 126)
 
 	p2 := dut.Port(t, "port10")
-	configurePort(t, dut, p2.Name(), "192.0.10.2", "192:0:2::1E", 30, 126)
+	configurePort(t, dut, p2.Name(), nhip2, nhip26, 30, 126)
 	p3 := dut.Port(t, "port1")
 
 	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), p3.Name()})
@@ -318,13 +326,13 @@ func TestWithDCBackUp(t *testing.T) {
 
 	for _, prefix := range prefixesr {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("REPAIRED").
+			WithNetworkInstance(vrfRepaired).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
-	args.client.AddIPv6(t, "2555::2/128", uint64(nhgi), "REPAIRED", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv6(t, pref6, uint64(nhgi), vrfRepaired, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	for k := 1; k <= 2; k++ {
 		t.Run("Ping, Traceroute test", func(t *testing.T) {
@@ -483,15 +491,15 @@ func TestWithDCBackUp(t *testing.T) {
 
 		t.Run("test with ttl 1 & different ttl", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 5, true, false, false)
+			testTraffic(t, args.ate, args.top, 5, true, false, false)
 
-			testTrafficmin(t, args.ate, args.top, 4, true, false, false)
+			testTraffic(t, args.ate, args.top, 4, true, false, false)
 		})
 		t.Run("test with ttl 1 frrs", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 5, true, true, false)
+			testTraffic(t, args.ate, args.top, 5, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 5, true, false, true)
+			testTraffic(t, args.ate, args.top, 5, true, false, true)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
@@ -499,9 +507,9 @@ func TestWithDCBackUp(t *testing.T) {
 
 		t.Run("test with ttl different - frrs", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 4, true, true, false)
+			testTraffic(t, args.ate, args.top, 4, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 4, true, false, true)
+			testTraffic(t, args.ate, args.top, 4, true, false, true)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
@@ -510,18 +518,18 @@ func TestWithDCBackUp(t *testing.T) {
 
 		t.Run("test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 6, true, false, false)
+			testTraffic(t, args.ate, args.top, 6, true, false, false)
 
-			testTrafficmin(t, args.ate, args.top, 7, true, false, false)
+			testTraffic(t, args.ate, args.top, 7, true, false, false)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
 		})
 		t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 6, true, true, false)
+			testTraffic(t, args.ate, args.top, 6, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 6, true, false, true)
+			testTraffic(t, args.ate, args.top, 6, true, false, true)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
@@ -529,9 +537,9 @@ func TestWithDCBackUp(t *testing.T) {
 
 		t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+			testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+			testTraffic(t, args.ate, args.top, 7, true, false, true)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
@@ -570,18 +578,21 @@ func TestWithDCBackUp(t *testing.T) {
 	p5 := dut.Port(t, "port10")
 	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
 
-	configPBR(t, dut, "REPAIRED", false)
+	configPBR(t, dut, vrfRepaired, false)
 	configureIntfPBR(t, dut, "PBR", p3.Name())
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
-	configvrfInt(t, dut, "REPAIRED", "Loopback22")
+	configvrfInt(t, dut, vrfRepaired, "Loopback22")
+
+	ip4 := "197.51.100.2"
+	ip6 := "2556::2"
 
 	t.Run("Fallback Ping, Traceroute test IpinIp", func(t *testing.T) {
 		p1 = dut.Port(t, "port2")
 		p2 = dut.Port(t, "port4")
 
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ip4, Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ip4, Loopback22, vrfEncapA)
 	})
 
 	t.Run("Fallback Ping, Traceroute test IpinIp FRRs", func(t *testing.T) {
@@ -589,8 +600,8 @@ func TestWithDCBackUp(t *testing.T) {
 		args.interfaceaction(t, "port2", false)
 		args.interfaceaction(t, "port4", false)
 
-		testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
-		testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", ip4, Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", ip4, Loopback22, vrfEncapA)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -601,16 +612,16 @@ func TestWithDCBackUp(t *testing.T) {
 	t.Run("Fallback Ping, Traceroute test Ipv6inIp", func(t *testing.T) {
 		p1 = dut.Port(t, "port2")
 		p2 = dut.Port(t, "port4")
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", "2556::2", Loopback226, vrfEncapA)
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", "2556::2", Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ip6, Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ip6, Loopback226, vrfEncapA)
 	})
 
 	t.Run("Fallback Ping, Traceroutes tests Ipv6inIp FRRs", func(t *testing.T) {
 		args.interfaceaction(t, "port2", false)
 		args.interfaceaction(t, "port4", false)
 
-		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", "2556::2", Loopback226, vrfEncapA)
-		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", "2556::2", Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", ip6, Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", ip6, Loopback226, vrfEncapA)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -620,13 +631,13 @@ func TestWithDCBackUp(t *testing.T) {
 
 	t.Run("Fallback test with ttl 1 & different ttl", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, false, false, false)
+		testTraffic(t, args.ate, args.top, 5, false, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, false, false, false)
+		testTraffic(t, args.ate, args.top, 4, false, false, false)
 	})
 	t.Run("Fallback test with ttl 1 frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, false, true, true)
+		testTraffic(t, args.ate, args.top, 5, false, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -635,7 +646,7 @@ func TestWithDCBackUp(t *testing.T) {
 
 	t.Run("Fallback test with ttl different - frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 4, false, true, true)
+		testTraffic(t, args.ate, args.top, 4, false, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -644,14 +655,14 @@ func TestWithDCBackUp(t *testing.T) {
 
 	t.Run("Fallback test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, false, false, false)
+		testTraffic(t, args.ate, args.top, 6, false, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, false, false, false)
+		testTraffic(t, args.ate, args.top, 7, false, false, false)
 
 	})
 	t.Run("Fallback test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, false, true, true)
+		testTraffic(t, args.ate, args.top, 6, false, true, true)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -660,7 +671,7 @@ func TestWithDCBackUp(t *testing.T) {
 
 	t.Run("Fallback test with ttl different - frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 7, false, true, true)
+		testTraffic(t, args.ate, args.top, 7, false, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -698,10 +709,7 @@ func TestWithDCUnoptimized(t *testing.T) {
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 
 	p1 := dut.Port(t, "port9")
-	configurePort(t, dut, p1.Name(), "192.0.9.2", "7777::2", 30, 126)
-
 	p2 := dut.Port(t, "port10")
-	configurePort(t, dut, p2.Name(), "192.0.10.2", "192:0:2::1E", 30, 126)
 	p3 := dut.Port(t, "port1")
 
 	unconfigbasePBR(t, dut, "PBR", []string{p1.Name(), p2.Name(), p3.Name()})
@@ -710,11 +718,6 @@ func TestWithDCUnoptimized(t *testing.T) {
 	configureIntfPBR(t, dut, "PBR", p2.Name())
 	configureIntfPBR(t, dut, "PBR", p1.Name())
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
-
-	configvrfInt(t, dut, vrfEncapA, p2.Name())
-
-	staticvrf(t, dut, vrfEncapA, "192.0.10.1", "192:0:2::1d")
-	staticvrf(t, dut, "DEFAULT", "192.0.9.1", "192:0:2::1a")
 
 	dcunoptchain(t)
 	dut2 := ondatra.DUT(t, "dut2")
@@ -752,14 +755,14 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	for _, prefix := range prefixesr {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("REPAIRED").
+			WithNetworkInstance(vrfRepaired).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
 		args.client.Fluent(t).Modify().AddEntry(t, ipv4Entry)
 	}
-	args.client.AddIPv6(t, "2555::2/128", uint64(nhgi), "REPAIRED", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.client.AddIPv6(t, "2556::2/128", uint64(nhgi), "REPAIRED", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv6(t, pref6, uint64(nhgi), vrfRepaired, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+	args.client.AddIPv6(t, prefi6, uint64(nhgi), vrfRepaired, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
 	t.Run("Ping, Traceroute test", func(t *testing.T) {
 		p1 := dut.Port(t, "port2")
@@ -922,15 +925,15 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, false)
+		testTraffic(t, args.ate, args.top, 5, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, false)
+		testTraffic(t, args.ate, args.top, 4, true, false, false)
 	})
 	t.Run("test with ttl 1 frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, true, false)
+		testTraffic(t, args.ate, args.top, 5, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, true)
+		testTraffic(t, args.ate, args.top, 5, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -938,9 +941,9 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("test with ttl different - frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 4, true, true, false)
+		testTraffic(t, args.ate, args.top, 4, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, true)
+		testTraffic(t, args.ate, args.top, 4, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -949,16 +952,16 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, false)
+		testTraffic(t, args.ate, args.top, 6, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, false)
+		testTraffic(t, args.ate, args.top, 7, true, false, false)
 
 	})
 	t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, true, false)
+		testTraffic(t, args.ate, args.top, 6, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, true)
+		testTraffic(t, args.ate, args.top, 6, true, false, true)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -967,9 +970,9 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+		testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+		testTraffic(t, args.ate, args.top, 7, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -995,7 +998,7 @@ func TestWithDCUnoptimized(t *testing.T) {
 	// 		}
 	// 	}
 	// 	args.client = &client
-	// 	testTrafficmin(t, args.ate, args.top, 100, true, false, false)
+	// 	testTraffic(t, args.ate, args.top, 100, true, false, false)
 	// 	testTrafficWeight(t, args.ate, args.top, 65000, true, 5)
 
 	// })
@@ -1006,18 +1009,20 @@ func TestWithDCUnoptimized(t *testing.T) {
 	p5 := dut.Port(t, "port10")
 	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
 
-	configPBR(t, dut, "REPAIRED", false)
+	configPBR(t, dut, vrfRepaired, false)
 	configureIntfPBR(t, dut, "PBR", p3.Name())
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
-	configvrfInt(t, dut, "REPAIRED", "Loopback22")
+	configvrfInt(t, dut, vrfRepaired, "Loopback22")
+	ip4 := "197.51.100.2"
+	ip6 := "2556::2"
 
 	t.Run("Fallback Ping, traceroute test IpinIp", func(t *testing.T) {
 		p1 := dut.Port(t, "port2")
 		p2 := dut.Port(t, "port4")
 
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ip4, Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ip4, Loopback22, vrfEncapA)
 	})
 
 	t.Run("Fallback Ping, Traceroute test IpinIp FRRs", func(t *testing.T) {
@@ -1026,8 +1031,8 @@ func TestWithDCUnoptimized(t *testing.T) {
 		args.interfaceaction(t, "port4", false)
 		time.Sleep(5 * time.Second)
 
-		testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
-		testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", "197.51.100.2", Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", ip4, Loopback22, vrfEncapA)
+		testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", ip4, Loopback22, vrfEncapA)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -1038,8 +1043,8 @@ func TestWithDCUnoptimized(t *testing.T) {
 	t.Run("Fallback Ping, Traceroute test Ipv6inIp", func(t *testing.T) {
 		p1 := dut.Port(t, "port2")
 		p2 := dut.Port(t, "port4")
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", "2556::2", Loopback226, vrfEncapA)
-		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", "2556::2", Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ip6, Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ip6, Loopback226, vrfEncapA)
 	})
 
 	t.Run("Fallback Ping, Traceroutes tests Ipv6inIp FRRs", func(t *testing.T) {
@@ -1048,8 +1053,8 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 		time.Sleep(5 * time.Second)
 
-		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", "2556::2", Loopback226, vrfEncapA)
-		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", "2556::2", Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", ip6, Loopback226, vrfEncapA)
+		testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", ip6, Loopback226, vrfEncapA)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -1059,13 +1064,13 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("Fallback test with ttl 1 & different ttl", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, false, false, false)
+		testTraffic(t, args.ate, args.top, 5, false, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, false, false, false)
+		testTraffic(t, args.ate, args.top, 4, false, false, false)
 	})
 	t.Run("Fallback test with ttl 1 frr", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, false, true, true)
+		testTraffic(t, args.ate, args.top, 5, false, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1073,7 +1078,7 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("Fallback test with ttl different - frr", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 4, false, true, true)
+		testTraffic(t, args.ate, args.top, 4, false, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1082,16 +1087,16 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("Fallback test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, false, false, false)
+		testTraffic(t, args.ate, args.top, 6, false, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, false, false, false)
+		testTraffic(t, args.ate, args.top, 7, false, false, false)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
 	})
 	t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, true, true)
+		testTraffic(t, args.ate, args.top, 6, true, true, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1099,9 +1104,9 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+		testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+		testTraffic(t, args.ate, args.top, 7, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1143,11 +1148,11 @@ func TestRepairedDecapmin(t *testing.T) {
 	p5 := dut.Port(t, "port10")
 	unconfigbasePBR(t, dut, "PBR", []string{p3.Name(), p4.Name(), p5.Name()})
 
-	configPBR(t, dut, "REPAIRED", false)
+	configPBR(t, dut, vrfRepaired, false)
 	configureIntfPBR(t, dut, "PBR", p3.Name())
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
-	configvrfInt(t, dut, "REPAIRED", "Loopback22")
+	configvrfInt(t, dut, vrfRepaired, "Loopback22")
 
 	nh := 1
 	for i := 1; i <= 15; i++ {
@@ -1240,7 +1245,7 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	for _, prefix := range prefixesr {
 		ipv4Entry := fluent.IPv4Entry().
-			WithNetworkInstance("REPAIRED").
+			WithNetworkInstance(vrfRepaired).
 			WithPrefix(prefix).
 			WithNextHopGroup(uint64(nhgi)).
 			WithNextHopGroupNetworkInstance(*ciscoFlags.DefaultNetworkInstance)
@@ -1293,15 +1298,15 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, false)
+		testTraffic(t, args.ate, args.top, 5, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, false)
+		testTraffic(t, args.ate, args.top, 4, true, false, false)
 	})
 	t.Run("test with ttl 1 frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, true, false)
+		testTraffic(t, args.ate, args.top, 5, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, true)
+		testTraffic(t, args.ate, args.top, 5, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1309,9 +1314,9 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	t.Run("test with ttl different - frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 4, true, true, false)
+		testTraffic(t, args.ate, args.top, 4, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, true)
+		testTraffic(t, args.ate, args.top, 4, true, false, true)
 
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
@@ -1321,15 +1326,15 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, false)
+		testTraffic(t, args.ate, args.top, 6, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, false)
+		testTraffic(t, args.ate, args.top, 7, true, false, false)
 	})
 	t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, true, false)
+		testTraffic(t, args.ate, args.top, 6, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, true)
+		testTraffic(t, args.ate, args.top, 6, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1337,9 +1342,9 @@ func TestRepairedDecapmin(t *testing.T) {
 
 	t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+		testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+		testTraffic(t, args.ate, args.top, 7, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1391,7 +1396,7 @@ func TestWithPoPBackUp(t *testing.T) {
 	configureIntfPBR(t, dut, "PBR", p3.Name())
 	configureIntfPBR(t, dut, "PBR", p4.Name())
 	configureIntfPBR(t, dut, "PBR", p5.Name())
-	configvrfInt(t, dut, "TE", "Loopback22")
+	configvrfInt(t, dut, vrf1, "Loopback22")
 
 	dut2 := ondatra.DUT(t, "dut2")
 	t.Run("Ping, Traceroute test", func(t *testing.T) {
@@ -1459,15 +1464,15 @@ func TestWithPoPBackUp(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, false)
+		testTraffic(t, args.ate, args.top, 5, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, false)
+		testTraffic(t, args.ate, args.top, 4, true, false, false)
 	})
 	t.Run("test with ttl 1 frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 5, true, true, false)
+		testTraffic(t, args.ate, args.top, 5, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 5, true, false, true)
+		testTraffic(t, args.ate, args.top, 5, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1475,9 +1480,9 @@ func TestWithPoPBackUp(t *testing.T) {
 
 	t.Run("test with ttl different - frrs", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 4, true, true, false)
+		testTraffic(t, args.ate, args.top, 4, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 4, true, false, true)
+		testTraffic(t, args.ate, args.top, 4, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1486,16 +1491,16 @@ func TestWithPoPBackUp(t *testing.T) {
 
 	t.Run("test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, false)
+		testTraffic(t, args.ate, args.top, 6, true, false, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, false)
+		testTraffic(t, args.ate, args.top, 7, true, false, false)
 
 	})
 	t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 6, true, true, false)
+		testTraffic(t, args.ate, args.top, 6, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 6, true, false, true)
+		testTraffic(t, args.ate, args.top, 6, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1503,9 +1508,9 @@ func TestWithPoPBackUp(t *testing.T) {
 
 	t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-		testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+		testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-		testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+		testTraffic(t, args.ate, args.top, 7, true, false, true)
 		args.interfaceaction(t, "port2", true)
 		args.interfaceaction(t, "port4", true)
 		args.interfaceaction(t, "port5", true)
@@ -1554,8 +1559,8 @@ func TestWithPopUnoptimized(t *testing.T) {
 			p1 := dut.Port(t, "port2")
 			p2 := dut.Port(t, "port4")
 
-			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", IpEncap, Loopback22, "TE")
-			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", IpEncap, Loopback22, "TE")
+			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", IpEncap, Loopback22, vrf1)
+			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", IpEncap, Loopback22, vrf1)
 		})
 
 		t.Run("Ping, Traceroute test IpinIp FRRs", func(t *testing.T) {
@@ -1565,13 +1570,13 @@ func TestWithPopUnoptimized(t *testing.T) {
 			args.interfaceaction(t, "port4", false)
 			time.Sleep(5 * time.Second)
 
-			testStats(t, dut, dut2, []string{p1.Name()}, "ping-ipinip", IpEncap, Loopback22, "TE")
-			testStats(t, dut, dut2, []string{p1.Name()}, "traceroute-ipinip", IpEncap, Loopback22, "TE")
+			testStats(t, dut, dut2, []string{p1.Name()}, "ping-ipinip", IpEncap, Loopback22, vrf1)
+			testStats(t, dut, dut2, []string{p1.Name()}, "traceroute-ipinip", IpEncap, Loopback22, vrf1)
 			args.interfaceaction(t, "port5", false)
 			time.Sleep(5 * time.Second)
 
-			testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", IpEncap, Loopback22, "TE")
-			testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", IpEncap, Loopback22, "TE")
+			testStats(t, dut, dut2, []string{p2.Name()}, "ping-ipinip", IpEncap, Loopback22, vrf1)
+			testStats(t, dut, dut2, []string{p2.Name()}, "traceroute-ipinip", IpEncap, Loopback22, vrf1)
 
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -1582,8 +1587,8 @@ func TestWithPopUnoptimized(t *testing.T) {
 		t.Run("Ping, Traceroute test Ipv6inIp", func(t *testing.T) {
 			p1 := dut.Port(t, "port2")
 			p2 := dut.Port(t, "port4")
-			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ipv6EntryPrefix, Loopback226, "TE")
-			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, "TE")
+			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "ping-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
+			testStats(t, dut, dut2, []string{p1.Name(), p2.Name()}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
 		})
 
 		t.Run("Ping, Traceroutes tests Ipv6inIp FRRs", func(t *testing.T) {
@@ -1593,13 +1598,13 @@ func TestWithPopUnoptimized(t *testing.T) {
 			//p2 = dut.Port(t, "port7")
 			time.Sleep(10 * time.Second)
 
-			testStats(t, dut, dut2, []string{p1.Name()}, "ping-ipinip", ipv6EntryPrefix, Loopback226, "TE")
-			testStats(t, dut, dut2, []string{p1.Name()}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, "TE")
+			testStats(t, dut, dut2, []string{p1.Name()}, "ping-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
+			testStats(t, dut, dut2, []string{p1.Name()}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
 			args.interfaceaction(t, "port5", false)
 			time.Sleep(5 * time.Second)
 
-			testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", ipv6EntryPrefix, Loopback226, "TE")
-			testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, "TE")
+			testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "ping-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
+			testStats(t, dut, dut2, []string{"Bundle-Ether126"}, "traceroute-ipinip", ipv6EntryPrefix, Loopback226, vrf1)
 
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -1612,15 +1617,15 @@ func TestWithPopUnoptimized(t *testing.T) {
 
 		t.Run("test with ttl 1 & different ttl", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 5, true, false, false)
+			testTraffic(t, args.ate, args.top, 5, true, false, false)
 
-			testTrafficmin(t, args.ate, args.top, 4, true, false, false)
+			testTraffic(t, args.ate, args.top, 4, true, false, false)
 		})
 		t.Run("test with ttl 1 frrs", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 5, true, true, false)
+			testTraffic(t, args.ate, args.top, 5, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 5, true, false, true)
+			testTraffic(t, args.ate, args.top, 5, true, false, true)
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
 			args.interfaceaction(t, "port5", true)
@@ -1628,9 +1633,9 @@ func TestWithPopUnoptimized(t *testing.T) {
 
 		t.Run("test with ttl different - frrs", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 4, true, true, false)
+			testTraffic(t, args.ate, args.top, 4, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 4, true, false, true)
+			testTraffic(t, args.ate, args.top, 4, true, false, true)
 
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -1640,15 +1645,15 @@ func TestWithPopUnoptimized(t *testing.T) {
 
 		t.Run("test with ttl 1 & different ttl ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 6, true, false, false)
+			testTraffic(t, args.ate, args.top, 6, true, false, false)
 
-			testTrafficmin(t, args.ate, args.top, 7, true, false, false)
+			testTraffic(t, args.ate, args.top, 7, true, false, false)
 		})
 		t.Run("test with ttl 1 frrs ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 6, true, true, false)
+			testTraffic(t, args.ate, args.top, 6, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 6, true, false, true)
+			testTraffic(t, args.ate, args.top, 6, true, false, true)
 
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -1657,9 +1662,9 @@ func TestWithPopUnoptimized(t *testing.T) {
 
 		t.Run("test with ttl different - frrs ipv6", func(t *testing.T) {
 
-			testTrafficmin(t, args.ate, args.top, 7, true, true, false)
+			testTraffic(t, args.ate, args.top, 7, true, true, false)
 
-			testTrafficmin(t, args.ate, args.top, 7, true, false, true)
+			testTraffic(t, args.ate, args.top, 7, true, false, true)
 
 			args.interfaceaction(t, "port2", true)
 			args.interfaceaction(t, "port4", true)
@@ -1756,9 +1761,6 @@ func testStats(t *testing.T, dut, dut2 *ondatra.DUTDevice, d_port []string, val,
 		}
 
 		match := re.FindStringSubmatch(out.Output())
-
-		t.Log("counttttttt")
-		fmt.Println(match)
 		if match[1] == "192.0.10.2" || match[1] == "192:0:2::1e" {
 			t.Log("Response received")
 		}
@@ -1888,7 +1890,7 @@ func dcchainconfig(t *testing.T) {
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithIPinIP("222.222.222.222", prefix)
-		NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIRED")
+		NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepaired)
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(uint64(nhge), uint64(256))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -1954,13 +1956,13 @@ func dcchainconfig(t *testing.T) {
 	args.client.AddNH(t, uint64(30003), "209.209.209.1", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNHG(t, 33000, 0, map[uint64]uint64{uint64(30003): 100}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddIPv4Batch(t, prefixest, 33000, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixest, 33000, vrfRepaired, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
 		b := strings.Split(prefix, "/")
 		prefix = b[0]
-		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: "TE"})
+		args.client.AddNH(t, uint64(nh), "Encap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: ipv4OuterSrc111, Dest: []string{prefix}, VrfName: vrf1})
 		nh++
 	}
 
@@ -2082,7 +2084,7 @@ func dcunoptchain(t *testing.T) {
 	nhge := 20000
 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((uint64(nhge)))
 	NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(uint64(nhge))
-	NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIR")
+	NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepair)
 	args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 	nhg.AddNextHop(uint64(nhge), uint64(256))
 	args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -2142,7 +2144,7 @@ func dcunoptchain(t *testing.T) {
 	args.client.AddIPv4(t, dsip+"/32", 31000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 31000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{dsip}})
 	args.client.AddNHG(t, 32000, 30000, map[uint64]uint64{31000: 256}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixese, 32000, "REPAIR", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixese, 32000, vrfRepair, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 	nh = 3001
 	for _, prefix := range prefixese {
@@ -2280,7 +2282,7 @@ func popgateconfig(t *testing.T) {
 		NHEntry = NHEntry.WithDecapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithEncapsulateHeader(fluent.IPinIP)
 		NHEntry = NHEntry.WithIPinIP("222.222.222.222", prefix)
-		NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIRED")
+		NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepaired)
 		args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 		nhg.AddNextHop(uint64(nhge), uint64(256))
 		args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -2327,7 +2329,7 @@ func popgateconfig(t *testing.T) {
 
 	args.client.AddNHG(t, 31000, 30000, map[uint64]uint64{uint64(30001): 1, uint64(30002): 255}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
-	args.client.AddIPv4Batch(t, prefixest, 31000, "REPAIRED", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixest, 31000, vrfRepaired, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 }
 
@@ -2401,7 +2403,7 @@ func popunoptchain(t *testing.T) {
 	nhge := 20000
 	nhg = fluent.NextHopGroupEntry().WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithID((uint64(nhge)))
 	NHEntry = NHEntry.WithNetworkInstance(*ciscoFlags.DefaultNetworkInstance).WithIndex(uint64(nhge))
-	NHEntry = NHEntry.WithNextHopNetworkInstance("REPAIR")
+	NHEntry = NHEntry.WithNextHopNetworkInstance(vrfRepair)
 	args.client.Fluent(t).Modify().AddEntry(t, NHEntry)
 	nhg.AddNextHop(uint64(nhge), uint64(256))
 	args.client.Fluent(t).Modify().AddEntry(t, nhg)
@@ -2445,6 +2447,6 @@ func popunoptchain(t *testing.T) {
 	args.client.AddIPv4(t, dsip+"/32", 31000, *ciscoFlags.DefaultNetworkInstance, "", false, ciscoFlags.GRIBIChecks)
 	args.client.AddNH(t, 31000, "DecapEncap", *ciscoFlags.DefaultNetworkInstance, "", "", false, ciscoFlags.GRIBIChecks, &gribi.NHOptions{Src: "222.222.222.222", Dest: []string{dsip}})
 	args.client.AddNHG(t, 32000, 30000, map[uint64]uint64{31000: 256}, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
-	args.client.AddIPv4Batch(t, prefixese, 32000, "REPAIR", *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
+	args.client.AddIPv4Batch(t, prefixese, 32000, vrfRepair, *ciscoFlags.DefaultNetworkInstance, false, ciscoFlags.GRIBIChecks)
 
 }
