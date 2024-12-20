@@ -232,7 +232,7 @@ func configvrfInt(t *testing.T, dut *ondatra.DUTDevice, vrfName, IntfName string
 
 }
 
-func staticvrf(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
+func staticvrf(t *testing.T, dut *ondatra.DUTDevice, vrfName, nh1, nh2 string) {
 
 	d := gnmi.OC()
 
@@ -240,10 +240,10 @@ func staticvrf(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
 	static := n.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
 	staticRoute := static.GetOrCreateStatic("30.30.30.30/32")
 	nextHop := staticRoute.GetOrCreateNextHop("0")
-	nextHop.NextHop = oc.UnionString("192.0.10.1")
+	nextHop.NextHop = oc.UnionString(nh1)
 	gnmi.Update(t, dut, d.NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 
 	ipv6nh := static.GetOrCreateStatic("30::30/128").GetOrCreateNextHop("0")
-	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("192:0:2::1d")
+	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union(nh2)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
 }

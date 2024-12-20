@@ -262,7 +262,8 @@ func TestWithDCBackUp(t *testing.T) {
 	configvrfInt(t, dut, vrfEncapA, "Loopback22")
 
 	configvrfInt(t, dut, vrfEncapA, p2.Name())
-	staticvrf(t, dut, vrfEncapA)
+	staticvrf(t, dut, vrfEncapA, "192.0.10.1", "192:0:2::1d")
+	staticvrf(t, dut, "DEFAULT", "192.0.9.1", "192:0:2::1a")
 
 	// Configure the gRIBI client
 	client = gribi.Client{
@@ -712,7 +713,8 @@ func TestWithDCUnoptimized(t *testing.T) {
 
 	configvrfInt(t, dut, vrfEncapA, p2.Name())
 
-	staticvrf(t, dut, vrfEncapA)
+	staticvrf(t, dut, vrfEncapA, "192.0.10.1", "192:0:2::1d")
+	staticvrf(t, dut, "DEFAULT", "192.0.9.1", "192:0:2::1a")
 
 	dcunoptchain(t)
 	dut2 := ondatra.DUT(t, "dut2")
