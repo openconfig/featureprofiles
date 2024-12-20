@@ -1258,3 +1258,8 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
+
+// GnmiGetRequiresConfigType return true if Gnmi Get is not supported without type config
+func GnmiGetRequiresConfigType(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetGnmiGetRequiresConfigType()
+}
