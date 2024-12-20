@@ -2,11 +2,11 @@ name: slowpath
 owners: 
   - wdolaast
 testbeds:
-  - 8808-1DUT-1ATE-FURY
+  - 2DUT-TB4
 tests:
 - name: SlowPath 
   path: feature/gribi/ate_tests/cisco/slowpath
-  timeout: 36000
+  timeout: 108000
   mustpass: true
   internal: true
   branch: master

@@ -182,19 +182,23 @@ func configDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p = dut.Port(t, "port2")
 	configurePort(t, dut, p.Name(), "192.0.10.1", "192:0:2::1D", 30, 126)
-	d := gnmi.OC()
 
-	n := &oc.NetworkInstance{Name: ygot.String("DEFAULT")}
-	static := n.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT")
+	dc := gnmi.OC()
+	niProto := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	ni = &oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
+	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	staticRoute := static.GetOrCreateStatic("197.51.0.0/16")
 	nextHop := staticRoute.GetOrCreateNextHop("0")
 	nextHop.NextHop = oc.UnionString("192.0.10.2")
-
-	gnmi.Update(t, dut, d.NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Config(), static)
-
+	gnmi.Update(t, dut, niProto.Config(), static)
 	ipv6nh := static.GetOrCreateStatic(ipv6EntryPrefix + "/128").GetOrCreateNextHop("0")
 	ipv6nh.NextHop, _ = nextHop.To_NetworkInstance_Protocol_Static_NextHop_NextHop_Union("192:0:2::1E")
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
+
 }
 
 func configurePort(t *testing.T, dut *ondatra.DUTDevice, IntfName, ip, ipv6 string, mask, mask6 int) {
