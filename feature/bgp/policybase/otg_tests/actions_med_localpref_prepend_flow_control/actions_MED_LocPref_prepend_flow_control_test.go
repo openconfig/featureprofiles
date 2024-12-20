@@ -211,7 +211,7 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
-// juniperBgpPolicyMEDAdd is used to cli to configure set metric add as an alternative to below xpath
+// juniperBgpPolicyMEDAdd is used to configure set metric add via native cli as an alternative for below xpath.
 // routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
 func juniperBgpPolicyMEDAdd(polName string, metric int) string {
 	return fmt.Sprintf(`
