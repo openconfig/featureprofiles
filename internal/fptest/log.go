@@ -15,6 +15,7 @@
 package fptest
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -23,8 +24,6 @@ import (
 	"testing"
 	"time"
 	"unicode"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/check"
 	"github.com/openconfig/ondatra"
@@ -106,7 +105,7 @@ func LogQuery(t testing.TB, what string, query LoggableQuery, obj ygot.GoStruct)
 	logQuery(t, what, query, obj, true)
 }
 
-// WriteQuery is like LogQuery but only writes to test outputs dir so it
+// WriteQuery is like LogQuery but only writes to test output dir, so it
 // does not pollute the test log.
 func WriteQuery(t testing.TB, what string, query LoggableQuery, obj ygot.GoStruct) {
 	t.Helper()
