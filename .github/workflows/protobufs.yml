@@ -13,20 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
       with:
         go-version: '1.21'
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     - name: Install protobuf
-      uses: arduino/setup-protoc@v1
+      uses: arduino/setup-protoc@149f6c87b92550901b26acd1632e11c3662e381f
       with:
         version: '3.x'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -38,7 +38,7 @@ jobs:
         find github.com/openconfig/featureprofiles/ -name \*.proto -exec api-linter --disable-rule all --enable-rule core {} \+
     - name: Validate textprotos
       run: |
-        go install github.com/bstoll/textproto-validator@latest
+        go install github.com/bstoll/textproto-validator@15e24d0eb567d63615f0aa70940bc073ab674fe7
         make protoimports
         for i in `find . -name \*.textproto`; do
           textproto-validator -I ./protobuf-import $i
@@ -49,21 +49,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4
       with:
         go-version: '1.21'
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744
       with:
         fetch-depth: 0
     - name: Cache
-      uses: actions/cache@v3
+      uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c
       with:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
         key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-    - name: Fetch Openconfig Models
+    - name: Fetch OpenConfig Models
       run: make openconfig_public
     - name: Validate Paths
       run: |
