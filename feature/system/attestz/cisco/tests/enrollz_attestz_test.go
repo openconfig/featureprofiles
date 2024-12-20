@@ -268,6 +268,12 @@ func getOptionsFromBindingFile() (*bindpb.Options, error) {
 		return nil, err
 	}
 	options := b.Duts[0].Options
+	if options.CertFile == "" && options.KeyFile == "" {
+		options = b.Duts[0].Gnsi
+		if options.CertFile == "" && options.KeyFile == "" {
+			options = b.Options
+		}
+	}
 	return options, nil
 }
 
@@ -797,6 +803,7 @@ func gnsiNewConnWithIdevID(t *testing.T, target string, options *bindpb.Options)
 func createCertZProfileAndRotateTrustBundle(t *testing.T, gnsiC binding.GNSIClients, profileId string,
 	trustBundleFile string, certSource certzpb.Certificate_CertSource) error {
 
+	_, _ = gnsiC.Certz().DeleteProfile(context.Background(), &certzpb.DeleteProfileRequest{SslProfileId: profileId})
 	profiles, err := gnsiC.Certz().AddProfile(context.Background(), &certzpb.AddProfileRequest{SslProfileId: profileId})
 	if err != nil {
 		return err
@@ -908,6 +915,7 @@ func TestGetIAKCert(t *testing.T) {
 	}
 	targetIP := strings.Split(target, ":")[0]
 	options, err := getOptionsFromBindingFile()
+	t.Logf("options: %v", options)
 	if err != nil {
 		t.Fatalf("Error in reading Options from binding file: %v", err)
 	}

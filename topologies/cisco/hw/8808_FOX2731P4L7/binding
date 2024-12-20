@@ -20,6 +20,11 @@
 options {
   username: "cafyauto"
   password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
@@ -32,7 +37,8 @@ duts {
   }
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
+    mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
   }
@@ -51,6 +57,9 @@ duts {
     target: "10.85.72.43:22"
   }
   p4rt{
+    target: "10.85.72.43:57400"
+  }
+  gnsi{
     target: "10.85.72.43:57400"
   }
 
