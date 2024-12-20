@@ -1218,8 +1218,9 @@ func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
 
-// BgpSetMedUnionTypeUnsupported returns true if devices which are not
-// supporting bgp set med union type in OC.
+// BgpSetMedUnionTypeUnsupported returns true if a device does not support
+//  version < 8.0 of 
+//  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med 
 func BgpSetMedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedUnionTypeUnsupported()
 }
