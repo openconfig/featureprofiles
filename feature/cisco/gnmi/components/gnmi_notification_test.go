@@ -136,6 +136,8 @@ func TestNotificationProcessRestart(t *testing.T) {
 		t.Fatal("did not receive correct value before timeout")
 	}
 
+	t.Logf("GNMI Update notification received successfully after process invmgr restart")
+
 }
 
 func TestNotificationLCReload(t *testing.T) {
@@ -161,6 +163,8 @@ func TestNotificationLCReload(t *testing.T) {
 	if !passed {
 		t.Fatal("did not receive correct value before timeout")
 	}
+
+	t.Logf("GNMI Update notification received successfully after LC Reload")
 
 }
 
@@ -188,6 +192,7 @@ func TestNotificationLCShutUnshut(t *testing.T) {
 
 	shutDownLinecard(t, lc)
 	resultIsTrue := <-passed
+	t.Logf("GNMI Update notification received successfully after LC shutdown")
 
 	go func() {
 		watcher := gnmi.Watch(t,
@@ -209,6 +214,8 @@ func TestNotificationLCShutUnshut(t *testing.T) {
 	if !resultIsTrue {
 		t.Fatal("did not receive correct value before timeout")
 	}
+
+	t.Logf("GNMI Update notification received successfully after LC boot")
 
 }
 
@@ -241,6 +248,7 @@ func TestNotificationDeletePort(t *testing.T) {
 
 	shutDownLinecard(t, lc)
 	resultIsTrue := <-passed
+	t.Logf("GNMI Delete notification for optics port received successfully after LC shutdown")
 
 	gnmi.Await(t, dut, gnmi.OC().Component(lc).OperStatus().State(), time.Minute*10, oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
 	t.Logf("awaiting state: %s", oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED)
@@ -265,6 +273,7 @@ func TestNotificationDeletePort(t *testing.T) {
 		t.Fatal("did not receive correct value before timeout")
 	}
 
+	t.Logf("GNMI Update notification for optics port received successfully after LC boot")
 }
 
 func TestNotificationRPFO(t *testing.T) {
@@ -325,5 +334,7 @@ func TestNotificationRPFO(t *testing.T) {
 	if !passed {
 		t.Fatal("did not receive correct value before timeout")
 	}
+
+	t.Logf("GNMI Update notifications received successfully after RP failover")
 
 }
