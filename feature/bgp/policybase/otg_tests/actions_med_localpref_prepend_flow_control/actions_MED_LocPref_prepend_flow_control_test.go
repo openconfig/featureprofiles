@@ -15,7 +15,6 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,7 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -212,10 +211,10 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
-func metricAdd(dut *ondatra.DUTDevice, polName string, metric int) string {
-	switch dut.Vendor() {
-	case ondatra.JUNIPER:
-		return fmt.Sprintf(`
+// juniperBgpPolicyMEDAdd is used to cli to configure set metric add as an alternative to below xpath
+// routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+func juniperBgpPolicyMEDAdd(polName string, metric int) string {
+	return fmt.Sprintf(`
 		policy-options {
  		   policy-statement %s {
         		term 1 {
@@ -228,26 +227,6 @@ func metricAdd(dut *ondatra.DUTDevice, polName string, metric int) string {
         		}
     		}
 		}`, polName, metric)
-	default:
-		return ""
-	}
-}
-
-func buildCliConfigRequest(config string) *gpb.SetRequest {
-	// Build config with Origin set to cli and Ascii encoded config.
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest
 }
 
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
@@ -269,15 +248,15 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
 		if strings.Contains(policyValue, "+") {
-			if deviations.BgpSetMedUnionTypeUnsupported(dut) {
-				metric, _ := strconv.Atoi(policyValue)
-				gnmiClient := dut.RawAPIs().GNMI(t)
-				config := metricAdd(dut, setMEDPolicy, metric)
+			if deviations.BgpSetMedV7Unsupported(dut) {
 				t.Logf("Push the CLI config:%s", dut.Vendor())
-				gpbSetRequest := buildCliConfigRequest(config)
-				if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-					t.Fatalf("gnmiClient.Set() with unexpected error: %v", err)
+				metric, _ := strconv.Atoi(policyValue)
+				var config string
+				switch dut.Vendor() {
+				case ondatra.JUNIPER:
+					config = juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
 				}
+				helpers.GnmiCLIConfig(t, dut, config)
 			} else {
 				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE

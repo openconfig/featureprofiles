@@ -1218,12 +1218,6 @@ func CiscoPreFECBERInactiveValue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCiscoPreFecBerInactiveValue()
 }
 
-// BgpSetMedUnionTypeUnsupported returns true if devices which are not
-// supporting bgp set med union type in OC.
-func BgpSetMedUnionTypeUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedUnionTypeUnsupported()
-}
-
 // BgpExtendedNextHopEncodingLeafUnsupported return true if bgp extended next hop encoding leaf is unsupported
 // Cisco supports the extended nexthop encoding set to true by default that is excercised in the Script where the extended-nexthop-encoding
 // a bool value is set to true.
@@ -1263,4 +1257,10 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 // IsisDatabaseOverloadsUnsupported returns true for devices that do not support database-overloads leaf
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
+}
+
+// BgpSetMedV7Unsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
 }
