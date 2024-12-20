@@ -192,7 +192,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					"fullInterfaceName and foundComp is %v", breakOutCompName, fullInterfaceName, foundComp)
 				componentNameList = []string{breakOutCompName}
 			} else {
-				// other vendor method
+				t.Fatalf("Unsupported vendor %s.  Need to add breakout component names.", dut.Vendor())
 			}
 
 			for _, componentName := range componentNameList {
