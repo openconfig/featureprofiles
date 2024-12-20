@@ -85,7 +85,7 @@ paths used for test setup are not listed here.
 paths:
   ## Config paths
   /interfaces/interface/config/enabled:
-  /components/component/transceiver/state/enabled (transceiver 3.3V power supply on/off):
+  /components/component/transceiver/state/enabled:
      platform_type: ["TRANSCEIVER"]
 
   ## State paths
