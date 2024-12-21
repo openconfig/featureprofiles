@@ -251,12 +251,13 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 			if deviations.BgpSetMedV7Unsupported(dut) {
 				t.Logf("Push the CLI config:%s", dut.Vendor())
 				metric, _ := strconv.Atoi(policyValue)
-				var config string
 				switch dut.Vendor() {
 				case ondatra.JUNIPER:
-					config = juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
+					config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
+					helpers.GnmiCLIConfig(t, dut, config)
+				default:
+					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
 				}
-				helpers.GnmiCLIConfig(t, dut, config)
 			} else {
 				actions.GetOrCreateBgpActions().SetMed = oc.UnionString(policyValue)
 				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
