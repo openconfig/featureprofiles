@@ -245,8 +245,10 @@ func TestWithDCBackUp(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	args = &testArgs{}
+	destip := "197.51.0.0/16"
 
 	baseconfig(t)
+	addStaticRoute(t, dut, destip, true)
 	configurePort(t, dut, "Loopback22", Loopback12, Loopback126, 32, 128)
 	nhip1 := "192.0.9.2"
 	nhip6 := "7777::2"

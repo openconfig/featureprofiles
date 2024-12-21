@@ -177,7 +177,7 @@ func configDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfEncapA).Config(), ni)
 	configurePort(t, dut, "Loopback30", Loopback0, Loopback06, 32, 128)
 	p1ip := "192.0.9.1"
-	p2ip := "192.0.10.2"
+	p2ip := "192.0.10.1"
 	p2ipv6 := "192:0:2::1D"
 	p1ipv6 := "7777::3"
 	nh4 := "192.0.10.2"
