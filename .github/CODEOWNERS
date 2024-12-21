@@ -18,7 +18,7 @@
 /feature/ethernet/     @ram-mac
 /feature/gribi/        @nflath @nachikethas @xw-g
 /feature/interface/    @ram-mac
-/feature/isis/         @rohit-rp
+/feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @alokmtri-g
 /feature/mpls/         @swetha-haridasula
 /feature/mtu/          @swetha-haridasula
