@@ -651,10 +651,23 @@ message Metadata {
     // Cisco: b/377433951
     bool bgp_extended_next_hop_encoding_leaf_unsupported = 234;
     // Device does not support bgp afi safi wildcard.
-    // Cisco: b/379863985 
+    // Cisco: b/379863985
     bool bgp_afi_safi_wildcard_not_supported = 235;
     // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
     bool enable_table_connections = 236;
+    // Device has default zero suppression.
+    // Juniper : b/378646018
+    bool no_zero_suppression = 237;
+    // Cisco: b/378801305
+    bool isis_interface_level_passive_unsupported = 238;
+    // Cisco: b/378616912
+    bool isis_dis_sysid_unsupported = 239;
+    // Cisco: b/378616912
+    bool isis_database_overloads_unsupported = 240;
+    // Juniper: b/358534837
+    // Devices that do not support setting med value using union type in OC.
+    bool bgp_set_med_v7_unsupported = 241;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
