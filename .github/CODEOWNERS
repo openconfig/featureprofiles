@@ -13,12 +13,12 @@
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
 /feature/aft/          @sudhinj @yunjie-lu
-/feature/bgp/          @dplore
+/feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/gribi/        @nflath @nachikethas @xw-g
 /feature/interface/    @ram-mac
-/feature/isis/         @rohit-rp
+/feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @alokmtri-g
 /feature/mpls/         @swetha-haridasula
 /feature/mtu/          @swetha-haridasula
