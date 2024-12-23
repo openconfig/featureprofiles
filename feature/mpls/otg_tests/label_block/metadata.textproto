@@ -1,0 +1,9 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fec5effb-efb8-4d6c-abfb-c541ad08dd36"
+plan_id: "MPLS-1.1"
+description: "MPLS label blocks using ISIS"
+testbed: TESTBED_DUT_ATE_2LINKS
+
+
