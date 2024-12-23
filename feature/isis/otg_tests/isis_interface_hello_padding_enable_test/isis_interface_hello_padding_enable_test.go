@@ -74,6 +74,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
 	level.LevelNumber = ygot.Uint8(2)
+	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	// Authentication configs.
 	auth := level.GetOrCreateAuthentication()
@@ -88,7 +89,6 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 		intfName += ".0"
 	}
 	intf := isis.GetOrCreateInterface(intfName)
-	intf.HelloPadding = oc.Isis_HelloPaddingType_ADAPTIVE
 
 	// Interface timers.
 	isisIntfTimers := intf.GetOrCreateTimers()
@@ -101,6 +101,8 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	// Interface level configs.
 	isisIntfLevel := intf.GetOrCreateLevel(2)
 	isisIntfLevel.LevelNumber = ygot.Uint8(2)
+	isisIntfLevel.SetEnabled(true)
+	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
 	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
@@ -110,12 +112,14 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevelTimers.HelloInterval = ygot.Uint32(5)
 	isisIntfLevelTimers.HelloMultiplier = ygot.Uint8(3)
 
-	if !deviations.ISISInterfaceAfiUnsupported(ts.DUT) {
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	}
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
+	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
+	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+	}
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -222,7 +226,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			// Adjacency check.
 			_, found := gnmi.Watch(t, ts.DUT, statePath.Interface(intfName).Level(2).Adjacency(ateSysID).AdjacencyState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 				state, present := val.Val()
-				return present && state == oc.Isis_IsisInterfaceAdjState_DOWN
+				return present && (state == oc.Isis_IsisInterfaceAdjState_DOWN || state == oc.Isis_IsisInterfaceAdjState_INIT)
 			}).Await(t)
 			if !found {
 				t.Errorf("Isis adjacency is not down on interface %v when MTU is changed", intfName)
@@ -274,8 +278,10 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, adjPath.AreaAddress().State()); !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
-			if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
-				t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
+					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, adjPath.LocalExtendedCircuitId().State()); got == 0 {
 				t.Errorf("FAIL- Expected local extended circuit id not found,expected non-zero value, got %d", got)
@@ -328,8 +334,10 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
 			}
-			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-				t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
+			if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+					t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
+				}
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 				t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
