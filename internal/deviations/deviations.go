@@ -1264,3 +1264,13 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
 }
+
+// RequireZrOperMode returns true for the devices that require a mandatory value in operational-mode leaf for optical-channel
+func RequireZrOperMode(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireZrOperMode()
+}
+
+// ExplicitDcoConfig returns true if a user-configured value is required in module-functional-type for the transceiver
+func ExplicitDcoConfig(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitDcoConfig()
+}
