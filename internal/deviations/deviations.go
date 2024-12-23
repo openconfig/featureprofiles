@@ -1258,3 +1258,9 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
+
+// BgpSetMedV7Unsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
+}
