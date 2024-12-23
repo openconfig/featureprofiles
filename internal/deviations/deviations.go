@@ -1264,3 +1264,8 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
 }
+
+// ChannelRateClassParametersUnsupported returns true if channel rate class parameters are unsupported
+func ChannelRateClassParametersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetChannelAssignmentRateClassParametersUnsupported()
+}
