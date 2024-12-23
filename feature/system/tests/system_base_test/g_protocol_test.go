@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-        "github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"google.golang.org/grpc"
@@ -60,15 +60,15 @@ func TestGNMIClient(t *testing.T) {
 	conn := dialConn(t, dut, introspect.GNMI, 9339)
 	c := gpb.NewGNMIClient(conn)
 
-        if deviations.GnmiGetRequiresConfigType(dut) {
-                if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}, Type: gpb.GetRequest_CONFIG}); err != nil {
-                        t.Fatalf("gnmi.Get failed: %v", err)
-                }
-        } else {
-                if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}); err != nil {
-                        t.Fatalf("gnmi.Get failed: %v", err)
-                }
-        }
+	if deviations.GnmiGetRequiresConfigType(dut) {
+		if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}, Type: gpb.GetRequest_CONFIG}); err != nil {
+			t.Fatalf("gnmi.Get failed: %v", err)
+		}
+	} else {
+		if _, err := c.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}}}); err != nil {
+			t.Fatalf("gnmi.Get failed: %v", err)
+		}
+	}
 }
 
 // TestGNOIClient validates that the DUT listens on standard gNOI Port.
