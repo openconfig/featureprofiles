@@ -6,9 +6,9 @@
 
 # These owners will be the default owners for everything in
 # the repo. Unless a later match takes precedence,
-# @openconfig/featureprofiles-maintainers will be requested for
+# @openconfig/featureprofiles-approvers will be requested for
 # review when someone opens a pull request.
-*       @openconfig/featureprofiles-maintainers
+*       @openconfig/featureprofiles-approvers
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @alokmtri-g
@@ -24,10 +24,11 @@
 /feature/mtu/          @swetha-haridasula
 /feature/networkinstance/    @swetha-haridasula
 /feature/platform/           @amrindrr
+/feature/platform/transceiver  @jianchen-g @yiwenhu-g @ahsaanyousaf @ejbrever @rezachit
 /feature/qos                 @sezhang2
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @sudhinj
-/feature/security            @mihirpitale-googler
+/feature/security            @mihirpitale-googler @morrowc
 /feature/staticroute/        @swetha-haridasula
 /feature/stp/                @alokmtri-g
 /feature/system              @swetha-haridasula
