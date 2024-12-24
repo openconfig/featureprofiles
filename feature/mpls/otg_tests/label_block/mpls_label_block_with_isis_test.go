@@ -35,39 +35,41 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	SRReservedLabelblockName       = "sr-reserved-label-block"
-	SRReservedLabelblockLowerbound = 1000000
-	SRReservedLabelblockUpperbound = 1048576
-	// srgbMplsLabelBlockName         = "srgb-global"
-	// srlbMplsLabelBlockName         = "srlb-local"
-	srgbMplsLabelBlockName = "400000 465001"
-	srlbMplsLabelBlockName = "40000 41000"
-	srgbGlobalLowerBound   = 400000
-	srgbGlobalUpperBound   = 465001
-	srgbLocalLowerBound    = 40000
-	srgbLocalUpperBound    = 41000
-	srgbLocalID            = "100.1.1.1"
-	srlbLocalID            = "200.1.1.1"
-	plenIPv4               = 30
-	plenIPv6               = 126
-	password               = "google"
-	ateV4Route             = "203.0.113.0/30"
-	ateV6Route             = "2001:db8::203:0:113:0/126"
-	v4IP                   = "203.0.113.1"
-	v6IP                   = "2001:db8::203:0:113:1"
-	v4Route                = "203.0.113.0"
-	v6Route                = "2001:db8::203:0:113:0"
-	dutV4Metric            = 100
-	dutV6Metric            = 100
-	ateV4Metric            = 200
-	ateV6Metric            = 200
-	dutV4Route             = "192.0.2.0/30"
-	dutV6Route             = "2001:db8::/126"
-	v4NetName              = "isisv4Net"
-	v6NetName              = "isisv6Net"
-	v4FlowName             = "v4Flow"
-	v6FlowName             = "v6Flow"
-	devIsisName            = "devIsis"
+	SRReservedLabelblockName                  = "sr-reserved-label-block"
+	SRReservedLabelblockLowerbound            = 1000000
+	SRReservedLabelblockUpperbound            = 1048576
+	SRReservedLabelblockLowerboundReconfigure = 1110000
+	SRReservedLabelblockUpperboundReconfigure = 1119876
+	srgbMplsLabelBlockName                    = "400000 465001"
+	srlbMplsLabelBlockName                    = "40000 41000"
+	srgbGblBlockReconfigure                   = "101000 102001"
+	srgbLclBlockReconfigure                   = "200000 201001"
+	srgbGlobalLowerBound                      = 400000
+	srgbGlobalUpperBound                      = 465001
+	srgbLocalLowerBound                       = 40000
+	srgbLocalUpperBound                       = 41000
+	srgbLocalID                               = "100.1.1.1"
+	srlbLocalID                               = "200.1.1.1"
+	plenIPv4                                  = 30
+	plenIPv6                                  = 126
+	password                                  = "google"
+	ateV4Route                                = "203.0.113.0/30"
+	ateV6Route                                = "2001:db8::203:0:113:0/126"
+	v4IP                                      = "203.0.113.1"
+	v6IP                                      = "2001:db8::203:0:113:1"
+	v4Route                                   = "203.0.113.0"
+	v6Route                                   = "2001:db8::203:0:113:0"
+	dutV4Metric                               = 100
+	dutV6Metric                               = 100
+	ateV4Metric                               = 200
+	ateV6Metric                               = 200
+	dutV4Route                                = "192.0.2.0/30"
+	dutV6Route                                = "2001:db8::/126"
+	v4NetName                                 = "isisv4Net"
+	v6NetName                                 = "isisv6Net"
+	v4FlowName                                = "v4Flow"
+	v6FlowName                                = "v6Flow"
+	devIsisName                               = "devIsis"
 )
 
 // configureISISMPLSSRReconfigure configures isis and MPLS SR on DUT with new label block bounds.
@@ -159,10 +161,6 @@ func configureISISMPLSSR(t *testing.T, ts *isissession.TestSession) {
 
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(dutV4Metric)
 	isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(dutV6Metric)
-	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
-		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
-	}
 }
 
 // configureOTG configures isis and traffic on OTG.
@@ -296,13 +294,13 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 			t.Errorf("FAIL- Segment Routing is not enabled on DUT")
 		}
 		srgbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
-		if srgbValue == "nil" {
+		if srgbValue == "nil" || srgbValue == "" {
 			t.Errorf("FAIL- SRGB is not present on DUT")
 		} else {
 			t.Logf("SRGB is present on DUT value: %s", srgbValue)
 		}
 		srlbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrlb()
-		if srlbValue == "nil" {
+		if srlbValue == "nil" || srlbValue == "" {
 			t.Errorf("FAIL- SRLB is not present on DUT")
 		} else {
 			t.Logf("SRLB is present on DUT value: %s", srlbValue)
@@ -310,9 +308,13 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 		mplsprot := netInstance.GetOrCreateMpls().GetOrCreateGlobal()
 		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetLowerBound(); got != oc.UnionUint32(SRReservedLabelblockLowerbound) {
 			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, SRReservedLabelblockLowerbound)
+		} else {
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, SRReservedLabelblockLowerbound)
 		}
 		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetUpperBound(); got != oc.UnionUint32(SRReservedLabelblockUpperbound) {
 			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, SRReservedLabelblockUpperbound)
+		} else {
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, SRReservedLabelblockUpperbound)
 		}
 	})
 }
@@ -341,7 +343,7 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	verifyMPLSSR(t, ts)
 
 	// Reconfigure MPLS SR
-	configureISISMPLSSRReconfigure(t, ts, 100000, 100001, "105000", "106000")
+	configureISISMPLSSRReconfigure(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure, srgbGblBlockReconfigure, srgbLclBlockReconfigure)
 
 	// Checking MPLS SR
 	verifyMPLSSR(t, ts)
