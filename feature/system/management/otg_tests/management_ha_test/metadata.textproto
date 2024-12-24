@@ -33,5 +33,17 @@ platform_exceptions:  {
     table_connections_unsupported: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    explicit_enable_bgp_on_default_vrf: true
+    peer_group_def_ebgp_vrf_unsupported: true
+    redis_connected_under_ebgp_vrf_unsupported: true
+    table_connections_unsupported: true
+    bgp_afi_safi_in_default_ni_before_other_ni: true
+  }
+}
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE

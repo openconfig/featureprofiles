@@ -15,7 +15,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_value_for_defaults: true
     skip_set_rp_match_set_options: true
-    default_import_export_policy: false
+    default_import_export_policy_unsupported: false
     skip_setting_statement_for_policy: true
   }
 }
@@ -33,7 +33,7 @@ platform_exceptions: {
   }
   deviations: {
     bgp_rib_oc_path_unsupported: true
-    default_import_export_policy: true
+    default_import_export_policy_unsupported: true
     skip_setting_statement_for_policy: true
     skip_checking_attribute_index: true
     flatten_policy_with_multiple_statements: true

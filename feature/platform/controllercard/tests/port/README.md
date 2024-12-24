@@ -19,18 +19,19 @@ expected OC paths.  The operational use case is:
 
 There are no DUT configuration pre-requisites for this test.  The DUT must
 contain the following component types:
-    2 `CONTROLLER_CARD` components
-    Each CONTROLLER_CARD contains at least one `PORT`
+
+* At least one `CONTROLLER_CARD` component
+* Each CONTROLLER_CARD must contain at least one `PORT`
 
 ## Procedure
 
-* gNMI-1.22: Validate component PORT attributes attached to a CONTROLLER_CARD
+* gNMI-1.22.1: Validate component PORT attributes attached to a CONTROLLER_CARD
   * gNMI Subscribe to the /components and /interfaces tree using ONCE option.
   * Verify each PORT present on a CONTROLLER_CARD has the following paths set:
     * Search the components to to find components of type PORT with parent = CONTROLLER_CARD
       * /components/component/state/parent = the appropriate component of type CONTROLLER_CARD
     * Search the /interfaces/interface/state/hardware-port values to find the expected /components/component/name for the physical port on the CONTROLLER_CARD
-      * For each of these interfaces, verify /interfaces/interface/state/cpu = TRUE
+      * For each of these interfaces, verify /interfaces/interface/state/management = TRUE
 
 ## OpenConfig Path and RPC Coverage
 
@@ -50,7 +51,7 @@ paths:
             "PORT"
         ]
     /interfaces/interface/state/name:
-    /interfaces/interface/state/cpu:
+    /interfaces/interface/state/management:
     /interfaces/interface/state/hardware-port:
 
 rpcs:

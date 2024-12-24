@@ -41,3 +41,26 @@ None
 ## Minimum DUT platform requirement
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
+  /lacp/config/system-priority:
+  /lacp/interfaces/interface/config/name:
+  /lacp/interfaces/interface/config/interval:
+  /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/config/system-id-mac:
+  /lacp/interfaces/interface/config/system-priority:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: false
+    gNMI.Subscribe:
+      on_change: false
+```

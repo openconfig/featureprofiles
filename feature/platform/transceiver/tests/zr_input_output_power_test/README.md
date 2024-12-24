@@ -17,6 +17,7 @@ power.
   * This is the total TX output power
   * Is mapped to component/optical-channel/ full path shown below
 
+The test must be repeated for each supported operational-mode or as agreed between the vendor and customer.
 
 ## TRANSCEIVER-4.1
 

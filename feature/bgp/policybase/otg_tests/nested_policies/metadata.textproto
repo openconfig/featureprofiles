@@ -28,4 +28,12 @@ platform_exceptions: {
     skip_checking_attribute_index: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    bgp_rib_oc_path_unsupported:  true
+  }
+}
 
