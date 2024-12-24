@@ -193,11 +193,11 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv4StaticRouteNextHop := ipv4StaticRoute.GetOrCreateNextHop("0")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
-	} else {
 		ipv4StaticRouteNextHop.Preference = ygot.Uint32(104)
+	} else {
+		ipv4StaticRouteNextHop.Metric = ygot.Uint32(104)
 	}
-	ipv4StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
+	ipv4StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv4))
 
 	ipv6StaticRoute := networkInstanceProtocolStatic.GetOrCreateStatic("2024:db8:128:128::/64")
 	if !deviations.UseVendorNativeTagSetConfig(dut) {
@@ -208,11 +208,11 @@ func configureDUTStatic(t *testing.T, dut *ondatra.DUTDevice) {
 
 	ipv6StaticRouteNextHop := ipv6StaticRoute.GetOrCreateNextHop("1")
 	if deviations.SetMetricAsPreference(dut) {
-		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
-	} else {
 		ipv6StaticRouteNextHop.Preference = ygot.Uint32(106)
+	} else {
+		ipv6StaticRouteNextHop.Metric = ygot.Uint32(106)
 	}
-	ipv6StaticRouteNextHop.SetNextHop(oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP)
+	ipv6StaticRouteNextHop.SetNextHop(oc.UnionString(atePort2.IPv6))
 
 	gnmi.Replace(t, dut, staticPath.Config(), networkInstanceProtocolStatic)
 }
@@ -339,28 +339,38 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	devices := otgConfig.Devices().Items()
 
+	var devPort1, devPort3 gosnappi.Device
+	for _, port := range devices {
+		switch port.Name() {
+		case atePort1.Name:
+			devPort1 = port
+		case atePort3.Name:
+			devPort3 = port
+		}
+	}
+
 	// eBGP v4 session on Port1.
-	bgp := devices[0].Bgp().SetRouterId(atePort1.IPv4)
-	iDut1Ipv4 := devices[0].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	bgp := devPort1.Bgp().SetRouterId(atePort1.IPv4)
+	iDut1Ipv4 := devPort1.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// eBGP v6 session on Port1.
-	iDut1Ipv6 := devices[0].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	iDut1Ipv6 := devPort1.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(atePort1.Name + ".BGP6.peer")
 	iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(atePeer1Asn).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 	// iBGP v4 session on Port3.
-	bgp = devices[2].Bgp().SetRouterId(atePort3.IPv4)
-	iDut3Ipv4 := devices[2].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+	bgp = devPort3.Bgp().SetRouterId(atePort3.IPv4)
+	iDut3Ipv4 := devPort3.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 	iDut3Bgp := bgp.SetRouterId(iDut3Ipv4.Address())
 	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3Ipv4.Name()).Peers().Add().SetName(atePort3.Name + ".BGP4.peer")
 	iDut3Bgp4Peer.SetPeerAddress(iDut3Ipv4.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	// iBGP v6 session on Port3.
-	iDut3Ipv6 := devices[2].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+	iDut3Ipv6 := devPort3.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3Ipv6.Name()).Peers().Add().SetName(atePort3.Name + ".BGP6.peer")
 	iDut3Bgp6Peer.SetPeerAddress(iDut3Ipv6.Gateway()).SetAsNumber(atePeer2Asn).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
@@ -422,7 +432,7 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 		if lossPct > tolerancePct {
-			t.Errorf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
+			t.Fatalf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
 		}
@@ -1000,7 +1010,7 @@ func redistributeStaticRoutePolicyWithCommunitySet(t *testing.T, dut *ondatra.DU
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetCommunity().SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
-	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRef(communitySetName)
+	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetCommunity().GetOrCreateReference().SetCommunitySetRefs([]string{communitySetName})
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 
@@ -1478,55 +1488,73 @@ func validateRedistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDe
 
 // Used by multiple IPv4 test validations for route presence and MED value
 func validateLearnedIPv4Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
+	var gotPrefix string
+	var gotMED uint32
 
-	_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny().State(),
-		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			return v.IsPresent()
+	found := false
+	_, ok := gnmi.WatchAll(t,
+		ate.OTG(),
+		gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			prefix, present := v.Val()
+			if present {
+				if prefix.GetAddress() == subnet {
+					gotPrefix = prefix.GetAddress()
+					gotMED = prefix.GetMultiExitDiscriminator()
+					if gotMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", gotPrefix, subnet)
+						t.Logf("Prefix MED %d", gotMED)
+						found = true
+						return true
+					}
+				}
+			}
+			return false
 		}).Await(t)
 
-	if !ok {
-		t.Errorf("No BGP prefixes learnt")
-	}
-
-	bgpPrefixes := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny().State())
-	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
-			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, subnet)
-			t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
-			if bgpPrefix.GetMultiExitDiscriminator() != expectedMED {
-				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), expectedMED)
-			}
-			break
-		}
+	if !shouldBePresent && !ok {
+		return
 	}
 
 	if !found {
-		t.Errorf("No Route found for prefix %s", subnet)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", gotPrefix, gotMED, expectedMED)
 	}
 }
 
 // Used by multiple IPv6 test validations for route presence and MED value
 func validateLearnedIPv6Prefix(t *testing.T, ate *ondatra.ATEDevice, bgpPeerName, subnet string, expectedMED uint32, shouldBePresent bool) {
-	time.Sleep(5 * time.Second)
+	var gotPrefix string
+	var gotMED uint32
 
-	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv6Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny().State())
 	found := false
-	for _, bgpPrefix := range bgpPrefixes {
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == subnet {
-			found = true
-			t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix, subnet)
-			t.Logf("Prefix MED %d", bgpPrefix.GetMultiExitDiscriminator())
-			if bgpPrefix.GetMultiExitDiscriminator() != expectedMED {
-				t.Errorf("For Prefix %v, got MED %d want MED %d", bgpPrefix.GetAddress(), bgpPrefix.GetMultiExitDiscriminator(), expectedMED)
+	_, ok := gnmi.WatchAll(t,
+		ate.OTG(),
+		gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny().State(),
+		30*time.Second,
+		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			prefix, present := v.Val()
+			if present {
+				if prefix.GetAddress() == subnet {
+					gotPrefix = prefix.GetAddress()
+					gotMED = prefix.GetMultiExitDiscriminator()
+					if gotMED == expectedMED {
+						t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", gotPrefix, subnet)
+						t.Logf("Prefix MED %d", gotMED)
+						found = true
+						return true
+					}
+				}
 			}
-			break
-		}
+			return false
+		}).Await(t)
+
+	if !shouldBePresent && !ok {
+		return
 	}
 
 	if !found {
-		t.Errorf("No Route found for prefix %s", subnet)
+		t.Fatalf("For Prefix %v, got MED %d want MED %d", gotPrefix, gotMED, expectedMED)
 	}
 }
 
@@ -1539,7 +1567,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 
-	awaitBGPEstablished(t, dut, []string{atePort1.IPv4, atePort3.IPv4})
+	awaitBGPEstablished(t, dut, []string{atePort1.IPv4, atePort3.IPv4, atePort1.IPv6, atePort3.IPv6})
 
 	type testCase struct {
 		name     string
