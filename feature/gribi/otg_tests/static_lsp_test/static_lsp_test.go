@@ -15,6 +15,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -139,17 +140,60 @@ func configureOTG(t *testing.T) gosnappi.Config {
 
 }
 
+// juniperMplsLSPConfig is used to configure mpls lsp configuration via native cli as an alternative to below xpaths.
+// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop
+// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label
+// /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label
+func juniperMplsLSPConfig(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) string {
+	p1 := dut.Port(t, "port1").Name()
+	p2 := dut.Port(t, "port2").Name()
+	return fmt.Sprintf(`
+	    interfaces {
+    		%s {
+        		unit %d {
+            		family mpls;
+        		}
+    		}
+    		%s {                          
+        		unit %d {                        
+            		family mpls;                
+        		}                               
+    		}                                   
+		}    
+		protocols {
+    		mpls {
+			    interface %s;
+				interface %s;
+        		static-label-switched-path %s {
+            		transit %d {
+                		next-hop %s;
+                		pop;
+            		}
+        		}
+    		}
+		}`, p1, 0, p2, 0, p1, p2, lspName, incomingLabel, nextHopIP)
+}
+
 // configureStaticLSP configures a static MPLS LSP with the provided parameters.
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string) {
-	d := &oc.Root{}
-	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
-	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
-	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
-	staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
-	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
-
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
-
+	if deviations.StaticLspConfigUnsupported(dut) {
+		t.Logf("Push config via native CLI:%s", dut.Vendor())
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			config := juniperMplsLSPConfig(t, dut, lspName, incomingLabel, nextHopIP)
+			helpers.GnmiCLIConfig(t, dut, config)
+		default:
+			t.Fatalf("StaticLspConfigUnsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+	}
 }
 
 func createTrafficFlow(t *testing.T,
@@ -286,6 +330,10 @@ func verifyTrafficStreams(t *testing.T,
 	ate.OTG().StopTraffic(t)
 	time.Sleep(10 * time.Second)
 
+	cs = gosnappi.NewControlState()
+	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
+	ate.OTG().SetControlState(t, cs)
+
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 
 	txPkts := float32(gnmi.Get(t, otg, gnmi.OTG().Flow(mplsFlow.Name()).Counters().OutPkts().State()))
@@ -323,7 +371,6 @@ func verifyTrafficStreams(t *testing.T,
 		return
 	}
 	ValidatePackets(t, f.Name(), mplsLabel2, tolerance)
-
 }
 
 // TestMplsStaticLabel
@@ -334,19 +381,14 @@ func TestMplsStaticLabel(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otgObj := ate.OTG()
 
-	if deviations.StaticLspConfigUnsupported(dut) {
-		t.Skipf("Skipping the testcase for unsupported device")
-	}
 	t.Run("configureDUT Interfaces", func(t *testing.T) {
 		// Configure the DUT
 		configureDUT(t, dut)
-
 	})
 
 	t.Run("ConfigureOTG", func(t *testing.T) {
 		t.Logf("Configure ATE")
 		top = configureOTG(t)
-
 	})
 
 	t.Run("Configure static LSP on DUT", func(t *testing.T) {
@@ -354,7 +396,6 @@ func TestMplsStaticLabel(t *testing.T) {
 		configureStaticLSP(t, dut, "lsp1", mplsLabel1, ateDst.IPv4)
 		// configure static lsp from ateDst to ateSrc
 		configureStaticLSP(t, dut, "lsp2", mplsLabel3, ateSrc.IPv4)
-
 	})
 
 	t.Run("Build OTG Traffic Flow", func(t *testing.T) {
@@ -364,12 +405,9 @@ func TestMplsStaticLabel(t *testing.T) {
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 		t.Logf("OTG Config is %s\n", top.String())
-
 	})
 
 	t.Run("Verify Static Label Traffic Flow", func(t *testing.T) {
 		verifyTrafficStreams(t, ate, top, otgObj, mplsFlow)
-
 	})
-
 }
