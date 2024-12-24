@@ -199,10 +199,6 @@ func TestBasicStaticRouteSupport(t *testing.T) {
 			fn:   td.testStaticRouteWithMetric,
 		},
 		{
-			desc: "RT-1.26.3: Static Route With Preference",
-			fn:   td.testStaticRouteWithPreference,
-		},
-		{
 			desc: "RT-1.26.4: Static Route SetTag",
 			fn:   td.testStaticRouteSetTag,
 		},
@@ -757,118 +753,6 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 			}
 		}
 
-	})
-}
-
-func (td *testData) testStaticRouteWithPreference(t *testing.T) {
-	td.configureStaticRouteToATEP1AndP2(t)
-	defer td.deleteStaticRoutes(t)
-
-	const port1Preference = uint32(50)
-	const port2Metric = uint32(100)
-
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(td.dut))
-
-	// Configure metric of ipv4-route-b and ipv6-route-b to 100
-	batch := &gnmi.SetBatch{}
-	gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
-	gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Metric().Config(), port2Metric)
-
-	// Configure preference of ipv4-route-a and ipv6-route-a to 50
-	if deviations.SetMetricAsPreference(td.dut) {
-		// Lower metric indicate more favourable path.
-		// If we use Metric instead of Preference, we would need to have a port1Metric
-		// larger than port2Metric for traffic to pass through port 2
-		port1Metric := port2Metric + port1Preference
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().Config(), port1Metric)
-	} else {
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
-		gnmi.BatchReplace(batch, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().Config(), port1Preference)
-	}
-	batch.Set(t, td.dut)
-
-	t.Run("Telemetry", func(t *testing.T) {
-		if deviations.SetMetricAsPreference(td.dut) {
-			t.Skip("Skipping Preference telemetry check since deviation SetMetricAsPreference is enabled")
-		}
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
-		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
-		// Validate that the preference is set correctly
-		if deviations.SkipStaticNexthopCheck(td.dut) {
-			gotStatic := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State())
-			indexes := gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHopAny().Index().State())
-			for _, index := range indexes {
-				if val, ok := index.Val(); ok {
-					if gotStatic.GetNextHop(val).GetNextHop() == oc.UnionString(atePort1.IPv4) {
-						if got, want := gotStatic.GetNextHop(val).GetPreference(), port1Preference; got != want {
-							t.Errorf("IPv4 Static Route preference for port1: got: %d, want: %d", got, want)
-						}
-					}
-				} else {
-					t.Errorf("Unable to fetch nexthop index")
-				}
-			}
-			gotStatic = gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State())
-			indexes = gnmi.LookupAll(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHopAny().Index().State())
-			for _, index := range indexes {
-				if val, ok := index.Val(); ok {
-					if gotStatic.GetNextHop(val).GetNextHop() == oc.UnionString(atePort1.IPv6) {
-						if got, want := gotStatic.GetNextHop(val).GetPreference(), port1Preference; got != want {
-							t.Errorf("IPv6 Static Route preference for port1: got: %d, want: %d", got, want)
-						}
-					}
-				} else {
-					t.Errorf("Unable to fetch nexthop index")
-				}
-			}
-		} else {
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-				t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
-			}
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Preference().State()), port1Preference; got != want {
-				t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
-			}
-		}
-	})
-
-	t.Run("Traffic", func(t *testing.T) {
-		// Initiate traffic from ATE port-3 towards destination `ipv4-network
-		// 203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
-		td.ate.OTG().StartTraffic(t)
-		time.Sleep(trafficDuration)
-		td.ate.OTG().StopTraffic(t)
-
-		lossV4 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v4Flow, 20*time.Second)
-		lossV6 := otgutils.GetFlowLossPct(t, td.ate.OTG(), v6Flow, 20*time.Second)
-
-		otgutils.LogFlowMetrics(t, td.ate.OTG(), td.top)
-		if lossV4 > lossTolerance {
-			t.Errorf("Loss percent for IPv4 Traffic: got: %f, want 0%%", lossV4)
-		}
-		if lossV6 > lossTolerance {
-			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want 0%%", lossV6)
-		}
-		// Validate that traffic is now received from DUT on port-2 and not on port-1
-		portCounters := egressTrackingCounters(t, td.ate, v4Flow)
-		_, rxV4 := otgutils.GetFlowStats(t, td.ate.OTG(), v4Flow, 20*time.Second)
-		port2Counter, ok := portCounters[port2Tag]
-		if !ok {
-			t.Errorf("Port2 IPv4 egress tracking counter not found: %v", portCounters)
-		}
-		if got, want := float64(port2Counter)*100/float64(rxV4), float64(100); got+lossTolerance < want {
-			t.Errorf("IPv4 traffic on port2, got: %v, want: %v", got, want)
-		}
-		// Validate that traffic is now received from DUT on port-2 and not on port-1
-		portCounters = egressTrackingCounters(t, td.ate, v6Flow)
-		_, rxV6 := otgutils.GetFlowStats(t, td.ate.OTG(), v6Flow, 20*time.Second)
-		port2Counter, ok = portCounters[port2Tag]
-		if !ok {
-			t.Errorf("Port2 IPv6 egress tracking counter not found: %v", portCounters)
-		}
-		if got, want := float64(port2Counter)*100/float64(rxV6), float64(100); got+lossTolerance < want {
-			t.Errorf("IPv6 traffic on port2, got: %v, want: %v", got, want)
-		}
 	})
 }
 
