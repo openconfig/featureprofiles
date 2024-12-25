@@ -1264,4 +1264,3 @@ func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
-
