@@ -177,16 +177,33 @@ func configureDUTLinkLocalInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	p1 := dut.Port(t, "port1")
 	srcIntf := dutSrc.NewOCInterface(p1.Name(), dut)
 	subInt := srcIntf.GetOrCreateSubinterface(0)
+	subInt4 := subInt.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		subInt4.Enabled = ygot.Bool(true)
+	}
 	subInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.LinkLocalMaskLen(dut) {
+		dutSrc.IPv6Len = 128
+	}
 	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	subInt.GetOrCreateIpv6().GetOrCreateAddress(dutSrc.IPv6).SetPrefixLength(dutSrc.IPv6Len)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), srcIntf)
-
 	p2 := dut.Port(t, "port2")
 	dstIntf := dutDst.NewOCInterface(p2.Name(), dut)
 	dstSubInt := dstIntf.GetOrCreateSubinterface(0)
+	dstSubInt4 := dstSubInt.GetOrCreateIpv4()
 	dstSubInt.GetOrCreateIpv6().Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		dstSubInt4.Enabled = ygot.Bool(true)
+	}
+	if deviations.LinkLocalMaskLen(dut) {
+		dutDst.IPv6Len = 128
+	}
 	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetType(oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST)
+	dstSubInt.GetOrCreateIpv6().GetOrCreateAddress(dutDst.IPv6).SetPrefixLength(dutDst.IPv6Len)
+
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dstIntf)
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -236,9 +253,15 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	p1 := dut.Port(t, "port1")
 	beforeInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
 	ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State(), time.Second*30, func(v *ygnmi.Value[uint64]) bool {
+		gotPkts, present := v.Val()
+		return present && (gotPkts-beforeInPkts) >= 100
+	}).Await(t)
+	if !ok {
+		t.Fatal("did not get expected number of packets after starting traffic. want > 100")
+	}
+
 	ate.OTG().StopTraffic(t)
-	time.Sleep(15 * time.Second)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
 	otgTxPkts := flowMetrics.GetOutPkts()
