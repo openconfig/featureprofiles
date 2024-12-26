@@ -42,8 +42,8 @@ gRPC service.
 
 Perform this for both RSA and ECDSA signed CA bundles and
 certificates.
-Perform this for the permutations of 1, 2, 10, 1000 CA
-trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
+Perform this for the permutations of 1, 2, 10, 1000, 20000 CA
+trust_bundle configurations: (## indicates the 1, 2, 10, 1000, 20000 CA testdata)
 
    1) Load the correct key-type trust bundle onto the device and client system:
         ca-##/trust_bundle_##_rsa.pem
@@ -102,13 +102,19 @@ certificates:
 
    5) Validate that the connection is properly torn down by the DUT.
    
-## Config Parameter Coverage
 
-## Telemetry Parameter Coverage
+## OpenConfig Path and RPC Coverage
 
-## Protocol/RPC Parameter Coverage
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
-None
+TODO(OCRPC): Record may not be correct or complete
+
+```yaml
+rpcs:
+  gnsi:
+    certz.v1.Certz.GetProfileList:
+```
+
 
 ## Minimum DUT Platform Requirement
 

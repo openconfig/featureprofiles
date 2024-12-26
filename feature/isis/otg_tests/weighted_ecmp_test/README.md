@@ -29,23 +29,25 @@ G[DUT:LAG4] <-- IBGP+IS-IS --> H[LAG3:ATE2];
 
 ## Procedure
 
-In the topology above,
+### Test environment setup
 
-*   Configure 1xLAG interface between ATE1<->DUT and 3xLAG interfaces between
-    DUT and ATE2. Each LAG interface is expected to be of 2x100Gbps
+*   Configure 1 aggregate interface with 2 100GE ports between DUT and ATE1
+*   Configure 3 aggregate interfaces, each with 2 100GE ports between DUT and ATE2.
+*   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE aggregate interfaces.
+    Therefore, DUT will have
+    * 1xIS-IS adjacency with ATE1 DUT:LAG1<->ATE1:LAG1, 
+    * 3xIS-IS adjacencies between DUT and ATE2
+        * DUT:LAG2<->ATE2:LAG1
+        * DUT:LAG3<->ATE2:LAG2
+        * DUT:LAG4<->ATE2:LAG3
 
-*   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE LAG bundles.
-    Therefore, DUT will have 1xIS-IS adjacency with ATE1 i.e.
-    DUT:LAG1<->ATE1:LAG1, and 3xIS-IS adjacencies with ATE2 i.e.
-    DUT:LAG2<->ATE2:LAG1, DUT:LAG3<->ATE2:LAG2 and DUT:LAG4<->ATE2:LAG3
-
-    *   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
-
-    *   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability,
-        set to LEVEL_2
-
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style
-        set to WIDE_METRIC
+    * Set ISIS parameters as
+        * /network-instances/network-instance/protocols/protocol/isis/global/
+            * afi-safi/af/config/afi-name: IPV4, IPV6
+            * afi-safi/af/config/safi-name: UNICAST
+            * afi-safi/af/config/enabled: true
+            * config/level-capability = LEVEL_2
+        * /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style = WIDE_METRIC
 
 *   Configure IPv4 and IPv6 IBGP peering between both ATEs and the DUT using
     their loopback addresses for both IPv4 and IPv6 address families.
@@ -74,14 +76,13 @@ In the topology above,
     *   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight
         set to Auto
 
-## RT-9.1: Equal distribution of traffic
+## RT-2.13.1: Equal distribution of traffic
 
 *   Start 1024 flows from IPv4 addresses in 100.0.2.0/24 to 100.0.1.0/24
 
 *   Start 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to
     2001:db8:64:64::/64
 
-*   Ensure that the total traffic of all flows combined is ~20Gbps
 
 ### Verification
 
@@ -115,7 +116,7 @@ In the topology above,
 
         *   /interfaces/interface/state/counters/in-pkts
 
-## RT-9.2: Unequal distribution of traffic
+## RT-2.13.2: Unequal distribution of traffic
 
 *   Stop traffic from RT-9.1 and introduce a failure by disabling one of the
     member interfaces in ATE2:LAG1.
@@ -125,7 +126,6 @@ In the topology above,
 *   Restart 1024 flows from IPv6 addresses in 2001:db8:64:65::/64 to
     2001:db8:64:64::/64
 
-*   Ensure that the total traffic of all flows combined is ~20Gbps
 
 ### Verification
 
@@ -144,44 +144,42 @@ In the topology above,
 
         *   /interfaces/interface/state/counters/in-pkts
 
-### Config paths
+## OpenConfig Path and RPC Coverage
 
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config
-*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config
+```yaml
+paths:
+  ## Config Paths ##
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/afi-name:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/safi-name:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+    value: exact
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+    value: ACCEPT_ROUTE
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy:
 
-*   /network-instances/network-instance/protocols/protocol/isis/global/afi-safi
+  ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/in-pkts:
 
-*   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability
-
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style
-
-*   /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp
-
-*   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range/exact
-
-*   /routing-policy/policy-definitions/policy-definition/config/name
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result/ACCEPT_ROUTE
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy
-
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy
-
-### Telemetry Parameter Coverage
-
-*   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp
-*   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight
-*   /interfaces/interface/state/counters/out-pkts
-*   /interfaces/interface/state/counters/in-pkts
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```

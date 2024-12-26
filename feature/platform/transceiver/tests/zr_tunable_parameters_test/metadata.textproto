@@ -11,6 +11,14 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    missing_port_to_optical_channel_component_mapping: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    operational_mode_unsupported:true
   }
 }
