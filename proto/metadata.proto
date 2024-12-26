@@ -667,7 +667,9 @@ message Metadata {
     // Juniper: b/358534837
     // Devices that do not support setting med value using union type in OC.
     bool bgp_set_med_v7_unsupported = 241;
-
+    // gRIBIencap_header_unsupported is set to true for devices that do not
+    // support encap header under gRIBI.
+    bool gribi_encap_header_unsupported = 242;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 90, 97, 55, 89, 19, 36, 35, 40, 173;
   }
