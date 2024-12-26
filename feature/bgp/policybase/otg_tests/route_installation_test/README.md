@@ -35,8 +35,8 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
 
   ## Telemetry Parameter Coverage
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor:
-  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/state/peer-group-name:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/export-policy:
   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/state/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
