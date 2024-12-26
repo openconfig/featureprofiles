@@ -220,7 +220,7 @@ test: {
 test: {
   id: "RT-1.19"
   description: "RT-1.19: BGP Link Bandwidth Community - Set Bandwidth"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn/README.md"
   exec: " "
 }
 test: {
@@ -250,7 +250,7 @@ test: {
 test: {
   id: "RT-1.24"
   description: "BGP 2-byte and 4-byte ASN support with policy"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/experimental/bgp/ate_tests/bgp_2byte_4byte_asn/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_2byte_4byte_asn_policy_test/README.md"
   exec: " "
 }
 test: {
