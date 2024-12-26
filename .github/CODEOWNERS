@@ -11,27 +11,27 @@
 *       @openconfig/featureprofiles-approvers
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
-/feature/acl/          @alokmtri-g
-/feature/aft/          @sudhinj @yunjie-lu
-/feature/bgp/          @dplore
+/feature/acl/          @openconfig/featureprofiles-owner-acl
+/feature/aft/          @openconfig/featureprofiles-owner-aft
+/feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
 /feature/gribi/        @nflath @nachikethas @xw-g
-/feature/interface/    @ram-mac
-/feature/isis/         @rohit-rp
-/feature/lldp/         @alokmtri-g
-/feature/mpls/         @swetha-haridasula
-/feature/mtu/          @swetha-haridasula
-/feature/networkinstance/    @swetha-haridasula
-/feature/platform/           @amrindrr
-/feature/platform/transceiver  @jianchen-g @yiwenhu-g @ahsaanyousaf @ejbrever @rezachit
-/feature/qos                 @sezhang2
+/feature/interface/    @openconfig/featureprofiles-owner-interface
+/feature/isis/         @openconfig/featureprofiles-owner-isis
+/feature/lldp/         @openconfig/featureprofiles-owner-lldp
+/feature/mpls/         @openconfig/featureprofiles-owner-mpls
+/feature/mtu/          @openconfig/featureprofiles-owner-mtu
+/feature/networkinstance/    @openconfig/featureprofiles-owner-networkinstance
+/feature/platform/           @openconfig/featureprofiles-owner-platform
+/feature/platform/transceiver  @openconfig/featureprofiles-owner-platform-transceiver
+/feature/qos                 @openconfig/featureprofiles-owner-qos
 /feature/routing_policy/     @swetha-haridasula
 /feature/sampling/           @sudhinj
-/feature/security            @mihirpitale-googler @morrowc
-/feature/staticroute/        @swetha-haridasula
+/feature/security            @openconfig/featureprofiles-owner-security
+/feature/staticroute/        @openconfig/featureprofiles-owner-staticroute
 /feature/stp/                @alokmtri-g
-/feature/system              @swetha-haridasula
+/feature/system              @openconfig/featureprofiles-owner-system
 /feature/vrrp                @amrindrr
 
 # Common OTG utilities 
