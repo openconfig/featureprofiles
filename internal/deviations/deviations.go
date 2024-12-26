@@ -1264,3 +1264,8 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
 }
+
+// GribiEncapHeaderUnsupported returns true if gribi encap header is unsupported
+func GribiEncapHeaderUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiEncapHeaderUnsupported()
+}
