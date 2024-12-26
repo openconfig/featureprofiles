@@ -1,0 +1,39 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "eb7e7ab2-5f58-4039-b862-13ad55459074"
+plan_id:  "RT-1.27"
+description:  "Static route to BGP redistribution"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  NOKIA
+  }
+  deviations:  {
+    explicit_port_speed:  true
+    explicit_interface_in_default_vrf:  true
+    aggregate_atomic_update:  true
+    static_protocol_name:  "static"
+    interface_enabled:  true
+    skip_set_rp_match_set_options:  true
+    skip_prefix_set_mode:  true
+    table_connections_unsupported:  true
+    use_vendor_native_tag_set_config:  true
+    skip_bgp_send_community_type:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor: ARISTA
+  }
+  deviations:  {
+    omit_l2_mtu: true
+    default_network_instance: "default"
+    interface_enabled: true
+    static_protocol_name: "STATIC"
+    skip_bgp_send_community_type: true
+    skip_setting_disable_metric_propagation: true
+    same_policy_attached_to_all_afis: true
+    set_metric_as_preference: true
+  }
+}

@@ -37,11 +37,21 @@ func GetFlowStats(t testing.TB, otg *otg.OTG, flowName string, timeout time.Dura
 	txPkts := gnmi.Get(t, otg, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
 
 	rxPkts, _ := gnmi.Watch(t, otg, gnmi.OTG().Flow(flowName).Counters().InPkts().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		rxPackets, ok := val.Val()
-		return ok && rxPackets == txPkts
+		rxPackets, present := val.Val()
+		return present && rxPackets == txPkts
 	}).Await(t)
+	if rxPkts == nil {
+		return txPkts, 0
+	}
 	rx, _ := rxPkts.Val()
 
 	return txPkts, rx
 
+}
+
+// GetFlowLossPct checks to see if all the flows are completely stopped and
+// returns the loss percentage for the given flow
+func GetFlowLossPct(t testing.TB, otg *otg.OTG, flowName string, timeout time.Duration) (lossPct float64) {
+	tx, rx := GetFlowStats(t, otg, flowName, timeout)
+	return (float64(tx) - float64(rx)) * 100 / float64(tx)
 }

@@ -95,7 +95,7 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandby, rpActive := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
@@ -197,6 +197,13 @@ func TestLinecardReboot(t *testing.T) {
 	t.Logf("Wait for 10s to allow the sub component's reboot process to start")
 	time.Sleep(10 * time.Second)
 
+	req := &spb.RebootStatusRequest{
+		Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+	}
+
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
 		t.Log("Waiting for 10 seconds before checking.")
@@ -205,7 +212,7 @@ func TestLinecardReboot(t *testing.T) {
 			retry = false
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
 		switch {
 		case status.Code(err) == codes.Unimplemented:
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
@@ -278,6 +285,13 @@ func TestFabricReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
+	req := &spb.RebootStatusRequest{
+		Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+	}
+
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
 	rebootDeadline := time.Now().Add(fabricBootTime)
 	for {
 		t.Log("Waiting for 10 seconds before checking.")
@@ -285,7 +299,7 @@ func TestFabricReboot(t *testing.T) {
 		if time.Now().After(rebootDeadline) {
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
 		if status.Code(err) == codes.Unimplemented {
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
 		}

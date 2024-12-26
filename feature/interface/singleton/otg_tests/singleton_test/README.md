@@ -73,6 +73,39 @@ a new testbed configuration with the desired port types.
 *   Ensure inbound and outbound unicast counters are the same
 *   Ensure counters increment at the selected SAMPLE interval
 
+### RT-5.1.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
+#### Breakout must be explicitly configured by gNMI client
+
+*   On DUT Port-1 with a QSFP-DD 400GBASE-DR4 transceiver inserted
+*   Ensure no breakout is configured
+*   Set Port-1 port-speed to 100G
+    *   /interfaces/interface/ethernet/config/port-speed
+*   Validate that the DUT does not create breakouts implicitly and does not set the breakout speed
+    *   /components/component/port/breakout-mode/groups/group/config
+    *   /components/component/port/breakout-mode/groups/group/config/index
+    *   /components/component/port/breakout-mode/groups/group/config/breakout-speed
+*   Validate the port state changes to "DOWN"
+    *   /interfaces/interface/state/oper-status
+
+### RT-5.1.5 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
+#### Setting port-speed on interface that have breakout configured should not be allowed
+
+*   Configure a breakout on Port-1 to 4x100 Gig
+    *   /components/component/port/breakout-mode/groups/group/config
+*   Try to set port speed of Port-1 to 100G
+    *   /interfaces/interface/ethernet/config/port-speed
+*   Validate the port-speed is rejected
+    *   Since a breakout port is not expected to support port-speed, verify the gNMI Set operation is rejected
+    *   /interfaces/interface/ethernet/state/port-speed
+
+### RT-5.1.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2338]
+#### Remove breakout and interface config to delete the interface config
+
+*   Using a single gNMI Replace, remove the DUT port-1 and its breakout config
+*   Ensure the gNMI Replace is successful and configuration for DUT port-1 including its breakout is removed
+    *   /interfaces/interface/ethernet/state/
+    *   /components/component/port/breakout-mode/groups/group/state
+
 ## Config Parameter Coverage
 
 * /interfaces/interface/config/name
@@ -136,3 +169,56 @@ a new testbed configuration with the desired port types.
 ## Minimum DUT Platform Requirement
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+  /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
+  /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/state/counters/in-discards: 
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/in-unknown-protos:
+  /interfaces/interface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts: 
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/description:
+  /interfaces/interface/state/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
+  /interfaces/interface/state/hardware-port: 
+  /interfaces/interface/state/id:
+  /interfaces/interface/state/counters/in-fcs-errors:
+  /interfaces/interface/state/counters/carrier-transitions:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: false
+    gNMI.Subscribe:
+      on_change: false
+```

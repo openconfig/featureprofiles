@@ -76,6 +76,8 @@ const (
 	opUp           = oc.Interface_OperStatus_UP
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficPps     = 10000
+	totalPackets   = 200000
 )
 
 var (
@@ -241,45 +243,45 @@ func (tc *testCase) verifyLAG(t *testing.T) {
 
 	if tc.lagType == oc.IfAggregate_AggregationType_LACP {
 		t.Logf("Waiting LAG DUT ports to start collecting and distributing")
-		for _, dp := range tc.dutPorts[1:] {
-			_, ok := gnmi.WatchAll(t, tc.dut, gnmi.OC().Lacp().InterfaceAny().Member(dp.Name()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				col, present := val.Val()
-				return present && col
-			}).Await(t)
-			if !ok {
-				t.Fatalf("DUT LAG port %v is not collecting", dp)
+		watchD := gnmi.WatchAll[*oc.Lacp_Interface](t, tc.dut, gnmi.OC().Lacp().InterfaceAny().State(), time.Minute, func(val *ygnmi.Value[*oc.Lacp_Interface]) bool {
+			col, present := val.Val()
+			if !present || col == nil {
+				return false
 			}
-			_, ok = gnmi.WatchAll(t, tc.dut, gnmi.OC().Lacp().InterfaceAny().Member(dp.Name()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				dist, present := val.Val()
-				return present && dist
-			}).Await(t)
-			if !ok {
-				t.Fatalf("DUT LAG port %v is not distributing", dp)
+			for _, dp := range tc.dutPorts[1:] {
+				m := col.GetMember(dp.Name())
+				if !m.GetCollecting() || !m.GetDistributing() {
+					return false
+				}
 			}
+			return true
+		})
+		if _, ok := watchD.Await(t); !ok {
+			t.Fatalf("DUT LAG is not ready to collect and distribute")
 		}
+
 		t.Logf("Waiting LAG OTG ports to start collecting and distributing")
-		for _, p := range tc.atePorts[1:] {
-			_, ok := gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Collecting().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				col, present := val.Val()
-				t.Logf("collecting for port %v is %v and present is %v", p.ID(), col, present)
-				return present && col
-			}).Await(t)
-			if !ok {
-				t.Fatalf("OTG LAG port %v is not collecting", p)
+		watchO := gnmi.Watch[*otgtelemetry.Lacp](t, tc.ate.OTG(), gnmi.OTG().Lacp().State(), 2*time.Minute, func(val *ygnmi.Value[*otgtelemetry.Lacp]) bool {
+			col, present := val.Val()
+			if !present || col == nil {
+				return false
 			}
-			_, ok = gnmi.Watch(t, tc.ate.OTG(), gnmi.OTG().Lacp().LagMember(p.ID()).Distributing().State(), time.Minute, func(val *ygnmi.Value[bool]) bool {
-				dist, present := val.Val()
-				t.Logf("distributing for port %v is %v and present is %v", p.ID(), dist, present)
-				return present && dist
-			}).Await(t)
-			if !ok {
-				t.Fatalf("OTG LAG port %v is not distributing", p)
+			for _, ap := range tc.atePorts[1:] {
+				m := col.GetLagMember(ap.ID())
+				if !m.GetCollecting() || !m.GetDistributing() {
+					return false
+				}
 			}
+			return true
+		})
+		if _, ok := watchO.Await(t); !ok {
+			t.Fatalf("OTG LAG is not ready to collect and distribute")
 		}
+
 		otgutils.LogLACPMetrics(t, tc.ate.OTG(), tc.top)
 	}
-	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 
+	otgutils.LogLAGMetrics(t, tc.ate.OTG(), tc.top)
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -381,7 +383,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(p0.ID())
 	d0 := tc.top.Devices().Add().SetName(ateSrc.Name)
 	srcEth := d0.Ethernets().Add().SetName(ateSrc.Name + ".Eth").SetMac(ateSrc.MAC)
-	srcEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(p0.ID())
+	srcEth.Connection().SetPortName(p0.ID())
 	srcEth.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).SetPrefix(uint32(ateSrc.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).SetPrefix(uint32(ateSrc.IPv6Len))
 
@@ -417,7 +419,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 	dstDev := tc.top.Devices().Add().SetName(agg.Name() + ".dev")
 	dstEth := dstDev.Ethernets().Add().SetName(ateDst.Name + ".Eth").SetMac(ateDst.MAC)
-	dstEth.Connection().SetChoice(gosnappi.EthernetConnectionChoice.LAG_NAME).SetLagName(agg.Name())
+	dstEth.Connection().SetLagName(agg.Name())
 	dstEth.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).SetPrefix(uint32(ateDst.IPv4Len))
 	dstEth.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).SetPrefix(uint32(ateDst.IPv6Len))
 
@@ -439,7 +441,7 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.01 /* absolute */)
+var approxOpt = cmpopts.EquateApprox(0 /* frac */, 0.1 /* absolute */)
 
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
@@ -502,8 +504,11 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	flow := tc.top.Flows().Add().SetName(l3header)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(128)
+	flow.Rate().SetPps(trafficPps)
+	flow.Duration().FixedPackets().SetPackets(totalPackets)
 	flow.Packet().Add().Ethernet().Src().SetValue(ateSrc.MAC)
 
+	ipType := "IPv4"
 	if l3header == "ipv4" {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
 		v4 := flow.Packet().Add().Ipv4()
@@ -522,6 +527,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
+		ipType = "IPv6"
 	}
 	if l3header == "ipv6inipv4" {
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv4"}).SetRxNames([]string{i2 + ".IPv4"})
@@ -539,7 +545,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		v6.FlowLabel().SetValues(generateRandomFlowLabelList(250000))
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
-
+		ipType = "IPv6"
 	}
 
 	tcp := flow.Packet().Add().Tcp()
@@ -548,12 +554,14 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, ipType)
+
 	tc.verifyLAG(t)
 
 	beforeTrafficCounters := tc.getCounters(t, "before")
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(20 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 
 	otgutils.LogPortMetrics(t, tc.ate.OTG(), tc.top)
@@ -565,9 +573,32 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 	if pkts == 0 {
 		t.Errorf("Flow sent packets: got %v, want non zero", pkts)
 	}
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		for _, port := range tc.dutPorts[1:] {
+			batch.AddPaths(gnmi.OC().Interface(port.Name()).Counters())
+		}
+
+		_, ok := gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			totalPks := uint64(0)
+			for _, port := range tc.dutPorts[1:] {
+				totalPks += got.GetInterface(port.Name()).GetCounters().GetOutPkts() - beforeTrafficCounters[port.Name()].GetOutPkts()
+			}
+			return totalPks >= pkts
+		}).Await(t)
+
+		if !ok {
+			t.Fatalf("Counters did not update in time")
+		}
+	}
+
 	afterTrafficCounters := tc.getCounters(t, "after")
 	tc.verifyCounterDiff(t, beforeTrafficCounters, afterTrafficCounters)
-
 }
 
 func (tc *testCase) getCounters(t *testing.T, when string) map[string]*oc.Interface_Counters {

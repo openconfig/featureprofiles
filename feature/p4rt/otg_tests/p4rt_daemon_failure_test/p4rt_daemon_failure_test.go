@@ -15,7 +15,6 @@
 package p4rt_daemon_failure_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/gribigo/fluent"
@@ -34,7 +34,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	syspb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -79,13 +78,6 @@ var (
 		MAC:     "02:12:01:00:00:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
-	}
-
-	p4rtDaemons = map[ondatra.Vendor]string{
-		ondatra.ARISTA:  "P4Runtime",
-		ondatra.CISCO:   "emsd",
-		ondatra.JUNIPER: "p4-switch",
-		ondatra.NOKIA:   "sr_p4rt_server",
 	}
 )
 
@@ -192,18 +184,6 @@ func startTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) gos
 	return flow
 }
 
-// pidByName uses telemetry to find out the PID of a process
-func pidByName(t *testing.T, dut *ondatra.DUTDevice, process string) (uint64, error) {
-	t.Helper()
-	ps := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
-	for _, p := range ps {
-		if p.GetName() == process {
-			return p.GetPid(), nil
-		}
-	}
-	return 0, fmt.Errorf("could not find PID for process: %s", process)
-}
-
 func installRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 
@@ -278,12 +258,10 @@ func subscribeOnChangeInterfaceID(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Wa
 	return watchID
 }
 
-func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.Watcher[string] {
+func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port) *gnmi.Watcher[string] {
 	t.Helper()
 
-	p1 := dut.Port(t, "port1")
-
-	interfaceNamePath := gnmi.OC().Interface(p1.Name()).Name().State()
+	interfaceNamePath := gnmi.OC().Interface(p.Name()).Name().State()
 	t.Logf("TRY: subscribe ON_CHANGE to %s", interfaceNamePath)
 
 	watchName := gnmi.Watch(t,
@@ -292,7 +270,7 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 		time.Minute,
 		func(val *ygnmi.Value[string]) bool {
 			iname, present := val.Val()
-			return present && iname == p1.Name()
+			return present && iname == p.Name()
 		})
 
 	return watchName
@@ -301,18 +279,14 @@ func subscribeOnChangeInterfaceName(t *testing.T, dut *ondatra.DUTDevice) *gnmi.
 func TestP4RTDaemonFailure(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	p4rtD, ok := p4rtDaemons[dut.Vendor()]
-	if !ok {
-		t.Fatalf("Please add support for vendor %v in var p4rtDaemons", dut.Vendor())
-	}
-
 	t.Logf("Configure DUT")
 	configureDUT(t, dut)
 
 	// Verify subscribe ON_CHANGE is supported using a commonly supported OC path.
-	watchName, ok := subscribeOnChangeInterfaceName(t, dut).Await(t)
+	p1 := dut.Port(t, "port1")
+	watchName, ok := subscribeOnChangeInterfaceName(t, dut, p1).Await(t)
 	if !ok {
-		t.Fatalf("FAIL:  /interfaces/interface[name=%q]/state/name got:%v want:%q", dut.Port(t, "port1").Name(), watchName, dut.Port(t, "port1").Name())
+		t.Fatalf("/interfaces/interface[name=%q]/state/name got:%v want:%q", p1.Name(), watchName, p1.Name())
 	}
 
 	// Subscribe ON_CHANGE to '/interfaces/interface/state/id'.
@@ -335,23 +309,7 @@ func TestP4RTDaemonFailure(t *testing.T) {
 
 	flow := startTraffic(t, ate, top)
 
-	pID, err := pidByName(t, dut, p4rtD)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c := dut.RawAPIs().GNOI(t)
-	req := &syspb.KillProcessRequest{
-		Name:    p4rtD,
-		Pid:     uint32(pID),
-		Signal:  syspb.KillProcessRequest_SIGNAL_TERM,
-		Restart: true,
-	}
-	resp, err := c.System().KillProcess(context.Background(), req)
-	t.Logf("Got kill process response: %v", resp)
-	if err != nil {
-		t.Fatalf("FAIL: to execute gNOI.KillProcess, error received: %v", err)
-	}
+	gnoi.KillProcess(t, dut, gnoi.P4RT, gnoi.SigTerm, true, true)
 
 	// let traffic keep running for another 10 seconds.
 	time.Sleep(10 * time.Second)
@@ -359,12 +317,15 @@ func TestP4RTDaemonFailure(t *testing.T) {
 	t.Logf("Stop traffic")
 	ate.OTG().StopTraffic(t)
 
-	// Verify interfaceID did not change since the last time we read it.
-	changedID, notOk := watchID.Await(t)
-	if notOk {
-		t.Errorf("FAIL: DUT changed /interfaces/interface/state/id  during p4rt process restart.  want:%q got:%q", dutPort1.ID, changedID.String())
+	// Skip check for CISCO devices that use the same process for P4RT & gNMI.
+	if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.NOKIA {
+		// Verify interfaceID did not change since the last time we read it.
+		changedID, notOk := watchID.Await(t)
+		if notOk {
+			t.Errorf("DUT changed /interfaces/interface/state/id during p4rt process restart.  want: %q got: %q", dutPort1.ID, changedID.String())
+		}
+		t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 	}
-	t.Logf("OK: no change detected in /interfaces/interface/state/id want:%q got:%q", dutPort1.ID, changedID.String())
 
 	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	txPackets := float32(recvMetric.GetCounters().GetOutPkts())

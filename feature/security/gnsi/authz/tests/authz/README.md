@@ -342,6 +342,9 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`, with `create_on` = `100` and `version` = `policy-normal-1_v1`.
   2. Ensure all results match per the above table for policy `policy-normal-1`.
 
+* TODO: Authz-1.5, "Test principle prefix and suffix match"
+  * Test the behavior of [prefix and suffix match on principles](https://github.com/grpc/proposal/blob/eb0d8fcc93820d3039ac851f8a36bdf2554cab6a/A43-grpc-authorization-api.md?plain=1#L73-L74)
+
 ### Authz-2, test rotation behavior
 
 * Authz-2.1, "Test only one rotation request at a time"
@@ -397,3 +400,16 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   2. Reboot the device.
   3. Reconnect to the device, issue `gNSI.Get` and `gNMI.Get` and validate the value of `version`, `created_on` and gRPC policy content does not change.
   4. Ensure actual corresponding clients are authorized per the the above table for policy `policy-normal-1`.
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+
+TODO(OCRPC): Record is not complete
+
+```yaml
+rpcs:
+  gnsi:
+    authz.v1.Authz.Get:
+```
+
