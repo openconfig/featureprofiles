@@ -16,7 +16,7 @@
 /feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac
-/feature/gribi/        @nflath @nachikethas @xw-g
+/feature/gribi/        @openconfig/featureprofiles-owner-gribi
 /feature/interface/    @openconfig/featureprofiles-owner-interface
 /feature/isis/         @openconfig/featureprofiles-owner-isis
 /feature/lldp/         @openconfig/featureprofiles-owner-lldp
