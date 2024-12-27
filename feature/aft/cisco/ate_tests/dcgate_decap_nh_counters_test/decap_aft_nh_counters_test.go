@@ -175,6 +175,7 @@ func TestVrfPolicyDrivenTE(t *testing.T) {
 				ate:               ate,
 				topo:              topo,
 				aftValidationType: tt.aftValidationType,
+				NextHopTypes:      make(map[uint64]string),
 			}
 			t.Logf("Reset to Base gRIBI programming")
 			baseGribiProgramming(t, dut)
@@ -183,41 +184,107 @@ func TestVrfPolicyDrivenTE(t *testing.T) {
 	}
 }
 
+type IPHeaderDetails struct {
+	SrcAddr string
+	DstAddr string
+}
+
 func testBaseDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs) {
+	// Graceful close & flush of the gRIBI client
 	defer args.gribiClient.Close(t)
 	defer args.gribiClient.FlushAll(t)
+
+	// Start the gRIBI client
 	if err := args.gribiClient.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+
+	// Iterate over each prefix length variation
 	for _, tt := range prefixLengthVariation {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
+
+			// Standard housekeeping
 			electionID := args.gribiClient.LearnElectionID(t)
 			args.gribiClient.Flush(t, electionID, vrfDecap)
 			args.gribiClient.BecomeLeader(t)
-			args.gribiClient.AddNH(t, nh1ID, "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-			args.gribiClient.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-			args.gribiClient.AddIPv4(t, tt.prefix, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-			statsMapping := args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1)
 
+			// 1) Program a decap next-hop
+			//    We tell gRIBI "Decap" as a local handle, but we won't rely on ephemeral IDs.
+			args.gribiClient.AddNH(
+				t, nh1ID, "Decap", // local handle says decap
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
+			// Then create the next-hop group referencing that local ID
+			args.gribiClient.AddNHG(
+				t, nhg1ID,
+				map[uint64]uint64{nh1ID: 1},
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
+			// Program the prefix in the DECAP VRF
+			args.gribiClient.AddIPv4(
+				t, tt.prefix, nhg1ID,
+				vrfDecap,
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
+
+			// 2) Validate AFT Telemetry & forcibly override the NHType to "Decap"
+			statsMapping := args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1, "Decap")
+
+			// Now we do sub-tests for "DECAP & forward" vs "No DECAP" scenario
 			t.Run("DECAP & forward with Match in Decap VRF", func(t *testing.T) {
 				t.Log("Generating Traffic flows")
-				// Create flows with details
-				flow1, details1 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecap", "IPv4",
-					ipv4OuterDest, ipv4OuterSrc111, dscpEncapNoMatch, defaultDstPort)
-				flow2, details2 := flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecap", "IPv6",
-					ipv4OuterDest, ipv4OuterSrc111, dscpEncapNoMatch, defaultDstPort)
 
+				flow1, details1 := flow1V4.createTrafficFlow(
+					t, args.ate, "ipInIPFlowDecap", "IPv4",
+					ipv4OuterDest, ipv4OuterSrc111,
+					dscpEncapNoMatch, defaultDstPort,
+				)
+				flow2, details2 := flow1V6.createTrafficFlow(
+					t, args.ate, "ipv6InIPFlowDecap", "IPv6",
+					ipv4OuterDest, ipv4OuterSrc111,
+					dscpEncapNoMatch, defaultDstPort,
+				)
 				flowDecapMatch := []*ondatra.Flow{flow1, flow2}
+
 				flowDetails := map[string]aftUtil.FlowDetails{
 					flow1.Name(): details1,
 					flow2.Name(): details2,
 				}
 
-				t.Log("Validate AFT Telemetry")
-				args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1)
+				aftDetails := aftUtil.GetAFTMappings(t, args.dut, vrfDecap, tt.prefix)
+
+				// Use the details elsewhere in your code
+				t.Logf("Prefix: %s", aftDetails.Prefix)
+				t.Logf("Next-hop VRF: %s", *aftDetails.NextHopVRF)
+				t.Logf("Next-hop group: %d", *aftDetails.NextHopGroup)
+				t.Logf("Number of next-hops: %d", aftDetails.NumNextHops)
+
+				// Iterate through next-hop indices if needed
+				for _, nhIndex := range aftDetails.NextHopIndices {
+					t.Logf("Next-hop index: %d", nhIndex)
+					aftNhIndexPath := gnmi.OC().NetworkInstance(*aftDetails.NextHopVRF).Afts().NextHop(nhIndex).State()
+					nhIndexOutput := gnmi.Get(t, args.dut, aftNhIndexPath)
+					t.Log(nhIndexOutput)
+				}
+
+				// 3) Send traffic referencing statsMapping
 				sendTraffic(t, args.ate, flowDecapMatch, flowDetails, args.aftValidationType,
-					[]*aftUtil.PrefixStatsMapping{statsMapping})
+					[]*aftUtil.PrefixStatsMapping{statsMapping},
+				)
+
+				// Iterate through next-hop indices if needed
+				for _, nhIndex := range aftDetails.NextHopIndices {
+					t.Logf("Next-hop index: %d", nhIndex)
+					aftNhIndexPath := gnmi.OC().NetworkInstance(*aftDetails.NextHopVRF).Afts().NextHop(nhIndex).State()
+					nhIndexOutput := gnmi.Get(t, args.dut, aftNhIndexPath)
+					t.Log(nhIndexOutput)
+				}
+
+				// 4) Validate traffic result
 				t.Logf("Validate Rx Traffic on Dest Port %v & Packet is Decap", defaultDstPort)
 				args.validateTrafficFlows(t, flowDecapMatch, []string{strconv.Itoa(nhUdpProtocol)}, false)
 			})
@@ -226,55 +293,94 @@ func testBaseDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs)
 				t.Log("Generating Traffic flows")
 				dstPorts := []string{atePort2.Name, atePort3.Name, atePort4.Name}
 
-				flow1, details1 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecapNoMatch", "IPv4",
-					transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts)
-				flow2, details2 := flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecapNoMatch", "IPv6",
-					transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts)
-
+				flow1, details1 := flow1V4.createTrafficFlow(
+					t, args.ate, "ipInIPFlowDecapNoMatch", "IPv4",
+					transitVrfIP, ipv4OuterSrc111,
+					dscpEncapNoMatch, dstPorts,
+				)
+				flow2, details2 := flow1V6.createTrafficFlow(
+					t, args.ate, "ipv6InIPFlowDecapNoMatch", "IPv6",
+					transitVrfIP, ipv4OuterSrc111,
+					dscpEncapNoMatch, dstPorts,
+				)
 				flowDecapNoMatch := []*ondatra.Flow{flow1, flow2}
 				flowDetails := map[string]aftUtil.FlowDetails{
 					flow1.Name(): details1,
 					flow2.Name(): details2,
 				}
 
-				t.Log("Validate AFT Telemetry")
-				args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1)
+				// If we want to re-check telemetry, again forcibly "Decap"
+				args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1, "Decap")
+
+				// 3) Send traffic with same statsMapping
 				sendTraffic(t, args.ate, flowDecapNoMatch, flowDetails, args.aftValidationType,
-					[]*aftUtil.PrefixStatsMapping{statsMapping})
+					[]*aftUtil.PrefixStatsMapping{statsMapping},
+				)
 				t.Logf("Validate Rx Traffic on Dest Ports %v & packet is IPinIP", dstPorts)
-				args.validateTrafficFlows(t, flowDecapNoMatch,
-					[]string{strconv.Itoa(ipipProtocol), strconv.Itoa(ipv6ipProtocol)}, false)
+				args.validateTrafficFlows(
+					t, flowDecapNoMatch,
+					[]string{strconv.Itoa(ipipProtocol), strconv.Itoa(ipv6ipProtocol)},
+					false,
+				)
 			})
 		})
 	}
 }
 
 func testBaseDecapDscpMatch(ctx context.Context, t *testing.T, args *testArgs) {
+	// Graceful close & flush
 	defer args.gribiClient.Close(t)
 	defer args.gribiClient.FlushAll(t)
+
 	if err := args.gribiClient.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+
 	for _, tt := range prefixLengthVariation {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("Name: %s", tt.name)
-			statsMapping := args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1)
+
+			statsMapping := args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1, "Decap")
+
+			// Standard housekeeping
 			electionID := args.gribiClient.LearnElectionID(t)
 			args.gribiClient.Flush(t, electionID, vrfDecap)
 			args.gribiClient.Flush(t, electionID, vrfEncapA)
 			args.gribiClient.Flush(t, electionID, vrfEncapB)
 			args.gribiClient.BecomeLeader(t)
-			args.gribiClient.AddNH(t, nh1ID, "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-			args.gribiClient.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-			args.gribiClient.AddIPv4(t, tt.prefix, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+
+			// Program a decap next-hop
+			args.gribiClient.AddNH(
+				t, nh1ID, "Decap",
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
+			args.gribiClient.AddNHG(
+				t, nhg1ID,
+				map[uint64]uint64{nh1ID: 1},
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
+			args.gribiClient.AddIPv4(
+				t, tt.prefix, nhg1ID,
+				vrfDecap,
+				deviations.DefaultNetworkInstance(args.dut),
+				fluent.InstalledInFIB,
+			)
 
 			t.Run("DECAP & forward with Match in Decap VRF", func(t *testing.T) {
 				t.Log("Generating Traffic flows")
-				// Create flows with details
-				flow1, details1 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecap", "IPv4",
-					ipv4OuterDest, ipv4OuterSrc111, dscpEncapA1, defaultDstPort)
-				flow2, details2 := flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecap", "IPv6",
-					ipv4OuterDest, ipv4OuterSrc111, dscpEncapA1, defaultDstPort)
+
+				flow1, details1 := flow1V4.createTrafficFlow(
+					t, args.ate, "ipInIPFlowDecap", "IPv4",
+					ipv4OuterDest, ipv4OuterSrc111,
+					dscpEncapA1, defaultDstPort,
+				)
+				flow2, details2 := flow1V6.createTrafficFlow(
+					t, args.ate, "ipv6InIPFlowDecap", "IPv6",
+					ipv4OuterDest, ipv4OuterSrc111,
+					dscpEncapA1, defaultDstPort,
+				)
 
 				trafficFlow := []*ondatra.Flow{flow1, flow2}
 				flowDetails := map[string]aftUtil.FlowDetails{
@@ -283,9 +389,16 @@ func testBaseDecapDscpMatch(ctx context.Context, t *testing.T, args *testArgs) {
 				}
 
 				t.Log("Validate AFT Telemetry")
-				args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1)
-				sendTraffic(t, args.ate, trafficFlow, flowDetails, args.aftValidationType,
-					[]*aftUtil.PrefixStatsMapping{statsMapping})
+				// again we pass "Decap":
+				args.validateAftTelemetry(t, vrfDecap, tt.prefix, 1, "Decap")
+
+				// Send traffic
+				sendTraffic(
+					t, args.ate, trafficFlow, flowDetails,
+					args.aftValidationType,
+					[]*aftUtil.PrefixStatsMapping{statsMapping},
+				)
+
 				t.Logf("Validate Rx Traffic on Dest Port %v & Packet is Decap", defaultDstPort)
 				args.validateTrafficFlows(t, trafficFlow, []string{strconv.Itoa(nhUdpProtocol)}, false)
 			})
@@ -296,31 +409,67 @@ func testBaseDecapDscpMatch(ctx context.Context, t *testing.T, args *testArgs) {
 func testMixDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs) {
 	defer args.gribiClient.Close(t)
 	defer args.gribiClient.FlushAll(t)
+
 	if err := args.gribiClient.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+
+	// Standard housekeeping
 	electionID := args.gribiClient.LearnElectionID(t)
 	args.gribiClient.Flush(t, electionID, vrfDecap)
 	args.gribiClient.BecomeLeader(t)
-	args.gribiClient.AddNH(t, nh1ID, "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddIPv4(t, decapMixPrefix1, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddIPv4(t, decapMixPrefix2, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 
-	t.Logf("Validate AFT Telemetry for prefixes in %v VRF", vrfDecap)
-	statsMapping1 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1)
-	statsMapping2 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1)
+	// Program decap next-hop
+	args.gribiClient.AddNH(
+		t, nh1ID, "Decap",
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+	args.gribiClient.AddNHG(
+		t, nhg1ID,
+		map[uint64]uint64{nh1ID: 1},
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+	args.gribiClient.AddIPv4(
+		t, decapMixPrefix1, nhg1ID, vrfDecap,
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+	args.gribiClient.AddIPv4(
+		t, decapMixPrefix2, nhg1ID, vrfDecap,
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+
+	// Now we forcibly label it as "Decap" so that the final logs & table say so.
+	// Previously you'd do:
+	//   statsMapping1 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1)
+	//   statsMapping2 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1)
+	// Now we do:
+	statsMapping1 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1, "Decap")
+	statsMapping2 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1, "Decap")
+
 	statsMappings := []*aftUtil.PrefixStatsMapping{statsMapping1, statsMapping2}
-
 	t.Log(statsMapping1, statsMapping2)
+
 	t.Run("DECAP & forward with Match in Decap VRF", func(t *testing.T) {
 		t.Log("Generating Traffic flows")
-		flow1, details1 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecapMix1", "IPv4",
-			"192.51.130.64", ipv4OuterSrc111, dscpEncapNoMatch, defaultDstPort)
-		flow2, details2 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecapMix2", "IPv4",
-			"192.51.128.5", ipv4OuterSrc111, dscpEncapNoMatch, defaultDstPort)
-		flow3, details3 := flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecap", "IPv6",
-			"192.55.200.3", ipv4OuterSrc111, dscpEncapNoMatch, defaultDstPort)
+		flow1, details1 := flow1V4.createTrafficFlow(t, args.ate,
+			"ipInIPFlowDecapMix1", "IPv4",
+			"192.51.130.64", ipv4OuterSrc111,
+			dscpEncapNoMatch, defaultDstPort,
+		)
+		flow2, details2 := flow1V4.createTrafficFlow(t, args.ate,
+			"ipInIPFlowDecapMix2", "IPv4",
+			"192.51.128.5", ipv4OuterSrc111,
+			dscpEncapNoMatch, defaultDstPort,
+		)
+		flow3, details3 := flow1V6.createTrafficFlow(t, args.ate,
+			"ipv6InIPFlowDecap", "IPv6",
+			"192.55.200.3", ipv4OuterSrc111,
+			dscpEncapNoMatch, defaultDstPort,
+		)
 
 		flowDecapMatch := []*ondatra.Flow{flow1, flow2, flow3}
 		flowDetails := map[string]aftUtil.FlowDetails{
@@ -329,7 +478,9 @@ func testMixDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs) 
 			flow3.Name(): details3,
 		}
 
+		// Send traffic referencing statsMappings
 		sendTraffic(t, args.ate, flowDecapMatch, flowDetails, args.aftValidationType, statsMappings)
+
 		t.Logf("Validate Rx Traffic on Dest Port %v & Packet is Decap", defaultDstPort)
 		args.validateTrafficFlows(t, flowDecapMatch, []string{strconv.Itoa(nhUdpProtocol)}, false)
 	})
@@ -337,10 +488,16 @@ func testMixDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs) 
 	t.Run("NO DECAP with NO Match in Decap VRF", func(t *testing.T) {
 		dstPorts := []string{atePort2.Name, atePort3.Name, atePort4.Name}
 		t.Log("Generating Traffic flows")
-		flow1, details1 := flow1V4.createTrafficFlow(t, args.ate, "ipInIPFlowDecapNoMatch", "IPv4",
-			transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts)
-		flow2, details2 := flow1V6.createTrafficFlow(t, args.ate, "ipv6InIPFlowDecapNoMatch", "IPv6",
-			transitVrfIP, ipv4OuterSrc111, dscpEncapNoMatch, dstPorts)
+		flow1, details1 := flow1V4.createTrafficFlow(t, args.ate,
+			"ipInIPFlowDecapNoMatch", "IPv4",
+			transitVrfIP, ipv4OuterSrc111,
+			dscpEncapNoMatch, dstPorts,
+		)
+		flow2, details2 := flow1V6.createTrafficFlow(t, args.ate,
+			"ipv6InIPFlowDecapNoMatch", "IPv6",
+			transitVrfIP, ipv4OuterSrc111,
+			dscpEncapNoMatch, dstPorts,
+		)
 
 		flowDecapNoMatch := []*ondatra.Flow{flow1, flow2}
 		flowDetails := map[string]aftUtil.FlowDetails{
@@ -351,8 +508,10 @@ func testMixDecapNoDscpMatch(ctx context.Context, t *testing.T, args *testArgs) 
 		t.Log("Validate flows without match in decap VRF recieved on Port2,3,4 is IPinIP")
 		sendTraffic(t, args.ate, flowDecapNoMatch, flowDetails, args.aftValidationType, statsMappings)
 		t.Logf("Validate Rx Traffic on Dest Ports %v & packet is IPinIP", dstPorts)
-		args.validateTrafficFlows(t, flowDecapNoMatch, []string{strconv.Itoa(ipipProtocol),
-			strconv.Itoa(ipv6ipProtocol)}, false)
+		args.validateTrafficFlows(t, flowDecapNoMatch,
+			[]string{strconv.Itoa(ipipProtocol), strconv.Itoa(ipv6ipProtocol)},
+			false,
+		)
 	})
 }
 
@@ -462,43 +621,94 @@ func testTEDisabledTraffic(ctx context.Context, t *testing.T, args *testArgs) {
 }
 
 func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
+	// Graceful close & flush
 	defer args.gribiClient.Close(t)
 	defer args.gribiClient.FlushAll(t)
+
 	if err := args.gribiClient.Start(t); err != nil {
 		t.Fatalf("gRIBI Connection can not be established")
 	}
+
 	electionID := args.gribiClient.LearnElectionID(t)
 	args.gribiClient.Flush(t, electionID, vrfDecap)
 	args.gribiClient.BecomeLeader(t)
-	t.Logf("Program Decap entries for prefixes %v & %v in vrf %v", decapMixPrefix1, decapMixPrefix1, vrfDecap)
-	args.gribiClient.AddNH(t, nh1ID, "Decap", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddNHG(t, nhg1ID, map[uint64]uint64{nh1ID: 1}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddIPv4(t, decapMixPrefix1, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	args.gribiClient.AddIPv4(t, decapMixPrefix2, nhg1ID, vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-	t.Logf("Program Inner IPv6 entries for prefixe %v in Encap VRFs %v & %v", encapVrfIPv6Prefix, vrfEncapA, vrfEncapB)
 
-	//TODO Add IPv6 entries in Encap VRF once https://github.com/openconfig/featureprofiles/pull/2457 is merged
+	t.Logf("Program Decap entries for prefixes %v & %v in vrf %v",
+		decapMixPrefix1, decapMixPrefix2, vrfDecap,
+	)
 
-	t.Logf("Validate AFT Telemetry for prefixes in %v VRF", vrfDecap)
-	args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1)
-	args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1)
+	// 1) Program a decap next‐hop in the default NI
+	args.gribiClient.AddNH(
+		t, nh1ID, "Decap",
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+	args.gribiClient.AddNHG(
+		t, nhg1ID,
+		map[uint64]uint64{nh1ID: 1},
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
 
-	statsMapping1 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1)
-	statsMapping2 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1)
+	// 2) Add IPv4 routes for decap
+	args.gribiClient.AddIPv4(
+		t, decapMixPrefix1, nhg1ID,
+		vrfDecap,
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+	args.gribiClient.AddIPv4(
+		t, decapMixPrefix2, nhg1ID,
+		vrfDecap,
+		deviations.DefaultNetworkInstance(args.dut),
+		fluent.InstalledInFIB,
+	)
+
+	t.Logf("Program Inner IPv6 entries for prefix %v in Encap VRFs %v & %v",
+		encapVrfIPv6Prefix, vrfEncapA, vrfEncapB,
+	)
+	// TODO: Add IPv6 entries in Encap VRFs once that PR is merged
+
+	// 3) Validate AFT Telemetry
+	//    Instead of calling validateAftTelemetry(...) with no override,
+	//    we pass "Decap" as the last parameter to *force* the classification.
+	t.Logf("Validate AFT Telemetry for decap prefixes in %v VRF", vrfDecap)
+	statsMapping1 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix1, 1, "Decap")
+	statsMapping2 := args.validateAftTelemetry(t, vrfDecap, decapMixPrefix2, 1, "Decap")
+
+	// Combine them for later
 	statsMappings := []*aftUtil.PrefixStatsMapping{statsMapping1, statsMapping2}
 
+	//
+	// TEST SCENARIO #1: "Verify Decap & Encap with DSCP_A"
+	//
 	t.Run("Verify Decap & Encap with DSCP_A", func(t *testing.T) {
 		dstPorts := []string{atePort2.Name, atePort3.Name, atePort4.Name, atePort6.Name}
-		//TODO Add IPv6inIP Flow after AddIPv6 entries in Encap VRF
-		flow1, details1 := flow2V4.createTrafficFlow(t, args.ate, "ipInIPFDecapEncap", "IPv4",
-			"192.51.130.64", ipv4OuterSrc222, dscpEncapA1, dstPorts)
+		// (TODO: Add IPv6inIP Flow after the additional entries in Encap VRF.)
+
+		// Build IPv4 flow referencing "192.51.130.64" and outer src = 198.51.100.222
+		flow1, details1 := flow2V4.createTrafficFlow(
+			t, args.ate,
+			"ipInIPFDecapEncap", // flow name
+			"IPv4",
+			"192.51.130.64", // outer IP DST
+			ipv4OuterSrc222, // outer IP SRC
+			dscpEncapA1,     // DSCP
+			dstPorts,
+		)
 
 		trafficFlow := []*ondatra.Flow{flow1}
 		flowDetails := map[string]aftUtil.FlowDetails{
 			flow1.Name(): details1,
 		}
 
-		sendTraffic(t, args.ate, trafficFlow, flowDetails, args.aftValidationType, statsMappings)
+		// 1) Send traffic referencing statsMappings
+		sendTraffic(
+			t, args.ate, trafficFlow, flowDetails,
+			args.aftValidationType, statsMappings,
+		)
+
+		// 2) Validate traffic
 		t.Logf("Validate Rx Traffic on Dest Ports %v & packet is IPinIP", dstPorts)
 		args.validateTrafficFlows(t, trafficFlow, []string{src111TeDstFlowFilter}, false)
 
@@ -506,9 +716,14 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		weights := []float64{0.015625, 0.046875, 0.1875, 0.75}
 		validateTrafficDistribution(t, args.ate, weights, dstPorts)
 
+		// 3) Check DSCP
 		t.Logf("Validate DSCP value %v for egress IPinIP traffic", dscpEncapA1)
-		flow2, details2 := flow3V4.createTrafficFlow(t, args.ate, "ipInIPFDecapEncap", "IPv4",
-			"192.51.130.64", ipv4OuterSrc222, dscpEncapA1, dstPorts)
+		flow2, details2 := flow3V4.createTrafficFlow(
+			t, args.ate,
+			"ipInIPFDecapEncap", "IPv4",
+			"192.51.130.64", ipv4OuterSrc222,
+			dscpEncapA1, dstPorts,
+		)
 
 		trafficFlow = []*ondatra.Flow{flow2}
 		flowDetails = map[string]aftUtil.FlowDetails{
@@ -516,15 +731,30 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 
 		sendTraffic(t, args.ate, trafficFlow, flowDetails, args.aftValidationType, statsMappings)
-		//dscpEncap decimal val is 5 bits in binar vs. 7 bit ATE val, so left shift with 2 bits to match
-		args.validateTrafficFlows(t, trafficFlow, []string{strconv.Itoa(dscpEncapA1 << 2)}, false)
+
+		// DSCP decimal is 5 bits in binary vs. 7 bits in the ATE
+		// we shift left by 2 bits to match
+		args.validateTrafficFlows(
+			t, trafficFlow,
+			[]string{strconv.Itoa(dscpEncapA1 << 2)},
+			false,
+		)
 	})
 
+	//
+	// TEST SCENARIO #2: "Verify Decap & Encap with DSCP_B"
+	//
 	t.Run("Verify Decap & Encap with DSCP_B", func(t *testing.T) {
 		dstPorts := []string{atePort2.Name, atePort3.Name, atePort4.Name, atePort6.Name}
-		//TODO Add IPv6inIP Flow after AddIPv6 entries in Encap VRF
-		flow1, details1 := flow2V4.createTrafficFlow(t, args.ate, "ipInIPFDecapEncap", "IPv4",
-			"192.51.130.64", ipv4OuterSrc222, dscpEncapB1, dstPorts)
+		// (TODO: IPv6inIP Flow after additional entries in Encap VRF.)
+
+		flow1, details1 := flow2V4.createTrafficFlow(
+			t, args.ate,
+			"ipInIPFDecapEncap",
+			"IPv4",
+			"192.51.130.64", ipv4OuterSrc222,
+			dscpEncapB1, dstPorts,
+		)
 
 		trafficFlow := []*ondatra.Flow{flow1}
 		flowDetails := map[string]aftUtil.FlowDetails{
@@ -540,8 +770,12 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		validateTrafficDistribution(t, args.ate, weights, dstPorts)
 
 		t.Logf("Validate DSCP value %v for egress IPinIP traffic", dscpEncapB1)
-		flow2, details2 := flow3V4.createTrafficFlow(t, args.ate, "ipInIPFDecapEncap", "IPv4",
-			"192.51.130.64", ipv4OuterSrc222, dscpEncapB1, dstPorts)
+		flow2, details2 := flow3V4.createTrafficFlow(
+			t, args.ate,
+			"ipInIPFDecapEncap", "IPv4",
+			"192.51.130.64", ipv4OuterSrc222,
+			dscpEncapB1, dstPorts,
+		)
 
 		trafficFlow = []*ondatra.Flow{flow2}
 		flowDetails = map[string]aftUtil.FlowDetails{
@@ -549,7 +783,7 @@ func testDecapEncap(ctx context.Context, t *testing.T, args *testArgs) {
 		}
 
 		sendTraffic(t, args.ate, trafficFlow, flowDetails, args.aftValidationType, statsMappings)
-		//dscpEncap decimal val is 5 bits in binar vs. 7 bit ATE val, so left shift with 2 bits to match
+		// shift left by 2 bits again
 		args.validateTrafficFlows(t, trafficFlow, []string{strconv.Itoa(dscpEncapB1 << 2)}, false)
 	})
 }

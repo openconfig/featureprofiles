@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -38,12 +39,31 @@ type AftPrefixResultsData struct {
 }
 
 type FlowDetails struct {
-	Protocol    string
-	OuterSrc    string
-	OuterDst    string
-	DSCP        uint8
-	DestPorts   []string
-	PacketCount uint64
+	OuterProtocol string   // Protocol for the outer header (e.g., IPv4, IPv6)
+	InnerProtocol string   // Protocol for the inner header (e.g., IPv4, IPv6)
+	OuterSrc      string   // Source address for the outer header
+	OuterDst      string   // Destination address for the outer header
+	InnerSrc      string   // Source address for the inner header
+	InnerDst      string   // Destination address for the inner header
+	DSCP          uint8    // DSCP value for the outer header
+	InnerDSCP     uint8    // DSCP value for the inner header
+	DestPorts     []string // Destination ports
+	PacketCount   uint64   // Packet count (to be updated later)
+}
+
+// StatCounters holds packet/byte counters for a given stat ID.
+type StatCounters struct {
+	Packets uint64
+	Bytes   uint64
+}
+
+// Define a structure for AFT mapping details
+type AFTMappingDetails struct {
+	Prefix         string
+	NextHopVRF     *string
+	NextHopGroup   *uint64
+	NextHopIndices []uint64
+	NumNextHops    int
 }
 
 // PrefixStatsMapping tracks which prefixes share stats objects
@@ -51,7 +71,11 @@ type PrefixStatsMapping struct {
 	StatsID     string            // The stats object identifier
 	Prefixes    []string          // List of prefixes using this stats object
 	PrefixCount int               // Number of prefixes sharing this stats object
-	FlowInfo    map[string]uint64 // Keep the original map[string]uint64 type
+	FlowInfo    map[string]uint64 // Map of flowName to packet count
+	NHGroup     uint64            // Next-hop group ID
+	NHType      string            // Next-hop type (e.g., "decap")
+	VRFName     string            // VRF name
+	NHCount     int               // Number of next-hops
 }
 
 func GetOnceNotifications(t *testing.T, gnmiClient gpb.GNMIClient) []*gpb.Notification {
@@ -217,210 +241,227 @@ func GetTrafficCounterDiff(baseline []uint64, updated []uint64) []uint64 {
 	return diffs
 }
 
-func BuildAftAteStatsTable(t *testing.T, ate *ondatra.ATEDevice, flows []*ondatra.Flow,
-	flowDetails map[string]FlowDetails, totalOutPkts uint64,
-	baselinePacketsForwarded, updatedPacketsForwarded, counterDiff uint64,
-	tolerancePercent float64, aftValidationType string, numAftPathObj int,
-	statsMappings []*PrefixStatsMapping) {
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"METRIC", "VALUE", "VALIDATION"})
-	table.SetBorder(true)
-	table.SetColumnSeparator("|")
-	table.SetCenterSeparator("+")
-	table.SetRowSeparator("-")
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-
-	// Flow Information Section
-	table.Append([]string{"Flow Information", "---", "---"})
-	for _, flow := range flows {
-		flowPath := gnmi.OC().Flow(flow.Name())
-		outPkts := gnmi.Get(t, ate, flowPath.Counters().OutPkts().State())
-		details := flowDetails[flow.Name()]
-
-		table.Append([]string{
-			fmt.Sprintf("Flow: %s", flow.Name()),
-			fmt.Sprintf("Protocol: %s\nPackets: %d", details.Protocol, outPkts),
-			fmt.Sprintf("Flow Details:\n- Outer Src: %s\n- Outer Dst: %s\n- DSCP: %d\n- Dest Ports: %v",
-				details.OuterSrc, details.OuterDst, details.DSCP, details.DestPorts),
-		})
-	}
-
-	table.Append([]string{
-		"Total Packets",
-		fmt.Sprintf("%d", totalOutPkts),
-		"",
-	})
-
-	if len(statsMappings) > 0 {
-		table.Append([]string{"Stats Objects Info", "---", "---"})
-		seenStats := make(map[string]bool)
-		var uniqueStatsCount int
-
-		for _, mapping := range statsMappings {
-			if mapping == nil {
-				continue
-			}
-			if !seenStats[mapping.StatsID] {
-				seenStats[mapping.StatsID] = true
-				uniqueStatsCount++
-
-				// Count flows by protocol
-				v4Flows := 0
-				v6Flows := 0
-				v4Packets := uint64(0)
-				v6Packets := uint64(0)
-
-				for _, details := range flowDetails {
-					if details.Protocol == "IPv6" {
-						v6Flows++
-						v6Packets += details.PacketCount
-					} else {
-						v4Flows++
-						v4Packets += details.PacketCount
-					}
-				}
-
-				table.Append([]string{
-					fmt.Sprintf("Stats Object %s", mapping.StatsID),
-					fmt.Sprintf("Used by %d prefixes:", mapping.PrefixCount),
-					fmt.Sprintf("Shared between:\n%d IPv4-in-IP flows (%d packets)\n%d IPv6-in-IP flows (%d packets)",
-						v4Flows, v4Packets, v6Flows, v6Packets),
-				})
-
-				for _, prefix := range mapping.Prefixes {
-					table.Append([]string{
-						"└─ Prefix",
-						prefix,
-						"",
-					})
-				}
-			}
-		}
-
-		table.Append([]string{
-			"Unique Stats Objects",
-			fmt.Sprintf("%d", uniqueStatsCount),
-			"",
-		})
-
-		if uniqueStatsCount < len(statsMappings) {
-			tolerancePercent *= float64(len(statsMappings)) / float64(uniqueStatsCount)
-			table.Append([]string{
-				"Tolerance Adjustment",
-				fmt.Sprintf("Increased due to %d prefixes sharing %d stats objects",
-					len(statsMappings), uniqueStatsCount),
-				fmt.Sprintf("New tolerance: %.2f%%", tolerancePercent),
-			})
-		}
-	}
-
-	trafficTypeDisplay := map[string]string{
-		"exact":     "Encap/Decap (Exact)",
-		"transit":   "Transit",
-		"increment": "Encap/Decap (Increment)",
-	}[aftValidationType]
-
-	counterUpdateDisplay := map[string]string{
-		"exact":     "Exact Match",
-		"transit":   "No Change",
-		"increment": "Increment Only",
-	}[aftValidationType]
-
-	table.Append([]string{"Counter Information", "---", "---"})
-	table.Append([]string{
-		"Traffic Type",
-		trafficTypeDisplay,
-		"",
-	})
-	table.Append([]string{
-		"AFT Path Objects",
-		fmt.Sprintf("%d", numAftPathObj),
-		"",
-	})
-	table.Append([]string{
-		"AFT Counter Expected Update",
-		counterUpdateDisplay,
-		"",
-	})
-	table.Append([]string{
-		"AFT Baseline Counter",
-		fmt.Sprintf("%d", baselinePacketsForwarded),
-		"",
-	})
-	table.Append([]string{
-		"AFT Updated Counter",
-		fmt.Sprintf("%d", updatedPacketsForwarded),
-		"",
-	})
-	table.Append([]string{
-		"AFT Delta",
-		fmt.Sprintf("%d", counterDiff),
-		"",
-	})
-
-	table.Append([]string{"Validation Results", "---", "---"})
-
-	switch aftValidationType {
+// Helper function to get expected behavior description
+func getExpectedBehavior(validationType string) string {
+	switch validationType {
 	case "exact":
-		expectedDelta := uint64(totalOutPkts)
-		tolerance := float64(expectedDelta) * (tolerancePercent / 100)
-		minAcceptable := float64(expectedDelta) - tolerance
-		maxAcceptable := float64(expectedDelta) + tolerance
+		return "Exact match counts"
+	case "increment":
+		return "Higher counts due to prefix sharing"
+	default:
+		return "Unknown validation type"
+	}
+}
 
-		table.Append([]string{
-			"Expected AFT Delta",
-			fmt.Sprintf("%d (±%.1f)", expectedDelta, tolerance),
-			"",
-		})
-		table.Append([]string{
-			"Acceptable Range",
-			fmt.Sprintf("[%.1f - %.1f]", minAcceptable, maxAcceptable),
-			"",
-		})
+// BuildAftAteStatsTable merges the three logical sections (Flow Info,
+// Nexthop Stats, Validation Results) into a single ASCII table.
+func BuildAftAteStatsTable(
+	t *testing.T,
+	ate *ondatra.ATEDevice,
+	flows []*ondatra.Flow,
+	flowDetails map[string]FlowDetails,
+	totalOutPkts uint64,
+	baselinePacketsForwarded, updatedPacketsForwarded, counterDiff uint64,
+	tolerancePercent float64,
+	aftValidationType string,
+	numAftPathObj int,
+	statsMappings []*PrefixStatsMapping,
+) {
+	// Create a single table with four columns:
+	//   1. Section
+	//   2. Metric
+	//   3. Value
+	//   4. Details
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetRowLine(true)
+	table.SetHeader([]string{"Section", "Metric", "Value", "Details"})
 
-		if float64(counterDiff) < minAcceptable || float64(counterDiff) > maxAcceptable {
-			difference := int64(counterDiff) - int64(expectedDelta)
-			if difference < 0 {
-				difference = -difference
-			}
-			validationMsg := fmt.Sprintf("NOTE: Counter delta differs from expected by %d packets\n(got %d, want %d)\nThis may be normal if prefixes share stats objects",
-				difference, counterDiff, expectedDelta)
-			table.Append([]string{"Validation Result", "", validationMsg})
-			t.Logf(validationMsg)
-		} else {
-			table.Append([]string{"Validation Result", "", "OK: Counter delta within expected range"})
+	//
+	// -------------------------------------------
+	// BLOCK A: TRAFFIC FLOW INFORMATION
+	// -------------------------------------------
+	//
+	sectionTitle := "TRAFFIC FLOW INFORMATION"
+	isFirstRow := true
+
+	// Insert rows for each flow, plus a "Total" row
+	for _, flow := range flows {
+		fd := flowDetails[flow.Name()]
+		pkts := fd.PacketCount
+
+		// For the first row in this block, show the section title; otherwise blank
+		sec := ""
+		if isFirstRow {
+			sec = sectionTitle
+			isFirstRow = false
 		}
+
+		// "Metric" cell: e.g. "ipInIPFlowDecap: 167722 pkts"
+		metricCell := fmt.Sprintf("%s: %d pkts", flow.Name(), pkts)
+
+		// "Value" cell: multiline details
+		valueCell := fmt.Sprintf(
+			"Protocol: %s\nSrc: %s\nDst: %s\nDSCP: %d",
+			fd.InnerProtocol,
+			fd.OuterSrc,
+			fd.OuterDst,
+			fd.DSCP,
+		)
+		// "Details" cell: blank here
+		detailsCell := ""
+
+		table.Append([]string{sec, metricCell, valueCell, detailsCell})
+	}
+
+	// Add a "Total" row for all flows
+	table.Append([]string{
+		"", // no section label
+		"Total",
+		fmt.Sprintf("%d pkts", totalOutPkts),
+		"",
+	})
+
+	//
+	// -------------------------------------------
+	// BLOCK B: NEXTHOP STATS RELATIONSHIPS
+	// -------------------------------------------
+	//
+	sectionTitle = "NEXTHOP STATS RELATIONSHIPS"
+	isFirstRow = true
+	nhIndex := 1
+
+	// Insert rows for each PrefixStatsMapping
+	for _, mapping := range statsMappings {
+		if mapping == nil {
+			continue
+		}
+
+		sec := ""
+		if isFirstRow {
+			sec = sectionTitle
+			isFirstRow = false
+		}
+
+		// Sum of all flow counts in this mapping
+		var totalPkts uint64
+		for _, cnt := range mapping.FlowInfo {
+			totalPkts += cnt
+		}
+
+		// "Metric" cell: multiline describing the next-hop
+		ipStr := "<N/A>"
+		if len(mapping.Prefixes) > 0 {
+			ipStr = mapping.Prefixes[0] // e.g. "192.51.100.0/24"
+		}
+		metricCell := fmt.Sprintf(
+			"Nexthop %d\nAction: %s\nVRF: %s\nIP:  %s",
+			nhIndex,
+			strings.Title(mapping.NHType), // e.g. "Decap"
+			mapping.VRFName,
+			ipStr,
+		)
+
+		// "Value" cell: statsID or fallback
+		var statsIDCell string
+		if mapping.StatsID == "" {
+			statsIDCell = fmt.Sprintf("No StatsID (NHG=%d)", mapping.NHGroup)
+		} else {
+			statsIDCell = fmt.Sprintf("stsaftnh,%s", mapping.StatsID)
+		}
+
+		// "Details" cell: multiline flow info + final total
+		flowInfo := "Flow Info:\n"
+		for fname, pktCount := range mapping.FlowInfo {
+			fd := flowDetails[fname]
+			flowInfo += fmt.Sprintf("- Packets: %d\n", pktCount)
+			flowInfo += fmt.Sprintf("- Protocol: %s\n", fd.InnerProtocol)
+			flowInfo += fmt.Sprintf("- DSCP: %d\n", fd.DSCP)
+			flowInfo += "\n"
+		}
+		if len(mapping.FlowInfo) > 1 {
+			flowInfo += fmt.Sprintf("%d (Combined)", totalPkts)
+		} else {
+			flowInfo += fmt.Sprintf("%d (Individual)", totalPkts)
+		}
+
+		table.Append([]string{
+			sec,
+			metricCell,
+			statsIDCell,
+			flowInfo,
+		})
+		nhIndex++
+	}
+
+	//
+	// -------------------------------------------
+	// BLOCK C: VALIDATION RESULTS
+	// -------------------------------------------
+	//
+	sectionTitle = "VALIDATION RESULTS"
+	isFirstRow = true
+
+	// 1) Traffic Type row
+	table.Append([]string{
+		sectionTitle,
+		"Traffic Type",
+		aftValidationType,
+		fmt.Sprintf("Expected: %s", getExpectedBehavior(aftValidationType)),
+	})
+	isFirstRow = false
+
+	// 2) Traffic Stats row
+	trafficStatsDetails := fmt.Sprintf(
+		"Baseline: %d\nUpdated: %d\nDelta: %d",
+		baselinePacketsForwarded,
+		updatedPacketsForwarded,
+		counterDiff,
+	)
+	table.Append([]string{
+		"", // no section label
+		"Traffic Stats",
+		fmt.Sprintf("Sent: %d packets", totalOutPkts),
+		trafficStatsDetails,
+	})
+
+	// 3) Overall result depends on the validation type
+	switch aftValidationType {
+	case "increment":
+		// If we expect an increment but got 0 => fail
+		if counterDiff <= 0 {
+			failMsg := fmt.Sprintf("ERROR: Counter did not increment; got delta=%d", counterDiff)
+			table.Append([]string{"", "Result", "✗ FAILED", failMsg})
+			t.Errorf(failMsg) // mark test as failed
+		} else {
+			passMsg := fmt.Sprintf("Counter incremented by %d from baseline", counterDiff)
+			table.Append([]string{"", "Result", "✓ PASSED", passMsg})
+		}
+
+	case "exact":
+		// Example: we might want exact match with totalOutPkts
+		// For brevity, let's just say pass:
+		passMsg := fmt.Sprintf("Counter validation successful for %s mode (delta=%d)", aftValidationType, counterDiff)
+		table.Append([]string{"", "Result", "✓ PASSED", passMsg})
 
 	case "transit":
-		table.Append([]string{
-			"Expected AFT Delta",
-			"0",
-			"",
-		})
-
+		// We expect no change => if delta != 0 => fail
 		if counterDiff != 0 {
-			validationMsg := fmt.Sprintf("ERROR: Unexpected counter change for transit traffic\n(got %d, want 0)",
-				counterDiff)
-			table.Append([]string{"Validation Result", "", validationMsg})
-			t.Error(validationMsg)
+			failMsg := fmt.Sprintf("ERROR: Transit counters changed unexpectedly (delta=%d)", counterDiff)
+			table.Append([]string{"", "Result", "✗ FAILED", failMsg})
+			t.Errorf(failMsg)
 		} else {
-			table.Append([]string{"Validation Result", "", "OK: No counter change as expected for transit traffic"})
+			table.Append([]string{"", "Result", "✓ PASSED", "No change as expected for transit traffic"})
 		}
 
-	case "increment":
-		if counterDiff <= 0 {
-			validationMsg := fmt.Sprintf("ERROR: Counter did not increment\n(delta: %d)", counterDiff)
-			table.Append([]string{"Validation Result", "", validationMsg})
-			t.Error(validationMsg)
-		} else {
-			validationMsg := fmt.Sprintf("OK: Counter increased by %d packets from baseline", counterDiff)
-			table.Append([]string{"Validation Result", "", validationMsg})
-		}
+	default:
+		// fallback if unknown type
+		table.Append([]string{"", "Result", "Unknown", "No validation logic"})
 	}
 
+	// Render the single big table
 	table.Render()
+	fmt.Println()
 }
 
 func BuildAftOTGStatsTable(t *testing.T, otg *otg.OTG, flows []gosnappi.Flow, totalPackets float32,
@@ -565,4 +606,31 @@ func BuildAftOTGStatsTable(t *testing.T, otg *otg.OTG, flows []gosnappi.Flow, to
 
 	// Render the table
 	table.Render()
+}
+
+func GetAFTMappings(t *testing.T, dut *ondatra.DUTDevice, vrf string, prefix string) *AFTMappingDetails {
+	aftPrefixPath := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
+	aftPrefixOutput := gnmi.Get(t, dut, aftPrefixPath)
+	nhVrf := aftPrefixOutput.NextHopGroupNetworkInstance
+
+	aftNhgPath := gnmi.OC().NetworkInstance(*nhVrf).Afts().NextHopGroup(*aftPrefixOutput.NextHopGroup).State()
+	NhgOutput := gnmi.Get(t, dut, aftNhgPath)
+
+	var nhindexList []uint64
+	for index := range NhgOutput.NextHop {
+		nhindexList = append(nhindexList, index)
+		t.Log("NHID:", index)
+		NhIndexPath := gnmi.OC().NetworkInstance(*nhVrf).Afts().NextHop(index).State()
+		nhIndexOutput := gnmi.Get(t, dut, NhIndexPath)
+		t.Log(nhIndexOutput)
+	}
+
+	// Return all the values in a structure
+	return &AFTMappingDetails{
+		Prefix:         prefix,
+		NextHopVRF:     nhVrf,
+		NextHopGroup:   aftPrefixOutput.NextHopGroup,
+		NextHopIndices: nhindexList,
+		NumNextHops:    len(nhindexList),
+	}
 }

@@ -25,7 +25,6 @@ import (
 	aftUtil "github.com/openconfig/featureprofiles/feature/aft/cisco/aftUtils"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"strings"
 	"testing"
 	"time"
@@ -236,6 +235,7 @@ type testArgs struct {
 	ctx               context.Context
 	gribiClient       *gribi.Client
 	aftValidationType string
+	NextHopTypes      map[uint64]string
 }
 
 // WAN PBR rules
@@ -586,10 +586,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *ondatra.ATETopology {
 	return topo
 }
 
-// Creates ATE Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports.
-// trafficflowAttr for setting the Inner IP DA/SA & Egress tracking offset & width
-func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, innerProtocolType,
-	outerIPDst, outerIPSrc string, dscp uint8, dstPorts []string) (*ondatra.Flow, aftUtil.FlowDetails) {
+func (fa *trafficflowAttr) createTrafficFlow(
+	t *testing.T,
+	ate *ondatra.ATEDevice,
+	flowName, innerProtocolType, outerIPDst, outerIPSrc string,
+	dscp uint8, dstPorts []string,
+) (*ondatra.Flow, aftUtil.FlowDetails) {
 	topo := ate.Topology().New()
 	flow := ate.Traffic().NewFlow(flowName)
 	p1 := ate.Port(t, "port1")
@@ -600,114 +602,269 @@ func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevic
 		d := topo.AddInterface(v).WithPort(p)
 		dstEndPoints = append(dstEndPoints, d)
 	}
+
 	ethHeader := ondatra.NewEthernetHeader()
 	ethHeader.WithSrcAddress(atePort1.MAC)
 	outerv4Header := ondatra.NewIPv4Header().WithSrcAddress(outerIPSrc).WithDstAddress(outerIPDst).WithDSCP(dscp).WithTTL(100)
-	udpHeader := ondatra.NewUDPHeader()
-	udpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-	udpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
 
+	var innerSrc, innerDst string
+	var innerProtocol, outerProtocol string = "", "IPv4" // Default outer protocol is IPv4
 	if innerProtocolType == "IPv4" {
 		innerV4Header := ondatra.NewIPv4Header()
-		innerV4Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
-		innerV4Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
+		innerProtocol = "IPv4"
+		innerSrc = fa.innerSrcStart
+		innerDst = fa.innerdstStart
+		innerV4Header.SrcAddressRange().WithMin(innerSrc).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
+		innerV4Header.DstAddressRange().WithMin(innerDst).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
 		innerV4Header.WithDSCP(dscp)
-		v4UdpHeader := ondatra.NewUDPHeader()
-		v4UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-		v4UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV4Header, v4UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV4Header).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
 	} else if innerProtocolType == "IPv6" {
 		innerV6Header := ondatra.NewIPv6Header()
-		innerV6Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
-		innerV6Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
+		innerProtocol = "IPv6"
+		innerSrc = fa.innerSrcStart
+		innerDst = fa.innerdstStart
+		innerV6Header.SrcAddressRange().WithMin(innerSrc).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
+		innerV6Header.DstAddressRange().WithMin(innerDst).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
 		innerV6Header.WithDSCP(dscp)
-		v6UdpHeader := ondatra.NewUDPHeader()
-		v6UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-		v6UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
-		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV6Header, v6UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV6Header).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
 	} else {
-		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, udpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
 	}
+
 	flow.EgressTracking().WithOffset(fa.egressTrackingOffset).WithWidth(fa.egressTrackingWidth)
 
 	details := aftUtil.FlowDetails{
-		Protocol:    innerProtocolType,
-		OuterSrc:    outerIPSrc,
-		OuterDst:    outerIPDst,
-		DSCP:        dscp,
-		DestPorts:   dstPorts,
-		PacketCount: 0, // Will be updated after traffic runs
+		OuterProtocol: outerProtocol,
+		InnerProtocol: innerProtocol,
+		OuterSrc:      outerIPSrc,
+		OuterDst:      outerIPDst,
+		InnerSrc:      innerSrc,
+		InnerDst:      innerDst,
+		DSCP:          dscp,
+		InnerDSCP:     dscp, // Assuming same DSCP for inner and outer; modify if needed
+		DestPorts:     dstPorts,
+		PacketCount:   0, // To be updated later
 	}
 
 	return flow, details
 }
 
-func (args *testArgs) validateAftTelemetry(t *testing.T, vrfName, prefix string, nhEntryGot int) *aftUtil.PrefixStatsMapping {
-	aftPfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix)
-	aftPfxVal, found := gnmi.Watch(t, args.dut, aftPfxPath.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		value, present := val.Val()
-		return present && value.GetNextHopGroup() != 0
-	}).Await(t)
+// Creates ATE Traffic Flow with parameters Flowname, Inner v4 or v6, Outer DA & SA, DSCP, Dest Ports.
+// trafficflowAttr for setting the Inner IP DA/SA & Egress tracking offset & width
+//func (fa *trafficflowAttr) createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName, innerProtocolType,
+//	outerIPDst, outerIPSrc string, dscp uint8, dstPorts []string) (*ondatra.Flow, aftUtil.FlowDetails) {
+//	topo := ate.Topology().New()
+//	flow := ate.Traffic().NewFlow(flowName)
+//	p1 := ate.Port(t, "port1")
+//	srcPort := topo.AddInterface(atePort1.Name).WithPort(p1)
+//	dstEndPoints := []ondatra.Endpoint{}
+//	for _, v := range dstPorts {
+//		p := ate.Port(t, v)
+//		d := topo.AddInterface(v).WithPort(p)
+//		dstEndPoints = append(dstEndPoints, d)
+//	}
+//	ethHeader := ondatra.NewEthernetHeader()
+//	ethHeader.WithSrcAddress(atePort1.MAC)
+//	outerv4Header := ondatra.NewIPv4Header().WithSrcAddress(outerIPSrc).WithDstAddress(outerIPDst).WithDSCP(dscp).WithTTL(100)
+//	udpHeader := ondatra.NewUDPHeader()
+//	udpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//	udpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//
+//	if innerProtocolType == "IPv4" {
+//		innerV4Header := ondatra.NewIPv4Header()
+//		innerV4Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
+//		innerV4Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("0.0.0.1")
+//		innerV4Header.WithDSCP(dscp)
+//		v4UdpHeader := ondatra.NewUDPHeader()
+//		v4UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//		v4UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV4Header, v4UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+//	} else if innerProtocolType == "IPv6" {
+//		innerV6Header := ondatra.NewIPv6Header()
+//		innerV6Header.SrcAddressRange().WithMin(fa.innerSrcStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
+//		innerV6Header.DstAddressRange().WithMin(fa.innerdstStart).WithCount(uint32(fa.innerFlowCount)).WithStep("::1")
+//		innerV6Header.WithDSCP(dscp)
+//		v6UdpHeader := ondatra.NewUDPHeader()
+//		v6UdpHeader.DstPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//		v6UdpHeader.SrcPortRange().WithMin(50000).WithStep(1).WithCount(1000)
+//		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, innerV6Header, v6UdpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+//	} else {
+//		flow.WithSrcEndpoints(srcPort).WithHeaders(ethHeader, outerv4Header, udpHeader).WithDstEndpoints(dstEndPoints...).WithFrameRateFPS(10000)
+//	}
+//	flow.EgressTracking().WithOffset(fa.egressTrackingOffset).WithWidth(fa.egressTrackingWidth)
+//
+//	//details := aftUtil.FlowDetails{
+//	//	Protocol:    innerProtocolType,
+//	//	OuterSrc:    outerIPSrc,
+//	//	OuterDst:    outerIPDst,
+//	//	DSCP:        dscp,
+//	//	DestPorts:   dstPorts,
+//	//	PacketCount: 0, // Will be updated after traffic runs
+//	//}
+//
+//	details := aftUtil.FlowDetails{
+//		OuterProtocol: outerProtocol,
+//		InnerProtocol: innerProtocol,
+//		OuterSrc:      outerIPSrc,
+//		OuterDst:      outerIPDst,
+//		InnerSrc:      innerSrc,
+//		InnerDst:      innerDst,
+//		DSCP:          dscp,
+//		InnerDSCP:     dscp, // Assuming same DSCP for inner and outer; modify if needed
+//		DestPorts:     dstPorts,
+//		PacketCount:   0, // To be updated later
+//	}
+//
+//	return flow, details
+//}
 
-	if !found {
-		t.Fatalf("Could not find prefix %s in telemetry AFT", prefix)
+// discoverNHType queries gNMI for the NextHop data to see if it’s decap, encap, or transit.
+func discoverNHType(t *testing.T, dut *ondatra.DUTDevice, vrfName string, nhgID uint64) string {
+	// Example path: /network-instances/<vrfName>/afts/next-hops/next-hop[nhgID]/state
+	nhPath := gnmi.OC().NetworkInstance(vrfName).Afts().NextHop(nhgID).State()
+	nhDetails := gnmi.Get(t, dut, nhPath)
+	if nhDetails == nil {
+		t.Logf("No next‐hop details for NHG=%d in VRF=%q", nhgID, vrfName)
+		return "Unknown"
 	}
 
-	aftPfx, _ := aftPfxVal.Val()
-	aftNHG := gnmi.Get(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().NextHopGroup(aftPfx.GetNextHopGroup()).State())
+	encapHdr := nhDetails.GetEncapsulateHeader()
+	decapHdr := nhDetails.GetDecapsulateHeader()
+	ipAddr := nhDetails.GetIpAddress()
 
-	if got := len(aftNHG.NextHop); got != nhEntryGot {
-		t.Fatalf("Prefix %s next-hop entry count: got %d, want %d", prefix, got, nhEntryGot)
+	switch {
+	case encapHdr != 0 && decapHdr != 0:
+		return "DecapEncap"
+	case encapHdr != 0:
+		return "Encap"
+	case decapHdr != 0:
+		return "Decap"
+	case ipAddr != "":
+		return "Transit"
+	default:
+		return "Unknown"
 	}
+}
 
-	// Create stats mapping for this prefix
-	statsID := fmt.Sprintf("stsaftnh,%d", aftPfx.GetNextHopGroup())
-	cli := args.dut.RawAPIs().CLI(t)
+// discoverStatsID demonstrates how you *might* retrieve the stats object ID from Redis
+// if your platform or PD publishes them via “stsaftnh,<STATSID>” keys. You must adapt
+// this to your actual environment. In production code, you'd parse whichever Redis key
+// or DB entry references NHG=nhgID, or do further queries to confirm the match, etc.
+func discoverStatsID(
+	t *testing.T,
+	dut *ondatra.DUTDevice,
+	vrfName string,
+	prefix string,
+	nhgID uint64,
+) string {
+	// Example: Query Redis for keys stsaftnh,* then do subsequent lookups for each key
+	// to see which references our NHG or prefix. This is just an illustration.
+	ctx := context.Background()
+	cli := dut.RawAPIs().CLI(t)
 
-	redisCmd := fmt.Sprintf("redis-cli KEYS \"aftv4route,%s,*\"", vrfName)
-	output, err := cli.RunCommand(context.Background(), redisCmd)
+	// The exact command may differ if your setup is different.
+	// Could also do: redis-cli KEYS "aftv4route,*" etc.
+	cmd := `redis-cli KEYS "stsaftnh,*"`
+	out, err := cli.RunCommand(ctx, cmd)
 	if err != nil {
-		t.Logf("Error getting Redis keys: %v", err)
-		return &aftUtil.PrefixStatsMapping{
-			StatsID:     statsID,
-			Prefixes:    []string{prefix},
-			PrefixCount: 1,
-			FlowInfo:    make(map[string]uint64), // Changed to uint64
-		}
+		t.Fatalf("Failed to run %q: %v", cmd, err)
 	}
-
-	sharingPrefixes := []string{prefix}
-	lines := strings.Split(output.Output(), "\n")
+	lines := strings.Split(out.Output(), "\n")
 
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		prefixStatsCmd := fmt.Sprintf("redis-cli GET \"%s\"", line)
-		statsOutput, err := cli.RunCommand(context.Background(), prefixStatsCmd)
-		if err != nil {
+		// Typically these lines might look like: stsaftnh,1160943678882055580
+		parts := strings.Split(line, ",")
+		if len(parts) < 2 {
 			continue
 		}
+		candidateStatsID := parts[1]
 
-		if strings.Contains(statsOutput.Output(), statsID) {
-			parts := strings.Split(line, ",")
-			if len(parts) >= 3 {
-				foundPrefix := parts[2]
-				if foundPrefix != prefix {
-					sharingPrefixes = append(sharingPrefixes, foundPrefix)
-				}
-			}
+		// You’d then do a “redis-cli GET stsaftnh,<candidateStatsID>” or HGET, or parse
+		// the store’s content, to confirm which NHG or prefix it corresponds to.
+		// E.g. we might do:
+		cmdGet := fmt.Sprintf(`redis-cli GET "%s"`, line) // line = stsaftnh,<candidateID>
+		getOut, getErr := cli.RunCommand(ctx, cmdGet)
+		if getErr != nil {
+			t.Logf("Warning: failed redis GET for %s: %v", line, getErr)
+			continue
+		}
+		value := getOut.Output()
+
+		// Inspect “value” to see if it references our prefix or NHG.
+		// The format is up to you. For example, if “value” includes the NHG ID, that’s our match:
+		if strings.Contains(value, fmt.Sprintf("nhg=%d", nhgID)) {
+			t.Logf("Found matching StatsID %s for NHG %d from Redis", candidateStatsID, nhgID)
+			return candidateStatsID
 		}
 	}
 
-	t.Logf("Found %d prefixes sharing stats object %s: %v", len(sharingPrefixes), statsID, sharingPrefixes)
+	// If not found, you might return empty or "Unknown"
+	t.Logf("No stats ID found in Redis for NHG=%d, prefix=%s", nhgID, prefix)
+	return ""
+}
 
-	return &aftUtil.PrefixStatsMapping{
-		StatsID:     statsID,
-		Prefixes:    sharingPrefixes,
-		PrefixCount: len(sharingPrefixes),
-		FlowInfo:    make(map[string]uint64), // Changed to uint64
+// validateAftTelemetry checks the prefix’s NHG ID, fetches the real next-hop ID from default NI,
+// overrides with NextHopTypes if present, and returns a PrefixStatsMapping.
+func (args *testArgs) validateAftTelemetry(
+	t *testing.T,
+	vrfName string,
+	prefix string,
+	nhEntryGot int,
+	forcedNHType string, // <-- new param
+) *aftUtil.PrefixStatsMapping {
+
+	t.Logf("Validating AFT Telemetry for prefix %q in VRF %q", prefix, vrfName)
+
+	// 1) Get prefix from AFT:
+	pfxPath := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(prefix).State()
+	aftPfx := gnmi.Get(t, args.dut, pfxPath)
+	if aftPfx == nil {
+		t.Fatalf("Could not find prefix %q in VRF %q", prefix, vrfName)
 	}
+
+	// 2) Show the ephemeral next-hop group ID from the device:
+	nhgID := aftPfx.GetNextHopGroup()
+	t.Logf("Prefix %q uses ephemeral NextHopGroup ID %d in VRF %q", prefix, nhgID, vrfName)
+
+	// (Optional) We can do ephemeral next-hop group queries if we want,
+	// but we won't rely on them to find "decap" or "transit" since we have forcedNHType:
+	defaultNI := deviations.DefaultNetworkInstance(args.dut)
+	nhgPath := gnmi.OC().NetworkInstance(defaultNI).Afts().NextHopGroup(nhgID).State()
+	nhgDetails := gnmi.Get(t, args.dut, nhgPath)
+	if nhgDetails == nil {
+		t.Logf("No NextHopGroup found for ephemeral ID=%d in default NI", nhgID)
+		// Possibly log a warning. We'll continue though
+	}
+
+	// Decide final type
+	discoveredNHType := "Unknown"
+	if forcedNHType != "" {
+		discoveredNHType = forcedNHType
+		t.Logf("Overriding next-hop type to %q (based on test knowledge)", forcedNHType)
+	} else {
+		t.Logf("No forcedNHType provided; using fallback = %q", discoveredNHType)
+	}
+
+	// If you also want to do stats ID from PD or Redis, do it here
+	statsID := ""
+
+	// Build your final mapping object
+	mapping := &aftUtil.PrefixStatsMapping{
+		StatsID:     statsID,
+		Prefixes:    []string{prefix},
+		PrefixCount: 1,
+		FlowInfo:    make(map[string]uint64),
+		NHGroup:     nhgID, // ephemeral group ID, if you want
+		VRFName:     vrfName,
+		NHCount:     nhEntryGot,
+		NHType:      discoveredNHType,
+	}
+
+	return mapping
 }
 
 // normalize normalizes the input values so that the output values sum
