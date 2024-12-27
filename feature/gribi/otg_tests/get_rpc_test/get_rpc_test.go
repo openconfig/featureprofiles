@@ -456,4 +456,3 @@ func TestElectionID(t *testing.T) {
 	}
 	testIPv4LeaderActive(ctx, t, args)
 }
-
