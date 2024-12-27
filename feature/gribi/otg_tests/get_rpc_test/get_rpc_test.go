@@ -355,10 +355,10 @@ func testIPv4LeaderActive(ctx context.Context, t *testing.T, args *testArgs) {
 	gnmi.Update(t, args.dut, niProto.Config(), static)
 	validateGetRPC(ctx, t, args.clientA)
 	for ip := range ateDstNetCIDR {
-	        ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
-                lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-                        return v.IsPresent()
-                }).Await(t)
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Afts().Ipv4Entry(ateDstNetCIDR[ip])
+		lastValue, ok := gnmi.Watch(t, args.dut, ipv4Path.State(), time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
 
 		if !ok {
 			t.Fatalf("gnmi.Watch() failed value received = %s", lastValue)
@@ -456,3 +456,4 @@ func TestElectionID(t *testing.T) {
 	}
 	testIPv4LeaderActive(ctx, t, args)
 }
+
