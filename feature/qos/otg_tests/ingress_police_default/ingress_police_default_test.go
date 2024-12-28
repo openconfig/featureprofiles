@@ -19,17 +19,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 var (
@@ -198,7 +198,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp2.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
 				if !ok {
 					t.Logf("TransmitPkts count for queue %q on interface %q not available within %v", dp2.Name(),
-					data.queue, timeout)
+					       data.queue, timeout)
 				}
 				dutQosPktsBeforeTraffic[data.queue], _ = count.Val()
 
@@ -223,7 +223,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 				ateOutPkts[data.queue] += ateTxPkts
 				ateInPkts[data.queue] += ateRxPkts
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", ateInPkts[data.queue], dutQosPktsAfterTraffic[data.queue],
-					data.queue)
+				       data.queue)
 				if ateTxPkts == 0 {
 					t.Fatalf("TxPkts == 0, want >0.")
 				}
