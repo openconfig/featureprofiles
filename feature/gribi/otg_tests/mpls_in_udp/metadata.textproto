@@ -11,17 +11,19 @@ platform_exceptions:  {
   }
   deviations:  {
     static_protocol_name: "STATIC"
-    gribi_encap_headers_not_supported: true
+    gribi_encap_header_unsupported: true
     gribi_mac_override_static_arp_static_route: true
     interface_enabled: true
     default_network_instance: "default"
   }
+}
+platform_exceptions:  {
   platform:  {
     vendor: CISCO
   }
   deviations:  {
     static_protocol_name: "STATIC"
-    gribi_encap_headers_not_supported: true
+    gribi_encap_header_unsupported: true
     gribi_mac_override_static_arp_static_route: true
     interface_enabled: true
     default_network_instance: "default"
