@@ -15,6 +15,7 @@
 package ipv6_link_local_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -68,6 +69,7 @@ var (
 		IPv6:    "fe80::2",
 		IPv6Len: 64,
 	}
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
 )
 
 func TestMain(m *testing.M) {
@@ -85,6 +87,14 @@ func TestIPv6LinkLocal(t *testing.T) {
 	otgSrcToDstFlow(t, top, ateSrc.IPv6, ateDst.IPv6, linkLocalFlowName)
 
 	ate.OTG().PushConfig(t, top)
+	// https://github.com/openconfig/featureprofiles/issues/3410
+	// Below code will be removed once ixia issue is fixed.
+	if slices.Contains(kneDeviceModelList, dut.Model()) {
+		ate.OTG().StartTraffic(t)
+		time.Sleep(15 * time.Second)
+		ate.OTG().StopTraffic(t)
+	}
+
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
