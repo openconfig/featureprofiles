@@ -160,3 +160,36 @@ bootz mode.
     * System configuration is as expected.
 
 ### bootz-5: Validate gNSI components in bootz configuration
+
+The purpose of this test is to validate that gNSI artifacts are properly loaded
+by the bootz process. If the artifacts are incomplete an error will be returned.
+
+| ID        |Case  | Result |
+| --------- | ------------- | --- |
+| bootz-5.1 | no gNSI artifacts are provided  | Device boots with services default security policies  |
+| bootz-5.2 | gNSI certz policy is sent CA trust bundle  | Device creates new policy with  |
+| bootz-5.3 | gNSI ca auth policy provided | Device fails with status invalid parameter |
+| bootz-5.4 | gNSI Authz policy  | Device fails with invalid parameter |
+
+1. Provide bootstrap reponse configured as prescribed.
+2. Initiate bootz boot on device via gnoi.FactoryReset()
+3. Validate device sends bootz request to bootserver
+4. Validate the progress periodically by polling `/system/bootz/state/status`
+    * The status should transition from:
+        * BOOTZ_UNSPECIFIED
+        * BOOTZ_SENT
+        * BOOTZ_RECEIVED
+        * BOOTZ_CONFIGURATION_APPLIED
+        * BOOTZ_OK
+    * For error case device should report
+        * BOOTZ_UNSPECIFIED
+        * BOOTZ_SENT
+        * BOOTZ_RECEIVED
+        * BOOTZ_OS_INVALID_IMAGE
+5. Validate device telemetry
+    * `/system/bootz/state/last-boot-attempt` is in expected state
+    * `/system/bootz/state/error-count` is in incremented if failure case
+    * `/system/bootz/state/status` is in expected state
+    * `/system/bootz/state/checksum` matches sent proto
+6. Validate device state
+    * System configuration is as expected.
