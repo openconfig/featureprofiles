@@ -58,7 +58,6 @@ var (
 type trafficData struct {
 	expectedThroughputPct float32
 	gbpsRate              uint32
-	dscp                  uint8
 	queue                 string
 	inputIntf             attrs.Attributes
 }
