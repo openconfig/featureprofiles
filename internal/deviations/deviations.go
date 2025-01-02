@@ -1234,11 +1234,6 @@ func BgpAfiSafiWildcardNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAfiSafiWildcardNotSupported()
 }
 
-// EnableTableConnections Admin Enable Table Connections in SRL native
-func EnableTableConnections(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetEnableTableConnections()
-}
-
 // NoZeroSuppression returns true if device wants to remove zero suppression
 func NoZeroSuppression(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoZeroSuppression()
@@ -1257,4 +1252,15 @@ func IsisDisSysidUnsupported(dut *ondatra.DUTDevice) bool {
 // IsisDatabaseOverloadsUnsupported returns true for devices that do not support database-overloads leaf
 func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
+}
+
+// BgpSetMedV7Unsupported returns true if devices which are not
+// supporting bgp set med union type in OC.
+func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
+}
+
+// EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
+func EnableTableConnections(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableTableConnections()
 }
