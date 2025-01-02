@@ -31,10 +31,10 @@ const (
 	acceptRoutePolicy = "PERMIT-ALL"
 	trafficPPS        = 50000 // Should be 5000000
 	trafficv6PPS      = 50000 // Should be 5000000
-	srcTrafficV4      = "100.0.2.1"
-	srcTrafficV6      = "2001:db8:64:65::1"
+	srcTrafficV4      = "192.0.2.2"
+	srcTrafficV6      = "2000:db8::2"
 	dstTrafficV4      = "100.0.1.1"
-	dstTrafficV6      = "2001:db8:64:64::1"
+	dstTrafficV6      = "2010:db8:64:64::1"
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
@@ -56,65 +56,70 @@ type aggPortData struct {
 	v6RouteCount int
 }
 
+type portData struct {
+	name         string
+	dutIPv4      string
+	ateIPv4      string
+	dutIPv6      string
+	ateIPv6      string
+	atePortMAC   string
+	ateISISSysID string
+}
+
 var (
-	agg1 = &aggPortData{
+	ateSrc = portData{
+		name:         "srcPort",
 		dutIPv4:      "192.0.2.1",
 		ateIPv4:      "192.0.2.2",
+		dutIPv6:      "2000:db8::1",
+		ateIPv6:      "2000:db8::2",
+		atePortMAC:   "02:00:01:01:01:02",
+		ateISISSysID: "640000000002",
+	}
+
+	agg1 = &aggPortData{
+		dutIPv4:      "192.0.2.5",
+		ateIPv4:      "192.0.2.6",
 		dutIPv6:      "2001:db8::1",
 		ateIPv6:      "2001:db8::2",
 		ateAggName:   "lag1",
-		ateAggMAC:    "02:00:01:01:01:01",
-		atePort1MAC:  "02:00:01:01:01:02",
-		atePort2MAC:  "02:00:01:01:01:03",
-		ateISISSysID: "640000000002",
-		v4Route:      "100.0.2.1",
-		v4RouteCount: 1,
-		v6Route:      "2001:db8:64:65::1",
-		v6RouteCount: 1,
-	}
-	agg2 = &aggPortData{
-		dutIPv4:      "192.0.2.5",
-		ateIPv4:      "192.0.2.6",
-		dutIPv6:      "2001:db8::5",
-		ateIPv6:      "2001:db8::6",
-		ateAggName:   "lag2",
 		ateAggMAC:    "02:00:01:01:01:04",
 		atePort1MAC:  "02:00:01:01:01:05",
 		atePort2MAC:  "02:00:01:01:01:06",
 		ateISISSysID: "640000000003",
 		v4Route:      "100.0.1.1",
 		v4RouteCount: 254,
-		v6Route:      "2001:db8:64:64::1",
+		v6Route:      "2010:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
-	agg3 = &aggPortData{
+	agg2 = &aggPortData{
 		dutIPv4:      "192.0.2.9",
 		ateIPv4:      "192.0.2.10",
-		dutIPv6:      "2001:db8::11",
-		ateIPv6:      "2001:db8::12",
-		ateAggName:   "lag3",
+		dutIPv6:      "2002:db8::1",
+		ateIPv6:      "2002:db8::2",
+		ateAggName:   "lag2",
 		ateAggMAC:    "02:00:01:01:01:07",
 		atePort1MAC:  "02:00:01:01:01:08",
 		atePort2MAC:  "02:00:01:01:01:09",
 		ateISISSysID: "640000000004",
 		v4Route:      "100.0.1.1",
 		v4RouteCount: 254,
-		v6Route:      "2001:db8:64:64::1",
+		v6Route:      "2010:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
-	agg4 = &aggPortData{
+	agg3 = &aggPortData{
 		dutIPv4:      "192.0.2.13",
 		ateIPv4:      "192.0.2.14",
-		dutIPv6:      "2001:db8::15",
-		ateIPv6:      "2001:db8::16",
-		ateAggName:   "lag4",
+		dutIPv6:      "2003:db8::1",
+		ateIPv6:      "2003:db8::2",
+		ateAggName:   "lag3",
 		ateAggMAC:    "02:00:01:01:01:10",
 		atePort1MAC:  "02:00:01:01:01:11",
 		atePort2MAC:  "02:00:01:01:01:12",
 		ateISISSysID: "640000000005",
 		v4Route:      "100.0.1.1",
 		v4RouteCount: 254,
-		v6Route:      "2001:db8:64:64::1",
+		v6Route:      "2010:db8:64:64::1",
 		v6RouteCount: 1000,
 	}
 
@@ -159,7 +164,11 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	top := configureATE(t, ate)
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
 
 	startTraffic(t, ate, top)
@@ -172,7 +181,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 			}
 		}
 		time.Sleep(time.Minute)
-		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName, agg4.ateAggName})
+		weights := trafficRXWeights(t, ate, []string{agg1.ateAggName, agg2.ateAggName, agg3.ateAggName})
 		for idx, weight := range equalDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
@@ -215,7 +224,9 @@ func TestWeightedECMPForISIS(t *testing.T) {
 
 	flows = configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
+	time.Sleep(30 * time.Second)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(30 * time.Second)
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
 
 	startTraffic(t, ate, top)
@@ -229,7 +240,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 			}
 		}
 		time.Sleep(time.Minute)
-		weights := trafficRXWeights(t, ate, []string{agg2.ateAggName, agg3.ateAggName, agg4.ateAggName})
+		weights := trafficRXWeights(t, ate, []string{agg1.ateAggName, agg2.ateAggName, agg3.ateAggName})
 		for idx, weight := range unequalDistributionWeights {
 			if got, want := weights[idx], weight; got < want-ecmpTolerance || got > want+ecmpTolerance {
 				t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
@@ -289,8 +300,8 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	}
 	fV4.Metrics().SetEnable(true)
 	fV4.TxRx().Device().
-		SetTxNames([]string{agg1.ateAggName + ".ISISV4"}).
-		SetRxNames([]string{agg2.ateAggName + ".ISISV4", agg3.ateAggName + ".ISISV4", agg4.ateAggName + ".ISISV4"})
+		SetTxNames([]string{ateSrc.name + ".IPv4"}).
+		SetRxNames([]string{agg1.ateAggName + ".ISISV4", agg2.ateAggName + ".ISISV4", agg3.ateAggName + ".ISISV4"})
 	fV4.Size().SetFixed(1500)
 	fV4.Rate().SetPps(trafficPPS)
 	eV4 := fV4.Packet().Add().Ethernet()
@@ -308,8 +319,8 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	}
 	fV6.Metrics().SetEnable(true)
 	fV6.TxRx().Device().
-		SetTxNames([]string{agg1.ateAggName + ".ISISV6"}).
-		SetRxNames([]string{agg2.ateAggName + ".ISISV6", agg3.ateAggName + ".ISISV6", agg4.ateAggName + ".ISISV6"})
+		SetTxNames([]string{ateSrc.name + ".IPv6"}).
+		SetRxNames([]string{agg1.ateAggName + ".ISISV6", agg2.ateAggName + ".ISISV6", agg3.ateAggName + ".ISISV6"})
 	fV6.Size().SetFixed(1500)
 	fV6.Rate().SetPps(trafficv6PPS)
 	eV6 := fV6.Packet().Add().Ethernet()
@@ -330,9 +341,17 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	top := gosnappi.NewConfig()
 	pmd100GFRPorts := []string{}
 
-	for aggIdx, a := range []*aggPortData{agg1, agg2, agg3, agg4} {
-		p1 := ate.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+1))
-		p2 := ate.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
+	p0 := ate.Port(t, "port1")
+	top.Ports().Add().SetName(p0.ID())
+	srcDev := top.Devices().Add().SetName(ateSrc.name)
+	srcEth := srcDev.Ethernets().Add().SetName(ateSrc.name + ".Eth").SetMac(ateSrc.atePortMAC)
+	srcEth.Connection().SetPortName(p0.ID())
+	srcEth.Ipv4Addresses().Add().SetName(ateSrc.name + ".IPv4").SetAddress(ateSrc.ateIPv4).SetGateway(ateSrc.dutIPv4).SetPrefix(uint32(ipv4PLen))
+	srcEth.Ipv6Addresses().Add().SetName(ateSrc.name + ".IPv6").SetAddress(ateSrc.ateIPv6).SetGateway(ateSrc.dutIPv6).SetPrefix(uint32(ipv6PLen))
+
+	for aggIdx, a := range []*aggPortData{agg1, agg2, agg3} {
+		p1 := ate.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
+		p2 := ate.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+3))
 		top.Ports().Add().SetName(p1.ID())
 		top.Ports().Add().SetName(p2.ID())
 		if p1.PMD() == ondatra.PMD100GBASEFR {
@@ -389,10 +408,31 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
+	d := &oc.Root{}
+	p1 := dut.Port(t, "port1")
+
+	i := d.GetOrCreateInterface(p1.Name())
+
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	a4 := s4.GetOrCreateAddress(ateSrc.dutIPv4)
+	a4.PrefixLength = ygot.Uint8(ipv4PLen)
+
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	a6 := s6.GetOrCreateAddress(ateSrc.dutIPv6)
+	a6.PrefixLength = ygot.Uint8(ipv6PLen)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), i)
+
 	var aggIDs []string
-	for aggIdx, a := range []*aggPortData{agg1, agg2, agg3, agg4} {
+	for aggIdx, a := range []*aggPortData{agg1, agg2, agg3} {
 		b := &gnmi.SetBatch{}
-		d := &oc.Root{}
 
 		aggID := netutil.NextAggregateInterface(t, dut)
 		aggIDs = append(aggIDs, aggID)
@@ -422,8 +462,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
-		p1 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+1))
-		p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
+		p1 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
+		p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+3))
 		for _, port := range []*ondatra.Port{p1, p2} {
 			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 

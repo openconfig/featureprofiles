@@ -21,25 +21,25 @@ Each LAG bundle below is made up of 2x100G ports.
 
 ```mermaid
 graph LR;
-A[ATE1:LAG1] <-- IS-IS --> B[LAG1:DUT];
-C[DUT:LAG2] <-- IS-IS --> D[LAG1:ATE2];
-E[DUT:LAG3] <-- IS-IS --> F[LAG2:ATE2];
-G[DUT:LAG4] <-- IS-IS --> H[LAG3:ATE2];
+A[ATE1:INT] <-- IS-IS --> B[INT:DUT];
+C[DUT:LAG1] <-- IS-IS --> D[LAG1:ATE2];
+E[DUT:LAG2] <-- IS-IS --> F[LAG2:ATE2];
+G[DUT:LAG3] <-- IS-IS --> H[LAG3:ATE2];
 ```
 
 ## Procedure
 
 ### Test environment setup
 
-*   Configure 1 aggregate interface with 2 100GE ports between DUT and ATE1
+*   Configure 1 interface with 100GE ports between DUT and ATE1
 *   Configure 3 aggregate interfaces, each with 2 100GE ports between DUT and ATE2.
 *   Configure IPv4 and IPv6 L2 adjacencies between DUT and ATE aggregate interfaces.
     Therefore, DUT will have
-    * 1xIS-IS adjacency with ATE1 DUT:LAG1<->ATE1:LAG1, 
+    * 1xIS-IS adjacency with ATE1 DUT:INT<->ATE1:INT, 
     * 3xIS-IS adjacencies between DUT and ATE2
-        * DUT:LAG2<->ATE2:LAG1
-        * DUT:LAG3<->ATE2:LAG2
-        * DUT:LAG4<->ATE2:LAG3
+        * DUT:LAG1<->ATE2:LAG1
+        * DUT:LAG2<->ATE2:LAG2
+        * DUT:LAG3<->ATE2:LAG3
 
     * Set ISIS parameters as
         * /network-instances/network-instance/protocols/protocol/isis/global/
@@ -97,7 +97,7 @@ G[DUT:LAG4] <-- IS-IS --> H[LAG3:ATE2];
     ATE2:LAG1, ATE2:LAG2 and ATE2:LAG3 when the 3 LAG bundles have the same
     bandwidth available.
 
-    *   Traffic distribution between DUT:LAG2, DUT:LAG3 and DUT:LAG4 is expected
+    *   Traffic distribution between DUT:LAG1, DUT:LAG2 and DUT:LAG3 is expected
         to be ~33% each of the total traffic received on DUT:LAG1.
 
     *   Check for the following paths
@@ -126,7 +126,7 @@ G[DUT:LAG4] <-- IS-IS --> H[LAG3:ATE2];
 ### Verification
 
 *   It is expected that the IS-IS instance in DUT will unequally distribute the
-    traffic received from ATE1:LAG1 over the LAG bundles corresponding to
+    traffic received from ATE1:INT over the LAG bundles corresponding to
     ATE2:LAG1, ATE2:LAG2 and ATE3:LAG3.
 
     *   Traffic on DUT:LAG2 is expected to be ~20% while traffic on DUT:LAG3 and
