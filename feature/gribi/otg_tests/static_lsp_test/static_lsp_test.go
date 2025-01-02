@@ -187,12 +187,8 @@ func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, lspName string, in
 		}
 	} else {
 		d := &oc.Root{}
-		dni := deviations.DefaultNetworkInstance(dut)
-		defPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Update(t, dut, defPath.Config(), &oc.NetworkInstance{
-			Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
-			Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
-		})
+		// ConfigureDefaultNetworkInstance configures the default network instance name and type.
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
@@ -224,7 +220,7 @@ func createTrafficFlow(t *testing.T,
 	mplsFlow.Metrics().SetEnable(true)
 	mplsFlow.Rate().SetPps(500)
 	mplsFlow.Size().SetFixed(512)
-	mplsFlow.Duration().Continuous()
+	mplsFlow.Duration().FixedPackets().SetPackets(1500)
 
 	// Set up ethernet layer.
 	eth := mplsFlow.Packet().Add().Ethernet()
